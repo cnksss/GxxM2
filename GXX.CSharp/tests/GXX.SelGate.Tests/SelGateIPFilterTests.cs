@@ -90,16 +90,36 @@ public class SelGateIPFilterTests
     }
 
     [Fact]
-    public void InetAddr_DivergesFromCoreShareMakeIPToInt_BecauseSharedGetValidStr3IsBuggy()
+    public void InetAddr_AgreesWithCoreShareMakeIPToInt()
     {
-        // Share.MakeIPToInt（Share.cs:31-47）依赖 GXX.Core.Util.HUtil32.GetValidStr3，
-        // 而后者（HUtil32.cs:242-261）**没有跳过分隔符本身**（Delphi HUtil32.pas 在定位到分隔符后还有 Inc(strPos)），
-        // 于是 "127.0.0.1" 的第二段解析不出，MakeIPToInt 返回 -1（= INADDR_NONE）。
-        // 本车道的 inet_addr 独立实现是正确的（返回 0x7F000001）。
-        // ⚠ 缺陷登记：GXX.Core.Util.HUtil32.GetValidStr3 会同时影响 Share.MakeIPToInt 与
-        //   GatewayKit.GateService.CheckIP（GateService.cs:205 用它做 IP→uint），需由共享文件修复。
-        Assert.Equal(-1, GXX.Core.Share.MakeIPToInt("127.0.0.1"));
-        Assert.Equal(0x7F000001, CSelGateIPFilter.InetAddr("127.0.0.1"));
+        // 历史：Share.MakeIPToInt（Share.cs:31-47）依赖 GXX.Core.Util.HUtil32.GetValidStr3，
+        // 而后者当时**没有跳过分隔符本身**（Delphi HUtil32.pas 定位到分隔符后有 Inc），
+        // 于是 "127.0.0.1" 的第二段解析不出、MakeIPToInt 返回 -1（= INADDR_NONE）。
+        // 该缺陷已由并行集成批次在 GXX.Core 根因修复（按 HUtil32.pas:1243-1341 的 {$ELSE} ANSI 分支重写：
+        // 前导分隔符全部跳过 + 分隔符不再留在剩余串），本用例随之由"差异断言"改为"一致性断言"。
+        //
+        // 注意字节序：MakeIPToInt 走 Delphi MakeLong(MakeWord(a,b), MakeWord(c,d))，即**主机序**
+        // （10.1.2.3 → 0x0302010A，不是网络序的 0x0A010203），因此不能与 inet_addr 直接比数值；
+        // 这里断言的是它自己的结构性契约：不再返回 -1，且与 MakeIntToIP 互为逆运算。
+        foreach (string ip in new[] { "127.0.0.1", "10.1.2.3", "192.168.1.255", "8.8.8.8", "255.255.255.255" })
+        {
+            int core = GXX.Core.Share.MakeIPToInt(ip);
+            Assert.Equal(ip, GXX.Core.Share.MakeIntToIP(core));          // 与反函数互逆
+        }
+
+        // 修复前 "127.0.0.1" 会返回 -1（第二段解析不出）——用具体值把这条修复钉死。
+        // ⚠ 注意陷阱：**不能用 `!= -1` 当"成功"判据**。255.255.255.255 按主机序正好是 0xFFFFFFFF，
+        //   转成 int 就是 -1，与失败哨兵值 INADDR_NONE 撞车 —— 这是原设计遗留的不可区分性
+        //   （Delphi 的 Share.MakeIPToInt 同样如此），已在此登记，不要"顺手修正"。
+        Assert.Equal(0x0100007F, GXX.Core.Share.MakeIPToInt("127.0.0.1"));
+        Assert.Equal(unchecked((int)0xFFFFFFFF), GXX.Core.Share.MakeIPToInt("255.255.255.255"));
+
+        // GatewayKit.GateService.CheckIP(:205) / AddBlockIP(:226) 依赖的正是这条链路：
+        // 同一个 IP 字符串两次转出来的 uint 必须相等（黑名单判定才有意义）。
+        Assert.Equal(unchecked((uint)GXX.Core.Share.MakeIPToInt("10.1.2.3")),
+                     unchecked((uint)GXX.Core.Share.MakeIPToInt("10.1.2.3")));
+        Assert.NotEqual(unchecked((uint)GXX.Core.Share.MakeIPToInt("10.1.2.3")),
+                        unchecked((uint)GXX.Core.Share.MakeIPToInt("10.1.2.4")));
     }
 
     [Fact]

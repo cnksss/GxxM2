@@ -22,5 +22,8 @@
     <Project Path="tests/GXX.DBServer.Tests/GXX.DBServer.Tests.csproj" />
     <Project Path="tests/GXX.LogDataServer.Tests/GXX.LogDataServer.Tests.csproj" />
     <Project Path="tests/GXX.LoginSrv.Tests/GXX.LoginSrv.Tests.csproj" />
+    <Project Path="tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj" />
+    <Project Path="tests/GXX.SelGate.Tests/GXX.SelGate.Tests.csproj" />
+    <Project Path="tests/GXX.GameCenter.Tests/GXX.GameCenter.Tests.csproj" />
   </Folder>
 </Solution>
