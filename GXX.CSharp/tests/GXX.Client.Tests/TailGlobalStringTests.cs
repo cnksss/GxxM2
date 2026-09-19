@@ -24,7 +24,9 @@ namespace GXX.Client.Tests;
 /// </summary>
 public sealed class TailGlobalStringTests
 {
-    /// <summary>常量名 → 取值（反射读取，只取 <c>public const string</c>）。</summary>
+    /// <summary>
+    /// 常量名 → 取值（反射读取，只取 <c>public const string</c>）。
+    /// </summary>
     private static Dictionary<string, string> ReadConstants()
     {
         var t = typeof(GlobalString);
@@ -39,54 +41,13 @@ public sealed class TailGlobalStringTests
     }
 
     /// <summary>
-    /// 读取金标 TSV。金标以 <c>&lt;EmbeddedResource&gt;</c> 打进测试程序集
-    /// （见 <c>GXX.Client.Tests.csproj</c> 的 <c>Tail*.golden.tsv</c> 一条），因此
-    /// **不依赖**文件复制到输出目录，换测试运行器 / 换工作目录都不会失效。
+    /// 金标表：<c>TailGlobalStringGolden.g.cs</c>（由 <c>_scratch/gen_globalstring.py</c>
+    /// 从 GBK 原文抽取后生成，是**普通 .cs 源文件**——不占用共享 csproj，也不挂载任何资源）。
     /// </summary>
-    private static string[] ReadGoldenLines(string file)
-    {
-        var asm = typeof(TailGlobalStringTests).Assembly;
-        string res = "GXX.Client.Tests." + file;
-        using var s = asm.GetManifestResourceStream(res);
-        Assert.True(s != null, $"未找到内嵌资源 {res}（已含：{string.Join(", ", asm.GetManifestResourceNames())}）");
-        using var r = new StreamReader(s, System.Text.Encoding.UTF8);
-        return r.ReadToEnd().Replace("\r\n", "\n").Split('\n');
-    }
-
-    /// <summary>
-    /// 与生成器 <c>tsv_escape</c> 严格互逆的反转义（<c>\\</c>→<c>\</c>、<c>\t</c>、<c>\n</c>、<c>\r</c>）。
-    /// 生成器在写金标之前会做一次 V0 回读比对，保证两侧用的是同一条规则。
-    /// </summary>
-    private static string UnescapeTsv(string s)
-    {
-        var sb = new System.Text.StringBuilder(s.Length);
-        for (int i = 0; i < s.Length; i++)
-        {
-            char c = s[i];
-            if (c == '\\' && i + 1 < s.Length)
-            {
-                char n = s[i + 1];
-                sb.Append(n switch { '\\' => '\\', 't' => '\t', 'n' => '\n', 'r' => '\r', _ => n });
-                i++;
-                continue;
-            }
-            sb.Append(c);
-        }
-        return sb.ToString();
-    }
-
-    private static List<(string Name, int Line, string Mode, string Value)> ReadGolden()
-    {
-        var rows = new List<(string, int, string, string)>();
-        foreach (string raw in ReadGoldenLines("TailGlobalString.golden.tsv"))
-        {
-            if (raw.Length == 0) continue;
-            string[] p = raw.Split('\t');
-            Assert.Equal(4, p.Length);
-            rows.Add((p[0], int.Parse(p[1]), p[2], UnescapeTsv(p[3])));
-        }
-        return rows;
-    }
+    private static List<(string Name, int Line, string Value)> ReadGolden()
+        => TailGlobalStringGolden.Rows
+            .Select(r => (r.Name, r.Line, r.Value))
+            .ToList();
 
     // ── 用例 1：常量条数 ─────────────────────────────────────────────────
     [Fact]

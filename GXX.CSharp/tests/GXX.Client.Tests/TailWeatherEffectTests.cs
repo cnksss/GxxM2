@@ -20,23 +20,14 @@ public sealed class TailWeatherEffectTests
     private static List<(int Idx, bool Used, bool Dark, uint Index, string Music, uint Start, uint End, uint Tick)>
         ReadGolden()
     {
-        // 金标以 <EmbeddedResource> 打进测试程序集（见 GXX.Client.Tests.csproj），
-        // 因此不依赖文件复制到输出目录。
-        var asm = typeof(TailWeatherEffectTests).Assembly;
-        const string res = "GXX.Client.Tests.TailWeatherEffect.golden.tsv";
-        using var s = asm.GetManifestResourceStream(res);
-        Assert.True(s != null, $"未找到内嵌资源 {res}");
-        using var r = new System.IO.StreamReader(s, System.Text.Encoding.UTF8);
-        string[] lines = r.ReadToEnd().Replace("\r\n", "\n").Split('\n');
-
+        // 金标表 TailWeatherEffectGolden.g.cs 由 _scratch/gen_weathereffect.py 从原文抽取后
+        // 生成为**普通 .cs 源文件**（SDK 风格工程自动编译）——不占用共享 csproj、不挂资源。
         var rows = new List<(int, bool, bool, uint, string, uint, uint, uint)>();
-        foreach (string raw in lines)
+        foreach (int[] r in TailWeatherEffectGolden.Rows)
         {
-            if (raw.Length == 0) continue;
-            string[] p = raw.Split('\t');
-            Assert.Equal(8, p.Length);
-            rows.Add((int.Parse(p[0]), bool.Parse(p[1]), bool.Parse(p[2]), uint.Parse(p[3]),
-                      p[4], uint.Parse(p[5]), uint.Parse(p[6]), uint.Parse(p[7])));
+            Assert.Equal(7, r.Length);
+            // 原文 22 项的 sMusic 都是空串
+            rows.Add((r[0], r[1] != 0, r[2] != 0, (uint)r[3], "", (uint)r[4], (uint)r[5], (uint)r[6]));
         }
         return rows;
     }
@@ -149,10 +140,12 @@ public sealed class TailWeatherEffectTests
     [Fact]
     public void SourceLines_MapEveryEntryToItsDeclarationLine()
     {
-        var lines = WeatherEffectDef.SourceLines;
+        var lines = TailWeatherEffectGolden.SourceLines;
         Assert.Equal(22, lines.Length);
         Assert.Equal(22, lines[0]);
         Assert.Equal(43, lines[21]);
+        // 同时对照生产代码里的副本
+        Assert.Equal(lines, WeatherEffectDef.SourceLines);
         // 严格递增（原文每行一项）
         for (int i = 1; i < lines.Length; i++) Assert.Equal(lines[i - 1] + 1, lines[i]);
     }
