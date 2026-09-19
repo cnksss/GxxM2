@@ -63,7 +63,10 @@ public class TConfigDlgManage
         {
             ConfigObject.ConfigCheckeds[(int)(TConfigChecked)I] = ClientGlobalSeam.ClientConfig(I);
         }
-        ConfigObject.ConfigCheckeds[(int)TConfigChecked.ckSceneShake] = ClientGlobalSeam.ClientConfig(51);
+        // 原文 ConfigDlgManage.LoadPlugIn 第 88 行写死下标 51：
+        // 数组不足 52 项时按 Delphi 边界检查语义跳过（$R+ 下为运行时错误，此处保守跳过）。
+        if (ClientGlobalSeam.ClientConfigsLength() > 51)
+            ConfigObject.ConfigCheckeds[(int)TConfigChecked.ckSceneShake] = ClientGlobalSeam.ClientConfig(51);
         // {$IFEND}
 
         switch (ClientGlobalSeam.g_ClientVersion)
@@ -112,7 +115,10 @@ public class TConfigDlgManage
         for (int I = 0; I <= ConfigDlgList.Count - 1; I++)
         {
             ((TGameConfigObject)ConfigDlgList.GetObject(I)).Initialize(ClientGlobalSeam.frmMainHandle,
-                (byte)GXX.Core.Rtl.DelphiRTL.MakeLong(ClientGlobalSeam.g_nScreenWidth, ClientGlobalSeam.g_nScreenHeight),
+                // 注意：原文 `MakeLong(g_nScreenWidth, g_nScreenHeight)` 的结果作为 Byte 参数传入
+                // （原文声明的形参类型就是 Byte），这里用显式括号保证先 MakeLong 再截断，
+                // 而不是把 (byte) 作用到第一个实参上（那会选中 uint 重载）。
+                (byte)(GXX.Core.Rtl.DelphiRTL.MakeLong(ClientGlobalSeam.g_nScreenWidth, ClientGlobalSeam.g_nScreenHeight)),
                 ClientGlobalSeam.g_ClientVersion, ClientGlobalSeam.g_boWindowMode);
         }
     }
@@ -314,6 +320,9 @@ public class TStubGameConfigObject : TGameConfigObject
     /// <summary>对应原文子类的 <c>FConfigCheckeds:array[TConfigChecked] of Boolean</c>。</summary>
     public override bool[] ConfigCheckeds => _checkeds;
 
+    /// <summary>观测用：Finalize 被调用次数（原文 <c>procedure Finalize;</c> 无可观测副作用）。</summary>
+    public int FinalizeCalls;
+
     public override TConfigDlgType GetType() => _type;
     public override bool GetConfigChecked(TConfigChecked Index) => _checkeds[(int)Index];
     public override void SetConfigChecked(TConfigChecked Index, bool Value) => _checkeds[(int)Index] = Value;
@@ -327,7 +336,7 @@ public class TStubGameConfigObject : TGameConfigObject
     public override void Close() { }
     public override void LoadConfig(string CharName) { }
     public override void Initialize(IntPtr Handle, byte ScreenMode, TClientVersion ClientVersion, bool WindowMode) { }
-    public override void Finalize() { }
+    public override void Finalize() { FinalizeCalls++; }
     public override void Logon(string ServerName) { }
     public override void Logout() { }
     public override bool FormKeyDown(ref ushort Key, DelphiShiftState Shift) => false;
