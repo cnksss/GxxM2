@@ -589,7 +589,7 @@ public static class GuiComponentLoader
                         DxGuiFonts.DxFontAssign(dxLabel.BorderColor.Down, g.BorderColor.Down);
                         DxGuiFonts.DxFontAssign(dxLabel.BorderColor.Disabled, g.BorderColor.Disabled);
 
-                        dxLabel.ClickSound = g.ClickCount;
+                        dxLabel.ClickCount = g.ClickCount;
                         dxLabel.Style = g.Style;
                         dxLabel.Caption = string.Empty;
 
@@ -625,7 +625,7 @@ public static class GuiComponentLoader
                         DxGuiFonts.DxFontAssign(dxLabel.BorderColor.Down, g.BorderColor.Down);
                         DxGuiFonts.DxFontAssign(dxLabel.BorderColor.Disabled, g.BorderColor.Disabled);
 
-                        dxLabel.ClickSound = g.ClickCount;
+                        dxLabel.ClickCount = g.ClickCount;
                         dxLabel.Style = g.Style;
                         dxLabel.Caption = string.Empty;
 
