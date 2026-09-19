@@ -1,4 +1,4 @@
-﻿# 并行报告：车道 `par/p2-resources-pak`（par/p2-resources-pak）
+# 并行报告：车道 `par/p2-resources-pak`（par/p2-resources-pak）
 
 > 交付日期：2026-09-20 ｜ 分支：`par/p2-resources-pak` ｜ 基线：`main @ ab8b51d7`
 > 源单元：`Source\Client-HGE\ReadResources\Pak.pas`（3,199 行，GBK）
@@ -267,4 +267,10 @@
 
 ## 8. 提交记录
 
-（按切片提交，见 `git log --oneline par/p2-resources-pak`）
+```
+584f5d9e 并行批次P2：Pak.pas 记录布局/枚举/接缝层（PakEnums/PakTypes/PakCrypto/PakSeams）+ TPakImages 全量 1:1 移植
+7c8efdc7 并行批次P2：ResourcePakTests 92 例（合成字节 + 差异断言）与交付报告
+```
+
+`git diff --name-status ab8b51d7..HEAD` 全部为 `A`（新增），**无任何既有文件被修改**。
+`tools/verify-lanes.ps1`：`[OK] p2-resources-pak  commits=2  dirty=0  touched=7`。
