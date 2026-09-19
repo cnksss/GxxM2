@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 #  verify-lanes.ps1   (ASCII-only on purpose: Windows PowerShell 5.1 reads
 #  .ps1 as ANSI, so non-ASCII literals here would break parsing.)
 #
@@ -70,6 +70,14 @@ foreach ($name in $lanes) {
         $commits = [int](git -C $repo rev-list --count "$base..$branch")
     }
 
+    # paths that already existed before the lane started: only THOSE may not be
+    # modified.  A file the lane added earlier on its own branch is free to be
+    # edited again -- incremental slices do exactly that.
+    $basePaths = @{}
+    if ($base) {
+        foreach ($bp in (git -C $repo ls-tree -r --name-only $base)) { $basePaths[$bp] = $true }
+    }
+
     # ---- committed side: added vs modified/deleted -------------------------
     $committedPaths = @()
     if ($hasBranch -and $commits -gt 0) {
@@ -97,7 +105,9 @@ foreach ($name in $lanes) {
         $touched++
         if ($path -match $SCRATCH_RX) { $outOfZone.Add("SCRATCH [$stat] $path"); continue }
         if (-not (Test-InZone $path $globs)) { $outOfZone.Add("worktree [$stat] $path") }
-        elseif ($stat -notmatch '^\?\?') { $outOfZone.Add("MODIFIED-EXISTING [$stat] $path") }
+        elseif ($stat -notmatch '^\?\?' -and $basePaths.ContainsKey(($path -replace '\\', '/'))) {
+            $outOfZone.Add("MODIFIED-EXISTING [$stat] $path")
+        }
     }
 
     $dirty = ($wtPaths | Measure-Object).Count
