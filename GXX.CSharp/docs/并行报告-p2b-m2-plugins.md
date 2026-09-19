@@ -20,12 +20,13 @@
 
 | # | commit | 内容 |
 |---|---|---|
-| 1 | `（见下方 git log）` | ABI 层：`PluginInterfaceTypes.g.cs` + `PluginInterfaceTables.g.cs`（736 委托 / 21 个 Pack=1 记录） |
-| 2 | | 接缝层 + 托管接口层：`PluginInterfaceSeams.cs` + `PluginInterfaceManaged.g.cs` |
-| 3 | | 宿主实现：`PluginHostRuntime.cs` + `PluginInterfaceHost.cs` + `PluginInterfaceHost.Stubs.g.cs` |
-| 4 | | 装载层：`PluginAssemblyLoader.cs` |
-| 5 | | 测试 + 抽取清单（`Plugins*Tests.cs`、`PluginsData/**`） |
-| 6 | | 本报告 |
+| 1 | `38920a6d` | ABI 层：`PluginInterfaceTypes.g.cs` + `PluginInterfaceTables.g.cs`（736 委托 / 21 个 Pack=1 记录） |
+| 2 | `6b213c6d` | 接缝层 + 托管接口层：`PluginInterfaceSeams.cs` + `PluginInterfaceManaged.g.cs` |
+| 3 | `9c92e4a5` | 宿主实现：`PluginHostRuntime.cs` + `PluginInterfaceHost.cs` + `PluginInterfaceHost.Stubs.g.cs` |
+| 4 | `d145652b` | 装载层：`PluginAssemblyLoader.cs` |
+| 5 | `37a3ba02` | 测试 + 抽取清单/生成器（`Plugins*Tests.cs`、`PluginsData/**`） |
+| 6 | `05cba4ca` | 本报告 |
+| 7 | `（本提交）` | 报告补 commit hash |
 
 ---
 
@@ -197,7 +198,7 @@ PlugID 反查（NativeInt(TempPlug)=PlugID）→  PluginId 句柄 + IPluginHostE
 ## 5. 测试与门禁结果
 
 ```
-dotnet build GXX.slnx -c Debug --nologo           → 0 error（1 warning 为既有 xUnit2000）
+dotnet build GXX.slnx -c Debug --nologo           → 0 error（90 warning，全部为既有工程的警告，无本车道新增）
 dotnet test tests/GXX.M2Server.Tests/... -c Debug → 通过 5119 / 失败 0 / 跳过 0
    其中本车道新增 66 例（PluginsInterfaceManifestTests 9 + PluginsHostRuntimeTests 41 + PluginsAssemblyLoaderTests 16）
 ```
