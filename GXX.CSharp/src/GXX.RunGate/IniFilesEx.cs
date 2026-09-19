@@ -338,12 +338,13 @@ public class THashedStringListEx : TStringList
         return CaseSensitive ? FNameHash.ValueOf(name) : FNameHash.ValueOf(RtlAnsi.AnsiUpperCase(name));
     }
 
-    /// <summary>Names[]：取 NameValueSeparator 之前的键名（TStrings.Names 语义；ReadSection 依赖）。</summary>
+    /// <summary>Names[]：取 NameValueSeparator 之前的键名（TStrings.Names 语义；ReadSection 依赖）。
+    /// Delphi TStrings.GetName 在 P = 0（无分隔符）时返回整行，而不是空串。</summary>
     public string Names(int index)
     {
         string s = base[index];
         int p = s.IndexOf(NameValueSeparator);
-        return p > 0 ? s.Substring(0, p) : "";
+        return p > 0 ? s.Substring(0, p) : s;
     }
 
     /// <summary>测试可见：哈希索引是否已建立（断言惰性重建行为）。</summary>
@@ -383,15 +384,37 @@ public class THashedStringListEx : TStringList
     }
 }
 
+/// <summary>
+/// 节容器：对应原文 `FSections: TStringList`（实际构造为 THashedStringListEx）。
+/// 关键差异：原文 FSections 是 THashedStringListEx，其 `IndexOf` **受 CaseSensitive 控制**
+/// （原 IniFilesEx.pas:474-481），因此 CaseSensitive = False 时 [SEC] 与 [sec] 是同一节。
+/// GXX.Core.Util.TStringList.IndexOf 恒为 Ordinal，故在此补一个大小写感知的查找入口
+/// （等价于原文 THashedStringListEx.FValueHash 查找；不改动 GXX.Core 既有文件）。
+/// </summary>
+internal sealed class TSectionList : TStringList
+{
+    public int FindSection(string section)
+    {
+        for (int i = 0; i < Count; i++)
+        {
+            bool eq = CaseSensitive
+                ? string.Equals(this[i], section, StringComparison.Ordinal)
+                : string.Equals(RtlAnsi.AnsiUpperCase(this[i]), RtlAnsi.AnsiUpperCase(section), StringComparison.Ordinal);
+            if (eq) return i;
+        }
+        return -1;
+    }
+}
+
 /// <summary>TMemIniFileEx：全内存 INI（原 IniFilesEx.pas:101-124、540-801）。</summary>
 public class TMemIniFileEx : TCustomIniFileEx
 {
-    private readonly TStringList FSections;
+    private readonly TSectionList FSections;
 
     public TMemIniFileEx(string fileName) : base(fileName)
     {
         // 原 IniFilesEx.pas:540-548
-        FSections = new TStringList();
+        FSections = new TSectionList();
         LoadValues();
     }
 
@@ -432,7 +455,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     private THashedStringListEx AddSection(string section)
     {
         // 原 IniFilesEx.pas:558-575
-        int index = FSections.IndexOf(section);
+        int index = FSections.FindSection(section);
         if (index >= 0)
             return (THashedStringListEx)FSections.GetObject(index);
         var result = new THashedStringListEx { CaseSensitive = CaseSensitive };
@@ -443,7 +466,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     public override void DeleteKey(string section, string ident)
     {
         // 原 IniFilesEx.pas:586-599
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         if (i >= 0)
         {
             var strings = (THashedStringListEx)FSections.GetObject(i);
@@ -455,7 +478,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     public override void EraseSection(string section)
     {
         // 原 IniFilesEx.pas:601-611
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         if (i >= 0) FSections.Delete(i);
     }
 
@@ -488,7 +511,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     {
         // 原 IniFilesEx.pas:655-674：只取键名（SectionStrings.Names[J]）
         strings.Clear();
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         if (i >= 0)
         {
             var sectionStrings = (THashedStringListEx)FSections.GetObject(i);
@@ -509,7 +532,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     {
         // 原 IniFilesEx.pas:681-695：整行（Name=Value）按顺序拷贝
         strings.Clear();
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         if (i >= 0)
         {
             var sectionStrings = (THashedStringListEx)FSections.GetObject(i);
@@ -521,7 +544,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     public override string ReadString(string section, string ident, string def)
     {
         // 原 IniFilesEx.pas:697-715：命中即 Copy(Strings[I], Length(Ident)+2, Maxint)
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         if (i >= 0)
         {
             var strings = (THashedStringListEx)FSections.GetObject(i);
@@ -580,7 +603,7 @@ public class TMemIniFileEx : TCustomIniFileEx
     public override void WriteString(string section, string ident, string value)
     {
         // 原 IniFilesEx.pas:784-801
-        int i = FSections.IndexOf(section);
+        int i = FSections.FindSection(section);
         THashedStringListEx strings = i >= 0
             ? (THashedStringListEx)FSections.GetObject(i)
             : AddSection(section);
