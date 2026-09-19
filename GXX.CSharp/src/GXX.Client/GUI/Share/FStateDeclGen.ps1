@@ -22,7 +22,11 @@ $Handwritten = @(
   'Create','Destroy',
   'CloseDHeroGodBlessDlg','CloseDHeroJewelryBoxDlg',
   'RefrshDStorageViewDlgText','UpdateGuildJoinCondition',
-  'GetLastHistroySendSay','GetPreHistroySendSay','GetNextHistroySendSay'
+  'GetLastHistroySendSay','GetPreHistroySendSay','GetNextHistroySendSay',
+  'IsInputChatEdit','ShowChatEdit','HideChatEdit',
+  'ClearScreenMagicButtons','AddScreenMagicButton','DelScreenMagicButton','FindMagicButton',
+  'OnMagicButtonClick','OnMagicButtonDblClick','OnMagicButtonMove',
+  'SaveMagicButtons'
 )
 
 $lines = Get-Content -LiteralPath $Src -Encoding Default

@@ -429,7 +429,7 @@ public class TNpcButton : TDxImageButton
         m_nStopImageCount = 0;
         m_nImageIndex = 0;
 
-        m_dwPlayImageTick = MyGetTickCount;
+        m_dwPlayImageTick = FStateSeamClock.Now;
         m_dwPlayImageTime = 300;
 
         m_boBlend = false;
@@ -463,9 +463,9 @@ public class TNpcButton : TDxImageButton
 
         if (m_nStopImageCount > m_nStartImageIndex)
         {
-            if (MyGetTickCount - m_dwPlayImageTick > m_dwPlayImageTime)
+            if (FStateSeamClock.Now - m_dwPlayImageTick > m_dwPlayImageTime)
             {
-                m_dwPlayImageTick = MyGetTickCount;
+                m_dwPlayImageTick = FStateSeamClock.Now;
                 m_nImageIndex = m_nImageIndex + 1;
                 if ((m_nImageIndex < 0) || (m_nImageIndex > m_nStopImageCount))
                 {
@@ -603,7 +603,7 @@ public class TNpcLabel : TDxLabel
         m_sCmd = "";
         m_nColorIndex = 0;
         m_AutoColors = new TList();
-        m_dwAutoColorTick = MyGetTickCount;
+        m_dwAutoColorTick = FStateSeamClock.Now;
     }
 
     /// <summary>FState.pas:1211 destructor TNpcLabel.Destroy（原文先 Free 再 inherited）。</summary>
@@ -623,9 +623,9 @@ public class TNpcLabel : TDxLabel
         // 原文 inherited（TDxLabel.Update）
         if (m_AutoColors.Count > 0)
         {
-            if (MyGetTickCount - m_dwAutoColorTick > 600)
+            if (FStateSeamClock.Now - m_dwAutoColorTick > 600)
             {
-                m_dwAutoColorTick = MyGetTickCount;
+                m_dwAutoColorTick = FStateSeamClock.Now;
                 if ((m_nColorIndex < 0) || (m_nColorIndex >= m_AutoColors.Count))
                     m_nColorIndex = 0;
                 // 原文 CaptionColor.Up.Color := TColor(m_AutoColors.Items[m_nColorIndex]);
@@ -657,7 +657,7 @@ public class TCountDownLabel : TDxLabel
         m_CountDownValue = 0;
         m_OldCountDownValue = 0;
         m_LoopCount = 1;
-        m_UpdateTick = MyGetTickCount;
+        m_UpdateTick = FStateSeamClock.Now;
     }
 
     /// <summary>FState.pas:1242 destructor TCountDownLabel.Destroy（原文空体只调 inherited）。</summary>
@@ -734,7 +734,7 @@ public class TCountDownLabel : TDxLabel
             return;
         }
 
-        if (MyGetTickCount - m_UpdateTick >= 1000)
+        if (FStateSeamClock.Now - m_UpdateTick >= 1000)
         {
             m_UpdateTick = m_UpdateTick + 1000;
             m_CountDownValue = m_CountDownValue - 1;
@@ -774,7 +774,7 @@ public class TImgCountDownButton : TDxImageButton
         m_CountDownValue = 0;
         m_OldCountDownValue = 0;
         m_LoopCount = 1;
-        m_UpdateTick = MyGetTickCount;
+        m_UpdateTick = FStateSeamClock.Now;
 
         m_ImgStartIndex = 0;
         m_ImgSpace = 0;
@@ -822,7 +822,7 @@ public class TImgCountDownButton : TDxImageButton
             return;
         }
 
-        if (MyGetTickCount - m_UpdateTick > 1000)
+        if (FStateSeamClock.Now - m_UpdateTick > 1000)
         {
             m_UpdateTick = m_UpdateTick + 1000;
             m_CountDownValue = m_CountDownValue - 1;

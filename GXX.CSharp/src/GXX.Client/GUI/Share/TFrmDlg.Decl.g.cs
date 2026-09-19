@@ -429,18 +429,9 @@ public partial class TFrmDlg
     /// <summary>Source line 531 : Byte (public)</summary>
     public byte FExtBagPageCount;
 
-    /// <summary>Source line 493 : procedure OnMagicButtonClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void OnMagicButtonClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.OnMagicButtonClick: not ported yet (FState.pas:493)");
-    /// <summary>Source line 494 : procedure OnMagicButtonDblClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void OnMagicButtonDblClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.OnMagicButtonDblClick: not ported yet (FState.pas:494)");
     /// <summary>Source line 495 : procedure OnMagicButtonMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void OnMagicButtonMouseMove(object Sender, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.OnMagicButtonMouseMove: not ported yet (FState.pas:495)");
-    /// <summary>Source line 496 : procedure OnMagicButtonMove(Sender:TObject); stdcall;</summary>
-    public virtual void OnMagicButtonMove(object Sender)
-        => throw new NotSupportedException("TFrmDlg.OnMagicButtonMove: not ported yet (FState.pas:496)");
     /// <summary>Source line 499 : function CreateNpcQRButtonFromText(sText:string; AOwner:TDxControl; nX, nY:Integer; nDID:Integer):TNpcGraphicButton;</summary>
     public virtual TNpcGraphicButton CreateNpcQRButtonFromText(string sText, TDxControl AOwner, int nX, int nY, int nDID)
         => throw new NotSupportedException("TFrmDlg.CreateNpcQRButtonFromText: not ported yet (FState.pas:499)");
@@ -1928,33 +1919,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1080 : procedure UpdateShopMoneyInfo; virtual; abstract;</summary>
     public virtual void UpdateShopMoneyInfo()
         => throw new NotSupportedException("TFrmDlg.UpdateShopMoneyInfo: abstract in Delphi (FState.pas:1080)");
-    /// <summary>Source line 1085 : function IsInputChatEdit:Boolean;</summary>
-    public virtual bool IsInputChatEdit()
-        => throw new NotSupportedException("TFrmDlg.IsInputChatEdit: not ported yet (FState.pas:1085)");
-    /// <summary>Source line 1086 : procedure ShowChatEdit(IsSetFocus:Boolean = True);</summary>
-    public virtual void ShowChatEdit(bool IsSetFocus = true)
-        => throw new NotSupportedException("TFrmDlg.ShowChatEdit: not ported yet (FState.pas:1086)");
-    /// <summary>Source line 1087 : procedure HideChatEdit;</summary>
-    public virtual void HideChatEdit()
-        => throw new NotSupportedException("TFrmDlg.HideChatEdit: not ported yet (FState.pas:1087)");
-    /// <summary>Source line 1088 : function FindMagicButton(Magic:PTClientMagic):TMagicButton;</summary>
-    public virtual TMagicButton FindMagicButton(PTClientMagic Magic)
-        => throw new NotSupportedException("TFrmDlg.FindMagicButton: not ported yet (FState.pas:1088)");
-    /// <summary>Source line 1089 : procedure ClearScreenMagicButtons;</summary>
-    public virtual void ClearScreenMagicButtons()
-        => throw new NotSupportedException("TFrmDlg.ClearScreenMagicButtons: not ported yet (FState.pas:1089)");
-    /// <summary>Source line 1090 : procedure AddScreenMagicButton(Magic:PTClientMagic; const X, Y:Integer; IsSave:Boolean = True);</summary>
-    public virtual void AddScreenMagicButton(PTClientMagic Magic, int X, int Y, bool IsSave = true)
-        => throw new NotSupportedException("TFrmDlg.AddScreenMagicButton: not ported yet (FState.pas:1090)");
-    /// <summary>Source line 1091 : procedure DelScreenMagicButton(Magic:PTClientMagic); overload;</summary>
-    public virtual void DelScreenMagicButton(PTClientMagic Magic)
-        => throw new NotSupportedException("TFrmDlg.DelScreenMagicButton: not ported yet (FState.pas:1091)");
-    /// <summary>Source line 1092 : procedure DelScreenMagicButton(MagicID:Word); overload;</summary>
-    public virtual void DelScreenMagicButton(ushort MagicID)
-        => throw new NotSupportedException("TFrmDlg.DelScreenMagicButton: not ported yet (FState.pas:1092)");
-    /// <summary>Source line 1093 : procedure SaveMagicButtons;</summary>
-    public virtual void SaveMagicButtons()
-        => throw new NotSupportedException("TFrmDlg.SaveMagicButtons: not ported yet (FState.pas:1093)");
     /// <summary>Source line 1094 : procedure LoadMagicButtons;</summary>
     public virtual void LoadMagicButtons()
         => throw new NotSupportedException("TFrmDlg.LoadMagicButtons: not ported yet (FState.pas:1094)");

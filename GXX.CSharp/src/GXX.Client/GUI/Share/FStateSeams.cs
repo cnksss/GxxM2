@@ -413,9 +413,15 @@ public class TMemo
 public class THintLines
 {
     /// <summary>DrawScrn.pas THintLines.Add(Text:string; Color:TColor)。</summary>
-    public int Add(string text, TColor color)
+    public int Add(string text, TColor color) => Add(text, color, 9, TFontStyles.fsNone, false);
+
+    /// <summary>
+    /// DrawScrn.pas THintLines.Add(Text:string; Color:TColor; Size:Integer; Style:TFontStyles; Stroke:Boolean)。
+    /// 原文 GetHitLines（FState.pas:3650）调用的就是这个 5 参形态。
+    /// </summary>
+    public int Add(string text, TColor color, int size, TFontStyles style, bool stroke)
     {
-        Lines.Add(new HintLine(text, color));
+        Lines.Add(new HintLine(text, color, size, style, stroke));
         return Lines.Count - 1;
     }
 
@@ -425,17 +431,168 @@ public class THintLines
     /// <summary>逐行的文本与颜色（对应原文 THintLines 内部的记录项）。</summary>
     public readonly List<HintLine> Lines = new();
 
-    /// <summary>DrawScrn.pas THintLines 内一项：Text + Color。</summary>
+    /// <summary>DrawScrn.pas THintLines 内一项：Text + Color（+ 字号/字型/描边）。</summary>
     public readonly struct HintLine
     {
         public readonly string Text;
         public readonly TColor Color;
+        public readonly int Size;
+        public readonly TFontStyles Style;
+        public readonly bool Stroke;
 
-        public HintLine(string text, TColor color)
+        public HintLine(string text, TColor color, int size, TFontStyles style, bool stroke)
         {
             Text = text;
             Color = color;
+            Size = size;
+            Style = style;
+            Stroke = stroke;
         }
+    }
+}
+
+/// <summary>
+/// 原文 `MyGetTickCount`（= Windows GetTickCount，MShare.pas）的可用性接缝。
+///
+/// **为什么要有这一层**：FState.pas 的倒计时控件（TCountDownLabel / TImgCountDownButton）与
+/// NPC 动画控件（TNpcButton / TNpcLabel）的分支判据全部以 tick 差值作边界，其中
+/// `>= 1000`（TCountDownLabel）与 `> 1000`（TImgCountDownButton）**只差一个等号**。
+/// 用真实时钟无法确定性地命中"恰好等于 1000"这一格，也就无法对这两条分支写出可靠断言。
+/// 因此把时钟收敛到一个可注入的点：默认直通 <see cref="Environment.TickCount"/>（与原文
+/// `GetTickCount` 同语义，含 uint 回绕），测试可注入假时钟以精确落点。
+/// 调用点仍保持 `MyGetTickCount` 的取值语义 —— 这是本波次唯一为"可验证性"引入的接缝。
+/// </summary>
+public static class FStateSeamClock
+{
+    /// <summary>测试注入点；为 null 时直通 Environment.TickCount。</summary>
+    public static Func<uint> NowHandler;
+
+    /// <summary>原文 MyGetTickCount（Windows GetTickCount，uint 毫秒，会回绕）。</summary>
+    public static uint Now => NowHandler != null ? NowHandler() : (uint)Environment.TickCount;
+
+    /// <summary>测试复位。</summary>
+    public static void ResetForTests() => NowHandler = null;
+}
+
+/// <summary>Delphi Graphics.TFontStyles（set of，[Flags] 对应）。</summary>
+[Flags]
+public enum TFontStyles
+{
+    fsNone = 0,
+    fsBold = 1,
+    fsItalic = 2,
+    fsUnderline = 4,
+    fsStrikeOut = 8,
+}
+
+/// <summary>
+/// MShare.pas 的提示字体三函数：GetHintFontSize / GetHintFontStyle / GetHintFontStroke。
+/// 【接缝：待 MShare.pas 移植后接入真实实现（MShare.pas:11735-11760）】
+/// 注意：这三个函数**不在 FState.pas** —— 既往车道报告把它们记在 FState 名下，本车道已更正
+/// （见交付报告"既往事实更正"）。此处按原文调用形态做注入点，GetHitLines 原样传入这三个值。
+/// </summary>
+public static class MShareHintFont
+{
+    /// <summary>MShare.pas:11735 function GetHintFontSize:Integer（默认 9）。</summary>
+    public static Func<int> GetHintFontSizeHandler;
+    public static int GetHintFontSize() => GetHintFontSizeHandler?.Invoke() ?? 9;
+
+    /// <summary>MShare.pas:11740 function GetHintFontStyle(FontStyles:TFontStyles):TFontStyles。</summary>
+    public static Func<TFontStyles, TFontStyles> GetHintFontStyleHandler;
+    public static TFontStyles GetHintFontStyle(TFontStyles FontStyles)
+        => GetHintFontStyleHandler?.Invoke(FontStyles) ?? FontStyles;
+
+    /// <summary>MShare.pas:11752 function GetHintFontStroke(IsStroke:Boolean = False):Boolean。</summary>
+    public static Func<bool, bool> GetHintFontStrokeHandler;
+    public static bool GetHintFontStroke(bool IsStroke = false)
+        => GetHintFontStrokeHandler?.Invoke(IsStroke) ?? IsStroke;
+
+    /// <summary>测试复位。</summary>
+    public static void ResetForTests()
+    {
+        GetHintFontSizeHandler = null;
+        GetHintFontStyleHandler = null;
+        GetHintFontStrokeHandler = null;
+    }
+}
+
+/// <summary>
+/// MShare.pas TConfigClient 中 FState.pas 用到的、车道1 接缝未承载的成员。
+/// 【接缝：待 MShare.pas 移植后并入车道1 的 TConfigClient】
+/// </summary>
+public static class ConfigClientExt
+{
+    /// <summary>MShare.pas ItemHintTextConfig 的项类型（httNeedJob*）。</summary>
+    public enum TItemHintTextType
+    {
+        /// <summary>httNeedJobWarr（战士）</summary>
+        httNeedJobWarr = 0,
+        /// <summary>httNeedJobWizard（法师）</summary>
+        httNeedJobWizard = 1,
+        /// <summary>httNeedJobTaos（道士）</summary>
+        httNeedJobTaos = 2,
+    }
+
+    /// <summary>MShare.pas TItemHintTextInfo.Text（职业需求提示文本）。</summary>
+    public sealed class TItemHintTextInfo
+    {
+        public string Text = "";
+    }
+
+    /// <summary>MShare.pas g_ConfigClient.ItemHintTextConfig（按 TItemHintTextType 取项）。</summary>
+    public static TItemHintTextInfo[] ItemHintTextConfig =
+    {
+        new(), new(), new(),
+    };
+
+    /// <summary>MShare.pas g_ConfigClient.boDisableDrogMagicIcon（禁止拖动技能图标）。</summary>
+    public static byte boDisableDrogMagicIcon;
+
+    /// <summary>MShare.pas g_ConfigClient.boSaveMagicIconPosition（保存技能图标位置）。</summary>
+    public static byte boSaveMagicIconPosition;
+
+    /// <summary>测试复位。</summary>
+    public static void ResetForTests()
+    {
+        ItemHintTextConfig = new[] { new TItemHintTextInfo(), new TItemHintTextInfo(), new TItemHintTextInfo() };
+        boDisableDrogMagicIcon = 0;
+        boSaveMagicIconPosition = 0;
+    }
+}
+
+/// <summary>
+/// MShare.pas / ClMain.pas 中 TFrmDlg.SaveMagicButtons / LoadMagicButtons 需要而尚未移植的
+/// 路径与 INI 面。
+/// 【接缝：待 MShare.pas（g_sSelfFilePath / g_sPlugServerName / g_sPlugUserName /
+///   MAGIC_ICONS_INI_FILE）与 FastIniFile 接入后，把 Save/LoadMagicButtons 的 INI 主体补成 1:1】
+/// </summary>
+public static class MagicButtonIniSeam
+{
+    /// <summary>MShare.pas g_sSelfFilePath（客户端自身目录）。</summary>
+    public static string g_sSelfFilePath = ".\\";
+
+    /// <summary>MShare.pas g_sPlugServerName（当前服务器名，用于 INI 文件名）。</summary>
+    public static string g_sPlugServerName = "";
+
+    /// <summary>MShare.pas g_sPlugUserName（当前用户名经 ProcessFileNameSpecialChar 过滤后）。</summary>
+    public static string g_sPlugUserName = "";
+
+    /// <summary>MShare.pas MAGIC_ICONS_INI_FILE 的 Format 模板。</summary>
+    public static string MAGIC_ICONS_INI_FILE = "Config\\{0}_{1}_magic.ini";
+
+    /// <summary>
+    /// 真正的 INI 写盘。【接缝：待 FastIniFile 接入】
+    /// 参数为 (文件名, 段名/键名/值 三元组序列)。
+    /// </summary>
+    public static Action<string, IReadOnlyList<(string Section, string Key, int Value)>> WriteIniHandler;
+
+    /// <summary>测试复位。</summary>
+    public static void ResetForTests()
+    {
+        g_sSelfFilePath = ".\\";
+        g_sPlugServerName = "";
+        g_sPlugUserName = "";
+        WriteIniHandler = null;
     }
 }
 
@@ -586,11 +743,20 @@ public sealed class PTArrHintWindows
 /// <summary>DxControls.pas TDxControl 的 AddData1/AddData2/DisableHideCtrl 三个成员的外挂承载。</summary>
 public static class DxControlExt
 {
+    /// <summary>DxControls.pas TDxControl.OnMouseMove 的签名（Sender/Shift/X/Y）。</summary>
+    public delegate void TDxMouseMoveEvent(object sender, TShiftState shift, int x, int y);
+
+    /// <summary>DxControls.pas TDxControl.OnMove 的签名（Sender）。</summary>
+    public delegate void TDxMoveEvent(object sender);
+
     private sealed class Extra
     {
         public int AddData1;
         public int AddData2;
         public bool DisableHideCtrl;
+        public TDxMouseMoveEvent OnMouseMove;
+        public TDxMoveEvent OnMove;
+        public Action SetFocusHandler;
     }
 
     private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<
@@ -609,6 +775,18 @@ public static class DxControlExt
     /// <summary>DxControls.pas TDxControl.DisableHideCtrl（HideChatEdit 用：为真才真正隐藏）。</summary>
     public static bool GetDisableHideCtrl(GXX.Client.GUI.DxComponent.TDxControl c) => Of(c).DisableHideCtrl;
     public static void SetDisableHideCtrl(GXX.Client.GUI.DxComponent.TDxControl c, bool v) => Of(c).DisableHideCtrl = v;
+
+    /// <summary>DxControls.pas TDxControl.OnMouseMove（车道1 接缝只提供了 OnMouseMoveEx）。</summary>
+    public static TDxMouseMoveEvent GetOnMouseMove(GXX.Client.GUI.DxComponent.TDxControl c) => Of(c).OnMouseMove;
+    public static void SetOnMouseMove(GXX.Client.GUI.DxComponent.TDxControl c, TDxMouseMoveEvent v) => Of(c).OnMouseMove = v;
+
+    /// <summary>DxControls.pas TDxControl.OnMove（控件被拖动后触发，用于保存图标位置）。</summary>
+    public static TDxMoveEvent GetOnMove(GXX.Client.GUI.DxComponent.TDxControl c) => Of(c).OnMove;
+    public static void SetOnMove(GXX.Client.GUI.DxComponent.TDxControl c, TDxMoveEvent v) => Of(c).OnMove = v;
+
+    /// <summary>DxControls.pas TDxControl.SetFocus。【接缝：待 DxControls.pas 全量移植】</summary>
+    public static void SetFocus(GXX.Client.GUI.DxComponent.TDxControl c) => Of(c).SetFocusHandler?.Invoke();
+    public static void SetSetFocusHandler(GXX.Client.GUI.DxComponent.TDxControl c, Action v) => Of(c).SetFocusHandler = v;
 }
 
 /// <summary>

@@ -238,11 +238,38 @@ public sealed class GuiShareDeclTests
     [Fact]
     public void UnportedMembersThrowInsteadOfSilentlyReturningDefaults()
     {
-        // 反静默断言：任取一个未移植成员，调用必须抛异常（而不是返回 default）。
+        // 反静默断言：未移植成员被调用时必须抛异常（而不是返回 default 让调用方以为成功了）。
         var frm = new TFrmDlg();
         Assert.Throws<NotSupportedException>(() => frm.UpDate());
-        Assert.Throws<NotSupportedException>(() => frm.IsInputChatEdit());
         Assert.Throws<NotSupportedException>(() => frm.Destroy());
+        Assert.Throws<NotSupportedException>(() => frm.AddNpcMemo(null, 0, 0, null, "x"));
+        Assert.Throws<NotSupportedException>(() => frm.OpenDLoginDlg());
+    }
+
+    [Fact]
+    public void ImplementedMembersBehaveInsteadOfThrowing()
+    {
+        // 切片 2 已落地的成员不得再抛 NotSupportedException。
+        var frm = new TFrmDlg();
+        Assert.Equal("", frm.GetLastHistroySendSay());
+        Assert.Equal("", frm.GetPreHistroySendSay());
+        Assert.Equal("", frm.GetNextHistroySendSay());
+        frm.CloseDHeroGodBlessDlg();
+        frm.CloseDHeroJewelryBoxDlg();
+        frm.RefrshDStorageViewDlgText(false, 1, 2, 3, 4);
+        frm.UpdateGuildJoinCondition(0, 1, "m");
+        frm.ClearScreenMagicButtons();
+    }
+
+    [Fact]
+    public void IsInputChatEditKeepsTheOriginalNilBehaviour()
+    {
+        // 原文 `DEdChat.Visible and DEdChat.Enabled` 在 DEdChat = nil 时会 AV；
+        // 托管侧逐字保留该前提，表现为 NullReferenceException（**不额外加 nil 保护**，
+        // 以免把原文缺陷掩盖成"安全"行为）。
+        var frm = new TFrmDlg();
+        Assert.Null(frm.DEdChat);
+        Assert.Throws<NullReferenceException>(() => frm.IsInputChatEdit());
     }
 
     // ===================== C. 原文逐字回读 =====================
