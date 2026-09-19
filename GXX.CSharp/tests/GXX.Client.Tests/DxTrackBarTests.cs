@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using GXX.Client.DxComponent;
 using Xunit;
@@ -11,7 +11,7 @@ namespace GXX.Client.Tests;
 /// **SetPosition 不夹紧**（原文缺陷）、值→像素映射、拖动状态机与命中测试、
 /// Paint 里进度条与滑块两条 nW 公式的差异。
 /// </summary>
-public sealed class DXTrackBarTests
+public sealed class DxTrackBarTests
 {
     private static IDxImageLibrary Lib(params (int w, int h)[] sizes)
     {
