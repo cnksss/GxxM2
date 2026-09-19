@@ -238,26 +238,66 @@ public static class HUtil32
 
     // ---------------- GetValidStr 系列 ----------------
 
-    /// <summary>GetValidStr3：Str 以 Divider 分隔，Dest 取出第一段，返回余下字符串。</summary>
+    /// <summary>
+    /// GetValidStr3：按 Divider 切出第一段。
+    ///
+    /// 1:1 复刻 HUtil32.pas:1243-1341 的 {$ELSE}（ANSI）分支 —— Delphi 7 走的就是这一支；
+    /// UNICODE 分支(1263-1293)的循环体与之逐字相同，故两者语义一致。原文语义：
+    ///   * Dest 初值为「整个入参」，Result 初值为空串 —— 因此**无分隔符**时 Dest = 原串、Result = ""；
+    ///   * 「丢掉最前面的分隔符，不管多少个，只要是连一起的就全部丢掉」（原文 1278/1318 注释原文）；
+    ///   * 遇到字段内的第一个分隔符：Dest = 字段本体（**不含**分隔符），Result = 分隔符**之后**的剩余串；
+    ///   * 「如果只有最前面有分隔符，后面都没有」：Dest = 去掉前导分隔符后的剩余串，Result = ""；
+    ///   * Len = 0 或 DividerCount = 0 时：Dest = 原串、Result = ""。
+    ///
+    /// 修复记录（并行批次）：此前实现只跳过前导**空格**、且把分隔符**留在**返回的剩余串里
+    /// （Copy(str, strPos, strLen) 而 strPos 正指向分隔符）。后者会让
+    /// while ((s = HUtil32.GetValidStr3(s, ref d, div)) != "") 这类链式切割**原地打转**；
+    /// 前者会让以分隔符开头的行整行解析为空。车道4 与车道7 各自独立发现并绕开（本地复刻/接缝），
+    /// 此处按原文修正后，那两处本地复刻应改为转调本方法。
+    /// </summary>
     public static string GetValidStr3(string str, ref string dest, char[] divider)
     {
-        const char CH_SPACE = ' ';
-        int strLen = str.Length;
-        int strPos = 1;
-        int strAftPos;
-        dest = "";
-        if (strLen == 0) return str;
-        if (str[0] == CH_SPACE)
+        dest = str;                                                // 原文 1254: Dest := Str
+        string result = "";                                        // 原文 1255: Result := ''
+        int len = str.Length;                                      // 原文 1256
+        int dividerCount = divider == null ? 0 : divider.Length;   // 原文 1257
+        if (len == 0 || dividerCount == 0) return result;          // 原文 1258
+
+        bool isStart = false;                                      // 原文 1260
+        int startIndex = 1;                                        // 原文 1261（1-based）
+        for (int i = 1; i <= len; i++)
         {
-            str = KillFirstSpace(ref str);
-            strLen = str.Length;
+            char c = str[i - 1];                                   // 原文 1266: C := Str[I]
+
+            bool isFound = false;
+            for (int ii = 0; ii < dividerCount; ii++)
+            {
+                if (c == divider[ii]) { isFound = true; break; }    // 原文 1271-1275
+            }
+
+            if (isFound)
+            {
+                if (isStart)
+                {
+                    dest = Copy(str, startIndex, i - startIndex);   // 原文 1283
+                    result = Copy(str, i + 1, len - i);             // 原文 1284（分隔符被吃掉）
+                    return result;
+                }
+                // 原文 1279-1286：前导分隔符 -> 什么都不做，继续往后
+            }
+            else if (!isStart)
+            {
+                isStart = true;                                     // 原文 1288-1291
+                startIndex = i;
+            }
         }
-        while (strPos <= strLen && str[strPos - 1] == CH_SPACE) strPos++;
-        strAftPos = strPos;
-        while (strPos <= strLen && Array.IndexOf(divider, str[strPos - 1]) < 0) strPos++;
-        dest = Copy(str, strAftPos, strPos - strAftPos);
-        while (strPos <= strLen && str[strPos - 1] == CH_SPACE) strPos++;
-        return Copy(str, strPos, strLen);
+
+        // 原文 1295-1299: 如果只有最前面有分隔符，后面都没有，把最前面的分隔符全丢掉
+        if (startIndex > 1)
+        {
+            dest = Copy(str, startIndex, len - startIndex + 1);
+        }
+        return result;
     }
 
     public static string GetValidStr3_Ex(string str, ref string dest, char divider)

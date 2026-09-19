@@ -285,14 +285,19 @@ public class DelphiRTLTests
 /// <summary>HUtil32 工具函数测试。</summary>
 public class HUtil32Tests
 {
+    /// <summary>
+    /// 期望值按 HUtil32.pas:1243-1341 的 {$ELSE}(ANSI) 分支逐字推导（Delphi 7 走的正是这一支）。
+    /// 原文 1283-1284：Dest := Copy(Str, StartIndex, I-StartIndex); Result := Copy(Str, I+1, Len-I)
+    /// —— 分隔符**被吃掉**，不留在剩余串里。旧实现把分隔符留在剩余串中（并且只跳前导空格），
+    /// 那是对原文的误读；本批次已按原文修正（车道4/车道7 曾各自独立发现并绕开）。
+    /// </summary>
     [Fact]
     public void GetValidStr3_Basic()
     {
         string dest = "";
         string rest = HUtil32.GetValidStr3("abc,def", ref dest, new[] { ',' });
         Assert.Equal("abc", dest);
-        // Delphi 原实现：分隔符本身保留在剩余串中（仅跳过空格）
-        Assert.Equal(",def", rest);
+        Assert.Equal("def", rest);          // 原文 1284：分隔符被吃掉
     }
 
     [Fact]
@@ -301,7 +306,72 @@ public class HUtil32Tests
         string dest = "";
         string rest = HUtil32.GetValidStr3("  hello  world ", ref dest, new[] { ' ' });
         Assert.Equal("hello", dest);
-        Assert.Equal("world ", rest);
+        // 原文只在**最前面**跳分隔符；字段内第一个分隔符之后原样返回（不做"再跳空格"）
+        Assert.Equal(" world ", rest);
+    }
+
+    /// <summary>原文 1278/1318 注释：「丢掉最前面的分隔符，不管多少个，只要是连一起的就全部丢掉」。</summary>
+    [Fact]
+    public void GetValidStr3_SkipsAllLeadingDividers()
+    {
+        string dest = "";
+        string rest = HUtil32.GetValidStr3(",,,abc,def", ref dest, new[] { ',' });
+        Assert.Equal("abc", dest);
+        Assert.Equal("def", rest);
+    }
+
+    /// <summary>原文 1254/1255：Dest 初值为整个入参、Result 初值为空 —— 无分隔符时不切分。</summary>
+    [Fact]
+    public void GetValidStr3_NoDivider_KeepsWholeStringInDest()
+    {
+        string dest = "";
+        string rest = HUtil32.GetValidStr3("abc", ref dest, new[] { ',' });
+        Assert.Equal("abc", dest);
+        Assert.Equal("", rest);
+    }
+
+    /// <summary>原文 1295-1298：只有最前面有分隔符、后面都没有时，Dest 取去掉前导分隔符后的剩余串。</summary>
+    [Fact]
+    public void GetValidStr3_OnlyLeadingDividers_DestIsRemainder()
+    {
+        string dest = "";
+        string rest = HUtil32.GetValidStr3(",,abc", ref dest, new[] { ',' });
+        Assert.Equal("abc", dest);
+        Assert.Equal("", rest);
+    }
+
+    /// <summary>空串 / 空分隔符表：原文 1258 直接 Exit，Dest = 原串、Result = ""。</summary>
+    [Fact]
+    public void GetValidStr3_EmptyInputOrEmptyDivider()
+    {
+        string d1 = "x";
+        Assert.Equal("", HUtil32.GetValidStr3("", ref d1, new[] { ',' }));
+        Assert.Equal("", d1);
+
+        string d2 = "x";
+        Assert.Equal("", HUtil32.GetValidStr3("a,b", ref d2, new char[0]));
+        Assert.Equal("a,b", d2);
+    }
+
+    /// <summary>
+    /// 回归守卫 —— 本次修复的动因：修复前返回的剩余串仍以分隔符开头，使
+    /// while ((s = GetValidStr3(s, ref d, div)) != "") 这类链式 CSV 切割原地打转/丢字段；
+    /// 以分隔符开头的行更会被整行解析为空（FilterItems.LoadFormList、DBShare/AddrEdit 因此失效）。
+    /// </summary>
+    [Fact]
+    public void GetValidStr3_ChainYieldsEveryFieldAndTerminates()
+    {
+        var fields = new System.Collections.Generic.List<string>();
+        string s = ",布衣,1,abc,";
+        string d = "";
+        for (int guard = 0; guard < 20; guard++)
+        {
+            string rest = HUtil32.GetValidStr3(s, ref d, new[] { ',' });
+            fields.Add(d);
+            if (rest.Length == 0) break;
+            s = rest;
+        }
+        Assert.Equal(new[] { "布衣", "1", "abc" }, fields.ToArray());
     }
 
     [Fact]
