@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using GXX.Client.GUI.GameConfig;
@@ -1016,7 +1016,199 @@ internal static class GuiCfgTestEnv
 
     /// <summary>供 LoadControlFromStream 调用次序断言使用。</summary>
     public static readonly List<string> LoadControlCalls = new List<string>();
-}
 
+    // ================================================================================
+    // MirsConfigDlg.g_Config 的快照/还原
+    // --------------------------------------------------------------------------------
+    // MirsConfigDlg.pas 的 g_Config 是**单元级全局**（Delphi initialization 段零初始化 +
+    // 显式初值），测试之间会互相污染。这里在每个测试前后做深拷贝快照。
+    // ================================================================================
+
+    private static TMirsConfigDlg.TConfig _cfgSnap;
+    private static bool _snapSound, _snapBgs, _snapRepeatBgs;
+
+    private static bool _cfgSnapTaken;
+
+    /// <summary>
+    /// 只在**首个**测试实例上取一次 g_Config 的原始默认值快照。
+    /// 原因：g_Config 是静态单例，测试会改它；若每个测试都重新快照，就会把"被改过的值"当成基准。
+    /// </summary>
+    public static void SnapshotMirsConfigOnce()
+    {
+        if (_cfgSnapTaken) return;
+        _cfgSnapTaken = true;
+        SnapshotMirsConfig();
+    }
+
+    /// <summary>把当前 g_Config 深拷贝保存（须在 <see cref="Reset"/> 之后、任何修改之前调用）。</summary>
+    public static void SnapshotMirsConfig()
+    {
+        var s = TMirsConfigDlg.g_Config;
+        var c = new TMirsConfigDlg.TConfig
+        {
+            nFilterMinExp = s.nFilterMinExp,
+            nAutoUseMagicTime = s.nAutoUseMagicTime,
+            dwAutoUseMagicTick = s.dwAutoUseMagicTick,
+            boRenewSpecialIsAuto = s.boRenewSpecialIsAuto,
+            nRenewSpecialPercent = s.nRenewSpecialPercent,
+            nRenewSpecialTime = s.nRenewSpecialTime,
+            boRenewBookIsAuto = s.boRenewBookIsAuto,
+            nRenewBookPercent = s.nRenewBookPercent,
+            nRenewBookTime = s.nRenewBookTime,
+            nRenewBookNowBookIndex = s.nRenewBookNowBookIndex,
+            sRenewBookNowBookItem = s.sRenewBookNowBookItem,
+            nRenewHeroHPTime = s.nRenewHeroHPTime,
+            nRenewHeroHPPercent = s.nRenewHeroHPPercent,
+            nRenewHeroMPTime = s.nRenewHeroMPTime,
+            nRenewHeroMPPercent = s.nRenewHeroMPPercent,
+            boRenewHeroSpecialIsAuto = s.boRenewHeroSpecialIsAuto,
+            nRenewHeroSpecialTime = s.nRenewHeroSpecialTime,
+            nRenewHeroSpecialPercent = s.nRenewHeroSpecialPercent,
+            boRenewHeroLogOutIsAuto = s.boRenewHeroLogOutIsAuto,
+            nRenewHeroLogOutTime = s.nRenewHeroLogOutTime,
+            nRenewHeroLogOutPercent = s.nRenewHeroLogOutPercent,
+            boRenewCloseIsAuto = s.boRenewCloseIsAuto,
+            nRenewCloseTime = s.nRenewCloseTime,
+            nRenewClosePercent = s.nRenewClosePercent,
+            MedicaMode = s.MedicaMode,
+        };
+        Mp(s.CheckHpIsAutos, c.CheckHpIsAutos);
+        Mp(s.CheckHpPercents, c.CheckHpPercents);
+        Mp(s.CheckHpValues, c.CheckHpValues);
+        Mp(s.CheckHpCheckTimes, c.CheckHpCheckTimes);
+        Mp(s.CheckHpCheckTicks, c.CheckHpCheckTicks);
+        Mp(s.CheckHpUseTimes, c.CheckHpUseTimes);
+        Mp(s.CheckHpUseTicks, c.CheckHpUseTicks);
+        Mp(s.CheckMpIsAutos, c.CheckMpIsAutos);
+        Mp(s.CheckMpPercents, c.CheckMpPercents);
+        Mp(s.CheckMpValues, c.CheckMpValues);
+        Mp(s.CheckMpCheckTimes, c.CheckMpCheckTimes);
+        Mp(s.CheckMpCheckTicks, c.CheckMpCheckTicks);
+        Mp(s.CheckMpUseTimes, c.CheckMpUseTimes);
+        Mp(s.CheckMpUseTicks, c.CheckMpUseTicks);
+        Mp(s.RenewHPIsAutos, c.RenewHPIsAutos);
+        Mp(s.RenewHPPercents, c.RenewHPPercents);
+        Mp(s.RenewHPTimes, c.RenewHPTimes);
+        Mp(s.RenewHPTicks, c.RenewHPTicks);
+        Mp(s.RenewMPIsAutos, c.RenewMPIsAutos);
+        Mp(s.RenewMPPercents, c.RenewMPPercents);
+        Mp(s.RenewMPTimes, c.RenewMPTimes);
+        Mp(s.RenewMPTicks, c.RenewMPTicks);
+        Mp(s.RenewSpecialHPIsAutos, c.RenewSpecialHPIsAutos);
+        Mp(s.RenewSpecialHPPercents, c.RenewSpecialHPPercents);
+        Mp(s.RenewSpecialHPTimes, c.RenewSpecialHPTimes);
+        Mp(s.RenewSpecialHPTicks, c.RenewSpecialHPTicks);
+        Mp(s.RenewSpecialMPIsAutos, c.RenewSpecialMPIsAutos);
+        Mp(s.RenewSpecialMPPercents, c.RenewSpecialMPPercents);
+        Mp(s.RenewSpecialMPTimes, c.RenewSpecialMPTimes);
+        Mp(s.RenewSpecialMPTicks, c.RenewSpecialMPTicks);
+        Mp(s.UseSuperMedicas, c.UseSuperMedicas);
+        Mp(s.SuperMedicaItemNames, c.SuperMedicaItemNames);
+        Mp(s.SuperMedicaUses, c.SuperMedicaUses);
+        Mp(s.SuperMedicaHPs, c.SuperMedicaHPs);
+        Mp(s.SuperMedicaHPTimes, c.SuperMedicaHPTimes);
+        Mp(s.SuperMedicaHPTicks, c.SuperMedicaHPTicks);
+        Mp(s.SuperMedicaMPs, c.SuperMedicaMPs);
+        Mp(s.SuperMedicaMPTimes, c.SuperMedicaMPTimes);
+        Mp(s.SuperMedicaMPTicks, c.SuperMedicaMPTicks);
+        _cfgSnap = c;
+
+        _snapSound = MirsConfigGlobalSeam.g_boSound;
+        _snapBgs = MirsConfigGlobalSeam.g_boBGSound;
+        _snapRepeatBgs = MirsConfigGlobalSeam.g_boRepeatBGSound;
+    }
+
+    /// <summary>把 <see cref="SnapshotMirsConfig"/> 保存的状态写回 g_Config。</summary>
+    public static void RestoreMirsConfig()
+    {
+        if (_cfgSnap == null) return;
+        var s = TMirsConfigDlg.g_Config;
+        var c = _cfgSnap;
+        s.nFilterMinExp = c.nFilterMinExp;
+        s.nAutoUseMagicTime = c.nAutoUseMagicTime;
+        s.dwAutoUseMagicTick = c.dwAutoUseMagicTick;
+        s.boRenewSpecialIsAuto = c.boRenewSpecialIsAuto;
+        s.nRenewSpecialPercent = c.nRenewSpecialPercent;
+        s.nRenewSpecialTime = c.nRenewSpecialTime;
+        s.boRenewBookIsAuto = c.boRenewBookIsAuto;
+        s.nRenewBookPercent = c.nRenewBookPercent;
+        s.nRenewBookTime = c.nRenewBookTime;
+        s.nRenewBookNowBookIndex = c.nRenewBookNowBookIndex;
+        s.sRenewBookNowBookItem = c.sRenewBookNowBookItem;
+        s.nRenewHeroHPTime = c.nRenewHeroHPTime;
+        s.nRenewHeroHPPercent = c.nRenewHeroHPPercent;
+        s.nRenewHeroMPTime = c.nRenewHeroMPTime;
+        s.nRenewHeroMPPercent = c.nRenewHeroMPPercent;
+        s.boRenewHeroSpecialIsAuto = c.boRenewHeroSpecialIsAuto;
+        s.nRenewHeroSpecialTime = c.nRenewHeroSpecialTime;
+        s.nRenewHeroSpecialPercent = c.nRenewHeroSpecialPercent;
+        s.boRenewHeroLogOutIsAuto = c.boRenewHeroLogOutIsAuto;
+        s.nRenewHeroLogOutTime = c.nRenewHeroLogOutTime;
+        s.nRenewHeroLogOutPercent = c.nRenewHeroLogOutPercent;
+        s.boRenewCloseIsAuto = c.boRenewCloseIsAuto;
+        s.nRenewCloseTime = c.nRenewCloseTime;
+        s.nRenewClosePercent = c.nRenewClosePercent;
+        s.MedicaMode = c.MedicaMode;
+        Mp(c.CheckHpIsAutos, s.CheckHpIsAutos);
+        Mp(c.CheckHpPercents, s.CheckHpPercents);
+        Mp(c.CheckHpValues, s.CheckHpValues);
+        Mp(c.CheckHpCheckTimes, s.CheckHpCheckTimes);
+        Mp(c.CheckHpCheckTicks, s.CheckHpCheckTicks);
+        Mp(c.CheckHpUseTimes, s.CheckHpUseTimes);
+        Mp(c.CheckHpUseTicks, s.CheckHpUseTicks);
+        Mp(c.CheckMpIsAutos, s.CheckMpIsAutos);
+        Mp(c.CheckMpPercents, s.CheckMpPercents);
+        Mp(c.CheckMpValues, s.CheckMpValues);
+        Mp(c.CheckMpCheckTimes, s.CheckMpCheckTimes);
+        Mp(c.CheckMpCheckTicks, s.CheckMpCheckTicks);
+        Mp(c.CheckMpUseTimes, s.CheckMpUseTimes);
+        Mp(c.CheckMpUseTicks, s.CheckMpUseTicks);
+        Mp(c.RenewHPIsAutos, s.RenewHPIsAutos);
+        Mp(c.RenewHPPercents, s.RenewHPPercents);
+        Mp(c.RenewHPTimes, s.RenewHPTimes);
+        Mp(c.RenewHPTicks, s.RenewHPTicks);
+        Mp(c.RenewMPIsAutos, s.RenewMPIsAutos);
+        Mp(c.RenewMPPercents, s.RenewMPPercents);
+        Mp(c.RenewMPTimes, s.RenewMPTimes);
+        Mp(c.RenewMPTicks, s.RenewMPTicks);
+        Mp(c.RenewSpecialHPIsAutos, s.RenewSpecialHPIsAutos);
+        Mp(c.RenewSpecialHPPercents, s.RenewSpecialHPPercents);
+        Mp(c.RenewSpecialHPTimes, s.RenewSpecialHPTimes);
+        Mp(c.RenewSpecialHPTicks, s.RenewSpecialHPTicks);
+        Mp(c.RenewSpecialMPIsAutos, s.RenewSpecialMPIsAutos);
+        Mp(c.RenewSpecialMPPercents, s.RenewSpecialMPPercents);
+        Mp(c.RenewSpecialMPTimes, s.RenewSpecialMPTimes);
+        Mp(c.RenewSpecialMPTicks, s.RenewSpecialMPTicks);
+        Mp(c.UseSuperMedicas, s.UseSuperMedicas);
+        Mp(c.SuperMedicaItemNames, s.SuperMedicaItemNames);
+        Mp(c.SuperMedicaUses, s.SuperMedicaUses);
+        Mp(c.SuperMedicaHPs, s.SuperMedicaHPs);
+        Mp(c.SuperMedicaHPTimes, s.SuperMedicaHPTimes);
+        Mp(c.SuperMedicaHPTicks, s.SuperMedicaHPTicks);
+        Mp(c.SuperMedicaMPs, s.SuperMedicaMPs);
+        Mp(c.SuperMedicaMPTimes, s.SuperMedicaMPTimes);
+        Mp(c.SuperMedicaMPTicks, s.SuperMedicaMPTicks);
+        // 注意：_cfgSnap **不置 null** —— 它是"原始默认值"的长期基准，每个测试都要能还原到它。
+
+        MirsConfigGlobalSeam.g_boSound = _snapSound;
+        MirsConfigGlobalSeam.g_boBGSound = _snapBgs;
+        MirsConfigGlobalSeam.g_boRepeatBGSound = _snapRepeatBgs;
+    }
+
+    private static void Mp(bool[] from, bool[] to) { for (int i = 0; i < Math.Min(from.Length, to.Length); i++) to[i] = from[i]; }
+    private static void Mp(int[] from, int[] to) { for (int i = 0; i < Math.Min(from.Length, to.Length); i++) to[i] = from[i]; }
+    private static void Mp(uint[] from, uint[] to) { for (int i = 0; i < Math.Min(from.Length, to.Length); i++) to[i] = from[i]; }
+    private static void Mp(string[] from, string[] to) { for (int i = 0; i < Math.Min(from.Length, to.Length); i++) to[i] = from[i]; }
+    private static void Mp(bool[,] from, bool[,] to)
+    {
+        for (int i = 0; i < from.GetLength(0) && i < to.GetLength(0); i++)
+            for (int j = 0; j < from.GetLength(1) && j < to.GetLength(1); j++) to[i, j] = from[i, j];
+    }
+    private static void Mp(int[,] from, int[,] to)
+    {
+        for (int i = 0; i < from.GetLength(0) && i < to.GetLength(0); i++)
+            for (int j = 0; j < from.GetLength(1) && j < to.GetLength(1); j++) to[i, j] = from[i, j];
+    }
+}
 [CollectionDefinition("GuiCfgConfigure", DisableParallelization = true)]
 public sealed class GuiCfgConfigureCollection { }
