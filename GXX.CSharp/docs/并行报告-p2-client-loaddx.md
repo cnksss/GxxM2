@@ -578,6 +578,22 @@ TDxControl main = refMain.Value;
 
 ### 10.5 未完成 / 依赖（需调度会话决策）
 
+**复验命令（可复制）**：在本工作树执行以下两行即可复现 §10.4 ③ 的全绿状态
+（把对方车道的两个文件临时放进本车道目录 —— 编译单位只看命名空间，不看目录；
+验证完请删除 `_verify_ref`）：
+
+```powershell
+$wt = 'D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p2-client-loaddx'
+$dst = "$wt\GXX.CSharp\src\GXX.Client\LoadDx\_verify_ref"
+New-Item -ItemType Directory -Force -Path $dst | Out-Null
+cmd /c "cd /d `"$wt`" && git show par/p2-dxcontrols-rest:GXX.CSharp/src/GXX.Client/DxComponent/DxControls.cs  > `"$dst\DxControls.cs`""
+cmd /c "cd /d `"$wt`" && git show par/p2-dxcontrols-rest:GXX.CSharp/src/GXX.Client/DxComponent/DxImageForm.cs > `"$dst\DxImageForm.cs`""
+cd "$wt\GXX.CSharp"; dotnet build GXX.slnx -c Debug --nologo          # 期望 0 error
+dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug  # 期望 2430 passed / 0 failed
+Remove-Item -LiteralPath $dst -Recurse -Force
+```
+
+**依赖清单**：
 1. **本车道分支无法独立构建**：去重后本车道引用了 `p2-dxcontrols-rest` 的
    `src/GXX.Client/DxComponent/{DxControls.cs,DxImageForm.cs}`，而本工作树还没有这两个文件。
    解决方式（任一）：
