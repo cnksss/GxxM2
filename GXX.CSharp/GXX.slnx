@@ -19,5 +19,8 @@
     <Project Path="tests/GXX.GatewayKit.Tests/GXX.GatewayKit.Tests.csproj" />
     <Project Path="tests/GXX.Integration.Tests/GXX.Integration.Tests.csproj" />
     <Project Path="tests/GXX.M2Server.Tests/GXX.M2Server.Tests.csproj" />
+    <Project Path="tests/GXX.DBServer.Tests/GXX.DBServer.Tests.csproj" />
+    <Project Path="tests/GXX.LogDataServer.Tests/GXX.LogDataServer.Tests.csproj" />
+    <Project Path="tests/GXX.LoginSrv.Tests/GXX.LoginSrv.Tests.csproj" />
   </Folder>
 </Solution>
