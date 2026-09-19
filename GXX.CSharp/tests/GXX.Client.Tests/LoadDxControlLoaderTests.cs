@@ -225,7 +225,7 @@ public sealed class LoadDxControlLoaderTests
         var label = Assert.IsType<TDxLabel>(slots[0]);
         Assert.True(label.AutoSize);
         Assert.Equal(TButtonStyle.bsRadio, label.Style);
-        Assert.Equal(3, (int)label.ClickSound);
+        Assert.Equal(3, (int)label.ClickCount);
         Assert.Equal(TDxAlignment.taCenter, label.Alignment);   // TDxImageButton 构造默认，原文此分支未赋值
     }
 
