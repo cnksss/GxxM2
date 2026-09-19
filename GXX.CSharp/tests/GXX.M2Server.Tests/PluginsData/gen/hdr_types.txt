@@ -1,0 +1,17 @@
+// =====================================================================================
+// PluginInterface.pas 1:1 转换（Source/M2Engine/PluginInterface.pas，3304 行；本文件含 736 个 procedural type）。
+//
+// 原文是给"原生 DLL 插件"用的 C 风格 stdcall 函数指针表。托管侧保留两套表达：
+//   1) ABI 层（本文件 + PluginInterfaceTables.g.cs + PluginInterfaceHost.cs）：
+//      [UnmanagedFunctionPointer(StdCall)] 委托 + Pack=1 结构，字段顺序与 Reserved
+//      占位与原文逐字一致，可与原版原生 DLL 对照/互操作。
+//   2) 托管层（PluginInterfaceManaged.cs）：I* 接口，成员与原文函数指针一一对应。
+//
+// 类型映射：BOOL→int（Windows.BOOL 为 4 字节，约定 0/1）、DWORD→uint、Word→ushort、
+//   Byte→byte、ShortInt→sbyte、SmallInt→short、Integer→int、Int64→long、
+//   NativeInt/Pointer/THandle→IntPtr、Real→double、PAnsiChar→byte[]（GBK 文本缓冲，
+//   `Dest: PAnsiChar; var DestLen: DWORD` 为出参缓冲）、pT*→ref T*（packed 指针）、
+//   `_T*` 是原文暴露给外部插件的别名（_TList = TList …），托管侧映射为接缝接口。
+//
+// 逐条来源与行号见 PluginInterface.manifest.tsv（脚本抽取 + 测试回读比对）。
+// =====================================================================================
