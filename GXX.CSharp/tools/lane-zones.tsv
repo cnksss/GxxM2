@@ -21,3 +21,7 @@ p2c-common-crypto	GXX.CSharp/src/GXX.Core/Crypto/AESUtils*.cs;GXX.CSharp/src/GXX
 p2c-client-tail	GXX.CSharp/src/GXX.Client/Tail/**;GXX.CSharp/tests/GXX.Client.Tests/Tail*;GXX.CSharp/docs/并行报告-p2c-client-tail.md
 p3-m2-dbdata	!GXX.CSharp/src/GXX.M2Server/DbLayer/**;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerM2Data*;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerAuction*;!GXX.CSharp/docs/并行报告-p3-m2-dbdata.md
 p3-dx-big	GXX.CSharp/src/GXX.Client/DxComponent/Dib*.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxMemo*.cs;GXX.CSharp/tests/GXX.Client.Tests/DxCtlDib*;GXX.CSharp/tests/GXX.Client.Tests/DxCtlMemo*;GXX.CSharp/docs/并行报告-p3-dx-big.md
+p3-m2-sweep	GXX.CSharp/src/GXX.M2Server/Sweep/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep*;GXX.CSharp/docs/并行报告-p3-m2-sweep.md
+# ---- P4 wave (2026-09-20): the four unowned giants ----
+p4-rungate-mirclient	!GXX.CSharp/src/GXX.RunGate/MirClientContext*.cs;GXX.CSharp/tests/GXX.RunGate.Tests/MirClient*;!GXX.CSharp/docs/并行报告-p4-rungate-mirclient.md
+p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;GXX.CSharp/tests/GXX.M2Server.Tests/Npc*;!GXX.CSharp/docs/并行报告-p4-m2-objnpc.md

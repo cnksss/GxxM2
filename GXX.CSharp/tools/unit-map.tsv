@@ -2,50 +2,86 @@
 #
 # Read by tools/audit-coverage.ps1 (evidence E4). A row here means the unit is
 # OWNED BY A LANE AND IN FLIGHT -- it is reported as ASSIGNED, never as MAPPED.
-# Remove a row once the unit's C# port has landed on main and is detected by E1/E2.
+#
+# E1/E2 (real .cs evidence) take PRECEDENCE over E4, so a row whose port has
+# already landed is reported MAPPED anyway: a stale row can never hide finished
+# work.  Keep the file refreshed once per wave; a row that is no longer in any
+# lane's charter must be DELETED, otherwise it hides a real gap from UNMAPPED.
 #
 # Columns: <Delphi unit basename> \t <lane branch> [\t note]
 # Key is the basename only, so duplicate basenames (e.g. AsyncCalls.pas exists in
 # M2Engine, Client-HGE and RunGate) match all copies; keep that in mind.
+# Do NOT add a row for a unit whose lane does not actually own every copy.
 #
-# ---- wave P1 (2026-09-19) ----
-HeroWindowsDlg	par/lane-client-gui-mir
-Mir185WindowsDlg	par/lane-client-gui-mir
-MirSequelDlg	par/lane-client-gui-mir
-Mir176WindowsDlg	par/lane-client-gui-mir
-MirNewUI205Dlg	par/lane-client-gui-mir
-Wzl	par/lane-resources
-Uib	par/lane-resources
-Wis	par/lane-resources
-IniFilesEx	par/lane-rungate-utils
-ParadoxConv	par/lane-rungate-utils
-RunGatePluginInterface	par/lane-rungate-utils
-VerifyCodeUtils	par/lane-rungate-utils
-EncryptUnit_LF	par/lane-rungate-utils
-uIPDownThread	par/lane-rungate-utils
-Ranking	par/lane-dbserver-utils
-RouteEdit	par/lane-dbserver-utils
-FDBexpl	par/lane-dbserver-utils
-AddrEdit	par/lane-dbserver-utils
-uRunGateList	par/lane-dbserver-utils
-RouteManage	par/lane-dbserver-utils
-Setting	par/lane-dbserver-utils
-CreateId	par/lane-dbserver-utils
-TestSelGate	par/lane-dbserver-utils
-DXConsts	par/lane-dxcomponent
-DxCanvas	par/lane-dxcomponent
-DxLabel	par/lane-dxcomponent
-DxLine	par/lane-dxcomponent
-DxImageProgress	par/lane-dxcomponent
-DXTrackBar	par/lane-dxcomponent
-BasicSet	par/lane-login-logdata
-MySqlAccountDB	par/lane-login-logdata
-uFrmDataManager	par/lane-login-logdata
-uFrmBatchEditAccountInfo	par/lane-login-logdata
-FrmFindId	par/lane-login-logdata
-EditUserInfo	par/lane-login-logdata
-MonSoc	par/lane-login-logdata
-FAccountView	par/lane-login-logdata
-LogManage	par/lane-login-logdata
-uFastFileStream	par/lane-login-logdata
-uFrmRemoteQuerySetting	par/lane-login-logdata
+# ---- P4 wave (2026-09-20): the four unowned giants ----
+MirClientContext	par/p4-rungate-mirclient
+ObjNpc	par/p4-m2-objnpc
+#
+# ---- P2 wave, still in flight ----
+RunGateUtils	par/p2-rungate-impl
+IocpWinsock2	par/p2-rungate-impl
+IocpUtils	par/p2-rungate-impl
+IocpTcpClient	par/p2-rungate-impl
+IocpTcpServer	par/p2-rungate-impl
+IocpCommon	par/p2-rungate-impl
+uBuffer	par/p2-rungate-impl
+IODataPool	par/p2-rungate-impl
+Qos	par/p2-rungate-impl
+DllUpdateCommon	par/p2-rungate-impl
+uFrmGameSpeed	par/p2-rungate-impl
+uFrmSafeFilter	par/p2-rungate-impl
+uFrmMagicCD	par/p2-rungate-impl
+uFrmItemEatCD	par/p2-rungate-impl
+uFrmInterval	par/p2-rungate-impl
+uFrmMessageFilter	par/p2-rungate-impl
+uFrmProcessBlacklist	par/p2-rungate-impl
+uFrmReadFileIP	par/p2-rungate-impl
+uFrmLogClientPacketSetting	par/p2-rungate-impl
+uFrmAddProcessBlack	par/p2-rungate-impl
+uFrmHitInterval	par/p2-rungate-impl
+uFrmAntiPlugUpdateSetting	par/p2-rungate-impl
+# NOTE: ParadoxDataSet.pas exists in BOTH RunGate and GameCenter (same basename,
+# 1240 lines each).  No lane owns it yet -- deliberately left UNMAPPED so the
+# duplicate-source decision is made once, by the integrator.
+# ---- P3 wave, still in flight ----
+MySqlM2DataDB	par/p3-m2-dbdata
+SqliteM2DataDB	par/p3-m2-dbdata
+MySqlAuctionDB	par/p3-m2-dbdata
+SqliteAuctionDB	par/p3-m2-dbdata
+DIB	par/p3-dx-big
+DxMemo	par/p3-dx-big
+Nations	par/p3-m2-sweep
+PowerBase64	par/p3-m2-sweep
+ItemEvent	par/p3-m2-sweep
+MemoryModuleEx	par/p3-m2-sweep
+GameGoldDealDB	par/p3-m2-sweep
+HTTPService	par/p3-m2-sweep
+PathFindClient	par/p3-m2-sweep
+PathFind_Hero	par/p3-m2-sweep
+M2Locker	par/p3-m2-sweep
+ObjDummy	par/p3-m2-sweep
+ObjRobot	par/p3-m2-sweep
+ObjGuard	par/p3-m2-sweep
+ObjFireDragon	par/p3-m2-sweep
+UserShopDB_Old	par/p3-m2-sweep
+ConfigMerchant	par/p3-m2-sweep
+ViewHeroRcd	par/p3-m2-sweep
+ViewKernelInfo	par/p3-m2-sweep
+uAliyunSendSMSThread	par/p3-m2-sweep
+DataManage	par/p3-m2-sweep
+M2Threads	par/p3-m2-sweep
+NoticeM	par/p3-m2-sweep
+StruckDamageAbsorbUtils	par/p3-m2-sweep
+StringListHelper	par/p3-m2-sweep
+ClientPickItemsCfg	par/p3-m2-sweep
+ConfigMonGen	par/p3-m2-sweep
+# ---- DxComponent tree, owned wholesale by one lane ----
+DxMagicBall	par/p2-dxcontrols-rest
+DxImageButtonEx	par/p2-dxcontrols-rest
+DxSwitchButton	par/p2-dxcontrols-rest
+DxControlClpbrd	par/p2-dxcontrols-rest
+DxGroupAttackProgress	par/p2-dxcontrols-rest
+AsphyreTimer	par/p2-dxcontrols-rest
+LoginDlg	par/p2-dxcontrols-rest
+StreamClipbrd	par/p2-dxcontrols-rest
+GuiManage	par/p2-dxcontrols-rest

@@ -107,6 +107,14 @@ foreach ($d in $Dir) {
         if ($VENDOR_UNITS -contains $f.BaseName) { $isVendor = $true }
 
         $unit = $f.BaseName
+
+        # A Delphi unit name is an ASCII identifier.  A .pas file whose BASENAME
+        # carries non-ASCII characters (e.g. a "-<backup suffix>" copy kept beside
+        # the real unit) cannot be a compilable unit reference of this project: it
+        # is a hand-kept backup or annotated copy.  Report it separately -- never
+        # as "missing work".  Written with an escape so this script stays ASCII-only.
+        $isNonUnit = $unit -match '[^\x00-\x7F]'
+
         $e1 = $csByBase.ContainsKey($unit.ToLowerInvariant())
         $e2 = $false
         $e2w = $false
@@ -129,6 +137,7 @@ foreach ($d in $Dir) {
         # NOT finished. It must never be counted as mapped.
         # WEAK = only a non-header mention exists: explicitly NOT a port.
         $verdict = if ($isVendor) { 'VENDOR' }
+                   elseif ($isNonUnit) { 'NONUNIT' }
                    elseif ($mapped) { 'MAPPED' }
                    elseif ($e2w) { 'WEAK' }
                    elseif ($e4) { 'ASSIGNED' }
@@ -148,12 +157,13 @@ $byDir = $rows | Group-Object Dir | ForEach-Object {
     [pscustomobject]@{
         Dir         = $_.Name
         Units       = $g.Count
-        Mapped      = ($g | Where-Object Verdict -eq 'MAPPED').Count
-        Weak        = ($g | Where-Object Verdict -eq 'WEAK').Count
-        Assigned    = ($g | Where-Object Verdict -eq 'ASSIGNED').Count
-        ChecklistOn = ($g | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
-        Unmapped    = ($g | Where-Object Verdict -eq 'UNMAPPED').Count
-        Vendor      = ($g | Where-Object Verdict -eq 'VENDOR').Count
+        Mapped      = @($g | Where-Object Verdict -eq 'MAPPED').Count
+        Weak        = @($g | Where-Object Verdict -eq 'WEAK').Count
+        Assigned    = @($g | Where-Object Verdict -eq 'ASSIGNED').Count
+        ChecklistOn = @($g | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
+        Unmapped    = @($g | Where-Object Verdict -eq 'UNMAPPED').Count
+        Vendor      = @($g | Where-Object Verdict -eq 'VENDOR').Count
+        NonUnit     = @($g | Where-Object Verdict -eq 'NONUNIT').Count
         UnmappedKB  = [math]::Round((($g | Where-Object Verdict -eq 'UNMAPPED') | Measure-Object KB -Sum).Sum)
     }
 } | Sort-Object -Property UnmappedKB -Descending
@@ -164,15 +174,16 @@ $byDir | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
 
 $tot = [pscustomobject]@{
     Units       = $rows.Count
-    Mapped      = ($rows | Where-Object Verdict -eq 'MAPPED').Count
-    Weak        = ($rows | Where-Object Verdict -eq 'WEAK').Count
-    Assigned    = ($rows | Where-Object Verdict -eq 'ASSIGNED').Count
-    ChecklistOn = ($rows | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
-    Unmapped    = ($rows | Where-Object Verdict -eq 'UNMAPPED').Count
-    Vendor      = ($rows | Where-Object Verdict -eq 'VENDOR').Count
+    Mapped      = @($rows | Where-Object Verdict -eq 'MAPPED').Count
+    Weak        = @($rows | Where-Object Verdict -eq 'WEAK').Count
+    Assigned    = @($rows | Where-Object Verdict -eq 'ASSIGNED').Count
+    ChecklistOn = @($rows | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
+    Unmapped    = @($rows | Where-Object Verdict -eq 'UNMAPPED').Count
+    Vendor      = @($rows | Where-Object Verdict -eq 'VENDOR').Count
+    NonUnit     = @($rows | Where-Object Verdict -eq 'NONUNIT').Count
 }
-Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  vendor={6}" -f `
-    $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor) -ForegroundColor Green
+Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  vendor={6}  non-unit={7}" -f `
+    $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
 
 Write-Host ''
 Write-Host '=== top UNMAPPED by size (candidate next batches) ===' -ForegroundColor Yellow
@@ -196,16 +207,16 @@ if ($Report) {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Totals')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| units | mapped | assigned (in flight) | checklist-only | unmapped | vendor |')
-    [void]$sb.AppendLine('|---|---|---|---|---|---|')
-    [void]$sb.AppendLine("| $($tot.Units) | $($tot.Mapped) | $($tot.Assigned) | $($tot.ChecklistOn) | $($tot.Unmapped) | $($tot.Vendor) |")
+    [void]$sb.AppendLine('| units | mapped | assigned (in flight) | checklist-only | unmapped | vendor | non-unit |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|')
+    [void]$sb.AppendLine("| $($tot.Units) | $($tot.Mapped) | $($tot.Assigned) | $($tot.ChecklistOn) | $($tot.Unmapped) | $($tot.Vendor) | $($tot.NonUnit) |")
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Per module')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | units | mapped | assigned | checklist-only | unmapped | vendor | unmapped KB |')
-    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|')
+    [void]$sb.AppendLine('| dir | units | mapped | assigned | checklist-only | unmapped | vendor | non-unit | unmapped KB |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|')
     foreach ($r in $byDir) {
-        [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.UnmappedKB) |")
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## ASSIGNED units (owned by a parallel lane, work in flight)')
@@ -231,6 +242,14 @@ if ($Report) {
     foreach ($r in ($rows | Where-Object Verdict -eq 'CHECKLIST_ONLY' | Sort-Object KB -Descending)) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) |")
     }
+    [void]$sb.AppendLine('## NON-UNIT files (backup / annotated copies -- NOT a coverage gap)')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | file | lines | KB | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object Verdict -eq 'NONUNIT' | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
+    }
+    [void]$sb.AppendLine('')
     [System.IO.File]::WriteAllText($reportMd, $sb.ToString(), (New-Object System.Text.UTF8Encoding($false)))
     Write-Host "report written: $reportMd" -ForegroundColor Green
 }
