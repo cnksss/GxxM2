@@ -207,9 +207,20 @@ public sealed class TDxLabel : TDxImageButton
         if (!Transparent)
             Painter.FillRect(vtRect, vtRect, vbRect, BackgroundColor);
 
+        // 原文 175-194：先按 Enabled/MouseDowned/Checked/MouseMoveed 选字体，
+        // 再在「按下或选中」时取按下偏移；最后 Style <> bsButton 时把偏移清零。
         int x = 0;
         int y = 0;
         var font = SelectCaptionFont();
+        if (Enabled)
+        {
+            if (MouseDowned || Checked)
+            {
+                x = CaptionDownOffsetX;
+                y = CaptionDownOffsetY;
+            }
+        }
+
         if (Style != TButtonStyle.bsButton)
         {
             x = 0;
