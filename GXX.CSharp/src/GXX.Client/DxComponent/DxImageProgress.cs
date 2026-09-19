@@ -281,7 +281,11 @@ public sealed class TDxImageProgress : TDxControl
         var result = new TDxImageProgressPaintResult();
 
         var vbRect = VisibleRect;
-        if (vbRect.Bottom <= vbRect.Top || vbRect.Right <= vbRect.Left) return result;
+        if (vbRect.Bottom <= vbRect.Top || vbRect.Right <= vbRect.Left)
+        {
+            // 原文如此（256）：退化时**连 Designing 边框都不画**，直接 Exit。
+            return result;
+        }
         var vtRect = VirtualRect;
 
         Painter = painter ?? Painter;

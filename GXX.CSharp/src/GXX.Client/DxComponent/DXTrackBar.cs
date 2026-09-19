@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace GXX.Client.DxComponent;
@@ -91,6 +91,12 @@ public sealed class TDXTrackBar : TDxControl
     /// <summary>DXTrackBar.pas 30 FIsDownSlider（只读暴露，测试用）。</summary>
     public bool IsDownSlider => _isDownSlider;
 
+    /// <summary>
+    /// 测试接缝：直接置位 FIsDownSlider（原文该字段为 private，正常只由 MouseDown/MouseUp 改写）。
+    /// 仅用于构造「已按下」这一中间状态，避免必须依赖滑块图与命中坐标才能进入拖动分支。
+    /// </summary>
+    public void SetDownSliderProbe(bool value) => _isDownSlider = value;
+
     /// <summary>DXTrackBar.pas 199-206 SetMax 1:1（`FPosition := Max` 是 Delphi 的 Max 函数）。</summary>
     public void SetMax(int value)
     {
@@ -98,7 +104,7 @@ public sealed class TDXTrackBar : TDxControl
         {
             _max = value;
             if (_position > _max)
-                _position = Math.Max(_position, _max);   // 原文 FPosition := Max;（= Math.Max 语义）
+                _position = _max;   // 原文 FPosition := Max;（Delphi Math.Max(a,b) 双参 → 直接赋 FMax）
         }
     }
 
