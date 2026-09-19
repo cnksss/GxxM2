@@ -1,4 +1,4 @@
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 
 namespace GXX.Client.GUI.Mir;
 
@@ -26,7 +26,7 @@ public class THeroWindows : TSerialWindows
     }
 
     /// <summary>HeroWindowsDlg.pas:73 destructor THeroWindows.Destroy。</summary>
-    public new void Destroy()
+    public void Destroy()
     {
         // inherited;      // 原文仅调用继承析构（托管侧由 Dispose/GC 承接）
     }

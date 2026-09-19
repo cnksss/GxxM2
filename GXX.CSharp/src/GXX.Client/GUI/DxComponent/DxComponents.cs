@@ -1,4 +1,4 @@
-namespace GXX.Client.DxComponent;
+namespace GXX.Client.GUI.DxComponent;
 
 // ============================================================================================
 // 【接缝】DxComponent 单元（Source/Client-HGE/DxComponent/DxComponents.pas）—— 本车道仅用到其中

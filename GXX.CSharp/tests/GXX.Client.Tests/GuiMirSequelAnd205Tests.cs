@@ -1,6 +1,6 @@
 using System.IO;
 using GXX.Client.GUI.Mir;
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 using GXX.Client.Scenes;
 using Xunit;
 

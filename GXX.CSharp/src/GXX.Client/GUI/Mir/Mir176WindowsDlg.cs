@@ -1,4 +1,4 @@
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 using GXX.Core.Protocol;
 using GXX.Core.Rtl;
 

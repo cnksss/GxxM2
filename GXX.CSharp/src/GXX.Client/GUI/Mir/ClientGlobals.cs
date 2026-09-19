@@ -1,6 +1,6 @@
 using System;
 using System.Drawing;
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 using GXX.Client.Scenes;
 using GXX.Core.Protocol;
 using GXX.Core.Util;
