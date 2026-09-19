@@ -14,27 +14,22 @@ namespace GXX.Integration.Tests;
 [Collection("Sequential")]
 public class LoginSrvIntegrationTests
 {
-    private static int FreePort()
-    {
-        var l = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        l.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-        int port = ((IPEndPoint)l.LocalEndPoint!).Port;
-        l.Close();
-        return port;
-    }
-
     [Fact]
     public void Client_ThroughGate_ToLoginSrv_RegisterAndLogin()
+        // 端口 TOCTOU 竞态 / 等待超时属于瞬时失败，整场景重试；断言失败不重试（见 IntegrationRetry 注释）
+        => IntegrationRetry.Run(RunOnce);
+
+    private static void RunOnce()
     {
-        int gatePort = FreePort();
-        int srvPort = FreePort();
+        IntegrationRetry.CleanupLeftovers("test_account");
+        int gatePort = IntegrationRetry.FreePort();
+        int srvPort = IntegrationRetry.FreePort();
 
         // ---- 启动 LoginSrv ----
-        string dbFile = System.IO.Path.Combine(AppContext.BaseDirectory, "test_account.db");
-        if (System.IO.File.Exists(dbFile)) System.IO.File.Delete(dbFile);
+        string dbFile = IntegrationRetry.UniqueDbFile("test_account");
         using var loginSrv = new LoginSrvService(dbFile);
         loginSrv.GatePort = srvPort;
-        Assert.True(loginSrv.StartService());
+        IntegrationRetry.RequireStarted(loginSrv.StartService(), "LoginSrvService");
 
         // ---- 启动 LoginGate ----
         using var gate = new LoginGateService();
@@ -42,7 +37,7 @@ public class LoginSrvIntegrationTests
         gate.GatePort = gatePort;
         gate.ServerAddr = "127.0.0.1";
         gate.ServerPort = srvPort;
-        Assert.True(gate.StartService());
+        IntegrationRetry.RequireStarted(gate.StartService(), "LoginGateService");
 
         // ---- 客户端 ----
         using var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);

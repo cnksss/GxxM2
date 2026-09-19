@@ -30,7 +30,9 @@ $zoneFile = Join-Path $PSScriptRoot 'lane-zones.tsv'
 if (-not (Test-Path $zoneFile)) { throw "missing $zoneFile" }
 
 $zones = @{}
-foreach ($line in Get-Content $zoneFile) {
+# -Encoding UTF8 is required: the zone file holds non-ASCII report paths, and
+# PS 5.1 would otherwise decode it as ANSI and produce false OUT-OF-ZONE hits.
+foreach ($line in (Get-Content $zoneFile -Encoding UTF8)) {
     if ($line -match '^\s*#' -or $line -match '^\s*$') { continue }
     $parts = $line -split "`t"
     if ($parts.Count -lt 2) { continue }
@@ -49,14 +51,34 @@ function Test-InZone {
     return $false
 }
 
-$SCRATCH_RX = '(^|/)(_tmp_src|\.tmp-src|_tmp|\.tmp|_probe|\.probe|_scratch|tmp_src|_recon|\.recon|_scan|\.scan)/'
+# Scratch / build-intermediate directories that must never be committed.
+# Matched CASE-SENSITIVELY (-cmatch below) so that a legitimate Delphi unit such
+# as Source/Client-HGE/DxComponent/Objects.pas is not mistaken for an 'obj*' dir.
+# obj*/bin* are included because .gitignore only covers exactly 'obj/' and 'bin/',
+# so a lane running MSBuild with a custom -p:BaseIntermediateOutputPath (seen in
+# practice: obj_s/, obj_subB/) would otherwise get its intermediates committed.
+$SCRATCH_RX = '(^|/)(_tmp[^/]*|\.tmp[^/]*|_probe[^/]*|\.probe[^/]*|_recon[^/]*|\.recon[^/]*|_scan[^/]*|\.scan[^/]*|_stage[^/]*|\.stage[^/]*|_salvage[^/]*|\.scratch[^/]*|_scratch[^/]*|obj[^/]*|bin[^/]*)/'
+
+# A glob prefixed with '!' is an ALLOW-MODIFY grant: the lane may also change
+# files that already existed (used for the few lanes whose job is fixing an
+# existing shared file, e.g. the GXX.Core RTL/bool-stringification repair).
+# Everything else keeps the default rule: lanes may only ADD files.
+function Split-ZoneGlobs([string[]]$Globs) {
+    $allow = @(); $allowMod = @()
+    foreach ($g in $Globs) {
+        if ($g.StartsWith('!')) { $allowMod += $g.Substring(1) } else { $allow += $g }
+    }
+    return [pscustomobject]@{ Allow = $allow; AllowMod = $allowMod }
+}
 
 $lanes = if ($Lane) { $Lane } else { $zones.Keys | Sort-Object }
 $problems = 0
 
 foreach ($name in $lanes) {
     if (-not $zones.ContainsKey($name)) { Write-Host "[skip] no zone row for $name" -ForegroundColor DarkGray; continue }
-    $globs  = $zones[$name]
+    $split  = Split-ZoneGlobs $zones[$name]
+    $globs  = $split.Allow
+    $modGlobs = $split.AllowMod
     $branch = "par/$name"
     $wt     = Join-Path $repo ".worktrees\$name"
 
@@ -95,17 +117,19 @@ foreach ($name in $lanes) {
         $cols = $entry -split "`t"
         $stat = $cols[0]; $path = $cols[-1]
         $touched++
-        if (-not (Test-InZone $path $globs)) { $outOfZone.Add("committed [$stat] $path") }
-        elseif ($stat -ne 'A') { $outOfZone.Add("MODIFIED-EXISTING [$stat] $path") }
+        $mayModify = Test-InZone $path $modGlobs
+        if (-not (Test-InZone $path $globs) -and -not $mayModify) { $outOfZone.Add("committed [$stat] $path") }
+        elseif ($stat -ne 'A' -and -not $mayModify) { $outOfZone.Add("MODIFIED-EXISTING [$stat] $path") }
     }
     foreach ($entry in $wtPaths) {
         if (-not $entry) { continue }
         $stat = $entry.Substring(0, 2)
         $path = $entry.Substring(3).Trim('"')
         $touched++
-        if ($path -match $SCRATCH_RX) { $outOfZone.Add("SCRATCH [$stat] $path"); continue }
-        if (-not (Test-InZone $path $globs)) { $outOfZone.Add("worktree [$stat] $path") }
-        elseif ($stat -notmatch '^\?\?' -and $basePaths.ContainsKey(($path -replace '\\', '/'))) {
+        if ($path -cmatch $SCRATCH_RX) { $outOfZone.Add("SCRATCH [$stat] $path"); continue }
+        $mayModify = Test-InZone $path $modGlobs
+        if (-not (Test-InZone $path $globs) -and -not $mayModify) { $outOfZone.Add("worktree [$stat] $path") }
+        elseif ($stat -notmatch '^\?\?' -and -not $mayModify -and $basePaths.ContainsKey(($path -replace '\\', '/'))) {
             $outOfZone.Add("MODIFIED-EXISTING [$stat] $path")
         }
     }

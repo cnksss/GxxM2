@@ -16,20 +16,15 @@ namespace GXX.Integration.Tests;
 [Collection("Sequential")]
 public class LoginGateIntegrationTests
 {
-    private static int FreePort()
-    {
-        var l = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-        l.Bind(new IPEndPoint(IPAddress.Loopback, 0));
-        int port = ((IPEndPoint)l.LocalEndPoint!).Port;
-        l.Close();
-        return port;
-    }
-
     [Fact]
     public void LoginGate_ForwardsClientToServer_AndBack()
+        // 端口 TOCTOU 竞态 / 等待超时属于瞬时失败，整场景重试；断言失败不重试（见 IntegrationRetry 注释）
+        => IntegrationRetry.Run(RunOnce);
+
+    private static void RunOnce()
     {
-        int gatePort = FreePort();
-        int srvPort = FreePort();
+        int gatePort = IntegrationRetry.FreePort();
+        int srvPort = IntegrationRetry.FreePort();
 
         // ---- 模拟 LoginSrv ----
         var receivedFrames = new ConcurrentQueue<(uint SockId, ushort Cmd, byte[] Data)>();
@@ -78,22 +73,14 @@ public class LoginGateIntegrationTests
         gate.GatePort = gatePort;
         gate.ServerAddr = "127.0.0.1";
         gate.ServerPort = srvPort;
-        Assert.True(gate.StartService());
+        IntegrationRetry.RequireStarted(gate.StartService(), "LoginGateService");
 
         // ---- 客户端 ----
         using var client = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
         client.Connect(IPAddress.Loopback, gatePort);
 
         // 等待 GM_OPEN（此前可能先收到 GM_CHECKSERVER 心跳帧）
-        Assert.True(gotFrame.WaitOne(30000), "LoginSrv 未收到任何帧");
-        (uint SockId, ushort Cmd, byte[] Data) frame = default;
-        var deadline = DateTime.UtcNow.AddSeconds(30);
-        while (DateTime.UtcNow < deadline)
-        {
-            if (receivedFrames.TryDequeue(out frame) && frame.Cmd == GatewayProtocol.GM_OPEN) break;
-            if (!receivedFrames.IsEmpty) continue;
-            gotFrame.WaitOne(500);
-        }
+        var frame = IntegrationRetry.RequireFrame(receivedFrames, gotFrame, GatewayProtocol.GM_OPEN, 30, "GM_OPEN");
         Assert.Equal(GatewayProtocol.GM_OPEN, frame.Cmd);
 
         // 客户端发送 CM_IDPASSWORD（6Bit 编码后的 TDefaultMessage 帧）
@@ -103,7 +90,7 @@ public class LoginGateIntegrationTests
         byte[] payload = EDcode.EncodeMessage(msg);
         client.Send(payload);
 
-        frame = WaitFrame(receivedFrames, gotFrame, GatewayProtocol.GM_DATA, 30);
+        frame = IntegrationRetry.RequireFrame(receivedFrames, gotFrame, GatewayProtocol.GM_DATA, 30, "GM_DATA");
         Assert.Equal(GatewayProtocol.GM_DATA, frame.Cmd);
         TDefaultMessage back = EDcode.DecodeMessage(frame.Data);
         Assert.Equal(2001, back.Ident);
@@ -119,25 +106,9 @@ public class LoginGateIntegrationTests
 
         // 客户端断开 → GM_CLOSE
         client.Close();
-        frame = WaitFrame(receivedFrames, gotFrame, GatewayProtocol.GM_CLOSE, 30);
+        frame = IntegrationRetry.RequireFrame(receivedFrames, gotFrame, GatewayProtocol.GM_CLOSE, 30, "GM_CLOSE");
         Assert.Equal(GatewayProtocol.GM_CLOSE, frame.Cmd);
 
         listener.Close();
-    }
-
-    private static (uint SockId, ushort Cmd, byte[] Data) WaitFrame(
-        ConcurrentQueue<(uint SockId, ushort Cmd, byte[] Data)> queue,
-        AutoResetEvent evt, ushort cmd, double seconds)
-    {
-        var deadline = DateTime.UtcNow.AddSeconds(seconds);
-        while (DateTime.UtcNow < deadline)
-        {
-            while (queue.TryDequeue(out var f))
-            {
-                if (f.Cmd == cmd) return f;
-            }
-            evt.WaitOne(200);
-        }
-        return default;
     }
 }
