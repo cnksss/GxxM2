@@ -1,5 +1,5 @@
 using System;
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 using GXX.Core.Rtl;
 
 namespace GXX.Client.GUI.Mir;
@@ -205,8 +205,11 @@ public class TSerialWindows : TFrmDlg
         DItemBag = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 340, 230);
         DMenuDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 120, 200);
         DSellDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 260, 240);
-        DHeroStateDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 250, 220);
         DHeroStateDlg185 = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 250, 220);
+        // DHeroStateDlg：与 DHeroStateDlg185 是**互斥**的两个英雄状态窗（205/续章用 185 版，
+        // 连击版用新版）。原文 MirNewUI205Dlg.pas:362 与 367 两处都判 `<> nil`，正说明资源里
+        // 只会创建其中一个，故此处保持 null，由资源栈按版本创建。
+        DHeroStateDlg = null;
 
         // ---- 登录/注册 ----
         DLogin = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 400, 300);
@@ -532,4 +535,42 @@ public class TSerialWindows : TFrmDlg
 
     /// <summary>SerialWindowsDlg.pas:4302 TSerialWindows.OpenDSellDlg。</summary>
     public virtual void OpenDSellDlg(int nPage) { }
+
+    /// <summary>
+    /// 测试接缝：FlblItemBag*_Text / F*Icon_Visible / FlblItemBag*_Visible 在原文由
+    /// SerialWindowsDlg.pas:17346 LoadControlFromStream 从 Mir.GUI 资源流读入；本接缝未接入
+    /// 资源栈，故提供显式注入点供测试覆盖 ItemBagDirectPaint 的三条货币分支。
+    /// </summary>
+    public void SetBagLabelsForTests(string gameGoldText, bool goldVisible,
+        string girdText, bool girdVisible, string diamondText, bool diamondVisible)
+    {
+        FlblItemBagGameGold_Text = gameGoldText;
+        FlblItemBagGold_Visible = goldVisible ? (byte)1 : (byte)0;
+        FItemBagGoldIcon_Visible = goldVisible ? (byte)1 : (byte)0;
+        FlblItemBagGird_Text = girdText;
+        FlblItemBagGird_Visible = girdVisible ? (byte)1 : (byte)0;
+        FItemBagGirdIcon_Visible = girdVisible ? (byte)1 : (byte)0;
+        FlblItemBagDiamond_Text = diamondText;
+        FlblItemBagDiamond_Visible = diamondVisible ? (byte)1 : (byte)0;
+        FItemBagDiamondIcon_Visible = diamondVisible ? (byte)1 : (byte)0;
+    }
+
+    /// <summary>
+    /// 测试接缝：单独注入 FlblItemBag*_Visible 与 F*Icon_Visible 两组资源字段
+    /// （原文两者来自 GUI 资源的不同项，ItemBagDirectPaint 分别独立读取）。
+    /// </summary>
+    public void SetBagIconVisibleForTests(bool goldIcon, bool girdIcon, bool diamondIcon)
+    {
+        FItemBagGoldIcon_Visible = goldIcon ? (byte)1 : (byte)0;
+        FItemBagGirdIcon_Visible = girdIcon ? (byte)1 : (byte)0;
+        FItemBagDiamondIcon_Visible = diamondIcon ? (byte)1 : (byte)0;
+    }
+
+    /// <summary>测试接缝：单独注入 FlblItemBag*_Visible 标签可见性。</summary>
+    public void SetBagLabelVisibleForTests(bool gold, bool gird, bool diamond)
+    {
+        FlblItemBagGold_Visible = gold ? (byte)1 : (byte)0;
+        FlblItemBagGird_Visible = gird ? (byte)1 : (byte)0;
+        FlblItemBagDiamond_Visible = diamond ? (byte)1 : (byte)0;
+    }
 }

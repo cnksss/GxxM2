@@ -1,6 +1,6 @@
 using System.IO;
 using GXX.Client.GUI.Mir;
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 using Xunit;
 
 namespace GXX.Client.Tests;

@@ -1,4 +1,4 @@
-using GXX.Client.DxComponent;
+using GXX.Client.GUI.DxComponent;
 
 namespace GXX.Client.GUI.Mir;
 

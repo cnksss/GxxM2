@@ -1,6 +1,6 @@
 using System;
 
-namespace GXX.Client.DxComponent;
+namespace GXX.Client.GUI.DxComponent;
 
 // ============================================================================================
 // 【接缝】DxControls/DxImageButton/DxImageForm/DxPageControl/DxLabel 控件族的托管最小面。
