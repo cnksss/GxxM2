@@ -1,0 +1,3728 @@
+object FrmJSYDlg: TFrmJSYDlg
+  Left = 490
+  Top = 239
+  BorderStyle = bsDialog
+  Caption = #21151#33021#35774#32622
+  ClientHeight = 338
+  ClientWidth = 365
+  Color = clBtnFace
+  Font.Charset = GB2312_CHARSET
+  Font.Color = clWindowText
+  Font.Height = -12
+  Font.Name = #23435#20307
+  Font.Style = []
+  KeyPreview = True
+  OldCreateOrder = False
+  Position = poScreenCenter
+  ShowHint = True
+  OnClose = FormClose
+  OnCloseQuery = FormCloseQuery
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  OnKeyPress = FormKeyPress
+  PixelsPerInch = 96
+  TextHeight = 12
+  object pgMain: TRzPageControl
+    Left = 0
+    Top = 0
+    Width = 365
+    Height = 338
+    ActivePage = tsItem
+    Align = alClient
+    ShowFocusRect = False
+    ShowFullFrame = False
+    ShowShadow = False
+    TabIndex = 4
+    TabOrder = 0
+    TabStyle = tsRoundCorners
+    TabWidth = 33
+    FixedDimension = 18
+    object tsBase: TRzTabSheet
+      Caption = #22522#26412
+      object lblVolume: TRzLabel
+        Left = 136
+        Top = 241
+        Width = 24
+        Height = 12
+        Caption = #38899#37327
+      end
+      object trbVolume: TRzTrackBar
+        Left = 158
+        Top = 235
+        Width = 68
+        Height = 20
+        Max = 100
+        Position = 10
+        ShowFocusRect = False
+        TickStyle = tkOwnerDraw
+        TrackOffset = 8
+        OnChange = trbVolumeChange
+        ParentShowHint = False
+        ShowHint = True
+        TabOrder = 23
+      end
+      object chkBGMusic: TRzCheckBox
+        Left = 136
+        Top = 196
+        Width = 91
+        Height = 15
+        Caption = #25773#25918#32972#26223#38899#20048
+        State = cbUnchecked
+        TabOrder = 21
+        WordWrap = True
+        OnClick = chkBGMusicClick
+      end
+      object chkRepeatBGMusic: TRzCheckBox
+        Left = 136
+        Top = 217
+        Width = 91
+        Height = 15
+        Caption = #37325#22797#25773#25918#38899#20048
+        State = cbUnchecked
+        TabOrder = 22
+        WordWrap = True
+        OnClick = chkRepeatBGMusicClick
+      end
+      object chkShowGreenHint: TRzCheckBox
+        Left = 136
+        Top = 7
+        Width = 67
+        Height = 15
+        Caption = #32511#23383#20449#24687
+        State = cbUnchecked
+        TabOrder = 24
+        WordWrap = True
+        OnClick = chkShowGreenHintClick
+      end
+      object chkAutoOrderItem: TRzCheckBox
+        Left = 285
+        Top = 133
+        Width = 67
+        Height = 15
+        Caption = #33258#21160#25918#33647
+        State = cbUnchecked
+        TabOrder = 29
+        WordWrap = True
+        OnClick = chkAutoOrderItemClick
+      end
+      object chkOnlyShowCharName: TRzCheckBox
+        Left = 8
+        Top = 28
+        Width = 67
+        Height = 15
+        Hint = #19981#26174#31034#23553#21495#12289#34892#20250#31561#38468#21152#20449#24687
+        Caption = #21482#26174#20154#21517
+        State = cbUnchecked
+        TabOrder = 1
+        WordWrap = True
+        OnClick = chkOnlyShowCharNameClick
+      end
+      object chkShowHPLabel: TRzCheckBox
+        Left = 8
+        Top = 91
+        Width = 67
+        Height = 15
+        Caption = #26174#31034#34880#26465
+        State = cbUnchecked
+        TabOrder = 4
+        WordWrap = True
+        OnClick = chkShowHPLabelClick
+      end
+      object chkShowNumberLable: TRzCheckBox
+        Left = 8
+        Top = 49
+        Width = 67
+        Height = 15
+        Caption = #25968#23383#26174#34880
+        State = cbUnchecked
+        TabOrder = 2
+        WordWrap = True
+        OnClick = chkShowNumberLableClick
+      end
+      object chkShowJobAndLevel: TRzCheckBox
+        Left = 8
+        Top = 175
+        Width = 67
+        Height = 15
+        Caption = #32844#19994#31561#32423
+        State = cbUnchecked
+        TabOrder = 8
+        WordWrap = True
+        OnClick = chkShowJobAndLevelClick
+      end
+      object chkNotNeedShift: TRzCheckBox
+        Left = 285
+        Top = 7
+        Width = 61
+        Height = 15
+        Caption = #20813'Shift'
+        State = cbUnchecked
+        TabOrder = 12
+        WordWrap = True
+        OnClick = chkNotNeedShiftClick
+      end
+      object chkShowUserName: TRzCheckBox
+        Left = 8
+        Top = 7
+        Width = 67
+        Height = 15
+        Caption = #20154#29289#26174#21517
+        State = cbUnchecked
+        TabOrder = 0
+        WordWrap = True
+        OnClick = chkShowUserNameClick
+      end
+      object chkShowMoveLable: TRzCheckBox
+        Left = 8
+        Top = 70
+        Width = 67
+        Height = 15
+        Caption = #25968#23383#39128#34880
+        State = cbUnchecked
+        TabOrder = 3
+        WordWrap = True
+        OnClick = chkShowMoveLableClick
+      end
+      object chkShowMapDesc: TRzCheckBox
+        Left = 285
+        Top = 70
+        Width = 67
+        Height = 15
+        Caption = #22320#22270#26631#35782
+        State = cbUnchecked
+        TabOrder = 26
+        WordWrap = True
+        OnClick = chkShowMapDescClick
+      end
+      object chkShowHighlightHPLabel: TRzCheckBox
+        Left = 8
+        Top = 112
+        Width = 67
+        Height = 15
+        Caption = #39640#20142#26174#34880
+        State = cbUnchecked
+        TabOrder = 5
+        WordWrap = True
+        OnClick = chkShowHighlightHPLabelClick
+      end
+      object chkShowNpcHPLabel: TRzCheckBox
+        Left = 8
+        Top = 238
+        Width = 61
+        Height = 15
+        Caption = 'NPC'#34880#26465
+        State = cbUnchecked
+        TabOrder = 11
+        WordWrap = True
+        OnClick = chkShowNpcHPLabelClick
+      end
+      object grpMapRadar: TRzGroupBox
+        Left = 8
+        Top = 266
+        Width = 351
+        Height = 44
+        Caption = #22320#22270#38647#36798
+        TabOrder = 33
+        object shp2: TShape
+          Left = 199
+          Top = 34
+          Width = 61
+          Height = 3
+          Brush.Color = clRed
+          Pen.Style = psClear
+        end
+        object shp1: TShape
+          Left = 96
+          Top = 34
+          Width = 61
+          Height = 3
+          Brush.Color = clLime
+          Pen.Style = psClear
+        end
+        object shp3: TShape
+          Left = 299
+          Top = 34
+          Width = 43
+          Height = 3
+          Brush.Color = clRed
+          Pen.Style = psClear
+        end
+        object chkShowRadarPlayer: TRzCheckBox
+          Left = 10
+          Top = 16
+          Width = 43
+          Height = 15
+          Caption = #29609#23478
+          Checked = True
+          State = cbChecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkShowRadarPlayerClick
+        end
+        object chkShowRadarNpc: TRzCheckBox
+          Left = 96
+          Top = 16
+          Width = 61
+          Height = 15
+          Caption = #26222#36890'NPC'
+          Checked = True
+          State = cbChecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkShowRadarNpcClick
+        end
+        object chkShowRadarAttackNpc: TRzCheckBox
+          Left = 199
+          Top = 16
+          Width = 61
+          Height = 15
+          Caption = #25915#20987'NPC'
+          Checked = True
+          State = cbChecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkShowRadarAttackNpcClick
+        end
+        object chkShowRadarActor: TRzCheckBox
+          Left = 299
+          Top = 16
+          Width = 43
+          Height = 15
+          Caption = #24618#29289
+          Checked = True
+          State = cbChecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkShowRadarActorClick
+        end
+      end
+      object chkExpFilter: TRzCheckBox
+        Left = 136
+        Top = 28
+        Width = 67
+        Height = 15
+        Caption = #32463#39564#36807#28388
+        State = cbUnchecked
+        TabOrder = 14
+        WordWrap = True
+        OnClick = chkExpFilterClick
+      end
+      object edtExpFilter: TRzEdit
+        Left = 136
+        Top = 48
+        Width = 65
+        Height = 20
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+        TabOrder = 15
+        OnChange = edtExpFilterChange
+      end
+      object chkShowMonName: TRzCheckBox
+        Left = 8
+        Top = 196
+        Width = 67
+        Height = 15
+        Caption = #24618#29289#26174#21517
+        State = cbUnchecked
+        TabOrder = 9
+        WordWrap = True
+        OnClick = chkShowMonNameClick
+      end
+      object chkSpeedSlow: TRzCheckBox
+        Left = 285
+        Top = 49
+        Width = 55
+        Height = 15
+        Caption = #20813#36127#37325
+        State = cbUnchecked
+        TabOrder = 25
+        WordWrap = True
+        OnClick = chkSpeedSlowClick
+      end
+      object chkHideHumEffect: TRzCheckBox
+        Left = 136
+        Top = 112
+        Width = 91
+        Height = 15
+        Caption = #38544#34255#32709#33152#29305#25928
+        State = cbUnchecked
+        TabOrder = 18
+        WordWrap = True
+        OnClick = chkHideHumEffectClick
+      end
+      object chkHideWeaponEffect: TRzCheckBox
+        Left = 136
+        Top = 133
+        Width = 91
+        Height = 15
+        Caption = #38544#34255#27494#22120#29305#25928
+        State = cbUnchecked
+        TabOrder = 19
+        WordWrap = True
+        OnClick = chkHideWeaponEffectClick
+      end
+      object chkShowNPCName: TRzCheckBox
+        Left = 8
+        Top = 217
+        Width = 61
+        Height = 15
+        Caption = 'NPC'#26174#21517
+        State = cbUnchecked
+        TabOrder = 10
+        WordWrap = True
+        OnClick = chkShowNPCNameClick
+      end
+      object chkShowNGLabel: TRzCheckBox
+        Left = 8
+        Top = 154
+        Width = 67
+        Height = 15
+        Caption = #20869#21151#40644#26465
+        State = cbUnchecked
+        TabOrder = 7
+        WordWrap = True
+        OnClick = chkShowNGLabelClick
+      end
+      object chkShiftSwitch: TRzCheckBox
+        Left = 285
+        Top = 28
+        Width = 73
+        Height = 15
+        Caption = 'Shift'#24320#20851
+        State = cbUnchecked
+        TabOrder = 13
+        WordWrap = True
+        OnClick = chkShiftSwitchClick
+      end
+      object chkHideTitle: TRzCheckBox
+        Left = 136
+        Top = 70
+        Width = 67
+        Height = 15
+        Caption = #38544#34255#31216#21495
+        State = cbUnchecked
+        TabOrder = 16
+        WordWrap = True
+        OnClick = chkHideTitleClick
+      end
+      object chkDisableChartMemoSize: TRzCheckBox
+        Left = 136
+        Top = 175
+        Width = 91
+        Height = 15
+        Caption = #31105#27490#25302#32842#22825#26694
+        State = cbUnchecked
+        TabOrder = 20
+        WordWrap = True
+        OnClick = chkDisableChartMemoSizeClick
+      end
+      object chkContinueButchItem: TRzCheckBox
+        Left = 285
+        Top = 112
+        Width = 67
+        Height = 15
+        Caption = #25345#32493#25366#21462
+        State = cbUnchecked
+        TabOrder = 28
+        WordWrap = True
+        OnClick = chkContinueButchItemClick
+      end
+      object chkDisableDeal: TRzCheckBox
+        Left = 285
+        Top = 91
+        Width = 67
+        Height = 15
+        Caption = #31105#27490#20132#26131
+        State = cbUnchecked
+        TabOrder = 27
+        WordWrap = True
+        OnClick = chkDisableDealClick
+      end
+      object chkShowUpdateStatus: TRzCheckBox
+        Left = 285
+        Top = 154
+        Width = 67
+        Height = 15
+        Caption = #24494#31471#29366#24577
+        State = cbUnchecked
+        TabOrder = 30
+        WordWrap = True
+        OnClick = chkShowUpdateStatusClick
+      end
+      object chkSimpleShowActor: TRzCheckBox
+        Left = 285
+        Top = 217
+        Width = 67
+        Height = 15
+        Caption = #24618#29289#31616#35013
+        Font.Charset = GB2312_CHARSET
+        Font.Color = clRed
+        Font.Height = -12
+        Font.Name = #23435#20307
+        Font.Style = []
+        ParentFont = False
+        State = cbUnchecked
+        TabOrder = 32
+        WordWrap = True
+        OnClick = chkSimpleShowActorClick
+      end
+      object chkSimpleShowHumanDress: TRzCheckBox
+        Left = 285
+        Top = 175
+        Width = 67
+        Height = 15
+        Caption = #34915#26381#31616#35013
+        Font.Charset = GB2312_CHARSET
+        Font.Color = clRed
+        Font.Height = -12
+        Font.Name = #23435#20307
+        Font.Style = []
+        ParentFont = False
+        State = cbUnchecked
+        TabOrder = 31
+        WordWrap = True
+        OnClick = chkSimpleShowHumanDressClick
+      end
+      object chkShowHPUnit: TRzCheckBox
+        Left = 8
+        Top = 133
+        Width = 67
+        Height = 15
+        Caption = #34880#37327#21333#20301
+        State = cbUnchecked
+        TabOrder = 6
+        WordWrap = True
+        OnClick = chkShowHPUnitClick
+      end
+      object chkHideGhost: TRzCheckBox
+        Left = 136
+        Top = 91
+        Width = 67
+        Height = 15
+        Caption = #38544#34255#23608#20307
+        State = cbUnchecked
+        TabOrder = 17
+        WordWrap = True
+        OnClick = chkHideGhostClick
+      end
+      object chkSimpleShowBB: TCheckBox
+        Left = 285
+        Top = 237
+        Width = 67
+        Height = 17
+        Caption = #23453#23453#31616#35013
+        Font.Charset = GB2312_CHARSET
+        Font.Color = clRed
+        Font.Height = -12
+        Font.Name = #23435#20307
+        Font.Style = []
+        ParentFont = False
+        TabOrder = 34
+        OnClick = chkSimpleShowBBClick
+      end
+      object chkHideActorIcons: TRzCheckBox
+        Left = 136
+        Top = 154
+        Width = 91
+        Height = 15
+        Caption = #38544#34255#39030#25140#33457#32718
+        State = cbUnchecked
+        TabOrder = 35
+        WordWrap = True
+        OnClick = chkHideActorIconsClick
+      end
+      object chkSimpleShowHumanWeapon: TRzCheckBox
+        Left = 285
+        Top = 196
+        Width = 67
+        Height = 15
+        Caption = #27494#22120#31616#35013
+        Font.Charset = GB2312_CHARSET
+        Font.Color = clRed
+        Font.Height = -12
+        Font.Name = #23435#20307
+        Font.Style = []
+        ParentFont = False
+        State = cbUnchecked
+        TabOrder = 36
+        WordWrap = True
+        OnClick = chkSimpleShowHumanWeaponClick
+      end
+    end
+    object tsMagic: TRzTabSheet
+      ImageIndex = 1
+      Caption = #25216#33021
+      object grpJob0: TRzGroupBox
+        Left = 8
+        Top = 6
+        Width = 350
+        Height = 134
+        Caption = #25112#22763' '
+        TabOrder = 0
+        object chkSmartLongHit: TRzCheckBox
+          Left = 8
+          Top = 16
+          Width = 67
+          Height = 15
+          Caption = #20992#20992#21050#26432
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkSmartLongHitClick
+        end
+        object chkSmartFireHit: TRzCheckBox
+          Left = 121
+          Top = 16
+          Width = 67
+          Height = 15
+          Caption = #33258#21160#28872#28779
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkSmartFireHitClick
+        end
+        object chkSmartWideHit: TRzCheckBox
+          Left = 248
+          Top = 32
+          Width = 91
+          Height = 15
+          Caption = #33258#21160#21322#26376#24367#20992
+          State = cbUnchecked
+          TabOrder = 5
+          WordWrap = True
+          OnClick = chkSmartWideHitClick
+        end
+        object chkSmartPosLongHit: TRzCheckBox
+          Left = 8
+          Top = 32
+          Width = 67
+          Height = 15
+          Caption = #38548#20301#21050#26432
+          State = cbUnchecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkSmartPosLongHitClick
+        end
+        object chkSmartKTZHit: TRzCheckBox
+          Left = 121
+          Top = 32
+          Width = 79
+          Height = 15
+          Caption = #33258#21160#24320#22825#26025
+          State = cbUnchecked
+          TabOrder = 4
+          WordWrap = True
+          OnClick = chkSmartKTZHitClick
+        end
+        object chkSmartSwordHit: TRzCheckBox
+          Left = 8
+          Top = 64
+          Width = 67
+          Height = 15
+          Caption = #33258#21160#36880#26085
+          State = cbUnchecked
+          TabOrder = 9
+          WordWrap = True
+          OnClick = chkSmartSwordHitClick
+        end
+        object chkSmartWalkLongHit: TRzCheckBox
+          Left = 8
+          Top = 48
+          Width = 67
+          Height = 15
+          Caption = #36208#20301#21050#26432
+          State = cbUnchecked
+          TabOrder = 6
+          WordWrap = True
+          OnClick = chkSmartWalkLongHitClick
+        end
+        object chkSmartCRSHit: TRzCheckBox
+          Left = 121
+          Top = 48
+          Width = 79
+          Height = 15
+          Caption = #33258#21160#21452#40857#26025
+          State = cbUnchecked
+          TabOrder = 7
+          WordWrap = True
+          OnClick = chkSmartCRSHitClick
+        end
+        object chkSmartTWNHit: TRzCheckBox
+          Left = 248
+          Top = 16
+          Width = 91
+          Height = 15
+          Caption = #33258#21160#40857#24433#21073#27861
+          State = cbUnchecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkSmartTWNHitClick
+        end
+        object chkHumManuallyMove10Attack: TRzCheckBox
+          Left = 248
+          Top = 48
+          Width = 91
+          Height = 15
+          Caption = #25163#21160#21313#27493#19968#26432
+          State = cbUnchecked
+          TabOrder = 8
+          WordWrap = True
+          OnClick = chkHumManuallyMove10AttackClick
+        end
+        object chkSmart113Hit: TRzCheckBox
+          Left = 121
+          Top = 64
+          Width = 79
+          Height = 15
+          Caption = #33258#21160#26029#31354#26025
+          State = cbUnchecked
+          TabOrder = 10
+          WordWrap = True
+          OnClick = chkSmart113HitClick
+        end
+        object chkAutoOpenSpell: TRzCheckBox
+          Left = 248
+          Top = 64
+          Width = 91
+          Height = 15
+          Hint = #26080#25915#20987#30446#26631#26102#33258#21160#20957#32858#38656'CD'#38388#38548#30340#25216#33021#65292#27492#39033#20250#19981#20572#28040#32791'MP'
+          Caption = #33258#21160#20957#32858#25216#33021
+          State = cbUnchecked
+          TabOrder = 11
+          WordWrap = True
+          OnClick = chkAutoOpenSpellClick
+        end
+        object chkSmartCustomHit1: TRzCheckBox
+          Left = 8
+          Top = 80
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'1'
+          State = cbUnchecked
+          TabOrder = 12
+          WordWrap = True
+          OnClick = chkSmartCustomHit1Click
+        end
+        object chkSmartCustomHit4: TRzCheckBox
+          Left = 8
+          Top = 96
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'4'
+          State = cbUnchecked
+          TabOrder = 13
+          WordWrap = True
+          OnClick = chkSmartCustomHit4Click
+        end
+        object chkSmartCustomHit2: TRzCheckBox
+          Left = 121
+          Top = 80
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'2'
+          State = cbUnchecked
+          TabOrder = 14
+          WordWrap = True
+          OnClick = chkSmartCustomHit2Click
+        end
+        object chkSmartCustomHit3: TRzCheckBox
+          Left = 248
+          Top = 80
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'3'
+          State = cbUnchecked
+          TabOrder = 15
+          WordWrap = True
+          OnClick = chkSmartCustomHit3Click
+        end
+        object chkSmartCustomHit5: TRzCheckBox
+          Left = 121
+          Top = 96
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'5'
+          State = cbUnchecked
+          TabOrder = 16
+          WordWrap = True
+          OnClick = chkSmartCustomHit5Click
+        end
+        object chkSmartCustomHit6: TRzCheckBox
+          Left = 248
+          Top = 96
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'6'
+          State = cbUnchecked
+          TabOrder = 17
+          WordWrap = True
+          OnClick = chkSmartCustomHit6Click
+        end
+        object chkSmartCustomHit7: TRzCheckBox
+          Left = 8
+          Top = 113
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'7'
+          State = cbUnchecked
+          TabOrder = 18
+          WordWrap = True
+          OnClick = chkSmartCustomHit7Click
+        end
+        object chkSmartCustomHit8: TRzCheckBox
+          Left = 121
+          Top = 113
+          Width = 85
+          Height = 15
+          Caption = #33258#23450#20041#25216#33021'8'
+          State = cbUnchecked
+          TabOrder = 19
+          WordWrap = True
+          OnClick = chkSmartCustomHit8Click
+        end
+      end
+      object grpJob2: TRzGroupBox
+        Left = 8
+        Top = 217
+        Width = 350
+        Height = 38
+        Caption = #36947#22763
+        TabOrder = 2
+        object CheckBoxAutoChangePoison: TRzCheckBox
+          Left = 121
+          Top = 16
+          Width = 103
+          Height = 15
+          Caption = #33258#21160#20132#25442#32418#32511#27602
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = CheckBoxAutoChangePoisonClick
+        end
+        object CheckBoxAutoHideMode: TRzCheckBox
+          Left = 8
+          Top = 16
+          Width = 67
+          Height = 15
+          Caption = #33258#21160#38544#36523
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = CheckBoxAutoHideModeClick
+        end
+      end
+      object grpJobHero: TRzGroupBox
+        Left = 8
+        Top = 258
+        Width = 350
+        Height = 53
+        Caption = #20854#20182
+        TabOrder = 3
+        object chkAssistantHeroAutoShield: TRzCheckBox
+          Left = 224
+          Top = 32
+          Width = 115
+          Height = 15
+          Caption = #21103#23558#33521#38596#25345#32493#24320#30462
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkAssistantHeroAutoShieldClick
+        end
+        object chkHeroAutoShield: TRzCheckBox
+          Left = 224
+          Top = 16
+          Width = 91
+          Height = 15
+          Caption = #33521#38596#25345#32493#24320#30462
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkHeroAutoShieldClick
+        end
+        object chkAutoGroupAttack: TRzCheckBox
+          Left = 9
+          Top = 16
+          Width = 91
+          Height = 15
+          Hint = #20154#29289#32844#19994#20026#25112#22763#26102#26377#25928
+          Caption = #24320#21551#33258#21160#21512#20987
+          State = cbUnchecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkAutoGroupAttackClick
+        end
+        object chkAutoGroupNoAttackMon: TRzCheckBox
+          Left = 9
+          Top = 32
+          Width = 79
+          Height = 15
+          Hint = #20154#29289#32844#19994#20026#25112#22763#26102#26377#25928
+          Caption = #21512#20987#19981#25171#24618
+          State = cbUnchecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkAutoGroupNoAttackMonClick
+        end
+        object chkAutoContinueAttack: TRzCheckBox
+          Left = 121
+          Top = 16
+          Width = 91
+          Height = 15
+          Caption = #24320#21551#33258#21160#36830#20987
+          State = cbUnchecked
+          TabOrder = 4
+          WordWrap = True
+          OnClick = chkAutoContinueAttackClick
+        end
+      end
+      object grpJob1: TRzGroupBox
+        Left = 8
+        Top = 144
+        Width = 350
+        Height = 70
+        Caption = #27861#24072
+        TabOrder = 1
+        object chkHumAutoShield: TRzCheckBox
+          Left = 8
+          Top = 15
+          Width = 67
+          Height = 15
+          Caption = #33258#21160#24320#30462
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkHumAutoShieldClick
+        end
+        object chkHumStruckShield: TRzCheckBox
+          Left = 8
+          Top = 31
+          Width = 67
+          Height = 15
+          Caption = #25509#36817#24320#30462
+          State = cbUnchecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkHumStruckShieldClick
+        end
+        object chkHumManuallySnowWind: TRzCheckBox
+          Left = 121
+          Top = 31
+          Width = 79
+          Height = 15
+          Caption = #25163#21160#20912#21638#21742
+          State = cbUnchecked
+          TabOrder = 4
+          WordWrap = True
+          OnClick = chkHumManuallySnowWindClick
+        end
+        object chkHumManuallyFireBoom: TRzCheckBox
+          Left = 8
+          Top = 47
+          Width = 91
+          Height = 15
+          Caption = #25163#21160#29190#35010#28779#28976
+          State = cbUnchecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkHumManuallyFireBoomClick
+        end
+        object chkHumShootLightenLockTarget: TRzCheckBox
+          Left = 224
+          Top = 15
+          Width = 115
+          Height = 15
+          Caption = #30142#20809#30005#24433#38145#23450#30446#26631
+          State = cbUnchecked
+          TabOrder = 5
+          WordWrap = True
+          OnClick = chkHumShootLightenLockTargetClick
+        end
+        object chkHumManuallyMeteorShower: TRzCheckBox
+          Left = 121
+          Top = 15
+          Width = 91
+          Height = 15
+          Caption = #25163#21160#27969#26143#28779#38632
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkHumManuallyMeteorShowerClick
+        end
+        object chkHumManuallyFire: TRzCheckBox
+          Left = 121
+          Top = 47
+          Width = 79
+          Height = 15
+          Caption = #25163#21160#22320#29425#28779
+          State = cbUnchecked
+          TabOrder = 6
+          WordWrap = True
+          OnClick = chkHumManuallyFireClick
+        end
+        object chkHumManuallyCustomHit1: TRzCheckBox
+          Left = 224
+          Top = 31
+          Width = 97
+          Height = 15
+          Caption = #25163#21160#25216#33021#39044#30041'1'
+          State = cbUnchecked
+          TabOrder = 7
+          Visible = False
+          WordWrap = True
+          OnClick = chkHumManuallyCustomHit1Click
+        end
+        object chkHumManuallyCustomHit2: TRzCheckBox
+          Left = 224
+          Top = 47
+          Width = 97
+          Height = 15
+          Caption = #25163#21160#25216#33021#39044#30041'2'
+          State = cbUnchecked
+          TabOrder = 8
+          Visible = False
+          WordWrap = True
+          OnClick = chkHumManuallyCustomHit2Click
+        end
+        object chkHumManuallyCustomHit3: TRzCheckBox
+          Left = 8
+          Top = 63
+          Width = 97
+          Height = 15
+          Caption = #25163#21160#25216#33021#39044#30041'3'
+          State = cbUnchecked
+          TabOrder = 9
+          Visible = False
+          WordWrap = True
+          OnClick = chkHumManuallyCustomHit3Click
+        end
+        object chkHumManuallyCustomHit4: TRzCheckBox
+          Left = 121
+          Top = 63
+          Width = 97
+          Height = 15
+          Caption = #25163#21160#25216#33021#39044#30041'4'
+          State = cbUnchecked
+          TabOrder = 10
+          Visible = False
+          WordWrap = True
+          OnClick = chkHumManuallyCustomHit4Click
+        end
+        object chkHumManuallyCustomHit5: TRzCheckBox
+          Left = 224
+          Top = 63
+          Width = 97
+          Height = 15
+          Caption = #25163#21160#25216#33021#39044#30041'5'
+          State = cbUnchecked
+          TabOrder = 11
+          Visible = False
+          WordWrap = True
+          OnClick = chkHumManuallyCustomHit5Click
+        end
+      end
+    end
+    object tsProtect: TRzTabSheet
+      ImageIndex = 2
+      Caption = #20445#25252
+      object pgProtect: TRzPageControl
+        Left = 5
+        Top = 2
+        Width = 359
+        Height = 314
+        ActivePage = tsProtectHuman
+        Margin = 10
+        ShowFocusRect = False
+        ShowFullFrame = False
+        ShowShadow = False
+        TabHeight = 22
+        TabIndex = 0
+        TabOrder = 0
+        TabOrientation = toLeft
+        TabSequence = tsReverse
+        TabStyle = tsRoundCorners
+        TabWidth = 36
+        FixedDimension = 36
+        object tsProtectHuman: TRzTabSheet
+          Caption = #20154#29289
+          object grpHumProtected: TRzGroupBox
+            Left = 8
+            Top = 6
+            Width = 305
+            Height = 184
+            Caption = #29289#21697#20445#25252'--HP/MP--'#27627#31186
+            TabOrder = 0
+            object Label3: TRzLabel
+              Left = 196
+              Top = 23
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label4: TRzLabel
+              Left = 270
+              Top = 23
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label5: TRzLabel
+              Left = 196
+              Top = 46
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label6: TRzLabel
+              Left = 270
+              Top = 46
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label7: TRzLabel
+              Left = 196
+              Top = 69
+              Width = 12
+              Height = 12
+              Caption = 'MP'
+            end
+            object Label8: TRzLabel
+              Left = 270
+              Top = 69
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label9: TRzLabel
+              Left = 270
+              Top = 138
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label10: TRzLabel
+              Left = 196
+              Top = 138
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label11: TRzLabel
+              Left = 196
+              Top = 115
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label12: TRzLabel
+              Left = 270
+              Top = 115
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label13: TRzLabel
+              Left = 270
+              Top = 92
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label14: TRzLabel
+              Left = 196
+              Top = 92
+              Width = 18
+              Height = 12
+              Caption = 'HMP'
+            end
+            object Label22: TRzLabel
+              Left = 196
+              Top = 161
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label23: TRzLabel
+              Left = 270
+              Top = 161
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object CheckBoxRenewSpecialIsAuto: TRzCheckBox
+              Left = 8
+              Top = 90
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 13
+              WordWrap = True
+              OnClick = CheckBoxRenewSpecialIsAutoClick
+            end
+            object CheckBoxRenewBookIsAuto1: TRzCheckBox
+              Left = 8
+              Top = 113
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 17
+              WordWrap = True
+              OnClick = CheckBoxRenewBookIsAuto1Click
+            end
+            object CheckBoxRenewBookIsAuto2: TRzCheckBox
+              Left = 8
+              Top = 136
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 21
+              WordWrap = True
+              OnClick = CheckBoxRenewBookIsAuto2Click
+            end
+            object CheckBoxRenewMPIsAuto: TRzCheckBox
+              Left = 8
+              Top = 67
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 9
+              WordWrap = True
+              OnClick = CheckBoxRenewMPIsAutoClick
+            end
+            object CheckBoxRenewHPIsAuto2: TRzCheckBox
+              Left = 8
+              Top = 44
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 5
+              WordWrap = True
+              OnClick = CheckBoxRenewHPIsAuto2Click
+            end
+            object CheckBoxRenewHPIsAuto1: TRzCheckBox
+              Left = 8
+              Top = 20
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 1
+              WordWrap = True
+              OnClick = CheckBoxRenewHPIsAuto1Click
+            end
+            object ComboBoxRenewHPIsAuto1: TRzComboBox
+              Left = 23
+              Top = 19
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 2
+              OnSelect = ComboBoxRenewHPIsAuto1Select
+            end
+            object EditRenewHPPercent1: TRzEdit
+              Left = 122
+              Top = 19
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 3
+              OnChange = EditRenewHPPercent1Change
+            end
+            object EditRenewHPTime1: TRzEdit
+              Left = 223
+              Top = 19
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 4
+              OnExit = EditRenewHPTime1Change
+            end
+            object ComboBoxRenewHPIsAuto2: TRzComboBox
+              Left = 23
+              Top = 42
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 6
+              OnSelect = ComboBoxRenewHPIsAuto2Select
+            end
+            object EditRenewHPPercent2: TRzEdit
+              Left = 122
+              Top = 42
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 7
+              OnChange = EditRenewHPPercent2Change
+            end
+            object EditRenewHPTime2: TRzEdit
+              Left = 223
+              Top = 42
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 8
+              OnExit = EditRenewHPTime2Change
+            end
+            object ComboBoxRenewMPIsAuto: TRzComboBox
+              Left = 23
+              Top = 65
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 10
+              OnSelect = ComboBoxRenewMPIsAutoSelect
+            end
+            object EditRenewMPPercent: TRzEdit
+              Left = 122
+              Top = 65
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 11
+              OnChange = EditRenewMPPercentChange
+            end
+            object EditRenewMPTime: TRzEdit
+              Left = 223
+              Top = 65
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 12
+              OnExit = EditRenewMPTimeChange
+            end
+            object EditRenewBookTime2: TRzEdit
+              Left = 223
+              Top = 134
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 24
+              OnExit = EditRenewBookTime2Change
+            end
+            object EditRenewBookPercent2: TRzEdit
+              Left = 122
+              Top = 134
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 23
+              OnChange = EditRenewBookPercent2Change
+            end
+            object ComboBoxRenewBookIsAuto2: TRzComboBox
+              Left = 23
+              Top = 134
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 22
+              OnSelect = ComboBoxRenewBookIsAuto2Select
+            end
+            object ComboBoxRenewBookIsAuto1: TRzComboBox
+              Left = 23
+              Top = 111
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 18
+              OnSelect = ComboBoxRenewBookIsAuto1Select
+            end
+            object EditRenewBookPercent1: TRzEdit
+              Left = 122
+              Top = 111
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 19
+              OnChange = EditRenewBookPercent1Change
+            end
+            object EditRenewBookTime1: TRzEdit
+              Left = 223
+              Top = 111
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 20
+              OnExit = EditRenewBookTime1Change
+            end
+            object EditRenewSpecialTime: TRzEdit
+              Left = 223
+              Top = 88
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 16
+              OnExit = EditRenewSpecialTimeChange
+            end
+            object EditRenewSpecialPercent: TRzEdit
+              Left = 122
+              Top = 88
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 15
+              OnChange = EditRenewSpecialPercentChange
+            end
+            object ComboBoxRenewSpecialIsAuto: TRzComboBox
+              Left = 23
+              Top = 88
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 14
+              OnSelect = ComboBoxRenewSpecialIsAutoSelect
+            end
+            object CheckBoxRenewLogOut: TRzCheckBox
+              Left = 8
+              Top = 159
+              Width = 67
+              Height = 15
+              Caption = #33258#21160#23567#36864
+              State = cbUnchecked
+              TabOrder = 25
+              WordWrap = True
+              OnClick = CheckBoxRenewLogOutClick
+            end
+            object EditRenewLogOutPercent: TRzEdit
+              Left = 122
+              Top = 157
+              Width = 71
+              Height = 20
+              Text = ' '
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 26
+              OnChange = EditRenewLogOutPercentChange
+            end
+            object EditRenewLogOuttime: TRzEdit
+              Left = 223
+              Top = 157
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 27
+              OnExit = EditRenewLogOuttimeChange
+            end
+            object chkPercentProtect: TRzCheckBox
+              Left = 140
+              Top = -1
+              Width = 84
+              Height = 15
+              Hint = #21246#36873#30334#20998#30334#20445#25252#21017#25353#29031'HP/MP'#24635#37327#30334#20998#27604#36827#34892#21507#33647
+              Caption = #30334#20998#27604#20445#25252
+              Font.Charset = GB2312_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -12
+              Font.Name = #23435#20307
+              Font.Style = [fsBold]
+              ParentFont = False
+              State = cbUnchecked
+              TabOrder = 0
+              WordWrap = True
+              OnClick = chkPercentProtectClick
+            end
+          end
+          object grpCustomItem: TRzGroupBox
+            Left = 8
+            Top = 193
+            Width = 305
+            Height = 118
+            Caption = #32534#36753#33258#23450#20041#29289#21697
+            TabOrder = 1
+            object Label28: TRzLabel
+              Left = 139
+              Top = 23
+              Width = 54
+              Height = 12
+              Caption = #29289#21697#21517#31216':'
+            end
+            object Label29: TRzLabel
+              Left = 139
+              Top = 46
+              Width = 54
+              Height = 12
+              Caption = #29289#21697#21253#21517':'
+            end
+            object lbl9: TRzLabel
+              Left = 139
+              Top = 69
+              Width = 54
+              Height = 12
+              Caption = #29289#21697#31867#22411':'
+            end
+            object lstUnBindItemList: TRzListBox
+              Left = 7
+              Top = 19
+              Width = 122
+              Height = 91
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 12
+              TabOrder = 0
+              OnClick = lstUnBindItemListClick
+            end
+            object edtItemName: TRzEdit
+              Left = 197
+              Top = 19
+              Width = 100
+              Height = 20
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 1
+            end
+            object btnBindItemAdd: TRzButton
+              Left = 139
+              Top = 89
+              Width = 36
+              Height = 22
+              Caption = #22686#21152
+              TabOrder = 4
+              OnClick = btnBindItemAddClick
+            end
+            object btnBindItemChg: TRzButton
+              Left = 220
+              Top = 89
+              Width = 36
+              Height = 22
+              Caption = #20462#25913
+              TabOrder = 6
+              OnClick = btnBindItemChgClick
+            end
+            object btnBindItemDel: TRzButton
+              Left = 180
+              Top = 89
+              Width = 36
+              Height = 22
+              Caption = #21024#38500
+              TabOrder = 5
+              OnClick = btnBindItemDelClick
+            end
+            object btnBindItemSave: TRzButton
+              Left = 261
+              Top = 89
+              Width = 36
+              Height = 22
+              Caption = #20445#23384
+              TabOrder = 7
+              OnClick = btnBindItemSaveClick
+            end
+            object edtBindItemName: TRzEdit
+              Left = 197
+              Top = 42
+              Width = 100
+              Height = 20
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 2
+            end
+            object cbbGroupUnBindItem: TRzComboBox
+              Left = 197
+              Top = 65
+              Width = 100
+              Height = 20
+              Style = csDropDownList
+              ItemHeight = 12
+              TabOrder = 3
+              Items.Strings = (
+                '+HP'
+                '+MP'
+                '+HMP'
+                '+'#21367#36724)
+            end
+          end
+        end
+        object tsProtectHero: TRzTabSheet
+          Caption = #33521#38596
+          object lbl4: TRzLabel
+            Left = 8
+            Top = 320
+            Width = 282
+            Height = 12
+            Caption = #25552#31034#65306#21246#36873#30334#20998#27604#20445#25252#21017#25353#29031'HP/MP'#24635#37327#30340#30334#20998#27604#21507#33647
+            Font.Charset = GB2312_CHARSET
+            Font.Color = clRed
+            Font.Height = -12
+            Font.Name = #23435#20307
+            Font.Style = []
+            ParentFont = False
+          end
+          object grpHeroProtected: TRzGroupBox
+            Left = 8
+            Top = 6
+            Width = 305
+            Height = 140
+            Caption = #29289#21697#20445#25252'--HP/MP--'#27627#31186
+            TabOrder = 0
+            object Label16: TRzLabel
+              Left = 196
+              Top = 23
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label17: TRzLabel
+              Left = 270
+              Top = 23
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label18: TRzLabel
+              Left = 196
+              Top = 46
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label19: TRzLabel
+              Left = 270
+              Top = 46
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label20: TRzLabel
+              Left = 196
+              Top = 69
+              Width = 12
+              Height = 12
+              Caption = 'MP'
+            end
+            object Label21: TRzLabel
+              Left = 270
+              Top = 69
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label24: TRzLabel
+              Left = 270
+              Top = 92
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object Label25: TRzLabel
+              Left = 196
+              Top = 92
+              Width = 18
+              Height = 12
+              Caption = 'HMP'
+            end
+            object Label26: TRzLabel
+              Left = 196
+              Top = 115
+              Width = 12
+              Height = 12
+              Caption = 'HP'
+            end
+            object Label27: TRzLabel
+              Left = 270
+              Top = 115
+              Width = 24
+              Height = 12
+              Caption = #27627#31186
+            end
+            object CheckBoxRenewHeroSpecialIsAuto: TRzCheckBox
+              Left = 8
+              Top = 90
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 13
+              WordWrap = True
+              OnClick = CheckBoxRenewHeroSpecialIsAutoClick
+            end
+            object CheckBoxRenewHeroMPIsAuto: TRzCheckBox
+              Left = 8
+              Top = 67
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 9
+              WordWrap = True
+              OnClick = CheckBoxRenewHeroMPIsAutoClick
+            end
+            object CheckBoxRenewHeroHPIsAuto2: TRzCheckBox
+              Left = 8
+              Top = 44
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 5
+              WordWrap = True
+              OnClick = CheckBoxRenewHeroHPIsAuto2Click
+            end
+            object CheckBoxRenewHeroHPIsAuto1: TRzCheckBox
+              Left = 8
+              Top = 20
+              Width = 19
+              Height = 15
+              State = cbUnchecked
+              TabOrder = 1
+              WordWrap = True
+              OnClick = CheckBoxRenewHeroHPIsAuto1Click
+            end
+            object ComboBoxRenewHeroHPIsAuto1: TRzComboBox
+              Left = 23
+              Top = 19
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 2
+              OnSelect = ComboBoxRenewHeroHPIsAuto1Select
+            end
+            object EditRenewHeroHPPercent1: TRzEdit
+              Left = 122
+              Top = 19
+              Width = 71
+              Height = 20
+              Text = '100'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 3
+              OnChange = EditRenewHeroHPPercent1Change
+            end
+            object EditRenewHeroHPTime1: TRzEdit
+              Left = 223
+              Top = 19
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 4
+              OnExit = EditRenewHeroHPTime1Change
+            end
+            object ComboBoxRenewHeroHPIsAuto2: TRzComboBox
+              Left = 23
+              Top = 42
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 6
+              OnSelect = ComboBoxRenewHeroHPIsAuto2Select
+            end
+            object EditRenewHeroHPPercent2: TRzEdit
+              Left = 122
+              Top = 42
+              Width = 71
+              Height = 20
+              Text = '100'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 7
+              OnChange = EditRenewHeroHPPercent2Change
+            end
+            object EditRenewHeroHPTime2: TRzEdit
+              Left = 223
+              Top = 42
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 8
+              OnExit = EditRenewHeroHPTime2Change
+            end
+            object ComboBoxRenewHeroMPIsAuto: TRzComboBox
+              Left = 23
+              Top = 65
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 10
+              OnSelect = ComboBoxRenewHeroMPIsAutoSelect
+            end
+            object EditRenewHeroMPPercent: TRzEdit
+              Left = 122
+              Top = 65
+              Width = 71
+              Height = 20
+              Text = '100'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 11
+              OnChange = EditRenewHeroMPPercentChange
+            end
+            object EditRenewHeroMPTime: TRzEdit
+              Left = 223
+              Top = 65
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 12
+              OnExit = EditRenewHeroMPTimeChange
+            end
+            object EditRenewHeroSpecialTime: TRzEdit
+              Left = 223
+              Top = 88
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 16
+              OnExit = EditRenewHeroSpecialTimeChange
+            end
+            object EditRenewHeroSpecialPercent: TRzEdit
+              Left = 122
+              Top = 88
+              Width = 71
+              Height = 20
+              Text = '100'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 15
+              OnChange = EditRenewHeroSpecialPercentChange
+            end
+            object ComboBoxRenewHeroSpecialIsAuto: TRzComboBox
+              Left = 23
+              Top = 88
+              Width = 94
+              Height = 20
+              Style = csDropDownList
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              ItemHeight = 0
+              TabOrder = 14
+              OnSelect = ComboBoxRenewHeroSpecialIsAutoSelect
+            end
+            object CheckBoxRenewHeroLogOutIsAuto: TRzCheckBox
+              Left = 8
+              Top = 113
+              Width = 67
+              Height = 15
+              Caption = #25910#22238#33521#38596
+              State = cbUnchecked
+              TabOrder = 17
+              WordWrap = True
+              OnClick = CheckBoxRenewHeroLogOutIsAutoClick
+            end
+            object EditRenewHeroLogOutPercent: TRzEdit
+              Left = 122
+              Top = 111
+              Width = 71
+              Height = 20
+              Text = '100'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 18
+              OnChange = EditRenewHeroLogOutPercentChange
+            end
+            object EditRenewHeroLogOutTime: TRzEdit
+              Left = 223
+              Top = 111
+              Width = 44
+              Height = 20
+              Text = '1000'
+              ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+              TabOrder = 19
+              OnExit = EditRenewHeroLogOutTimeChange
+            end
+            object chkHeroPercentProtect: TRzCheckBox
+              Left = 144
+              Top = -1
+              Width = 84
+              Height = 15
+              Hint = #21246#36873#30334#20998#30334#20445#25252#21017#25353#29031'HP/MP'#24635#37327#30334#20998#27604#36827#34892#21507#33647
+              Caption = #30334#20998#27604#20445#25252
+              Font.Charset = GB2312_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -12
+              Font.Name = #23435#20307
+              Font.Style = [fsBold]
+              ParentFont = False
+              State = cbUnchecked
+              TabOrder = 0
+              WordWrap = True
+              OnClick = chkHeroPercentProtectClick
+            end
+          end
+          object chkHeroShowNumberState: TRzCheckBox
+            Left = 8
+            Top = 152
+            Width = 115
+            Height = 15
+            Caption = #33521#38596#25968#23383#29366#24577#26174#31034
+            State = cbUnchecked
+            TabOrder = 1
+            WordWrap = True
+            OnClick = chkHeroShowNumberStateClick
+          end
+        end
+      end
+    end
+    object tsFight: TRzTabSheet
+      ImageIndex = 3
+      Caption = #25112#26007
+      object grpBoss: TRzGroupBox
+        Left = 8
+        Top = 125
+        Width = 350
+        Height = 118
+        Caption = 'BOSS'#21015#34920
+        TabOrder = 2
+        object lbl1: TRzLabel
+          Left = 134
+          Top = 20
+          Width = 42
+          Height = 12
+          Caption = 'BOSS'#21517':'
+        end
+        object lstBoss: TRzListBox
+          Left = 8
+          Top = 16
+          Width = 119
+          Height = 95
+          ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+          ItemHeight = 12
+          TabOrder = 0
+          OnClick = lstBossClick
+        end
+        object edtBossName: TRzEdit
+          Left = 178
+          Top = 16
+          Width = 161
+          Height = 20
+          ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+          TabOrder = 1
+        end
+        object btnBossAdd: TRzButton
+          Left = 178
+          Top = 40
+          Width = 45
+          Caption = #22686#21152
+          TabOrder = 2
+          OnClick = btnBossAddClick
+        end
+        object btnBossDel: TRzButton
+          Left = 236
+          Top = 40
+          Width = 45
+          Caption = #21024#38500
+          TabOrder = 3
+          OnClick = btnBossDelClick
+        end
+        object chkNearHint: TRzCheckBox
+          Left = 178
+          Top = 72
+          Width = 67
+          Height = 15
+          Caption = #25509#36817#25552#31034
+          State = cbUnchecked
+          TabOrder = 5
+          WordWrap = True
+          OnClick = chkNearHintClick
+        end
+        object chkAutoLock: TRzCheckBox
+          Left = 271
+          Top = 72
+          Width = 67
+          Height = 15
+          Caption = #33258#21160#38145#23450
+          State = cbUnchecked
+          TabOrder = 6
+          WordWrap = True
+          OnClick = chkAutoLockClick
+        end
+        object chkColorShow: TRzCheckBox
+          Left = 178
+          Top = 94
+          Width = 67
+          Height = 15
+          Caption = #21464#33394#25552#31034
+          State = cbUnchecked
+          TabOrder = 7
+          WordWrap = True
+          OnClick = chkColorShowClick
+        end
+        object cbbShowColor: TRzComboBox
+          Left = 271
+          Top = 90
+          Width = 67
+          Height = 20
+          Style = csDropDownList
+          ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+          ItemHeight = 12
+          TabOrder = 8
+          Text = #32418#33394
+          OnChange = cbbShowColorChange
+          Items.Strings = (
+            #28784#33394
+            #26126#20142
+            #40657#33394
+            #30333#33394
+            #32418#33394
+            #32511#33394
+            #34013#33394
+            #40644#33394
+            #32043#32418)
+          ItemIndex = 4
+        end
+        object BtnBossModify: TRzButton
+          Left = 294
+          Top = 40
+          Width = 45
+          Caption = #20462#25913
+          TabOrder = 4
+          OnClick = BtnBossModifyClick
+        end
+      end
+      object grpPractice: TRzGroupBox
+        Left = 8
+        Top = 4
+        Width = 350
+        Height = 40
+        Caption = #33258#21160#32451#21151
+        TabOrder = 0
+        object Label15: TRzLabel
+          Left = 148
+          Top = 19
+          Width = 72
+          Height = 12
+          Caption = #31186#65292#20351#29992#25216#33021
+        end
+        object CheckBoxAutoUseMagic: TRzCheckBox
+          Left = 8
+          Top = 17
+          Width = 91
+          Height = 15
+          Caption = #33258#21160#32451#21151#38388#38548
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = CheckBoxAutoUseMagicClick
+        end
+        object EditAutoUseMagic: TSpinEditEx
+          Left = 102
+          Top = 15
+          Width = 43
+          Height = 21
+          MaxValue = 100000
+          MinValue = 2
+          TabOrder = 1
+          Value = 3
+          OnChange = EditAutoUseMagicChange
+        end
+        object ComboBoxAutoUseMagic: TRzComboBox
+          Left = 224
+          Top = 15
+          Width = 119
+          Height = 20
+          Style = csDropDownList
+          ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+          ItemHeight = 0
+          TabOrder = 2
+        end
+      end
+      object grpAutoSay: TRzGroupBox
+        Left = 8
+        Top = 246
+        Width = 350
+        Height = 65
+        Caption = #33258#21160#21898#35805
+        TabOrder = 3
+        object lbl2: TRzLabel
+          Left = 8
+          Top = 43
+          Width = 54
+          Height = 12
+          Caption = #21898#35805#20869#23481':'
+        end
+        object lbl8: TRzLabel
+          Left = 120
+          Top = 18
+          Width = 84
+          Height = 12
+          Caption = #21898#35805#38388#38548'('#31186')'#65306
+        end
+        object chkAutoSysMsg: TRzCheckBox
+          Left = 8
+          Top = 16
+          Width = 91
+          Height = 15
+          Caption = #24320#21551#33258#21160#21898#35805
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkAutoSysMsgClick
+        end
+        object edtSysMsg: TRzEdit
+          Left = 64
+          Top = 39
+          Width = 277
+          Height = 20
+          ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+          TabOrder = 2
+        end
+        object seAutoMsgTime: TSpinEditEx
+          Left = 192
+          Top = 14
+          Width = 65
+          Height = 21
+          MaxValue = 65535
+          MinValue = 0
+          TabOrder = 1
+          Value = 10
+          OnChange = seAutoMsgTimeChange
+        end
+      end
+      object grpFightOther: TRzGroupBox
+        Left = 8
+        Top = 46
+        Width = 350
+        Height = 75
+        Caption = #20854#20182#36873#39033
+        TabOrder = 1
+        object chkMagicLock: TRzCheckBox
+          Left = 8
+          Top = 17
+          Width = 67
+          Height = 15
+          Caption = #39764#27861#38145#23450
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkMagicLockClick
+        end
+        object chkDisableSelfStruck: TRzCheckBox
+          Left = 8
+          Top = 34
+          Width = 67
+          Height = 15
+          Caption = #31283#22914#27888#23665
+          State = cbUnchecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkDisableSelfStruckClick
+        end
+        object chkBlacklistHit: TRzCheckBox
+          Left = 228
+          Top = 17
+          Width = 115
+          Height = 15
+          Caption = #40657#21517#21333#36817#36523#26102#25552#31034
+          State = cbUnchecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkBlacklistHitClick
+        end
+        object chkFriendHit: TRzCheckBox
+          Left = 113
+          Top = 34
+          Width = 91
+          Height = 15
+          Caption = #22909#21451#36817#36523#25552#31034
+          State = cbUnchecked
+          TabOrder = 4
+          WordWrap = True
+          OnClick = chkFriendHitClick
+        end
+        object chkAutoDownHorse: TRzCheckBox
+          Left = 228
+          Top = 34
+          Width = 115
+          Height = 15
+          Caption = #39764#27861#25915#20987#33258#21160#19979#39532
+          State = cbUnchecked
+          TabOrder = 5
+          WordWrap = True
+          OnClick = chkAutoDownHorseClick
+        end
+        object chkShowTargetAperture: TRzCheckBox
+          Left = 113
+          Top = 17
+          Width = 91
+          Height = 15
+          Caption = #26174#31034#30446#26631#20809#22280
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkShowTargetApertureClick
+        end
+        object chkNoCaton: TRzCheckBox
+          Left = 8
+          Top = 53
+          Width = 67
+          Height = 15
+          Caption = #25915#20987#19981#21345
+          State = cbUnchecked
+          TabOrder = 6
+          WordWrap = True
+          OnClick = chkNoCatonClick
+        end
+        object chkNotParaly: TRzCheckBox
+          Left = 113
+          Top = 52
+          Width = 67
+          Height = 15
+          Caption = #38450#27490#30707#21270
+          State = cbUnchecked
+          TabOrder = 7
+          WordWrap = True
+          OnClick = chkNotParalyClick
+        end
+        object chkSceneShake: TRzCheckBox
+          Left = 228
+          Top = 52
+          Width = 67
+          Height = 15
+          Caption = #23631#24149#38663#21160
+          State = cbUnchecked
+          TabOrder = 8
+          WordWrap = True
+          OnClick = chkSceneShakeClick
+        end
+      end
+    end
+    object tsItem: TRzTabSheet
+      ImageIndex = 4
+      Caption = #29289#21697
+      object lvFilterItem: TRzListView
+        Left = 8
+        Top = 7
+        Width = 349
+        Height = 147
+        Cursor = crHandPoint
+        Hint = #25353#20303'Ctrl/Shift'#22810#36873#65292#21491#38190#25805#20316
+        Columns = <
+          item
+            Caption = #29289#21697#21517#31216
+            Width = 92
+          end
+          item
+            Alignment = taCenter
+            Caption = #25552#31034
+            Width = 38
+          end
+          item
+            Alignment = taCenter
+            Caption = #33258#21160#25342#21462
+            Width = 60
+          end
+          item
+            Alignment = taCenter
+            Caption = #26174#31034#21517#31216
+            Width = 60
+          end
+          item
+            Alignment = taCenter
+            Caption = #29305#27530
+            Width = 38
+          end
+          item
+            Caption = #20256#36865
+            Width = 40
+          end>
+        GridLines = True
+        MultiSelect = True
+        PopupMenu = pm1
+        ReadOnly = True
+        RowSelect = True
+        TabOrder = 0
+        ViewStyle = vsReport
+        OnMouseDown = lvFilterItemMouseDown
+      end
+      object ComboBoxItemStdMode: TRzComboBox
+        Left = 8
+        Top = 159
+        Width = 78
+        Height = 20
+        Style = csDropDownList
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+        ItemHeight = 12
+        TabOrder = 4
+        Text = #20840#37096#20998#31867
+        OnSelect = ComboBoxItemStdModeSelect
+        Items.Strings = (
+          #20840#37096#20998#31867
+          #20854#20182#31867
+          #33647#21697#31867
+          #26381#35013#31867
+          #27494#22120#31867
+          #39318#39280#31867
+          #39280#21697#31867
+          #26381#39280#31867
+          #33258#23450#31867)
+        ItemIndex = 0
+      end
+      object EditSearchItem: TRzEdit
+        Left = 244
+        Top = 159
+        Width = 77
+        Height = 20
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+        TabOrder = 5
+        OnChange = EditSearchItemChange
+      end
+      object ButtonSearchItem: TRzButton
+        Left = 323
+        Top = 158
+        Width = 35
+        Height = 22
+        Caption = #25628#32034
+        TabOrder = 6
+        OnClick = ButtonSearchItemClick
+      end
+      object edtSpecialName: TRzEdit
+        Left = 91
+        Top = 159
+        Width = 75
+        Height = 20
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+        TabOrder = 1
+      end
+      object btnSpecialAdd: TRzButton
+        Left = 169
+        Top = 158
+        Width = 35
+        Height = 22
+        Caption = #28155#21152
+        TabOrder = 2
+        OnClick = btnSpecialAddClick
+      end
+      object btnSpecialDel: TRzButton
+        Left = 205
+        Top = 158
+        Width = 35
+        Height = 22
+        Caption = #21024#38500
+        TabOrder = 3
+        OnClick = btnSpecialDelClick
+      end
+      object grp9: TRzGroupBox
+        Left = 8
+        Top = 268
+        Width = 352
+        Height = 42
+        Caption = #33258#21160#20462#22797#25345#20037
+        TabOrder = 7
+        object lbl7: TRzLabel
+          Left = 119
+          Top = 20
+          Width = 48
+          Height = 12
+          Caption = '% '#26102#20351#29992
+        end
+        object lbl6: TRzLabel
+          Left = 247
+          Top = 20
+          Width = 24
+          Height = 12
+          Caption = #38388#38548
+        end
+        object Label30: TRzLabel
+          Left = 332
+          Top = 20
+          Width = 12
+          Height = 12
+          Caption = #31186
+        end
+        object chkCheckDura: TRzCheckBox
+          Left = 8
+          Top = 18
+          Width = 67
+          Height = 15
+          Caption = #25345#20037#20302#20110
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkCheckDuraClick
+        end
+        object seCheckDuraMin: TSpinEditEx
+          Left = 78
+          Top = 15
+          Width = 37
+          Height = 21
+          MaxValue = 100
+          MinValue = 1
+          TabOrder = 1
+          Value = 3
+          OnChange = seCheckDuraMinChange
+        end
+        object edtCheckDuraItem: TRzEdit
+          Left = 170
+          Top = 16
+          Width = 71
+          Height = 20
+          TabOrder = 2
+          OnChange = edtCheckDuraItemChange
+        end
+        object seCheckDuraTime: TSpinEditEx
+          Left = 274
+          Top = 15
+          Width = 57
+          Height = 21
+          MaxValue = 999999
+          MinValue = 2
+          TabOrder = 3
+          Value = 3
+          OnChange = seCheckDuraTimeChange
+        end
+      end
+      object grpItemSetting: TRzGroupBox
+        Left = 8
+        Top = 183
+        Width = 352
+        Height = 81
+        Caption = #36873#39033
+        TabOrder = 8
+        object lbl10: TRzLabel
+          Left = 7
+          Top = 18
+          Width = 48
+          Height = 12
+          Caption = #29305#27530#29289#21697
+        end
+        object lblItemsExport: TRzLabel
+          Left = 78
+          Top = 61
+          Width = 48
+          Height = 12
+          Cursor = crHandPoint
+          Alignment = taCenter
+          AutoSize = False
+          Caption = #23548#20986#29289#21697
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clBlue
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = []
+          ParentFont = False
+          OnClick = lblItemsExportClick
+          OnMouseEnter = lblItemsExportMouseEnter
+          OnMouseLeave = lblItemsExportMouseLeave
+        end
+        object lblItemImport: TRzLabel
+          Left = 148
+          Top = 61
+          Width = 48
+          Height = 12
+          Cursor = crHandPoint
+          Alignment = taCenter
+          AutoSize = False
+          Caption = #23548#20837#29289#21697
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clBlue
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = []
+          ParentFont = False
+          OnClick = lblItemImportClick
+          OnMouseEnter = lblItemsExportMouseEnter
+          OnMouseLeave = lblItemsExportMouseLeave
+        end
+        object lblItemEdit: TRzLabel
+          Left = 6
+          Top = 61
+          Width = 52
+          Height = 12
+          Cursor = crHandPoint
+          Alignment = taCenter
+          AutoSize = False
+          Caption = #32534#36753#29289#21697
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clBlue
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = []
+          ParentFont = False
+          OnClick = lblItemEditClick
+          OnMouseEnter = lblItemsExportMouseEnter
+          OnMouseLeave = lblItemsExportMouseLeave
+        end
+        object chkSpecialQuickFlashing: TRzCheckBox
+          Left = 129
+          Top = 14
+          Width = 67
+          Height = 15
+          Hint = #21015#34920#20013#21246#36873#20102'"'#29305#27530'"'#30340#29289#21697#65292#38378#20809#36895#24230#21464#24555
+          Caption = #29289#21697#24555#38378
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkSpecialQuickFlashingClick
+        end
+        object chkItemCompare: TRzCheckBox
+          Left = 6
+          Top = 37
+          Width = 67
+          Height = 15
+          Hint = #32972#21253#20013#40736#26631#25351#21521#29289#21697#19982#36523#19978#29289#21697#23646#24615#23545#27604
+          Caption = #29289#21697#23545#27604
+          State = cbUnchecked
+          TabOrder = 1
+          WordWrap = True
+          OnClick = chkItemCompareClick
+        end
+        object chkBagFastItemCompare: TRzCheckBox
+          Left = 78
+          Top = 37
+          Width = 67
+          Height = 15
+          Hint = #24555#36895#20998#36776#32972#21253#20869#23646#24615#27604#24050#20329#25140#35013#22791#23646#24615#39640#30340#29289#21697
+          Caption = #32972#21253#23545#27604
+          State = cbUnchecked
+          TabOrder = 2
+          WordWrap = True
+          OnClick = chkBagFastItemCompareClick
+        end
+        object chkHideItemEffect: TRzCheckBox
+          Left = 205
+          Top = 14
+          Width = 67
+          Height = 15
+          Hint = #26159#21542#38544#34255#22320#38754#29289#21697#29305#25928#26174#31034
+          Caption = #38544#34255#29305#25928
+          State = cbUnchecked
+          TabOrder = 3
+          WordWrap = True
+          OnClick = chkHideItemEffectClick
+        end
+        object chkPickupAll: TRzCheckBox
+          Left = 277
+          Top = 14
+          Width = 67
+          Height = 15
+          Hint = #21246#36873#21518#26080#35770#29289#21697#26159#21542#35774#32622'"'#33258#21160#25342#21462'"'#20840#37096#25441#21462
+          Caption = #20840#37096#25342#21462
+          State = cbUnchecked
+          TabOrder = 4
+          WordWrap = True
+          OnClick = chkPickupAllClick
+        end
+        object seSpecialColor: TColorIndexEdit
+          Left = 59
+          Top = 13
+          Width = 60
+          Height = 21
+          Hint = #29305#27530#29289#21697#25991#23383#39068#33394
+          MaxLength = 3
+          MaxValue = 255
+          MinValue = 0
+          TabOrder = 5
+          Value = 0
+          OnChange = seSpecialColorChange
+          ShowNoneColor = False
+        end
+        object chkAutoPickupItem: TRzCheckBox
+          Left = 277
+          Top = 37
+          Width = 67
+          Height = 15
+          Hint = #21246#36873#21518#23558#33258#21160#25441#36215#35774#32622#26377'"'#33258#21160#25342#21462'"'#30340#29289#21697
+          Caption = #33258#21160#25342#21462
+          State = cbUnchecked
+          TabOrder = 6
+          WordWrap = True
+          OnClick = chkAutoPickupItemClick
+        end
+        object chkShowValueItemEffect: TRzCheckBox
+          Left = 205
+          Top = 37
+          Width = 67
+          Height = 15
+          Caption = #26497#21697#29305#25928
+          State = cbUnchecked
+          TabOrder = 7
+          Visible = False
+          WordWrap = True
+          OnClick = chkShowValueItemEffectClick
+        end
+        object chkDuraWarning: TRzCheckBox
+          Left = 205
+          Top = 59
+          Width = 67
+          Height = 15
+          Caption = #25345#20037#35686#21578
+          State = cbUnchecked
+          TabOrder = 8
+          WordWrap = True
+          OnClick = chkDuraWarningClick
+        end
+      end
+    end
+    object tsNpc: TRzTabSheet
+      ImageIndex = 5
+      Caption = 'NPC'
+      object lvActor: TRzListView
+        Left = 8
+        Top = 7
+        Width = 349
+        Height = 278
+        Columns = <
+          item
+            Caption = #21517#31216
+            Width = 130
+          end
+          item
+            Caption = #20301#32622
+            Width = 70
+          end
+          item
+            Caption = 'X'#22352#26631
+            Width = 60
+          end
+          item
+            Caption = 'Y'#22352#26631
+            Width = 68
+          end>
+        ReadOnly = True
+        RowSelect = True
+        TabOrder = 0
+        ViewStyle = vsReport
+      end
+      object chkShowHum: TRzCheckBox
+        Left = 8
+        Top = 295
+        Width = 67
+        Height = 15
+        Caption = #26174#31034#20154#29289
+        Checked = True
+        State = cbChecked
+        TabOrder = 1
+        WordWrap = True
+        OnClick = chkShowHumClick
+      end
+      object chkShowMon: TRzCheckBox
+        Left = 102
+        Top = 295
+        Width = 67
+        Height = 15
+        Caption = #26174#31034#24618#29289
+        State = cbUnchecked
+        TabOrder = 2
+        WordWrap = True
+        OnClick = chkShowHumClick
+      end
+      object chkShowNpc: TRzCheckBox
+        Left = 197
+        Top = 295
+        Width = 61
+        Height = 15
+        Caption = #26174#31034'NPC'
+        State = cbUnchecked
+        TabOrder = 3
+        WordWrap = True
+        OnClick = chkShowHumClick
+      end
+      object btnRefActorList: TRzButton
+        Left = 289
+        Top = 290
+        Width = 68
+        Height = 22
+        Caption = #21047#26032
+        TabOrder = 4
+        OnClick = btnRefActorListClick
+      end
+    end
+    object tsGJ: TRzTabSheet
+      ImageIndex = 10
+      Caption = #25346#26426
+      object lbl3: TRzLabel
+        Left = 273
+        Top = 35
+        Width = 84
+        Height = 12
+        Caption = #26684#26377#20154#26102#19981#25250#24618
+      end
+      object Label2: TRzLabel
+        Left = 320
+        Top = 59
+        Width = 36
+        Height = 12
+        Caption = #29992#32676#25915
+      end
+      object chkNoRedPoison: TRzCheckBox
+        Left = 7
+        Top = 9
+        Width = 55
+        Height = 15
+        Caption = #32418#33647#23436
+        State = cbUnchecked
+        TabOrder = 0
+        WordWrap = True
+        OnClick = chkNoRedPoisonClick
+      end
+      object chkNoBluePoison: TRzCheckBox
+        Left = 7
+        Top = 55
+        Width = 55
+        Height = 15
+        Caption = #34013#33647#23436
+        State = cbUnchecked
+        TabOrder = 8
+        WordWrap = True
+        OnClick = chkNoBluePoisonClick
+      end
+      object chkNoDuFu: TRzCheckBox
+        Left = 7
+        Top = 32
+        Width = 55
+        Height = 15
+        Caption = #27602#31526#23436
+        State = cbUnchecked
+        TabOrder = 4
+        WordWrap = True
+        OnClick = chkNoDuFuClick
+      end
+      object chkPlayAttack: TRzCheckBox
+        Left = 165
+        Top = 8
+        Width = 103
+        Height = 15
+        Caption = #21463#21040#29609#23478#25915#20987#26102
+        State = cbUnchecked
+        TabOrder = 2
+        WordWrap = True
+        OnClick = chkPlayAttackClick
+      end
+      object cbbPlayAttackOption: TRzComboBox
+        Left = 269
+        Top = 7
+        Width = 92
+        Height = 20
+        Style = csDropDownList
+        ItemHeight = 12
+        TabOrder = 3
+        Text = #22238#22478#21367
+        OnChange = cbbPlayAttackOptionChange
+        Items.Strings = (
+          #22238#22478#21367
+          #38543#26426#20256#36865#21367
+          #23567#36864)
+        ItemIndex = 0
+      end
+      object chkNotRushMon: TRzCheckBox
+        Left = 165
+        Top = 33
+        Width = 67
+        Height = 15
+        Caption = #24403#24618#21608#22260
+        State = cbUnchecked
+        TabOrder = 6
+        WordWrap = True
+        OnClick = chkNotRushMonClick
+      end
+      object seNotRushMonRange: TSpinEdit
+        Left = 234
+        Top = 31
+        Width = 37
+        Height = 21
+        MaxValue = 9
+        MinValue = 0
+        TabOrder = 7
+        Value = 0
+        OnChange = seNotRushMonRangeChange
+      end
+      object pgcGJSetting: TRzPageControl
+        Left = 7
+        Top = 127
+        Width = 350
+        Height = 186
+        ActivePage = tsGJNoAttackMon
+        ShowShadow = False
+        TabIndex = 0
+        TabOrder = 19
+        TabStyle = tsRoundCorners
+        FixedDimension = 18
+        object tsGJNoAttackMon: TRzTabSheet
+          Caption = #19981#25171#24618#29289
+          object Label1: TRzLabel
+            Left = 164
+            Top = 12
+            Width = 42
+            Height = 12
+            Caption = #24618#29289#21517':'
+          end
+          object lbl5: TRzLabel
+            Left = 164
+            Top = 68
+            Width = 126
+            Height = 12
+            Caption = #25346#26426#24555#25463#38190':Ctrl+Alt+X'
+            Font.Charset = GB2312_CHARSET
+            Font.Color = clRed
+            Font.Height = -12
+            Font.Name = #23435#20307
+            Font.Style = []
+            ParentFont = False
+          end
+          object lstGJMon: TRzListBox
+            Left = 7
+            Top = 6
+            Width = 148
+            Height = 151
+            ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+            ItemHeight = 12
+            TabOrder = 0
+            OnClick = lstGJMonClick
+          end
+          object edtGJMon: TRzEdit
+            Left = 210
+            Top = 8
+            Width = 131
+            Height = 20
+            ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+            TabOrder = 1
+          end
+          object btnGJMonAdd: TRzButton
+            Left = 164
+            Top = 35
+            Width = 55
+            Caption = #22686#21152
+            TabOrder = 2
+            OnClick = btnGJMonAddClick
+          end
+          object btnGJMonDel: TRzButton
+            Left = 224
+            Top = 35
+            Width = 55
+            Caption = #21024#38500
+            TabOrder = 3
+            OnClick = btnGJMonDelClick
+          end
+          object btnGJMonEdit: TRzButton
+            Left = 285
+            Top = 35
+            Width = 55
+            Caption = #20462#25913
+            TabOrder = 4
+            OnClick = btnGJMonEditClick
+          end
+        end
+        object tsGJMagic: TRzTabSheet
+          ImageIndex = 1
+          Caption = #25915#20987#39764#27861
+          object lvGJMagic1: TRzListView
+            Left = 6
+            Top = 7
+            Width = 336
+            Height = 152
+            Cursor = crHandPoint
+            Columns = <
+              item
+                Caption = #39764#27861#21517#31216
+                Width = 160
+              end
+              item
+                Alignment = taCenter
+                Caption = #20351#29992#39764#27861
+                Width = 155
+              end>
+            GridLines = True
+            ReadOnly = True
+            RowSelect = True
+            TabOrder = 0
+            ViewStyle = vsReport
+            OnMouseDown = lvGJMagic1MouseDown
+          end
+        end
+        object tsGJGroupMagic: TRzTabSheet
+          ImageIndex = 2
+          Caption = #32676#25915#39764#27861
+          object lvGJMagic2: TRzListView
+            Left = 6
+            Top = 7
+            Width = 336
+            Height = 152
+            Cursor = crHandPoint
+            Columns = <
+              item
+                Caption = #39764#27861#21517#31216
+                Width = 160
+              end
+              item
+                Alignment = taCenter
+                Caption = #20351#29992#39764#27861
+                Width = 155
+              end>
+            GridLines = True
+            ReadOnly = True
+            RowSelect = True
+            TabOrder = 0
+            ViewStyle = vsReport
+            OnMouseDown = lvGJMagic1MouseDown
+          end
+        end
+      end
+      object chkGroupAttack: TRzCheckBox
+        Left = 165
+        Top = 57
+        Width = 103
+        Height = 15
+        Caption = #30446#26631#33539#22260#24618#29289'>='
+        State = cbUnchecked
+        TabOrder = 10
+        WordWrap = True
+        OnClick = chkGroupAttackClick
+      end
+      object seGroupAttackCount: TSpinEditEx
+        Left = 273
+        Top = 55
+        Width = 46
+        Height = 21
+        MaxValue = 0
+        MinValue = 0
+        TabOrder = 11
+        Value = 0
+        OnChange = seGroupAttackCountChange
+      end
+      object chkBagFull: TRzCheckBox
+        Left = 7
+        Top = 80
+        Width = 55
+        Height = 15
+        Caption = #21253#35065#28385
+        State = cbUnchecked
+        TabOrder = 12
+        WordWrap = True
+        OnClick = chkBagFullClick
+      end
+      object chkLimitScreen: TRzCheckBox
+        Left = 164
+        Top = 80
+        Width = 79
+        Height = 15
+        Caption = #38480#21046#24403#21069#23631
+        State = cbUnchecked
+        TabOrder = 14
+        WordWrap = True
+        OnClick = chkLimitScreenClick
+      end
+      object btnGJRun: TRzButton
+        Left = 259
+        Top = 82
+        Width = 97
+        Height = 41
+        Caption = #24320#22987#25346#26426
+        TabOrder = 18
+        OnClick = btnGJRunClick
+      end
+      object chkAutoPickup: TRzCheckBox
+        Left = 92
+        Top = 104
+        Width = 67
+        Height = 15
+        Caption = #33258#21160#25441#29289
+        State = cbUnchecked
+        TabOrder = 16
+        WordWrap = True
+        OnClick = chkAutoPickupClick
+      end
+      object chkDFAvoid: TRzCheckBox
+        Left = 7
+        Top = 104
+        Width = 79
+        Height = 15
+        Caption = #36947#27861#19981#36530#36991
+        State = cbUnchecked
+        TabOrder = 15
+        WordWrap = True
+        OnClick = chkDFAvoidClick
+      end
+      object cbbNoRedPoisonOption: TRzComboBox
+        Left = 64
+        Top = 7
+        Width = 92
+        Height = 20
+        Style = csDropDownList
+        ItemHeight = 12
+        TabOrder = 1
+        Text = #22238#22478#21367
+        OnChange = cbbPlayAttackOptionChange
+        Items.Strings = (
+          #22238#22478#21367
+          #38543#26426#20256#36865#21367
+          #23567#36864)
+        ItemIndex = 0
+      end
+      object cbbNoBluePoisonOption: TRzComboBox
+        Left = 64
+        Top = 54
+        Width = 94
+        Height = 20
+        Style = csDropDownList
+        ItemHeight = 12
+        TabOrder = 9
+        Text = #22238#22478#21367
+        OnChange = cbbPlayAttackOptionChange
+        Items.Strings = (
+          #22238#22478#21367
+          #38543#26426#20256#36865#21367
+          #23567#36864)
+        ItemIndex = 0
+      end
+      object cbbNoDuFuOption: TRzComboBox
+        Left = 64
+        Top = 31
+        Width = 92
+        Height = 20
+        Style = csDropDownList
+        ItemHeight = 12
+        TabOrder = 5
+        Text = #22238#22478#21367
+        OnChange = cbbPlayAttackOptionChange
+        Items.Strings = (
+          #22238#22478#21367
+          #38543#26426#20256#36865#21367
+          #23567#36864)
+        ItemIndex = 0
+      end
+      object cbbBagFullOption: TRzComboBox
+        Left = 64
+        Top = 79
+        Width = 94
+        Height = 20
+        Style = csDropDownList
+        ItemHeight = 12
+        TabOrder = 13
+        Text = #22238#22478#21367
+        OnChange = cbbPlayAttackOptionChange
+        Items.Strings = (
+          #22238#22478#21367
+          #38543#26426#20256#36865#21367
+          #23567#36864)
+        ItemIndex = 0
+      end
+      object btnGJPoint: TRzButton
+        Left = 166
+        Top = 99
+        Width = 77
+        Height = 24
+        Caption = #35774#32622#25346#26426#28857
+        TabOrder = 17
+        OnClick = btnGJPointClick
+      end
+    end
+    object tsKey: TRzTabSheet
+      Caption = #25353#38190
+      object scbHotKey: TScrollBox
+        Left = 0
+        Top = 52
+        Width = 365
+        Height = 256
+        Align = alClient
+        BevelOuter = bvNone
+        BorderStyle = bsNone
+        Ctl3D = False
+        ParentCtl3D = False
+        TabOrder = 0
+        object lblKey1: TRzLabel
+          Left = 8
+          Top = 10
+          Width = 48
+          Height = 12
+          Caption = #36830#20987#25216#33021
+        end
+        object lblKey2: TRzLabel
+          Left = 8
+          Top = 33
+          Width = 48
+          Height = 12
+          Caption = #21484#21796#33521#38596
+        end
+        object lblKey3: TRzLabel
+          Left = 8
+          Top = 56
+          Width = 72
+          Height = 12
+          Caption = #21484#21796#21103#23558#33521#38596
+        end
+        object lblKey4: TRzLabel
+          Left = 8
+          Top = 79
+          Width = 72
+          Height = 12
+          Caption = #33521#38596#25915#20987#30446#26631
+        end
+        object lblKey5: TRzLabel
+          Left = 8
+          Top = 102
+          Width = 60
+          Height = 12
+          Caption = #20351#29992#21512#20987#25216
+        end
+        object lblKey6: TRzLabel
+          Left = 8
+          Top = 125
+          Width = 72
+          Height = 12
+          Caption = #20999#25442#33521#38596#29366#24577
+        end
+        object lblKey7: TRzLabel
+          Left = 8
+          Top = 148
+          Width = 48
+          Height = 12
+          Caption = #33521#38596#23432#25252
+        end
+        object lblKey8: TRzLabel
+          Left = 8
+          Top = 171
+          Width = 72
+          Height = 12
+          Caption = #20999#25442#25915#20987#27169#24335
+        end
+        object lblKey9: TRzLabel
+          Left = 8
+          Top = 195
+          Width = 60
+          Height = 12
+          Caption = #20999#25442#23567#22320#22270
+        end
+        object lblKey10: TRzLabel
+          Left = 8
+          Top = 218
+          Width = 72
+          Height = 12
+          Caption = #35843#29992#30028#38754#35828#26126
+        end
+        object lblKey11: TRzLabel
+          Left = 8
+          Top = 241
+          Width = 78
+          Height = 12
+          Caption = #21484#21796'/'#25910#22238#22352#39569
+        end
+        object lblKey12: TRzLabel
+          Left = 8
+          Top = 264
+          Width = 78
+          Height = 12
+          Caption = #24320#22987'/'#20572#27490#25346#26426
+        end
+        object lblKey13: TRzLabel
+          Left = 8
+          Top = 287
+          Width = 72
+          Height = 12
+          Caption = #25171#24320#33521#38596#21253#35065
+        end
+        object lblKey14: TRzLabel
+          Left = 8
+          Top = 310
+          Width = 48
+          Height = 12
+          Caption = #24555#36895#32452#38431
+        end
+        object lblKey15: TRzLabel
+          Left = 9
+          Top = 333
+          Width = 72
+          Height = 12
+          Caption = #23453#23453#38145#23450#30446#26631
+        end
+        object lblKey16: TRzLabel
+          Left = 10
+          Top = 355
+          Width = 60
+          Height = 12
+          Caption = #33521#38596#29366#24577#26639
+        end
+        object hkNormal1: TRzEdit
+          Left = 100
+          Top = 7
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+D'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 0
+        end
+        object hkNormal2: TRzEdit
+          Left = 100
+          Top = 30
+          Width = 116
+          Height = 18
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 1
+        end
+        object hkNormal3: TRzEdit
+          Left = 100
+          Top = 53
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+F'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 2
+        end
+        object hkNormal4: TRzEdit
+          Left = 100
+          Top = 76
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+W'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 3
+        end
+        object hkNormal5: TRzEdit
+          Left = 100
+          Top = 99
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+S'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 4
+        end
+        object hkNormal6: TRzEdit
+          Left = 100
+          Top = 122
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+E'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 5
+        end
+        object hkNormal7: TRzEdit
+          Left = 100
+          Top = 145
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+Q'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 6
+        end
+        object hkNormal8: TRzEdit
+          Left = 100
+          Top = 168
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+H'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 7
+        end
+        object hkNormal9: TRzEdit
+          Left = 100
+          Top = 191
+          Width = 116
+          Height = 18
+          Text = 'Tab'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 8
+        end
+        object hkNormal10: TRzEdit
+          Left = 100
+          Top = 214
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+M'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 9
+        end
+        object hkNormal11: TRzEdit
+          Left = 100
+          Top = 237
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+G'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 10
+        end
+        object hkNormal12: TRzEdit
+          Left = 100
+          Top = 260
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+Alt+X'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 11
+        end
+        object hkNormal13: TRzEdit
+          Left = 100
+          Top = 283
+          Width = 116
+          Height = 18
+          Text = 'Alt+A'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 12
+        end
+        object hkNormal14: TRzEdit
+          Left = 100
+          Top = 306
+          Width = 116
+          Height = 18
+          Text = 'Alt+W'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 13
+        end
+        object hkNormal15: TRzEdit
+          Left = 100
+          Top = 329
+          Width = 116
+          Height = 18
+          Text = 'Ctrl+R'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 14
+        end
+        object hkCustom1: TRzEdit
+          Left = 228
+          Top = 7
+          Width = 116
+          Height = 18
+          TabOrder = 15
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom2: TRzEdit
+          Tag = 1
+          Left = 228
+          Top = 30
+          Width = 116
+          Height = 18
+          TabOrder = 16
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom3: TRzEdit
+          Tag = 2
+          Left = 228
+          Top = 53
+          Width = 116
+          Height = 18
+          TabOrder = 17
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom4: TRzEdit
+          Tag = 3
+          Left = 228
+          Top = 76
+          Width = 116
+          Height = 18
+          TabOrder = 18
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom5: TRzEdit
+          Tag = 4
+          Left = 228
+          Top = 99
+          Width = 116
+          Height = 18
+          TabOrder = 19
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom6: TRzEdit
+          Tag = 5
+          Left = 228
+          Top = 122
+          Width = 116
+          Height = 18
+          TabOrder = 20
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom7: TRzEdit
+          Tag = 6
+          Left = 228
+          Top = 145
+          Width = 116
+          Height = 18
+          TabOrder = 21
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom8: TRzEdit
+          Tag = 7
+          Left = 228
+          Top = 168
+          Width = 116
+          Height = 18
+          TabOrder = 22
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom9: TRzEdit
+          Tag = 8
+          Left = 228
+          Top = 191
+          Width = 116
+          Height = 18
+          TabOrder = 23
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom10: TRzEdit
+          Tag = 9
+          Left = 228
+          Top = 214
+          Width = 116
+          Height = 18
+          TabOrder = 24
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom11: TRzEdit
+          Tag = 10
+          Left = 228
+          Top = 237
+          Width = 116
+          Height = 18
+          TabOrder = 25
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom12: TRzEdit
+          Tag = 11
+          Left = 228
+          Top = 260
+          Width = 116
+          Height = 18
+          TabOrder = 26
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom13: TRzEdit
+          Tag = 12
+          Left = 228
+          Top = 283
+          Width = 116
+          Height = 18
+          TabOrder = 27
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom14: TRzEdit
+          Tag = 13
+          Left = 228
+          Top = 306
+          Width = 116
+          Height = 18
+          TabOrder = 28
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkCustom15: TRzEdit
+          Tag = 14
+          Left = 228
+          Top = 329
+          Width = 116
+          Height = 18
+          TabOrder = 29
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+        object hkNormal16: TRzEdit
+          Left = 100
+          Top = 352
+          Width = 116
+          Height = 18
+          Text = 'Alt+D'
+          Enabled = False
+          ReadOnly = True
+          TabOrder = 30
+        end
+        object hkCustom16: TRzEdit
+          Tag = 15
+          Left = 228
+          Top = 352
+          Width = 116
+          Height = 18
+          TabOrder = 31
+          OnContextPopup = hkCustom9ContextPopup
+          OnKeyDown = hkCustom1KeyDown
+          OnKeyPress = hkCustom1KeyPress
+          OnMouseDown = hkCustom1MouseDown
+        end
+      end
+      object pnlHotKeyTop: TRzPanel
+        Left = 0
+        Top = 0
+        Width = 365
+        Height = 52
+        Align = alTop
+        TabOrder = 1
+        object lbl23: TRzLabel
+          Left = 8
+          Top = 32
+          Width = 52
+          Height = 12
+          Caption = #21151#33021#25551#36848
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label33: TRzLabel
+          Left = 125
+          Top = 32
+          Width = 65
+          Height = 12
+          Caption = #40664#35748#24555#25463#38190
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object Label34: TRzLabel
+          Left = 247
+          Top = 32
+          Width = 78
+          Height = 12
+          Caption = #33258#23450#20041#24555#25463#38190
+          Font.Charset = GB2312_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -12
+          Font.Name = #23435#20307
+          Font.Style = [fsBold]
+          ParentFont = False
+        end
+        object bvl1: TBevel
+          Left = 6
+          Top = 49
+          Width = 342
+          Height = 2
+          Shape = bsTopLine
+        end
+        object chkEnabledHotKey: TRzCheckBox
+          Left = 8
+          Top = 7
+          Width = 115
+          Height = 15
+          Caption = #21551#29992#33258#23450#20041#24555#25463#38190
+          State = cbUnchecked
+          TabOrder = 0
+          WordWrap = True
+          OnClick = chkEnabledHotKeyClick
+        end
+      end
+      object pnlHotKeyBottom: TRzPanel
+        Left = 0
+        Top = 308
+        Width = 365
+        Height = 8
+        Align = alBottom
+        TabOrder = 2
+      end
+    end
+    object tsNotes: TRzTabSheet
+      Caption = #20415#31614
+      object mmoNotes: TRzMemo
+        Left = 7
+        Top = 8
+        Width = 351
+        Height = 301
+        ScrollBars = ssBoth
+        TabOrder = 0
+        OnChange = mmoNotesChange
+      end
+    end
+    object tsHelp: TRzTabSheet
+      ImageIndex = 9
+      Caption = #24110#21161
+      object mmoHelp: TRzMemo
+        Left = 8
+        Top = 7
+        Width = 349
+        Height = 304
+        ImeName = #20013#25991'('#31616#20307') - '#25628#29399#25340#38899#36755#20837#27861
+        Lines.Strings = (
+          #24555#25463#38190#35828#26126
+          '  F1'#21040'F8   '#21487#20197#33258#35774#32622#30340#25216#33021#24555#25463#38190
+          '  F9       '#25171#24320'/'#20851#38381#21253#35065#31383#21475
+          '  F10      '#25171#24320'/'#20851#38381#35282#33394#31383#21475
+          '  F11      '#25171#24320'/'#20851#38381#35282#33394#25216#33021#31383#21475
+          '  F12      '#25171#24320'/'#20851#38381#36741#21161#21151#33021#31383#21475
+          '  Alt+X    '#36820#22238#21040#35282#33394#36873#25321#30028#38754
+          '  Alt+Q    '#30452#25509#36864#20986#28216#25103
+          '  Pause    '#22312#28216#25103#20013#25130#22270#20445#23384#22312#28216#25103'\Images'#30446#24405#19979#38754' '
+          '  Ctrl+B   '#25171#24320'/'#20851#38381#21830#38138#31383#21475
+          '  Ctrl+H   '#36873#25321#33258#24049#21916#27426#30340#25915#20987#27169#24335#65306
+          '  '#12288#21644#24179#25915#20987#27169#24335' - '#23545#20219#20309#29609#23478#25915#20987#37117#26080#25928
+          '  '#12288#34892#20250#25915#20987#27169#24335' - '#23545#33258#24049#34892#20250#20869#30340#20854#20182#29609#23478#25915#20987#26080#25928
+          '  '#12288#32534#32452#25915#20987#27169#24335' - '#22788#20110#21516#19968#23567#32452#30340#29609#23478#25915#20987#26080#25928
+          '  '#12288#20840#20307#25915#20987#27169#24335' - '#23545#25152#26377#30340#29609#23478#37117#20855#26377#25915#20987#25928#26524
+          '  '#12288#21892#24694#25915#20987#27169#24335' - PK'#32418#21517#19987#29992#25915#20987#27169#24335
+          '  ALT+S'#21644'ALT+W  '#24555#36895#28155#21152#38431#21451
+          '  '#24555#36895#25441#29289#21697#8220'~'#8221#38190
+          ''
+          #29305#27530#21629#20196#35828#26126
+          '  /'#29609#23478#21517#23383'     '#31169#32842
+          '  !'#20132#27969#25991#23383'     '#21898#35805
+          '  !!'#25991#23383'        '#32452#38431#32842#22825
+          '  !~'#25991#23383'        '#34892#20250#32842#22825
+          '  '#19978#19979#26041#21521#38190'    '#26597#30475#36807#21435#30340#32842#22825#20449#24687
+          ''
+          '  @'#25298#32477#31169#32842'     '#25298#32477#25152#26377#30340#31169#20154#32842#22825#30340#21629#20196' '
+          '  @'#25298#32477'+'#20154#21517'    '#23545#29305#23450#30340#26576#19968#20010#20154#32842#22825#25991#23383#36827#34892#23631#34109' '
+          '  @'#25298#32477#34892#20250#32842#22825' '#23631#34109#34892#20250#32842#22825#25152#26377#28040#24687#30340#21629#20196' '
+          '  @'#36864#20986#38376#27966'     '#33073#31163#34892#20250' '
+          ''
+          #24555#36895#32534#32452#35828#26126
+          '  '#40736#26631#28857#20013#35201#32452#38431#30340#35282#33394#21516#26102#25353'ALT+W'#21363#21487#33258#21160#21644#35813#35282#33394#32452#38431#65292#20877#27425
+          '  '#25353'ALT+E'#21363#21487#33258#21160#25226#35813#35282#33394#20174#38431#20237#20013#21024#38500
+          ''
+          #33521#38596#25805#20316#24555#25463#38190
+          '  Ctrl+E  '#20999#25442#33521#38596#19977#20013#29366#24577#65306#36319#38543#12289#20241#24687#12289#25112#26007' '
+          '  Ctrl+Q  '#21551#21160'/'#20851#38381#33521#38596#8220#23432#25252#8221#29366#24577
+          '  Ctrl+W  '#25351#23450#33521#38596#25915#20987#40736#26631#28857#20013#30340#30446#26631
+          '  Ctrl+S  '#37322#25918#21512#20987#25216#33021
+          '  Alt+A   '#25171#24320#33521#38596#21253#35065
+          ''
+          #20854#20182#24555#25463#38190
+          '  CTRL+Z        '#26174#31034#29289#21697#21517#31216'. '
+          '  TAB           '#20999#25442#23567#22320#22270'.'
+          '  Alt+W         '#24555#36895#32452#38431
+          '  Alt+R         '#21047#26032#32972#21253
+          '  Alt+S         '#36947#22763#19979#27602#27169#24335'('#20114#25442','#32511#27602','#32418#27602')'
+          '  Alt+'#40736#26631#21491#38190'  '#24555#36895#22797#21046#20154#21517'.'
+          '  M'#38190'           '#26174#31034#33258#21160#23547#36335#31383#21475
+          '  Esc'#38190'         '#20851#38381#25152#26377#31383#21475)
+        ScrollBars = ssBoth
+        TabOrder = 0
+      end
+    end
+  end
+  object pm1: TPopupMenu
+    Left = 65528
+    Top = 318
+    object N1: TMenuItem
+      Caption = #25552#31034
+      object mniEnable: TMenuItem
+        Caption = #24320#21551
+        OnClick = mniEnableClick
+      end
+      object mniDisable: TMenuItem
+        Caption = #20851#38381
+        OnClick = mniDisableClick
+      end
+      object mniReverse: TMenuItem
+        Caption = #21453#21521
+        OnClick = mniReverseClick
+      end
+    end
+    object N2: TMenuItem
+      Tag = 1
+      Caption = #25342#21462
+      object N5: TMenuItem
+        Caption = #24320#21551
+        OnClick = mniEnableClick
+      end
+      object N4: TMenuItem
+        Caption = #20851#38381
+        OnClick = mniDisableClick
+      end
+      object N3: TMenuItem
+        Caption = #21453#21521
+        OnClick = mniReverseClick
+      end
+    end
+    object N6: TMenuItem
+      Tag = 2
+      Caption = #26174#31034
+      object N9: TMenuItem
+        Caption = #24320#21551
+        OnClick = mniEnableClick
+      end
+      object N8: TMenuItem
+        Caption = #20851#38381
+        OnClick = mniDisableClick
+      end
+      object N7: TMenuItem
+        Caption = #21453#21521
+        OnClick = mniReverseClick
+      end
+    end
+    object N10: TMenuItem
+      Tag = 3
+      Caption = #29305#27530
+      object N13: TMenuItem
+        Caption = #24320#21551
+        OnClick = mniEnableClick
+      end
+      object N12: TMenuItem
+        Caption = #20851#38381
+        OnClick = mniDisableClick
+      end
+      object N11: TMenuItem
+        Caption = #21453#21521
+        OnClick = mniReverseClick
+      end
+    end
+    object N14: TMenuItem
+      Tag = 4
+      Caption = #20256#36865
+      object N17: TMenuItem
+        Caption = #24320#21551
+        OnClick = mniEnableClick
+      end
+      object N16: TMenuItem
+        Caption = #20851#38381
+        OnClick = mniDisableClick
+      end
+      object N15: TMenuItem
+        Caption = #21453#21521
+        OnClick = mniReverseClick
+      end
+    end
+  end
+end

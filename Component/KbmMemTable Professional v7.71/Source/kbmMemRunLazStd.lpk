@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Package Version="4">
+    <PathDelim Value="\"/>
+    <Name Value="kbmMemRunLazStd"/>
+    <AddToProjectUsesSection Value="True"/>
+    <Author Value="Components4Developers"/>
+    <CompilerOptions>
+      <Version Value="11"/>
+      <PathDelim Value="\"/>
+      <SearchPaths>
+        <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      </SearchPaths>
+      <Parsing>
+        <SyntaxOptions>
+          <SyntaxMode Value="Delphi"/>
+        </SyntaxOptions>
+      </Parsing>
+    </CompilerOptions>
+    <Description Value="kbmMemTable Standard Edition - Performance memory dataset - Lazarus - Runtime - www.Components4Developers.com"/>
+<Files Count="17">
+<Item1>
+  <Filename Value="kbmList.pas" />
+  <Unitname Value="kbmList" />
+</Item1>
+<Item2>
+  <Filename Value="kbmMove.pas" />
+  <Unitname Value="kbmMove" />
+</Item2>
+<Item3>
+  <Filename Value="kbmString.pas" />
+  <Unitname Value="kbmString" />
+</Item3>
+<Item4>
+  <Filename Value="kbmMemTable.pas" />
+  <Unitname Value="kbmMemTable" />
+</Item4>
+<Item5>
+  <Filename Value="kbmMemCSVStreamFormat.pas" />
+  <Unitname Value="kbmMemCSVStreamFormat" />
+</Item5>
+<Item6>
+  <Filename Value="kbmMemBinaryStreamFormat.pas" />
+  <Unitname Value="kbmMemBinaryStreamFormat" />
+</Item6>
+<Item7>
+  <Filename Value="kbmMemTypes.pas" />
+  <Unitname Value="kbmMemTypes" />
+</Item7>
+<Item8>
+  <Filename Value="kbmMemResEng.pas" />
+  <Unitname Value="kbmMemResEng" />
+</Item8>
+<Item9>
+  <Filename Value="CocoAncestor.pas" />
+  <Unitname Value="CocoAncestor" />
+</Item9>
+<Item10>
+  <Filename Value="kbmMemSQL.pas" />
+  <Unitname Value="kbmMemSQL" />
+</Item10>
+<Item11>
+  <Filename Value="kbmSQLDBAPI.pas" />
+  <Unitname Value="kbmSQLDBAPI" />
+</Item11>
+<Item12>
+  <Filename Value="kbmSQLElements.pas" />
+  <Unitname Value="kbmSQLElements" />
+</Item12>
+<Item13>
+  <Filename Value="kbmSQLFuncAPI.pas" />
+  <Unitname Value="kbmSQLFuncAPI" />
+</Item13>
+<Item14>
+  <Filename Value="kbmSQLMemTableAPI.pas" />
+  <Unitname Value="kbmSQLMemTableAPI" />
+</Item14>
+<Item15>
+  <Filename Value="kbmSQLParser.pas" />
+  <Unitname Value="kbmSQLParser" />
+</Item15>
+<Item16>
+  <Filename Value="kbmSQLStdFunc.pas" />
+  <Unitname Value="kbmSQLStdFunc" />
+</Item16>
+<Item17>
+  <Filename Value="kbmClasses.pas" />
+  <Unitname Value="kbmClasses" />
+</Item17>
+</Files>
+
+    <RequiredPkgs Count="1">
+      <Item1>
+        <PackageName Value="LCL"/>
+        <MinVersion Major="1" Valid="True"/>
+      </Item1>
+    </RequiredPkgs>
+    <UsageOptions>
+      <UnitPath Value="$(PkgOutDir)"/>
+    </UsageOptions>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+  </Package>
+</CONFIG>

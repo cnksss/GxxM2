@@ -1,0 +1,18 @@
+HGE Started..
+
+HGE version: 1.60
+Date: 16. 3.2022, 20:45:35
+
+OS: Windows 6.2.9200
+Memory: 2097151K total, 2097151K free
+
+D3D Driver: nvldumd.dll
+Description: NVIDIA GeForce GTX 1050 Ti
+Version: 27.21.14.5671
+Mode: 800 x 600 x X8R8G8B8
+
+Init done.
+
+
+Finishing..
+The End.

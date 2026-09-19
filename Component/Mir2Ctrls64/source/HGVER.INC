@@ -1,0 +1,328 @@
+{ DELPHI Settings }
+
+{$B-} // Complete Boolean Evaluation Off
+{$R-} // Range Checking Off
+{$Q-} // Overflow Checking Off
+{$V-} // Var String Checking Off
+{$T-} // Typed @ operator Off
+{$X+} // Extended Syntax On
+{$P+} // Open String Params On
+{$O+} // Optimization On
+{$IFDEF WIN32}
+{$H+} // Use long strings by default
+{$ENDIF}
+
+{ Assume the latest version of DELPHI is available }
+
+{$DEFINE XE10}
+{$DEFINE XE8}
+{$DEFINE XE7}
+{$DEFINE XE6}
+{$DEFINE XE5}
+{$DEFINE XE4}
+{$DEFINE XE3}
+{$DEFINE XE2}
+{$DEFINE XE}
+{$DEFINE DELPHI2010}
+{$DEFINE DELPHI2009}
+{$DEFINE DELPHI2007}
+{$DEFINE DELPHI2006}
+{$DEFINE DELPHI2005}
+{$DEFINE DELPHI7}
+{$DEFINE DELPHI6}
+{$DEFINE DELPHI5}
+{$DEFINE DELPHI4}
+
+{ Then detect if it is older (.NET versions are ignored) }
+
+{$IFDEF VER300}           // Delphi XE10
+
+{$ENDIF}
+
+{$IFDEF VER290}           // Delphi XE8
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+{$ENDIF}
+
+{$IFDEF VER280}           // Delphi XE7
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+{$ENDIF}
+
+{$IFDEF VER270}           // Delphi XE6
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+{$ENDIF}
+
+
+{$IFDEF VER260}           // Delphi XE5
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+{$ENDIF}
+
+{$IFDEF VER250}           // Delphi XE4
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+{$ENDIF}
+
+{$IFDEF VER240}           // Delphi XE3
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+{$ENDIF}
+
+{$IFDEF VER230}           // Delphi XE2
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+{$ENDIF}
+
+{$IFDEF VER220}           // Delphi XE
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+{$ENDIF}
+
+{$IFDEF VER210}           // Delphi 2010
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE} 
+{$ENDIF}
+
+{$IFDEF VER200}           // Delphi 2009
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010}  
+{$ENDIF}
+
+{$IFDEF VER185}           // Delphi 2007
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+{$ENDIF}
+
+{$IFDEF VER180}           // Delphi 2006
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+{$ENDIF}
+
+{$IFDEF VER170}           // Delphi 2005
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+{$ENDIF}
+
+{$IFDEF VER150}           // Delphi 7
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+{$ENDIF}
+
+{$IFDEF VER140}           // Delphi 6 & C++Builder 6
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+{$ENDIF}
+
+{$IFDEF VER130}           // Delphi 5 & C++Builder 5
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+  {$UNDEF DELPHI6}
+{$ENDIF}
+
+{$IFDEF VER120}          // Delphi 4
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+  {$UNDEF DELPHI6}
+  {$UNDEF DELPHI5}
+{$ENDIF}
+
+{$IFDEF VER100}          // Delphi 3
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+  {$UNDEF DELPHI6}
+  {$UNDEF DELPHI5}
+  {$UNDEF DELPHI4}
+{$ENDIF}
+
+{$IFDEF VER90}          // Delphi 2
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+  {$UNDEF DELPHI6}
+  {$UNDEF DELPHI5}
+  {$UNDEF DELPHI4}
+{$ENDIF}
+
+{$IFDEF VER80}          // Delphi 1
+  {$UNDEF XE10}
+  {$UNDEF XE9}
+  {$UNDEF XE8}
+  {$UNDEF XE7}
+  {$UNDEF XE6}
+  {$UNDEF XE5}
+  {$UNDEF XE4}
+  {$UNDEF XE3}
+  {$UNDEF XE2}
+  {$UNDEF XE}
+  {$UNDEF DELPHI2010} 
+  {$UNDEF DELPHI2009}
+  {$UNDEF DELPHI2007}
+  {$UNDEF DELPHI2006}
+  {$UNDEF DELPHI2005}
+  {$UNDEF DELPHI7}
+  {$UNDEF DELPHI6}
+  {$UNDEF DELPHI5}
+  {$UNDEF DELPHI4}
+{$ENDIF}

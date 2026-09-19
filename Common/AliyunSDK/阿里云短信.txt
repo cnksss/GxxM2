@@ -1,0 +1,30 @@
+控制台：
+https://dysms.console.aliyun.com/dysms.htm?spm=5176.2020520115.0.0.751579d6jCuRrv#/develop/api
+
+短信服务器访问域名
+https://help.aliyun.com/document_detail/68360.html?spm=a2c4g.11186623.6.588.ObDfmu
+
+Http协议及签名：
+https://help.aliyun.com/document_detail/56189.html?spm=5176.doc55501.6.562.WCtBcB
+
+=========================================================================================================
+
+Access Key ID:
+LTAI63GJtkWaeX3r
+
+
+Access Key Secret:
+FWTVlj9oFfRm2VfsodNNAk6MNqroJF
+
+SignName (签名):
+GEE单职业
+
+TemplateCode (模板)：
+SMS_62600003
+
+=========================================================================================================
+请求截包(Java)
+http://dysmsapi.aliyuncs.com/?PhoneNumbers=13607110319&Action=SendSms&Timestamp=2018-05-05T09%3A57%3A28Z&SignName=GEE%E5%8D%95%E8%81%8C%E4%B8%9A&TemplateCode=SMS_62600003&SignatureVersion=1.0&Format=XML&SignatureNonce=3f29de02-c291-4dc8-b948-2e443c9c07ce&Version=2017-05-25&AccessKeyId=LTAI63GJtkWaeX3r&Signature=nVl53iG76AdtV3raF0VxTt8oHOQ%3D&OutId=yourOutId&SignatureMethod=HMAC-SHA1&TemplateParam=%7B%22name%22%3A%22Tom%22%2C+%22code%22%3A%22123%22%7D&RegionId=cn-hangzhou
+
+
+Host: dysmsapi.aliyuncs.com

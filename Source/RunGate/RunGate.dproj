@@ -1,0 +1,100 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <ProjectGuid>{81a4caca-6e41-4a22-aa6a-edd988f26e26}</ProjectGuid>
+    <MainSource>RunGate.dpr</MainSource>
+    <Configuration Condition=" '$(Configuration)' == '' ">Release</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <DCC_DCCCompiler>DCC32</DCC_DCCCompiler>
+    <DCC_DependencyCheckOutputName>..\..\Release\RunGate\RunGate.exe</DCC_DependencyCheckOutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <Version>7.0</Version>
+    <DCC_AssertionsAtRuntime>False</DCC_AssertionsAtRuntime>
+    <DCC_SymbolReferenceInfo>0</DCC_SymbolReferenceInfo>
+    <DCC_ExeOutput>..\..\Release\RunGate</DCC_ExeOutput>
+    <DCC_DcuOutput>..\..\Build\RunGate</DCC_DcuOutput>
+    <DCC_ObjOutput>..\..\Build\RunGate</DCC_ObjOutput>
+    <DCC_HppOutput>..\..\Build\RunGate</DCC_HppOutput>
+    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\Common\Compress;..\Common\FastMM;..\Common\RSA;..\Common\WinLicense_Inc\Delphi;..\..\Component\GDI+Plus\pas;..\..\Component\JSocket;..\..\Component\Mir2Ctrls\source;..\..\Component\VirtualTreeViewV5.5.3\Source</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\Common\Compress;..\Common\FastMM;..\Common\RSA;..\Common\WinLicense_Inc\Delphi;..\..\Component\GDI+Plus\pas;..\..\Component\JSocket;..\..\Component\Mir2Ctrls\source;..\..\Component\VirtualTreeViewV5.5.3\Source</DCC_ResourcePath>
+    <DCC_ObjPath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\Common\Compress;..\Common\FastMM;..\Common\RSA;..\Common\WinLicense_Inc\Delphi;..\..\Component\GDI+Plus\pas;..\..\Component\JSocket;..\..\Component\Mir2Ctrls\source;..\..\Component\VirtualTreeViewV5.5.3\Source</DCC_ObjPath>
+    <DCC_IncludePath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\Common\Compress;..\Common\FastMM;..\Common\RSA;..\Common\WinLicense_Inc\Delphi;..\..\Component\GDI+Plus\pas;..\..\Component\JSocket;..\..\Component\Mir2Ctrls\source;..\..\Component\VirtualTreeViewV5.5.3\Source</DCC_IncludePath>
+    <DCC_Define>RELEASE</DCC_Define>
+    <DCC_DebugInformation>False</DCC_DebugInformation>
+    <DCC_LocalDebugSymbols>False</DCC_LocalDebugSymbols>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <Version>7.0</Version>
+    <DCC_AssertionsAtRuntime>False</DCC_AssertionsAtRuntime>
+    <DCC_ExeOutput>..\..\Release\RunGate</DCC_ExeOutput>
+    <DCC_DcuOutput>..\..\Build\RunGate</DCC_DcuOutput>
+    <DCC_ObjOutput>..\..\Build\RunGate</DCC_ObjOutput>
+    <DCC_HppOutput>..\..\Build\RunGate</DCC_HppOutput>
+    <DCC_UnitSearchPath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\..\Common\;..\..\Common\Compress;..\..\Common\FastMM;..\..\Common\RSA;..\..\Component\GDI+Plus\pas;..\..\Common\WinLicense_Inc\Delphi</DCC_UnitSearchPath>
+    <DCC_ResourcePath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\..\Common\;..\..\Common\Compress;..\..\Common\FastMM;..\..\Common\RSA;..\..\Component\GDI+Plus\pas;..\..\Common\WinLicense_Inc\Delphi</DCC_ResourcePath>
+    <DCC_ObjPath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\..\Common\;..\..\Common\Compress;..\..\Common\FastMM;..\..\Common\RSA;..\..\Component\GDI+Plus\pas;..\..\Common\WinLicense_Inc\Delphi</DCC_ObjPath>
+    <DCC_IncludePath>$(DELPHI)\Lib\Debug;Common\;..\Common\;..\..\Common\;..\..\Common\Compress;..\..\Common\FastMM;..\..\Common\RSA;..\..\Component\GDI+Plus\pas;..\..\Common\WinLicense_Inc\Delphi</DCC_IncludePath>
+    <DCC_Define>DEBUG</DCC_Define>
+    <DCC_Optimize>False</DCC_Optimize>
+  </PropertyGroup>
+  <ProjectExtensions>
+    <Borland.Personality>Delphi.Personality</Borland.Personality>
+    <Borland.ProjectType>VCLApplication</Borland.ProjectType>
+    <BorlandProject>
+<BorlandProject><Delphi.Personality><Parameters><Parameters Name="UseLauncher">False</Parameters><Parameters Name="LoadAllSymbols">True</Parameters><Parameters Name="LoadUnspecifiedSymbols">False</Parameters></Parameters><VersionInfo><VersionInfo Name="IncludeVerInfo">True</VersionInfo><VersionInfo Name="AutoIncBuild">False</VersionInfo><VersionInfo Name="MajorVer">1</VersionInfo><VersionInfo Name="MinorVer">0</VersionInfo><VersionInfo Name="Release">0</VersionInfo><VersionInfo Name="Build">11</VersionInfo><VersionInfo Name="Debug">False</VersionInfo><VersionInfo Name="PreRelease">False</VersionInfo><VersionInfo Name="Special">False</VersionInfo><VersionInfo Name="Private">False</VersionInfo><VersionInfo Name="DLL">False</VersionInfo><VersionInfo Name="Locale">2052</VersionInfo><VersionInfo Name="CodePage">936</VersionInfo></VersionInfo><VersionInfoKeys><VersionInfoKeys Name="FileVersion">1.0.0.11</VersionInfoKeys><VersionInfoKeys Name="CompanyName">Bmm2</VersionInfoKeys><VersionInfoKeys Name="FileDescription"></VersionInfoKeys><VersionInfoKeys Name="InternalName"></VersionInfoKeys><VersionInfoKeys Name="LegalCopyright"></VersionInfoKeys><VersionInfoKeys Name="LegalTrademarks"></VersionInfoKeys><VersionInfoKeys Name="OriginalFilename"></VersionInfoKeys><VersionInfoKeys Name="ProductName"></VersionInfoKeys><VersionInfoKeys Name="ProductVersion">1.0.0.0</VersionInfoKeys></VersionInfoKeys><Source><Source Name="MainSource">RunGate.dpr</Source></Source><Excluded_Packages>
+      <Excluded_Packages Name="C:\Program Files (x86)\Raize\RC5\Bin\RaizeComponentsVclDB_Design100.bpl">Raize Components 5.4 (Data-Aware)</Excluded_Packages>
+      <Excluded_Packages Name="C:\Users\Public\Documents\RAD Studio\5.0\Bpl\Install.bpl">(untitled)</Excluded_Packages>
+    </Excluded_Packages></Delphi.Personality><ModelSupport>False</ModelSupport></BorlandProject></BorlandProject>
+  </ProjectExtensions>
+  <Import Project="$(MSBuildBinPath)\Borland.Delphi.Targets" />
+  <ItemGroup>
+    <DelphiCompile Include="RunGate.dpr">
+      <MainSource>MainSource</MainSource>
+    </DelphiCompile>
+    <DCCReference Include="BagItemList.pas" />
+    <DCCReference Include="DesNew2.pas" />
+    <DCCReference Include="EDcode.pas" />
+    <DCCReference Include="EncryptUnit_LF.pas" />
+    <DCCReference Include="GateShare.pas" />
+    <DCCReference Include="Grobal2_Ex.pas" />
+    <DCCReference Include="MagicIntervalUtils.pas" />
+    <DCCReference Include="MirClientContext.pas" />
+    <DCCReference Include="RunGatePluginInterface.pas" />
+    <DCCReference Include="RunGateUtils.pas" />
+    <DCCReference Include="uFrmAddProcessBlack.pas">
+      <Form>FrmAddProcessBlack</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmGameSpeed.pas">
+      <Form>FrmGameSpeed</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmInterval.pas">
+      <Form>FrmInterval</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmItemEatCD.pas">
+      <Form>FrmItemEatCD</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmLogClientPacketSetting.pas">
+      <Form>FrmLogClientPacketSetting</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmMagicCD.pas">
+      <Form>FrmMagicCD</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmMain.pas">
+      <Form>FrmMain</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmMessageFilter.pas">
+      <Form>FrmMessageFilter</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmProcessBlacklist.pas">
+      <Form>FrmProcessBlacklist</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmReadFileIP.pas">
+      <Form>FrmReadFileIP</Form>
+    </DCCReference>
+    <DCCReference Include="uFrmSafeFilter.pas">
+      <Form>FrmSafeFilter</Form>
+    </DCCReference>
+    <DCCReference Include="uIPDownThread.pas" />
+  </ItemGroup>
+</Project>

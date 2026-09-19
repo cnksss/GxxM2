@@ -1,0 +1,5 @@
+IPLocal dll IPLocal.32.dll
+RemoteScript dll RemoteScript.32.dll
+ScriptDecrypt dll ScriptDecrypt.32.dll
+RecvLog dll RecvLog.32.dll
+CommonScript dll CommonScript.32.dll

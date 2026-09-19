@@ -1,0 +1,13 @@
+;Demo ini file to show the capabilities of TFastIniFile.
+;What you see here in the RichEdit is the contents of
+;the file DEMO.ORG which is 'shipped' with this demo.
+;Any changes made to this inifile by this demo will be
+;stored in DEMO.INI.
+
+[Section]
+Ident=Value                            ;Inline comment.
+
+[Quoted values]
+QV1="This is just a "test" to show "   ;Quotes within quotes will stay.
+QV2="how quoted values are handled "
+QV3="(watch the spaces at the end of the lines)."

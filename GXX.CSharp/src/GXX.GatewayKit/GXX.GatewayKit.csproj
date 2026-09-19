@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>GXX.GatewayKit</RootNamespace>
+    <AssemblyName>GXX.GatewayKit</AssemblyName>
+    <UseWindowsForms>true</UseWindowsForms>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GXX.Core\GXX.Core.csproj" />
+  </ItemGroup>
+</Project>

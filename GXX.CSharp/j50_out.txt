@@ -1,0 +1,6 @@
+MSBUILD : error MSB1008: 只能指定一个项目。
+    完整命令行:“C:\Program Files\dotnet\sdk\11.0.100-rc.1.26425.128\MSBuild.exe -maxcpucount --verbosity:m -tlp:default=auto --property:VSTestNoLogo=true --property:Configuration=Debug --property:NuGetInteractive=false --property:VSTestArtifactsProcessingMode=collect --property:VSTestSessionCorrelationId=3412_1b8ad891-87d5-43d9-ac1c-45698970087e --restoreProperty:VSTestNoLogo=true --restoreProperty:Configuration=Debug --restoreProperty:NuGetInteractive=false --restoreProperty:VSTestArtifactsProcessingMode=collect --restoreProperty:VSTestSessionCorrelationId=3412_1b8ad891-87d5-43d9-ac1c-45698970087e --restoreProperty:EnableDefaultCompileItems=false --restoreProperty:EnableDefaultEmbeddedResourceItems=false --restoreProperty:EnableDefaultNoneItems=false --target:VSTest --nologo -nodereuse:false tests/GXX.Client.Tests/GXX.Client.Tests.csproj ; grep -E FAIL|passed|failed j50_out.txt -restore -distributedlogger:Microsoft.DotNet.Cli.Commands.MSBuild.MSBuildLogger,C:\Program Files\dotnet\sdk\11.0.100-rc.1.26425.128\dotnet.dll*Microsoft.DotNet.Cli.Commands.MSBuild.MSBuildForwardingLogger,C:\Program Files\dotnet\sdk\11.0.100-rc.1.26425.128\dotnet.dll”
+  响应文件追加的开关: 
+开关:;
+
+若要显示开关的语法，请键入“MSBuild -help”

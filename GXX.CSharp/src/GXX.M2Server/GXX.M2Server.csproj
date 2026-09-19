@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>GXX.M2Server</RootNamespace>
+    <AssemblyName>M2Server</AssemblyName>
+    
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GXX.Core\GXX.Core.csproj" />
+    <ProjectReference Include="..\GXX.GatewayKit\GXX.GatewayKit.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    <PackageReference Include="MySqlConnector" Version="2.3.7" />
+  </ItemGroup>
+</Project>

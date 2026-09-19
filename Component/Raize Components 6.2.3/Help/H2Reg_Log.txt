@@ -1,0 +1,123 @@
+===============================================================================
+Log File:             	C:\PROGRA~2\Raize\RC6\Help\H2Reg_Log.txt
+Date:                 	2017/3/31 16:24:41
+Operating System:      	Windows NT 6.1 (Build 7601) Service Pack 1
+SysLocale.DefaultLCID: 	0x0804 (2052)
+SysLocale.PriLangID:   	0x0004 (4)
+SysLocale.SubLangID:   	0x0002 (2)
+DecimalSeparator:      	.
+-------------------------------------------------------------------------------
+EXE Path =          	C:\PROGRA~2\Raize\RC6\Help\H2Reg.exe
+EXE Version =       	1.6.0.0
+Cmdline Param(s) =  	-r | -q | CmdFile=RC6Help_RegRS-XE7.ini
+Actual CmdLine =  	"C:\PROGRA~2\Raize\RC6\Help\H2Reg.exe" -r -q CmdFile=RC6Help_RegRS-XE7.ini
+_RunDir =           	C:\PROGRA~2\Raize\RC6\Help
+_ModuleName =       	H2Reg.exe
+_ModuleDir =        	C:\PROGRA~2\Raize\RC6\Help
+_ModulePath =        	C:\PROGRA~2\Raize\RC6\Help\H2Reg.exe
+Module Version =       	1.6.0.0
+-------------------------------------------------------------------------------
+_hhInstalled =      	YES
+_hhVerStr =         	6.1.7600.16385
+_hhFriendlyVerStr = 	> 1.4a
+-------------------------------------------------------------------------------
+_ieInstalled =      	YES
+_ieVerStr =         	6.1.7601.18222
+_ieFriendlyVerStr = 	Internet Explorer 6 (Windows Server 2003)
+===============================================================================
+MS Help 2.x Runtime Found: YES
+    2.7.61224.0, C:\Program Files (x86)\Common Files\Microsoft Shared\Help\hxds.dll
+    2.7.61224.0, C:\Program Files (x86)\Common Files\microsoft shared\Help\hxvz.dll
+NT Admin Log On: YES
+PC Language ID = cn
+-------------------------------------------------------------------------------
+Quiet Mode (-Q): Yes
+Registration Mode (-R): Yes
+UnRegistration Mode (-U): No
+Append Log Mode (-A): No
+No NT Admin Check (-N): No
+Merge Indexes Mode (-M): No
+Cmd Script File (CmdFile=): RC6Help_RegRS-XE7.ini
+User Dir 1 (UserDir1=): 
+User Dir 2 (UserDir2=): 
+User Dir 3 (UserDir3=): 
+User Dir 4 (UserDir4=): 
+===============================================================================
+CmdFile = C:\PROGRA~2\Raize\RC6\Help\RC6Help_RegRS-XE7.ini
+<windir> = C:\Windows
+<winsysdir> = C:\Windows\system32
+<programfilesdir> = C:\Program Files (x86)
+<exedir> = C:\PROGRA~2\Raize\RC6\Help
+<exedirparent> = C:\Program Files (x86)\Raize\RC6
+<cmdfiledir> = C:\Program Files (x86)\Raize\RC6\Help
+<cmdfiledirparent> = C:\Program Files (x86)\Raize\RC6
+<userdir1> = 
+<userdir1parent> = 
+<userdir2> = 
+<userdir2parent> = 
+<userdir3> = 
+<userdir3parent> = 
+<userdir4> = 
+<userdir4parent> = 
+-------------------------------------------------------------------------------
+[Reg_Namespace]
+Raize.RC6Help_RS-XE7|RC6Help_RS-XE7.HxC|Raize Components 6
+
+[Reg_Title]
+Raize.RC6Help_RS-XE7|RC6Help_RS-XE7|1033|RC6Help_RS-XE7.HxS|RC6Help_RS-XE7.HxI||||||
+
+[Reg_Plugin]
+embarcadero.rs_xe7|_DEFAULT|Raize.RC6Help_RS-XE7|_DEFAULT|RC6Help_RS-XE7.HxA
+
+[Reg_Filter]
+
+[UnReg_Namespace]
+Raize.RC6Help_RS-XE7
+
+[UnReg_Title]
+Raize.RC6Help_RS-XE7|RC6Help_RS-XE7|1033
+
+[UnReg_Plugin]
+embarcadero.rs_xe7|_DEFAULT|Raize.RC6Help_RS-XE7|_DEFAULT|RC6Help_RS-XE7.HxA
+
+[UnReg_Filter]
+
+[Merge_Namespace]
+embarcadero.rs_xe7
+-------------------------------------------------------------------------------
+16:24:41   [Reg_Namespace] - Lines To Process = 1
+16:24:41     <nsName>="Raize.RC6Help_RS-XE7"
+16:24:41     <nsColfile>="C:\Program Files (x86)\Raize\RC6\Help\RC6Help_RS-XE7.HxC"
+16:24:41     <nsDesc>="Raize Components 6"
+16:24:41     +Mode = Not Enabled
+16:24:41     Preparation: Old Namespace "Raize.RC6Help_RS-XE7" successfully removed. Its important to start with a clean slate.
+16:24:41    -->Registered OK
+-------------------------------------------------------------------------------
+16:24:41   [Reg_Title] - Lines To Process = 1
+16:24:41     <nsName>="Raize.RC6Help_RS-XE7"
+16:24:41     <TitleID>="RC6Help_RS-XE7"
+16:24:41     <LangID>="1033"
+16:24:41     <HxS_HelpFile>="C:\Program Files (x86)\Raize\RC6\Help\RC6Help_RS-XE7.HxS"
+16:24:41     <HxI_IndexFile>="C:\Program Files (x86)\Raize\RC6\Help\RC6Help_RS-XE7.HxI"
+16:24:41     <HxQ_QueryFile>=""
+16:24:41     <HxR_AttrQueryFile>=""
+16:24:41     <HxsMediaLoc>=""
+16:24:41     <HxqMediaLoc>=""
+16:24:41     <HxrMediaLoc>=""
+16:24:41     <SampleMediaLoc>=""
+16:24:41    -->Registered OK
+-------------------------------------------------------------------------------
+16:24:41   [Reg_Plugin] - Lines To Process = 1
+16:24:41     <nsName_Parent>="embarcadero.rs_xe7"
+16:24:41     <HxT_Parent>="_DEFAULT"
+16:24:41     <nsName_Child>="Raize.RC6Help_RS-XE7"
+16:24:41     <HxT_Child>="_DEFAULT"
+16:24:41     <HxA_Child>="C:\Program Files (x86)\Raize\RC6\Help\RC6Help_RS-XE7.HxA"
+16:24:41   Plug Child "Raize.RC6Help_RS-XE7" into "embarcadero.rs_xe7"
+16:24:41    -->Registered OK
+-------------------------------------------------------------------------------
+16:24:41   [Reg_Filter] - Lines To Process = 0
+===============================================================================
+
+--END OF FILE--
+

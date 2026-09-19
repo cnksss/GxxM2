@@ -1,0 +1,31 @@
+ClMain.LoadConfig读取内容，来自于Client.dat，登录器配置器生成
+1.  g_sRunGatePassword; //网关密码
+2.  NewUiFileNames //新UI文件名
+3.  g_BaseUIStream //mir.ui
+4.  g_ConfigDlgUIStream //MirConfigDlg.ui
+5.  g_ShareUIStream //Share.ui
+6.  g_NewStateWindowUiStream //StateWin.ui
+7.  g_JSYUIStream //JSYUI.ini
+8.  g_BackImage //游戏启动时显示，可以审略
+9.  g_UseCustomDefCursor //用户自定义光标
+10. g_UseCustomMountCursor  //用户自定义光标
+11. Plugin\geem2plug.dll  //GeeM2Plug.dll文件
+12. 自定义怪物配置 //xxx.dat
+13. 自定义技能配置文件 //xxx.dat
+14. 自定义NPC配置文件 //xxx.dat
+15. g_NGProtectItems 内挂保护项目
+16. g_NGBossList     内挂Boss列表
+17. g_ItemDescList   物品描述列表
+18. g_ItemDescTopList 顶行物品描述
+19. g_FileItemDB //可能时FilterItemList， 物品过滤列表
+20. TZItemDescList //套装描述
+21. GodBlessItem //神佑备注信息
+22. g_plugFileNameList //插件列表
+23. g_DataFileList //？？文件列表 ？？？？
+24. g_MapFileList  //地图文件列表
+25. g_WavFileList  //声音文件列表
+26. g_ImageFileList //图像文件列表
+27. g_ResourcesDir //资源文件夹名称
+28. NEWOPUIIMAGEFILE := g_ResourcesDir + '\Data\' + g_ConfigClient.sGamePlanName;
+29. MOBILEIMAGEFILE := g_ResourcesDir + '\Data\Mobile.Pak';
+

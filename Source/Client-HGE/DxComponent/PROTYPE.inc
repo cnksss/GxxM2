@@ -1,0 +1,2 @@
+{.$DEFINE PROEXE}
+//CLIENTEXE = 1

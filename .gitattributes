@@ -1,0 +1,50 @@
+# 统一使用 LF 存储，检出时按平台转换
+* text=auto
+
+# 源码：显式按文本处理，统一换行符
+*.cs        text diff=csharp
+*.pas       text
+*.dpr       text
+*.dpk       text
+*.inc       text
+*.dfm       text
+*.xfm       text
+*.md        text
+*.txt       text
+*.json      text
+*.yml       text
+*.yaml      text
+*.xml       text
+*.config    text
+*.props     text
+*.targets   text
+*.slnx      text
+*.csproj    text
+*.ps1       text
+*.cmd       text
+*.bat       text
+*.sh        text
+
+# 二进制：禁止任何换行转换与合并
+*.png       binary
+*.jpg       binary
+*.jpeg      binary
+*.gif       binary
+*.bmp       binary
+*.ico       binary
+*.res       binary
+*.dcu       binary
+*.exe       binary
+*.dll       binary
+*.pdb       binary
+*.zip       binary
+*.rar       binary
+*.7z        binary
+*.mdb       binary
+*.sqlite    binary
+*.ttf       binary
+*.fon       binary
+
+# 语言统计：把第三方库目录标记为 vendored
+Common/**         linguist-vendored
+Component/**      linguist-vendored

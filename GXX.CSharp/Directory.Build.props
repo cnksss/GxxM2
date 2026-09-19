@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <LangVersion>12.0</LangVersion>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Deterministic>true</Deterministic>
+    <Company>GXX</Company>
+    <Product>GXX Mir2 Suite (C# Conversion)</Product>
+    <NoWarn>$(NoWarn);CS0219;CS0414;CS0649;CS0067;CS0108;CS0114;CS8632;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767;CS8321</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />
+  </ItemGroup>
+</Project>

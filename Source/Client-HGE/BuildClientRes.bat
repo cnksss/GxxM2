@@ -1,0 +1,1 @@
+Brcc32 Client.rc

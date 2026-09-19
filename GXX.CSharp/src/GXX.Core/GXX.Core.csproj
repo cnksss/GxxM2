@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <RootNamespace>GXX.Core</RootNamespace>
+    <AssemblyName>GXX.Core</AssemblyName>
+  </PropertyGroup>
+</Project>

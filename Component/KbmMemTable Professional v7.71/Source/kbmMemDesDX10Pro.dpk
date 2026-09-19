@@ -1,0 +1,76 @@
+package kbmMemDesDX10Pro;
+
+{$R *.res}
+{$R 'kbmMemTableReg.dcr'}
+{$R 'kbmMemTable.dcr'}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'kbmMemTable Pro Edition - Performance memory dataset - Delphi XE8 - Designtime - www.Components4Developers.com'}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  dbrtl,
+  designide,
+  kbmMemRunDX10Pro,
+  rtl,
+  dcldb;
+
+contains
+  kbmMemTableReg in 'kbmMemTableReg.pas',
+  Bde.SMINTF in 'Bde.SMINTF.PAS',
+  kbmMemTable in 'kbmMemTable.pas',
+  kbmMemTableDesForm in 'kbmMemTableDesForm.pas' {frmkbmMemTableDesigner},
+  kbmMemTableDesigner in 'kbmMemTableDesigner.pas',
+  Bde.Bdeconst in 'Bde.Bdeconst.pas',
+  Bde.DBTables in 'Bde.DBTables.pas',
+  BDE in 'BDE.pas',
+  CocoAncestor in 'CocoAncestor.pas',
+  kbmClasses in 'kbmClasses.pas',
+  kbmList in 'kbmList.pas',
+  kbmMemBinaryStreamFormat in 'kbmMemBinaryStreamFormat.pas',
+  kbmMemCSVStreamFormat in 'kbmMemCSVStreamFormat.pas',
+  kbmMemDesLazStd in 'kbmMemDesLazStd.pas',
+  kbmMemRegLaz in 'kbmMemRegLaz.pas',
+  kbmMemResBra in 'kbmMemResBra.pas',
+  kbmMemResChs in 'kbmMemResChs.pas',
+  kbmMemResCsy in 'kbmMemResCsy.pas',
+  kbmMemResDan in 'kbmMemResDan.pas',
+  kbmMemResDut in 'kbmMemResDut.pas',
+  kbmMemResEng in 'kbmMemResEng.pas',
+  kbmMemResFra in 'kbmMemResFra.pas',
+  kbmMemResGer in 'kbmMemResGer.pas',
+  kbmMemResHun in 'kbmMemResHun.pas',
+  kbmMemResIta in 'kbmMemResIta.pas',
+  kbmMemResRom in 'kbmMemResRom.pas',
+  kbmMemResRus in 'kbmMemResRus.pas',
+  kbmMemResSky in 'kbmMemResSky.pas',
+  kbmMemResSpa in 'kbmMemResSpa.pas',
+  kbmMemResSve in 'kbmMemResSve.pas',
+  kbmMemResUkr in 'kbmMemResUkr.pas',
+  kbmMemRunLazStd in 'kbmMemRunLazStd.pas',
+  kbmMemSQL in 'kbmMemSQL.pas';
+
+end.

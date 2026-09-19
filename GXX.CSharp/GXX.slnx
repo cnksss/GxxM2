@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GXX.Client/GXX.Client.csproj" />
+    <Project Path="src/GXX.Configurator/GXX.Configurator.csproj" />
+    <Project Path="src/GXX.Core/GXX.Core.csproj" />
+    <Project Path="src/GXX.DBServer/GXX.DBServer.csproj" />
+    <Project Path="src/GXX.GameCenter/GXX.GameCenter.csproj" />
+    <Project Path="src/GXX.GatewayKit/GXX.GatewayKit.csproj" />
+    <Project Path="src/GXX.LogDataServer/GXX.LogDataServer.csproj" />
+    <Project Path="src/GXX.LoginGate/GXX.LoginGate.csproj" />
+    <Project Path="src/GXX.LoginSrv/GXX.LoginSrv.csproj" />
+    <Project Path="src/GXX.M2Server/GXX.M2Server.csproj" />
+    <Project Path="src/GXX.RunGate/GXX.RunGate.csproj" />
+    <Project Path="src/GXX.SelGate/GXX.SelGate.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GXX.Client.Tests/GXX.Client.Tests.csproj" />
+    <Project Path="tests/GXX.Core.Tests/GXX.Core.Tests.csproj" />
+    <Project Path="tests/GXX.GatewayKit.Tests/GXX.GatewayKit.Tests.csproj" />
+    <Project Path="tests/GXX.Integration.Tests/GXX.Integration.Tests.csproj" />
+    <Project Path="tests/GXX.M2Server.Tests/GXX.M2Server.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,47 @@
+package kbmMemDesD2009Pro;
+
+{$R *.res}
+{$R 'kbmMemTableReg.dcr'}
+{$ALIGN ON}
+{$ASSERTIONS OFF}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS OFF}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $04220001}
+{$DESCRIPTION 'kbmMemTable Pro Edition - Performance memory dataset - Delphi 2009/Win32 - Designtime - www.Components4Developers.com'}
+{$DESIGNONLY}
+{$IMPLICITBUILD OFF}
+
+
+requires
+ dbrtl,
+ designide,
+ kbmMemRunD2009Pro,
+ rtl,
+ vcl,
+ dcldb,
+ bdertl;
+
+
+contains
+ kbmMemTableDesForm in 'kbmMemTableDesForm.pas' {frmkbmMemTableDesigner: TForm},
+ kbmMemTableDesigner in 'kbmMemTableDesigner.pas',
+ kbmMemTableReg in 'kbmMemTableReg.pas';
+
+
+end.

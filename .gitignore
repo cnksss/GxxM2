@@ -1,0 +1,127 @@
+# ============================================================
+#  GXX 项目统一 .gitignore
+#  Delphi 7 原版源码 + GXX.CSharp 翻译工程
+# ============================================================
+
+# ---------- 构建输出目录（最可靠的一类规则） ----------
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+TestResults/
+BenchmarkDotNet.Artifacts/
+.vs/
+
+# ---------- .NET / C# 构建与 IDE 产物 ----------
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+*.pdb
+*.mdb
+*.ilk
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+*.VisualState.xml
+*.coverage
+*.coverlet.json
+*.trx
+*.received.*
+*.deps.json
+runtimeconfig*.json
+appsettings.*.json
+Configuration.dev.json
+Configuration.prod.json
+
+# ---------- Delphi 编译产物 ----------
+*.dcu
+*.dcuil
+*.dpu
+*.o
+*.obj
+*.a
+*.dres
+*.local
+*.identcache
+*.projdata
+*.tvsconfig
+*.dsk
+*.drc
+*.map
+*.bpl
+*.bpi
+*.dcp
+*.apk
+*.~*
+*.$$$
+# 注意：*.res / *.dfm / *.pas 属于源码，不忽略
+
+# ---------- Delphi IDE / 临时文件 ----------
+__history/
+__recovery/
+*.skincfg
+*.stat
+*.bak
+*.orig
+*.rej
+*.tmp
+*.temp
+*.log
+*.err
+~$*
+*.autosave
+*.ldb
+
+# ---------- 数据库数据文件 ----------
+*.mdb
+*.sdf
+*.sqlite
+*.sqlite3
+
+# ---------- 大体积压缩包 ----------
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.iso
+
+# ---------- 探测 / 分析临时产物 ----------
+ZProbeDir/
+_tools/
+_analysis/
+_add.cmd
+_cip_*.txt
+
+# ---------- 根目录临时导出与探测日志 ----------
+/exp_t*.txt
+/j*_probe.*
+/j*_build.log
+/j*_dbg*.log
+/j*_rel*.log
+/j*_ct.log
+/j*_one.log
+/j*_out.txt
+/j*_sub.txt
+/j*_final*.log
+/j*_release.log
+/audit_*.log
+/final_*.log
+
+# ---------- 操作系统 ----------
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+*.lnk
+
+# ---------- 编辑器 ----------
+.vscode/
+.idea/
+*.swp
+*~

@@ -1,0 +1,242 @@
+object Form1: TForm1
+  Left = 0
+  Top = 0
+  BiDiMode = bdLeftToRight
+  Caption = 'Firemonkey kbmMemTable/kbmSQL demo'
+  ClientHeight = 433
+  ClientWidth = 1050
+  Transparency = False
+  Visible = False
+  OnCreate = FormCreate
+  OnDestroy = FormDestroy
+  StyleLookup = 'backgroundstyle'
+  object Panel1: TPanel
+    Align = alClient
+    Position.Point = '(454,0)'
+    Width = 596.000000000000000000
+    Height = 392.000000000000000000
+    TabOrder = 0
+    object Label1: TLabel
+      Align = alTop
+      Width = 596.000000000000000000
+      Height = 15.000000000000000000
+      TabOrder = 0
+      Text = 'Raw data'
+    end
+    object sgRawData: TStringGrid
+      Align = alTop
+      Position.Point = '(0,15)'
+      Width = 596.000000000000000000
+      Height = 202.000000000000000000
+      StyleLookup = 'gridstyle'
+      TabOrder = 1
+      RowHeight = 21.000000000000000000
+      RowCount = 100
+    end
+    object sgResult: TStringGrid
+      Align = alClient
+      Position.Point = '(0,232)'
+      Width = 596.000000000000000000
+      Height = 160.000000000000000000
+      StyleLookup = 'gridstyle'
+      TabOrder = 2
+      RowHeight = 21.000000000000000000
+      RowCount = 100
+    end
+    object Label2: TLabel
+      Align = alTop
+      Position.Point = '(0,217)'
+      Width = 596.000000000000000000
+      Height = 15.000000000000000000
+      TabOrder = 3
+      Text = 'Result data'
+    end
+  end
+  object Splitter1: TSplitter
+    Align = alLeft
+    Cursor = crHSplit
+    Width = 5.000000000000000000
+    Height = 392.000000000000000000
+    TabOrder = 1
+    MinSize = 20.000000000000000000
+  end
+  object Panel2: TPanel
+    Align = alBottom
+    Position.Point = '(0,392)'
+    Width = 1050.000000000000000000
+    Height = 41.000000000000000000
+    TabOrder = 2
+    object btnExecute: TButton
+      Position.Point = '(16,8)'
+      Width = 113.000000000000000000
+      Height = 22.000000000000000000
+      OnClick = btnExecuteClick
+      TabOrder = 0
+      StaysPressed = False
+      IsPressed = False
+      Text = 'Execute query'
+    end
+    object btnSaveResult: TButton
+      Position.Point = '(160,8)'
+      Width = 129.000000000000000000
+      Height = 22.000000000000000000
+      OnClick = btnSaveResultClick
+      TabOrder = 1
+      StaysPressed = False
+      IsPressed = False
+      Text = 'Save result to CSV'
+    end
+  end
+  object Panel3: TPanel
+    Align = alLeft
+    Position.Point = '(5,0)'
+    Width = 449.000000000000000000
+    Height = 392.000000000000000000
+    TabOrder = 3
+    object mSQL: TMemo
+      Align = alClient
+      Width = 449.000000000000000000
+      Height = 280.000000000000000000
+      TabOrder = 0
+      WordWrap = False
+      Text = 
+        'SELECT fld1,fld5,sum(fld5),count(fld5) from table1 group by fld1' +
+        ',fld5'#13#10'//SELECT min(fld2),max(fld2),sum(fld5),avg(fld5),count(*)' +
+        ' from table1 where fld5>5'#13#10'//SELECT min(fld2),max(fld2),sum(fld5' +
+        '),avg(fld5),count(*) from table1'#13#10'//SELECT fld5,sum(fld5),count(' +
+        'fld5) from table1 group by fld5'#13#10'//SELECT count(*) from table1'#13#10 +
+        '//SELECT count(*) from table1 where fld2>50'#13#10'//SELECT fld5 from ' +
+        'table1 group by fld5'#13#10'//SELECT fld3, fld3 as Field3 from table1 ' +
+        #13#10'//SELECT fld3,(fld3 mod 10)=0 as bool,fld3 / 13 as somefield f' +
+        'rom table1 order by bool desc, somefield desc'#13#10'//SELECT fld3,(fl' +
+        'd3>950)=0,fld3 / 13 from table1'#13#10'//SELECT fld3,(fld3>950)=0,fld3' +
+        ' / 13, (fld3 div 11) from table1 where (fld3 mod 11)=0 '#13#10'//SELEC' +
+        'T fld3>5 from table1'#13#10'//SELECT fld3+1+2 from table1'#13#10'//SELECT fl' +
+        'd1,fld3+1+2 from table1'#13#10'//SELECT fld1,fld3 from table1'#13#10'//UPDAT' +
+        'E table1 SET fld1='#39'UPD'#39' WHERE fld1 in ('#39'STR2'#39','#39'STR4'#39','#39'STR6'#39') or ' +
+        'fld2=10'#13#10'//DELETE FROM table1 WHERE fld1 in ('#39'STR2'#39','#39'STR4'#39','#39'STR6' +
+        #39') or fld2=10'#13#10'//DELETE FROM table1 WHERE fld1 in ('#39'STR2'#39','#39'STR4'#39 +
+        ','#39'STR6'#39')'#13#10'//DELETE FROM table1 WHERE fld1='#39'STR2'#39#13#10'//INSERT INTO ' +
+        'table1 (fld1,fld2,fld4) VALUES ('#39'HEJ'#39',1,((2+5)-2)*3-1 <>7)'#13#10'//IN' +
+        'SERT INTO table1 (fld1,fld2,fld4) VALUES ('#39'HEJ'#39',1,2*3)'#13#10'//SELECT' +
+        ' fld2+1 / 2,fld2 FROM table1 ORDER BY fld2'
+    end
+    object Memo2: TMemo
+      Align = alBottom
+      Position.Point = '(0,280)'
+      Width = 449.000000000000000000
+      Height = 112.000000000000000000
+      TabOrder = 1
+      WordWrap = False
+    end
+  end
+  object mtTable1: TkbmMemTable
+    DesignActivation = True
+    AttachedAutoRefresh = True
+    AttachMaxCount = 1
+    FieldDefs = <>
+    IndexDefs = <>
+    SortOptions = []
+    PersistentBackup = False
+    ProgressFlags = [mtpcLoad, mtpcSave, mtpcCopy]
+    LoadedCompletely = False
+    SavedCompletely = False
+    FilterOptions = []
+    Version = '7.10.00 Standard Edition'
+    LanguageID = 0
+    SortID = 0
+    SubLanguageID = 1
+    LocaleID = 1024
+    Left = 455
+    Top = 16
+    object mtTable1fld1: TStringField
+      FieldName = 'fld1'
+      Size = 10
+    end
+    object mtTable1fld2: TIntegerField
+      FieldName = 'fld2'
+    end
+    object mtTable1fld3: TIntegerField
+      FieldName = 'fld3'
+    end
+    object mtTable1fld4: TStringField
+      FieldName = 'fld4'
+      Size = 10
+    end
+    object mtTable1fld5: TIntegerField
+      FieldName = 'fld5'
+    end
+  end
+  object dsTable1: TDataSource
+    DataSet = mtTable1
+    Left = 456
+    Top = 64
+  end
+  object bsTable1: TBindScopeDB
+    DataSource = dsTable1
+    Left = 456
+    Top = 112
+  end
+  object BindingsList1: TBindingsList
+    Methods = <>
+    OutputConverters = <>
+    UseAppManager = True
+    Left = 544
+    Top = 16
+    object BindDBGridLink1: TBindDBGridLink
+      Category = 'DB Links'
+      DataSource = bsTable1
+      GridControl = sgRawData
+      Columns = <>
+    end
+    object BindDBGridLink2: TBindDBGridLink
+      Category = 'DB Links'
+      DataSource = bsResult
+      GridControl = sgResult
+      Columns = <>
+    end
+  end
+  object bsResult: TBindScopeDB
+    DataSource = dsResult
+    Left = 456
+    Top = 264
+  end
+  object dsResult: TDataSource
+    Left = 456
+    Top = 216
+  end
+  object kbmCSVStreamFormat1: TkbmCSVStreamFormat
+    CommentChar = #0
+    EscapeChar = '%'
+    DefaultStringFieldSize = 255
+    CSVQuote = '"'
+    CSVFieldDelimiter = ','
+    CSVRecordDelimiter = ','
+    CSVTrueString = 'True'
+    CSVFalseString = 'False'
+    sfLocalFormat = []
+    sfQuoteOnlyStrings = []
+    sfNoHeader = []
+    Version = '3.10'
+    sfData = [sfSaveData, sfLoadData]
+    sfCalculated = []
+    sfLookup = []
+    sfNonVisible = [sfSaveNonVisible, sfLoadNonVisible]
+    sfBlobs = [sfSaveBlobs, sfLoadBlobs]
+    sfDef = [sfSaveDef, sfLoadDef]
+    sfIndexDef = [sfSaveIndexDef, sfLoadIndexDef]
+    sfPlaceHolders = []
+    sfFiltered = [sfSaveFiltered]
+    sfIgnoreRange = [sfSaveIgnoreRange]
+    sfIgnoreMasterDetail = [sfSaveIgnoreMasterDetail]
+    sfDeltas = []
+    sfDontFilterDeltas = []
+    sfAppend = []
+    sfFieldKind = [sfSaveFieldKind]
+    sfFromStart = [sfLoadFromStart]
+    sfDisplayWidth = []
+    sfAutoInc = []
+    Left = 542
+    Top = 111
+  end
+end

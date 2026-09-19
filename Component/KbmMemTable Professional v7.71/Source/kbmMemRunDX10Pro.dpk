@@ -1,0 +1,56 @@
+package kbmMemRunDX10Pro;
+
+{$R *.otares}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION OFF}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE DEBUG}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'kbmMemTable Pro Edition - Performance memory dataset - Delphi DX10 - Runtime - www.Components4Developers.com'}
+{$RUNONLY}
+{$IMPLICITBUILD OFF}
+
+requires
+  dbrtl,
+  rtl;
+
+contains
+  kbmList in 'kbmList.pas',
+  kbmMove in 'kbmMove.pas',
+  kbmString in 'kbmString.pas',
+  kbmMemTable in 'kbmMemTable.pas',
+  kbmMemCSVStreamFormat in 'kbmMemCSVStreamFormat.pas',
+  kbmMemBinaryStreamFormat in 'kbmMemBinaryStreamFormat.pas',
+  kbmMemTypes in 'kbmMemTypes.pas',
+  kbmMemResEng in 'kbmMemResEng.pas',
+  CocoAncestor in 'CocoAncestor.pas',
+  kbmMemSQL in 'kbmMemSQL.pas',
+  kbmSQLDBAPI in 'kbmSQLDBAPI.pas',
+  kbmSQLElements in 'kbmSQLElements.pas',
+  kbmSQLFuncAPI in 'kbmSQLFuncAPI.pas',
+  kbmSQLMemTableAPI in 'kbmSQLMemTableAPI.pas',
+  kbmSQLParser in 'kbmSQLParser.pas',
+  kbmSQLStdFunc in 'kbmSQLStdFunc.pas',
+  kbmClasses in 'kbmClasses.pas';
+
+end.
+

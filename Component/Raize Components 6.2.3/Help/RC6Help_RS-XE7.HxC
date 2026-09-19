@@ -1,0 +1,32 @@
+﻿<?xml version="1.0"?>
+<!DOCTYPE HelpCollection>
+<HelpCollection
+  DTDVersion="1.0"
+  Id=""
+  FileVersion="0.0.0.0"
+  LangId=""
+  Font=""
+  FontSize=""
+  Charset=""
+  Title="Online Help"
+  Copyright="">
+
+  <AttributeDef File="RC6Help_RS-XE7.HxA"/>
+
+  <TOCDef File="RC6Help_RS-XE7.HxT"/>
+
+  <KeywordIndexDef File="RC6Help_RS-XE7_A.HxK"/>
+  <KeywordIndexDef File="RC6Help_RS-XE7_F.HxK"/>
+  <KeywordIndexDef File="RC6Help_RS-XE7_K.HxK"/>
+
+  <ItemMoniker Name="!DefaultFullTextSearch" ProgId="HxDs.HxFullTextSearch" InitData="FTS"/>
+  <ItemMoniker Name="!DefaultAssociativeIndex" ProgId="HxDs.HxIndex" InitData="A"/>
+  <ItemMoniker Name="!DefaultContextWindowIndex" ProgId="HxDs.HxIndex" InitData="F"/>
+  <ItemMoniker Name="!DefaultKeywordIndex" ProgId="HxDs.HxIndex" InitData="K"/>
+  <ItemMoniker Name="!DefaultTOC" ProgId="HxDs.HxHierarchy" InitData="RC6Help_RS-XE7"/>
+
+  <ToolData Name="MSVHWLogLevel" Value="3"/>
+  <ToolData Name="MSVHWLogFile" Value="RC6Help_RS-XE7.log"/>
+  <ToolData Name="MSVHWNamespace" Value="Raize.RC6Help_RS-XE7"/>
+  <ToolData Name="FAR.NamespaceDesc" Value="Raize Components 6"/>
+</HelpCollection>

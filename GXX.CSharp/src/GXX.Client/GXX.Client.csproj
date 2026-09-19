@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>GXX.Client</RootNamespace>
+    <AssemblyName>Client</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\GXX.Core\GXX.Core.csproj" />
+    <ProjectReference Include="..\GXX.GatewayKit\GXX.GatewayKit.csproj" />
+  </ItemGroup>
+</Project>

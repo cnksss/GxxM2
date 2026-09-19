@@ -1,0 +1,3 @@
+MIR_UI ZDAT ".\Mir.zui"
+MIR_CONFIG_DLG_UI ZDAT ".\MirConfigDlg.zui"
+STATE_WIN_UI ZDAT "StateWin.zui"

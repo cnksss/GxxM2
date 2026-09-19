@@ -1,0 +1,17 @@
+#
+#   Makefile.fpc for kbmMemTable demo.
+#
+
+[target]
+programs_win32=demo
+
+[compiler]
+options=-Mdelphi
+targetdir=FPC/$(OS_TARGET)
+sourcedir=.\
+
+[require]
+packages=rtl
+
+[default]
+fpcdir=c:\fpc\2.1.4

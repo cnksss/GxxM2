@@ -1,0 +1,535 @@
+' **********************************************************************************
+' * WinLicence.vb
+' *           Proxy Functions for WinLicence protected assemblies. Written in .NET
+' *
+' * Author:   Mike Wilson (http://blog.evolvedsoftwarestudios.com)
+' *           Evolved Software Studios Ltd (http://www.evolvedsoftwarestudios.com)
+' *
+' * Version:  0.1
+' * License:  Freely distribute, but keep this comment header.
+' *
+' * Comments: You will need to modify the bespoke code below 
+' *           in the region "Evolved Software Studios Licensing Code"
+' *           to your own needs. I have provided this as a demonstration only.
+' *           
+' * Disclaimer: Use at your own risk. Think of this as a quick-start to using
+' *             WinLicence with VB.NET. Then improve the code and let me have the latest
+' *             version please :@)
+' **********************************************************************************
+Module WinLicence
+
+    Private _bufferVarValue As New System.Text.StringBuilder(100)
+
+    Public Declare Function GetEnvironmentVariable Lib "kernel32.dll" Alias "GetEnvironmentVariableA" (ByVal lpName As String, ByVal lpBuffer As System.Text.StringBuilder, ByVal nSize As Integer) As Integer
+    Public Declare Function WLLoadWinlicenseDll Lib "WinlicenseSDK.dll" () As Short
+
+    'Public Declare Function WLGenTrialExtensionFileKey Lib "WinlicenseSDK.dll" (ByVal TrialHash As String, ByVal Level As Short, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal NumMinutes As Short, ByVal TimeRuntime As Short, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenTrialExtensionRegistryKey Lib "WinlicenseSDK.dll" (ByVal TrialHash As String, ByVal Level As Short, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal NumMinutes As Short, ByVal TimeRuntime As Short, ByVal pKeyName As String, ByVal pKeyValueName As String, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenPassword Lib "WinlicenseSDK.dll" (ByVal PasswordHash As String, ByVal UserName As String, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenLicenseTextKey Lib "WinlicenseSDK.dll" (ByVal LicenseHash As String, ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal MachineID As String, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal CountryId As Short, ByVal Runtime As Short, ByVal GlobalMinutes As Short, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenLicenseSmartKey Lib "WinlicenseSDK.dll" (ByVal LicenseHash As String, ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal MachineID As String, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenLicenseFileKey Lib "WinlicenseSDK.dll" (ByVal LicenseHash As String, ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal MachineID As String, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal CountryId As Short, ByVal Runtime As Short, ByVal GlobalMinutes As Short, ByVal BufferOut As String) As Short
+    'Public Declare Function WLGenLicenseRegistryKey Lib "WinlicenseSDK.dll" (ByVal LicenseHash As String, ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal MachineID As String, ByVal NumDays As Short, ByVal NumExec As Short, ByRef NewDate As Date, ByVal CountryId As Short, ByVal Runtime As Short, ByVal GlobalMinutes As Short, ByVal RegName As String, ByVal RegValueName As String, ByVal BufferOut As String) As Short
+    'Public Declare Function WLRegGetStatus Lib "WinlicenseSDK.dll" (ByVal ExtendedInfo As Short) As Short
+    'Public Declare Function WLTrialGetStatus Lib "WinlicenseSDK.dll" (ByVal ExtendedInfo As Short) As Short
+    'Public Declare Function WLTrialExtGetStatus Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegGetLicenseInfo Lib "WinlicenseSDK.dll" (ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String) As Boolean
+    'Public Declare Function WLTrialTotalDays Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialTotalExecutions Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialDaysLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialExecutionsLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialExpirationDate Lib "WinlicenseSDK.dll" (ByRef ExpDate As Date) As Short
+    'Public Declare Function WLTrialGlobalTimeLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialRuntimeLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLTrialLockedCountry Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegDaysLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegExecutionsLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegExpirationDate Lib "WinlicenseSDK.dll" (ByRef ExpDate As Date) As Short
+    'Public Declare Function WLRegTotalExecutions Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegTotalDays Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLHardwareGetID Lib "WinlicenseSDK.dll" (ByVal HardId As String) As Boolean
+    'Public Declare Function WLHardwareCheckID Lib "WinlicenseSDK.dll" (ByVal HardId As String) As Boolean
+    'Public Declare Function WLRegSmartKeyCheck Lib "WinlicenseSDK.dll" (ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLRegNormalKeyCheck Lib "WinlicenseSDK.dll" (ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLRegNormalKeyInstallToFile Lib "WinlicenseSDK.dll" (ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLRegNormalKeyInstallToRegistry Lib "WinlicenseSDK.dll" (ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLRegSmartKeyInstallToFile Lib "WinlicenseSDK.dll" (ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLRegSmartKeyInstallToRegistry Lib "WinlicenseSDK.dll" (ByVal UserName As String, ByVal Organization As String, ByVal CustomData As String, ByVal AsciiKey As String) As Boolean
+    'Public Declare Function WLTrialCustomCounterInc Lib "WinlicenseSDK.dll" (ByVal Value As Short, ByVal CounterID As Short) As Short
+    'Public Declare Function WLTrialCustomCounterDec Lib "WinlicenseSDK.dll" (ByVal Value As Short, ByVal CounterID As Short) As Short
+    'Public Declare Function WLTrialCustomCounter Lib "WinlicenseSDK.dll" (ByVal CounterID As Short) As Short
+    'Public Declare Function WLTrialCustomCounterSet Lib "WinlicenseSDK.dll" (ByVal Value As Short, ByVal CounterID As Short) As Short
+    'Public Declare Function WLRestartApplication Lib "WinlicenseSDK.dll" () As Boolean
+    'Public Declare Function WLRegLockedCountry Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegRuntimeLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegGlobalTimeLeft Lib "WinlicenseSDK.dll" () As Short
+    'Public Declare Function WLRegDisableCurrentKey Lib "WinlicenseSDK.dll" (ByVal DisableFlags As Short) As Boolean
+    'Public Declare Function WLRegRemoveCurrentKey Lib "WinlicenseSDK.dll" () As Boolean
+    'Public Declare Function WLHardwareGetFormattedID Lib "WinlicenseSDK.dll" (ByVal NumCharBlock As Short, ByVal Uppercase As Short, ByVal Buffer As String) As Boolean
+    'Public Declare Function WLPasswordCheck Lib "WinlicenseSDK.dll" (ByVal UserName As String, ByVal Password As String) As Boolean
+    'Public Declare Function WLTrialExpireTrial Lib "WinlicenseSDK.dll" () As Boolean
+
+    Public Const wlNoTrialExt As Short = 0
+    Public Const wlAppExtended As Short = 1
+    Public Const wlInvalidTrialExt As Short = 2
+    Public Const wlNoMoreExt As Short = 3
+    Public Const wlTrialOk As Short = 0
+    Public Const wlTrialDaysExpired As Short = 1
+    Public Const wlTrialExecExpired As Short = 2
+    Public Const wlTrialDateExpired As Short = 3
+    Public Const wlTrialRuntimeExpired As Short = 4
+    Public Const wlTrialGlobalExpired As Short = 5
+    Public Const wlTrialInvalidCountry As Short = 6
+    Public Const wlMarkStolenKey As Short = 0
+    Public Const wlMarkInvalidKey As Short = 1
+    Public Const wlLicenseDaysExpired As Short = 1
+    Public Const wlLicenseExecExpired As Short = 2
+    Public Const wlLicenseDateExpired As Short = 3
+    Public Const wlLicenseGlobalExpired As Short = 4
+    Public Const wlLicenseRuntimeExpired As Short = 5
+    Public Const wlIsTrial As Short = 0
+    Public Const wlIsRegistered As Short = 1
+    Public Const wlInvalidLicense As Short = 2
+    Public Const wlInvalidHardwareLicense As Short = 3
+    Public Const wlNoMoreHwdChanges As Short = 4
+    Public Const wlLicenseExpired As Short = 5
+    Public Const wlInvalidCountryLicense As Short = 6
+    Public Const wlLicenseStolen As Short = 7
+    Public Const wlWrongLicenseExp As Short = 8
+    Public Const wlWrongLicenseHardware As Short = 9
+    Public Const wlPermKey As Short = -1
+    Public Const wlNoKey As Short = -2
+    Public Const wlNoTrialDate As Short = -1
+    Public Const wlInvalidCounter As Short = -1
+
+    Public GlobalBuffer As New VB6.FixedLengthString(1000)
+    Public RegName As New VB6.FixedLengthString(200)
+    Public RegCompany As New VB6.FixedLengthString(200)
+    Public RegCustom As New VB6.FixedLengthString(200)
+
+    ' Trial Status Flags
+    Public wlFlag_TrialOK As Boolean
+    Public wlFlag_TrialDaysExpired As Boolean
+    Public wlFlag_TrialExecExpired As Boolean
+    Public wlFlag_TrialDateExpired As Boolean
+    Public wlFlag_TrialRuntimeExpired As Boolean
+    Public wlFlag_TrialGlobalExpired As Boolean
+    Public wlFlag_TrialInvalidCountry As Boolean
+
+    ' Extended Trial Status Flags
+    Public wlFlag_NoTrialExt As Boolean
+    Public wlFlag_AppExtended As Boolean
+    Public wlFlag_InvalidTrialExt As Boolean
+    Public wlFlag_NoMoreExt As Boolean
+
+    ' Registered Status Flags
+    Public wlFlag_IsTrial As Boolean
+    Public wlFlag_IsRegistered As Boolean
+    Public wlFlag_InvalidLicense As Boolean
+    Public wlFlag_InvalidHardwareLicense As Boolean
+    Public wlFlag_NoMoreHwdChanges As Boolean
+    Public wlFlag_LicenseExpired As Boolean
+    Public wlFlag_InvalidCountryLicense As Boolean
+    Public wlFlag_LicenseStolen As Boolean
+    Public wlFlag_WrongLicenseExp As Boolean
+    Public wlFlag_WrongLicenseHardware As Boolean
+
+    ' Extended Registered Status Flags
+    Public wlFlag_LicenseDaysExpired As Boolean ' when a license is expired on days
+    Public wlFlag_LicenseExecExpired As Boolean ' when a license is expired on executions
+    Public wlFlag_LicenseDateExpired As Boolean ' when a license is expired on date
+    Public wlFlag_LicenseGlobalExpired As Boolean ' when the global time in a license has expired
+    Public wlFlag_LicenseRuntimeExpired As Boolean ' when the license runtime has expired
+
+    ' return 0 = fail
+    ' return 1 = success
+    Public Function wlFunc_RegSmartKeyInstallToRegistry(ByVal UserName As String, _
+                                            ByVal CompanyName As String, _
+                                            ByVal CustomData As String, _
+                                            ByVal ActivationKey As String) As Integer
+
+        Dim sRegistrationData As String
+        sRegistrationData = UserName & "," & CompanyName & "," & CustomData & "," & ActivationKey
+
+        Dim SmartKeyInfo As New System.Text.StringBuilder(sRegistrationData, 500)
+
+        Return GetEnvironmentVariable("WLRegSmartKeyInstallToRegistry", SmartKeyInfo, 500)
+
+        SmartKeyInfo = Nothing
+
+    End Function
+
+    ' return 0 = key invalid
+    ' return 1 = key is valid
+    Public Function wlFunc_RegSmartKeyCheck(ByVal UserName As String, _
+                                        ByVal CompanyName As String, _
+                                        ByVal CustomData As String, _
+                                        ByVal ActivationKey As String) As Boolean
+
+        Dim sRegistrationData As String
+        sRegistrationData = UserName & "," & CompanyName & "," & CustomData & "," & ActivationKey
+
+        Dim SmartKeyInfo As New System.Text.StringBuilder(sRegistrationData, 500)
+
+        GetEnvironmentVariable("WLRegSmartKeyCheck", SmartKeyInfo, 500)
+
+        If SmartKeyInfo.ToString = "1" Then
+            Return True
+        Else
+            Return False
+        End If
+
+        SmartKeyInfo = Nothing
+
+    End Function
+
+
+    Public Function LoadLicenseInfo()
+        Try
+            ' Get the trial status
+            Dim trialExtendedInfo As Short
+            Dim trialStatus As Short = wlFunc_GetStatus(enumGetStatus.trialStatus, trialExtendedInfo)
+            Select Case trialStatus
+                Case wlTrialOk ' when trial is ok
+                    wlFlag_TrialOK = True
+                Case wlTrialDaysExpired ' when trial days expired
+                    wlFlag_TrialDaysExpired = True
+                Case wlTrialExecExpired ' when trial executaions expired
+                    wlFlag_TrialExecExpired = True
+                Case wlTrialDateExpired ' when trial date expired
+                    wlFlag_TrialDateExpired = True
+                Case wlTrialRuntimeExpired ' when the runtime trial time expired
+                    wlFlag_TrialRuntimeExpired = True
+                Case wlTrialGlobalExpired ' when the global trial time expired
+                    wlFlag_TrialGlobalExpired = True
+                Case wlTrialInvalidCountry ' when the trial does not run on the current language/country
+                    wlFlag_TrialInvalidCountry = True
+            End Select
+
+            ' Get extended trial license status
+            Dim trialExtStatus As Short = wlFunc_GetStatus(enumGetStatus.trialExtStatus, Nothing)
+            Select Case trialExtStatus
+                Case wlNoTrialExt ' when the trial extension key is not present
+                    wlFlag_NoTrialExt = True
+                Case wlAppExtended ' when the application is extended with trial extension key
+                    wlFlag_AppExtended = True
+                Case wlInvalidTrialExt ' when a trial extension key is invalid
+                    wlFlag_InvalidTrialExt = True
+                Case wlNoMoreExt ' when no more extension keys are allowed
+                    wlFlag_NoMoreExt = True
+            End Select
+
+            ' Get registration information
+            Dim regExtendedInfo As Short
+            Dim regStatus As Short = wlFunc_GetStatus(enumGetStatus.regStatus, regExtendedInfo)
+            Select Case regStatus
+                Case wlIsTrial ' when an application is running in trial mode (not registered)
+                    wlFlag_IsTrial = True
+                Case wlIsRegistered ' when an application is registered with a valid licence key
+                    wlFlag_IsRegistered = True
+                Case wlInvalidLicense ' when a license key is invalid
+                    wlFlag_InvalidLicense = True
+                Case wlInvalidHardwareLicense ' when the machine ID, inside a license key, is invalid for current machine
+                    wlFlag_InvalidHardwareLicense = True
+                Case wlNoMoreHwdChanges ' when no more machine ID changes are allowed in the current license key
+                    wlFlag_NoMoreHwdChanges = True
+                Case wlLicenseExpired ' when a license key has expired (see below for more information)
+                    wlFlag_LicenseExpired = True
+                    Select Case regExtendedInfo
+                        Case wlLicenseDaysExpired
+                            wlFlag_LicenseDaysExpired = True
+                        Case wlLicenseExecExpired
+                            wlFlag_LicenseExecExpired = True
+                        Case wlLicenseDateExpired
+                            wlFlag_LicenseDateExpired = True
+                        Case wlLicenseGlobalExpired
+                            wlFlag_LicenseGlobalExpired = True
+                        Case wlLicenseRuntimeExpired
+                            wlFlag_LicenseRuntimeExpired = True
+                    End Select
+                Case wlInvalidCountryLicense ' when a license is locked to a different country
+                    wlFlag_InvalidCountryLicense = True
+                Case wlLicenseStolen ' when a license key is stolen
+                    wlFlag_LicenseStolen = True
+                Case wlWrongLicenseExp ' when a license key is a permanent key and only licenses that expire are allowed in an application
+                    wlFlag_WrongLicenseExp = True
+                Case wlWrongLicenseHardware ' when the current license key does not have machine ID information (and machine IDis required in an application)
+                    wlFlag_WrongLicenseHardware = True
+            End Select
+
+            ' Success (reading values worked)
+            Return True
+
+        Catch ex As Exception
+
+            ' An error occured, throw it and return false
+            ShowError(ex)
+            Return False
+
+        Finally
+
+            ' Trial Status Flags
+            LogThisForced("wlFlag_TrialOK" & wlFlag_TrialOK)
+            LogThisForced("wlFlag_TrialDaysExpired" & wlFlag_TrialDaysExpired)
+            LogThisForced("wlFlag_TrialExecExpired" & wlFlag_TrialExecExpired)
+            LogThisForced("wlFlag_TrialDateExpired" & wlFlag_TrialDateExpired)
+            LogThisForced("wlFlag_TrialRuntimeExpired" & wlFlag_TrialRuntimeExpired)
+            LogThisForced("wlFlag_TrialGlobalExpired" & wlFlag_TrialGlobalExpired)
+            LogThisForced("wlFlag_TrialInvalidCountry" & wlFlag_TrialInvalidCountry)
+
+            ' Extended Trial Status Flags
+            'LogThisForced("wlFlag_NoTrialExt" & wlFlag_NoTrialExt)
+            'LogThisForced("wlFlag_AppExtended" & wlFlag_AppExtended)
+            'LogThisForced("wlFlag_InvalidTrialExt" & wlFlag_InvalidTrialExt)
+            'LogThisForced("wlFlag_NoMoreExt" & wlFlag_NoMoreExt)
+
+            ' Registered Status Flags
+            LogThisForced("wlFlag_IsTrial" & wlFlag_IsTrial)
+            LogThisForced("wlFlag_IsRegistered" & wlFlag_IsRegistered)
+            LogThisForced("wlFlag_InvalidLicense" & wlFlag_InvalidLicense)
+            LogThisForced("wlFlag_InvalidHardwareLicense" & wlFlag_InvalidHardwareLicense)
+            LogThisForced("wlFlag_NoMoreHwdChanges" & wlFlag_NoMoreHwdChanges)
+            LogThisForced("wlFlag_LicenseExpired" & wlFlag_LicenseExpired)
+            LogThisForced("wlFlag_InvalidCountryLicense" & wlFlag_InvalidCountryLicense)
+            LogThisForced("wlFlag_LicenseStolen" & wlFlag_LicenseStolen)
+            LogThisForced("wlFlag_WrongLicenseExp" & wlFlag_WrongLicenseExp)
+            LogThisForced("wlFlag_WrongLicenseHardware" & wlFlag_WrongLicenseHardware)
+
+            ' Extended Registered Status Flags
+            'LogThisForced("wlFlag_LicenseDaysExpired" & wlFlag_LicenseDaysExpired) ' when a license is expired on days
+            'LogThisForced("wlFlag_LicenseExecExpired" & wlFlag_LicenseExecExpired) ' when a license is expired on executions
+            'LogThisForced("wlFlag_LicenseDateExpired" & wlFlag_LicenseDateExpired) ' when a license is expired on date
+            'LogThisForced("wlFlag_LicenseGlobalExpired" & wlFlag_LicenseGlobalExpired) ' when the global time in a license has expired
+            'LogThisForced("wlFlag_LicenseRuntimeExpired" & wlFlag_LicenseRuntimeExpired) ' when the license runtime has expired
+
+        End Try
+
+    End Function
+
+    Public Enum enumGetStatus
+        trialStatus = 0
+        trialExtStatus = 1
+        regStatus = 2
+    End Enum
+
+    ' Warning, the extValue doesn't appear to work, I can't check the return value of these functions
+    ' when protected by WinLicense
+    Public Function wlFunc_GetStatus(ByVal statusType As enumGetStatus, ByRef extValue As Integer) As Short
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(100)
+        Dim Status As Short
+        Select Case statusType
+            Case enumGetStatus.trialStatus
+                extValue = GetEnvironmentVariable("WLTrialGetStatus", _bufferVarValue, 100)
+            Case enumGetStatus.trialExtStatus
+                extValue = GetEnvironmentVariable("WLTrialExtGetStatus", _bufferVarValue, 100)
+            Case enumGetStatus.regStatus
+                extValue = GetEnvironmentVariable("WLRegGetStatus", _bufferVarValue, 100)
+        End Select
+
+        If _bufferVarValue.ToString = "" Then
+            Status = -99 ' invalid
+        Else
+            Status = _bufferVarValue.ToString()
+        End If
+        ' return the status code
+        Return Status
+    End Function
+
+    Public Function wlFunc_ReadHardwareID() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(100)
+        ' Read the hardware fingerprint
+        GetEnvironmentVariable("WLHardwareGetID", _bufferVarValue, 100)
+        ' return the hardware fingerprint
+        Return _bufferVarValue.ToString
+    End Function
+
+    Public Function wlFunc_ExpirationDate() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(100)
+
+        If wlFlag_IsRegistered = True Then
+            ' Read the hardware fingerprint
+            GetEnvironmentVariable("WLRegExpirationDate", _bufferVarValue, 100)
+        Else
+            GetEnvironmentVariable("WLTrialExpirationDate", _bufferVarValue, 100)
+        End If
+
+        ' return the hardware fingerprint
+        Return _bufferVarValue.ToString
+    End Function
+
+    Public Function wlFunc_DaysLeft() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(100)
+        If wlFlag_IsRegistered = True Then
+            ' Read the hardware fingerprint
+            GetEnvironmentVariable("WLRegDaysLeft", _bufferVarValue, 100)
+        Else
+            GetEnvironmentVariable("WLTrialDaysLeft", _bufferVarValue, 100)
+        End If
+
+        ' read the number of days left
+        Dim DaysLeft As String = _bufferVarValue.ToString
+        If DaysLeft <> "-1" Then
+            ' We have a number of days left
+            Return DaysLeft
+        Else
+            ' We have no concept in this license for "days left", so check expiration date
+            GetEnvironmentVariable("WLRegExpirationDate", _bufferVarValue, 100)
+            Dim ExpirationDate As String = _bufferVarValue.ToString
+            ' Attempt to return the number of days between now and the expiration date
+            Try
+                ' It is possible to convert to dates, so return the number of days difference
+                Return DateDiff(DateInterval.Day, Now(), CDate(ExpirationDate))
+            Catch ex As Exception
+                ' Not possible, so return 0
+                Return 0
+            End Try
+        End If
+    End Function
+
+    Public Function wlFunc_RegName() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(500)
+        Dim LicenseInfo(3) As String
+        GetEnvironmentVariable("WLRegGetLicenseInfo", _bufferVarValue, 500)
+        LicenseInfo = _bufferVarValue.ToString().Split(",")
+        ' return the licence info fingerprint
+        Return LicenseInfo(0)
+    End Function
+
+    Public Function wlFunc_RegCompany() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(500)
+        Dim LicenseInfo(3) As String
+        GetEnvironmentVariable("WLRegGetLicenseInfo", _bufferVarValue, 500)
+        LicenseInfo = _bufferVarValue.ToString().Split(",")
+        ' return the licence info fingerprint
+        Return LicenseInfo(1)
+    End Function
+
+    Public Function wlFunc_RegCustom() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(500)
+        Dim LicenseInfo(3) As String
+        GetEnvironmentVariable("WLRegGetLicenseInfo", _bufferVarValue, 500)
+        LicenseInfo = _bufferVarValue.ToString().Split(",")
+        ' return the licence info fingerprint
+        Return LicenseInfo(2)
+    End Function
+
+    Public Function wlFunc_WLRegRemoveCurrentKey() As String
+        ' (e)Initialise the buffer
+        _bufferVarValue = New System.Text.StringBuilder(100)
+        GetEnvironmentVariable("WLRegRemoveCurrentKey", _bufferVarValue, 100)
+        ' return the hardware fingerprint
+        Return _bufferVarValue.ToString
+    End Function
+
+#Region "Evolved Software Studios Licensing Code"
+
+    Public Function CheckLicenceConditions() As Boolean
+
+        LoadLicenseInfo()
+
+        Dim licenseFail As Boolean = False ' gather a fail flag condition
+
+        If wlFlag_InvalidLicense = True Then
+            MessageBox("Invalid License. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            wlFunc_WLRegRemoveCurrentKey()
+            licenseFail = True
+
+        ElseIf wlFlag_InvalidCountryLicense = True Then
+            MessageBox("Invalid Country. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            wlFunc_WLRegRemoveCurrentKey()
+            licenseFail = True
+
+        ElseIf wlFlag_InvalidHardwareLicense = True Then
+
+            ' RE: One customer installed and activated correctly and yet the InvalidHardwareLicense flag is raised - no idea why
+            ' UPDATE from Oreans: Possibly this was caused by a CHANGING Hardware ID, presumably a MAC code on the user's computer
+            ' Which was valid to accept the license, but later changed.
+
+            ' For now, there's no harm in NOT checking this, given that we are using registry serial keys which cannot be applied
+            ' unless the key matches the hardware fingerprint.
+
+            ' This could potentially only be a problem if using file based keys.
+
+            'MessageBox("Invalid Hardware. Cannot continue.", _
+            '            "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            'wlFunc_WLRegRemoveCurrentKey()
+            'licenseFail = True
+
+        ElseIf wlFlag_InvalidTrialExt = True Then
+            MessageBox("Invalid Trial Extension. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseDateExpired = True Then
+            MessageBox("Your licence has past its expiry date. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseDaysExpired = True Then
+            MessageBox("Your licence has run past its maximum number of alloted days. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseExecExpired = True Then
+            MessageBox("Your licence has run past its maximum number of executions (runs). Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseExpired = True Then
+            MessageBox("Your licence has expired. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseGlobalExpired = True Then
+            MessageBox("Your licence has globally expired. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseRuntimeExpired = True Then
+            MessageBox("Your licence has expired on amount of runtime usage. Cannot continue.", _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_LicenseStolen = True Then
+            MessageBox("This license informaton has been recorded by our database as stolen. " & _
+                    "using a pirated license key is against the law, and divulging your key to others is a breach " & _
+                    "of your end user license agreement. Please contact us for a new, valid license" & _
+                        "Your license is invalid", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        ElseIf wlFlag_IsTrial And (wlFlag_TrialDateExpired Or _
+            wlFlag_TrialDaysExpired Or _
+            wlFlag_TrialExecExpired Or _
+            wlFlag_TrialGlobalExpired Or _
+            wlFlag_TrialRuntimeExpired) Then
+
+            MessageBox("Your trial evaluation license has expired. Please purchase a license from us, or via " & _
+                        " your Evolved Software Studios Partner or Reseller who provided this software.", _
+                        "Your trial has expired", MessageBoxButtons.OK, MessageBoxIcon.Hand)
+            licenseFail = True
+
+        End If
+
+        If licenseFail = True Then
+            ' Prompt user to enter a registration key
+            ShowRegistrationDialog()
+            ' Return false
+            Return False
+        Else
+            Return True
+        End If
+
+    End Function
+#End Region
+
+
+End Module

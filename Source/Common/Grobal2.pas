@@ -1,0 +1,7140 @@
+unit Grobal2;
+{ TODO -c注释 -opiaoyun : 部分常量已经更改为标准版【 2013-5-5】 }
+{ TODO -c注释 -opiaoyun : Grobal2单元注释标准化【 2013-07-17】 }
+
+interface
+
+uses
+  Windows, Classes, Controls, IniFiles, Graphics, SysUtils, DateUtils;
+
+{$IFNDEF GAME_LOGIN}
+
+// 登录器中用这个，生成的程序中有GEEM2关键字                                                                
+const
+  MG_EDCODE = 'GEEM2';
+{$ENDIF}
+
+var
+  g_TotalAtomsRemovidos: Integer;
+  g_GarbageCollectAtomsTick: LongWord = 0;
+
+const
+  CLIENT_VERSION_NUMBER = 120040918; // 120130421;  sDate := IntToStr(CLIENT_VERSION_NUMBER - 100000000);
+  BUFFERSIZE = 10240; // 10240;
+  
+  MIN_ACCOUNT_LEN = 4;
+  MIN_CHR_LEN = 4;
+  MAP_NAME_LEN = 30;
+  ITEM_NAME_LEN = 60;
+  ACTOR_NAME_LEN = 14; // 30; -- Gee // 角色长度
+  ACCOUNT_LEN = 10; // 30; -- Gee // 账号长度
+  IP_ADDRESS_LEN = 15;
+  DEF_BLOCK_SIZE = 22; // 22;
+  DATA_BUFSIZE = 8192; // 8192;
+  BUFFER_SIZE = 112640;
+  MAX_BONUS_VALUE = 11;
+  MAX_STATUS_ATTR = 18;
+  CUSTOMMONEY_NAME_LEN = 20; // 自定义货币名称长度
+
+  DEF_MAX_BAG_ITEM = 46; // 人物背包物品数量
+  MAX_EXT_BAG_PAGE_COUNT = 4; // 最扩展背包页数
+  MAX_EXT_ONE_PAGE_ITEM_COUNT = 40; // 扩展背包每页最大格数
+
+  MAX_STORE_ITEM = 49; // 仓库最大存储量 扩展空间 chongchong 2017-04-30 原来为44
+
+  MAX_HERO_BAG_ITEM = 40; // 英雄包裹
+
+  // 装备凹槽 chongchong 2015-01-02
+  MAX_FLUTE_COUNT = 8; // 最大凹槽数量
+
+  MAX_ICON_COUNT = 10; // 顶戴花翎数量
+  MAX_USE_ITEM_COUNT = 30; // 身上装备数量
+
+  MAX_MAP_WEATEHER_EFFECT = 22; // 地图天气特效数量
+
+  MAX_GAMEPET_COUNT = 30;
+  MAX_GAMEPET_MAGIC_COUNT = 8;
+  MAX_GAMEPET_BAG_COUNT = 30;
+  DEF_MAGIC_COUNT = 250; // 默认技能数量，主要用于技能威力倍数
+  CUSTOM_MAGIC_START_ID = 1000;
+  CUSTOM_MAGIC_COUNT = 300;
+  AUCTION_PAGE_COUNT = 7;
+  ITEM_PROP_COUNT = 20;
+  ITEM_PROP_VALUES_COUNT = 3;
+  CUSTOM_PROPERTY_BIND_TYPE_COUNT = 60;
+  CUSTOM_MONEY_COUNT = 30;
+  ALL_BAG_ITEM_COUNT = DEF_MAX_BAG_ITEM + MAX_EXT_BAG_PAGE_COUNT * MAX_EXT_ONE_PAGE_ITEM_COUNT;
+  MAX_UPLOAD_PICKITEMS = 10000;
+
+  // 三个职业 piaoyun 2013-08-08
+  JOB_WARR = 0; // 战士
+  JOB_WIZARD = 1; // 法师
+  JOB_TAOS = 2; // 道士
+  // JOB_CiKe      = 3;   // 刺客
+
+  USER_ITEM_ADD_DATA_BYTE_COUNT = 20;
+  USER_ITEM_ADD_DATA_INT_COUNT = 10;
+  USER_ITEM_ADD_DATA_TEXT_COUNT = 2;
+
+  // ------移动端对接------------------------------------------------------------------------
+  CGM_DATA = 1; // 普通数据
+  CGM_COMPDATA = 2; // 压缩数据
+  CGM_ACTIVE = 3; // 检测信息
+
+  RM_H5FUNCBTN = 8881; // H5功能按钮命令专用
+  SM_H5FUNCBTN = 8882;
+  SM_ADDBUTTONEX = 8883;
+  SM_DELBUTTONEX = 8884;
+  SM_SERVERCLOSE = 10011; // 通知客户单服务器异常
+
+  /// ////////////////////角色8个方位常量值 piaoyun 2013-07-23/////////////////////
+  DR_UP = 0;
+  DR_UPRIGHT = 1;
+  DR_RIGHT = 2;
+  DR_DOWNRIGHT = 3;
+  DR_DOWN = 4;
+  DR_DOWNLEFT = 5;
+  DR_LEFT = 6;
+  DR_UPLEFT = 7;
+
+  /// ///////////////////////角色装备常量值 piaoyun 2013-07-23/////////////////////
+  U_DRESS = 0; // 衣服
+  U_WEAPON = 1; // 武器
+  U_RIGHTHAND = 2; // 照明物品
+  U_NECKLACE = 3; // 项链
+  U_HELMET = 4; // 头盔
+  U_ARMRINGL = 5; // 左手镯
+  U_ARMRINGR = 6; // 右手镯
+  U_RINGL = 7; // 左戒指
+  U_RINGR = 8; // 右戒指
+  U_BUJUK = 9; // 符
+  U_BELT = 10; // 腰带
+  U_BOOTS = 11; // 鞋
+  U_CHARM = 12; // 宝石
+  U_HAT = 13; // 斗笠
+  U_DRUM = 14; // 鼓
+  U_HORSE = 15; // 马
+  U_SHIELD = 16; // 盾牌 chongchong 2013-09-16
+  U_JADE = 17; // 灵玉 chongchong 2015-06-12
+  U_FASHIONDRESS = 18; // 时装衣服 chongchong 2013-10-23
+  U_FASHIONWEAPON = 19; // 时装武器 chongchong 2013-10-23
+  U_FASHIONNECKLACE = 20; // 时装项链
+  U_FASHIONHELMET = 21; // 时装头盔
+  U_FASHIONARMRINGL = 22; // 时装左手镯
+  U_FASHIONARMRINGR = 23; // 时装右手镯
+  U_FASHIONRINGL = 24; // 时装左戒指
+  U_FASHIONRINGR = 25; // 时装右戒指
+  U_FASHIONRIGHTHAND = 26; // 时装照明物品
+  U_FASHIONBELT = 27; // 时装腰带
+  U_FASHIONBOOTS = 28; // 时装鞋
+  U_FASHIONCHARM = 29; // 时装宝石
+
+  // 首饰盒 1 - 6
+  U_JEWELRYITEM1 = 30;
+  U_JEWELRYITEM2 = 31;
+  U_JEWELRYITEM3 = 32;
+  U_JEWELRYITEM4 = 33;
+  U_JEWELRYITEM5 = 34;
+  U_JEWELRYITEM6 = 35;
+
+  // 神佑袋 1 - 12
+  U_GODBLESSITEM1 = 40;
+  U_GODBLESSITEM2 = 41;
+  U_GODBLESSITEM3 = 42;
+  U_GODBLESSITEM4 = 43;
+  U_GODBLESSITEM5 = 44;
+  U_GODBLESSITEM6 = 45;
+  U_GODBLESSITEM7 = 46;
+  U_GODBLESSITEM8 = 47;
+  U_GODBLESSITEM9 = 48;
+  U_GODBLESSITEM10 = 49;
+  U_GODBLESSITEM11 = 50;
+  U_GODBLESSITEM12 = 51;
+
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // 攻击模式
+  HAM_ALL = 0;
+  HAM_PEACE = 1;
+  HAM_DEAR = 2;
+  HAM_MASTER = 3;
+  HAM_GROUP = 4;
+  HAM_GUILD = 5;
+  HAM_PKATTACK = 6;
+  HAM_NATION = 7; // 国家攻击模式
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  /// //////////////////网关通信数据[不要改动] piaoyun 2013-07-23//////////////////
+  RUNGATEMAX = 20;
+  RUNGATECODE = $AA55AA55;
+  RUNGATECODEX = $AA9AAA9A;
+  RUN_GATE_MSG_CODE = $AABBCCDD;
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+
+  LA_UNDEAD = 1; // 不死系
+  STATE_STONE_MODE = 1; // 被石化
+  STATE_OPENHEATH = 2;
+  POISON_68 = 68;
+
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  // -----------------------------------------------------------------------------
+  /// ////////////////////常用角色类型常量值 piaoyun 2013-07-23////////////////////
+  RC_PLAYOBJECT = 0; // 玩家
+  RC_HEROOBJECT = 1; // 英雄
+  RC_PLAYMOSTER = 150; // 人形怪物 JS-->60;
+  RC_MOONOBJECT = 99; // 月灵
+  RC_GUARD = 11; // 大刀守卫
+  RC_BOX = 30; // 触发NPC脚本段怪物
+  RC_PEACENPC = 15; // 攻击NPC
+  RC_ANIMAL = 50; // 和平NPC
+  RC_MONSTER = 80; // 怪物
+  RC_NPC = 10; // 普通NPC
+  RC_ARCHERGUARD = 112; // 弓箭手
+  RC_TRUCKOBJECT = 128; // 押镖车
+  RC_MOVE_ARCHERGUARD = 142;
+  RC_BOX2 = 159; // 触发NPC脚本段怪物 - 自定义怪物
+
+  RC_GUARD2 = 12;
+  RC_MERCHANT = RC_ANIMAL;
+
+  // HZQ 道士召唤编译骷髅 btRace为 23， 神兽 btRace 为54
+
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  CM_QUERYCHR = 100; // 登录成功,客户端显出左右角色的那一瞬 3000;
+  CM_NEWCHR = 101; // 创建角色 3001;
+  CM_DELCHR = 102; // 删除角色 3002;
+  CM_SELCHR = 103; // 选择角色 3003;
+  CM_SELECTSERVER = 104; // 服务器,注意不是选区,盛大一区往往有(至多8个??group.dat中是这么写的)不止一个的服务器 3004;
+  CM_QUERYDELCHR = 105; // 查询删除过的角色信息 3005;
+  CM_RANDOMNAME = 106; // 随机取角色名 返回SM_RANDOMNAME消息把sMsg处理到DEdChrName中
+  CM_GETBACKDELCHR = 3006;
+  CM_GETBACKPASSWORD = 2010; // 密码找回 3007;
+  CM_PROTOCOL = 2000; // 3008;
+  CM_IDPASSWORD = 2001; // 3009;
+  CM_ADDNEWUSER = 2002; // 3010;
+  CM_CHANGEPASSWORD = 2003; // 3011;
+  CM_UPDATEUSER = 2004; // 3012;
+  CM_CHECKRANDOMCODE = 2006; // 3013;
+  CM_CHANGERANDOMCODE = 3014;
+  CM_SETL2PASSWORD = 2007;
+  CM_CHECKL2PASSWORD = 2008;
+  CM_GETVERIFICATIONCODE = 2009; // 获取验证码
+  CM_PHONELOGIN = 2011; // 手机号登录     body:phone+verificationcode
+  CM_REALNAME = 2012; // 实名认证
+  // CM_GETPASSWORDBACK_PHONE = 5339;//密码修改直接用之前的封包
+  CM_GETPASSWORDBACK_PHONE = 2013; // 找回密码 根据手机
+  CM_GETPASSWORDBACK = 2014; // 找回密码 根据密保
+  CM_CHANGEPHONE = 2015; // 修改密码 根据手机
+  CM_CHANGEPASSWORD_NEW = 2016; // 修改密码 根据密保
+  CM_CREATEACCOUNT = 2017; // 新版创建帐号
+  CM_BINDPHONE = 2018; // 绑定手机号
+  CM_QUICKLOGIN = 2019; // QUICK登录
+  // CM_CHECKISMYSELFSERVER = 8888;
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  {
+    CM_SPELL = 3017; // 施魔法 1;
+    CM_TURN = 3010; // 转身(方向改变) 2;
+    CM_WALK = 3011; // 走 3;
+    CM_SITDOWN = 3012; // 挖(蹲下) 4;
+    CM_RUN = 3013; // 跑 5;
+    CM_HORSERUN = 3009; // 6;
+    CM_HIT = 3014; // 普通物理近身攻击 7;
+    CM_HEAVYHIT = 3015; // 跳起来打的动作 8;
+    CM_BIGHIT = 3016; // 9;
+    CM_POWERHIT = 3018; // 攻杀 10;
+    CM_LONGHIT = 3019; // 刺杀 11;
+    CM_WIDEHIT = 3024; // 12; //半月
+    CM_FIREHIT = 3025; // 13; //烈火
+    CM_CRSHIT = 3036; // 14; //抱月刀 双龙斩   ID=40
+    CM_TWNHIT = 3037; // 15; //龙影剑法     ID=42
+    CM_43HIT = 3028; // 16; //雷霆剑法    ID=43 }
+
+  CM_SPELL = 3017; // 施魔法
+  CM_HORSERUN = 3009; // 骑马
+  CM_TURN = 3010; // 转身(方向改变)
+  CM_WALK = 3011; // 走
+  CM_SITDOWN = 3012; // 挖(蹲下)
+  CM_RUN = 3013; // 跑
+  CM_HIT = 3014; // 普通物理近身攻击
+  CM_HEAVYHIT = 3015; // 跳起来打的动作
+  CM_BIGHIT = 3016; // 强攻
+  CM_POWERHIT = 3018; // 攻杀
+  CM_LONGHIT = 3019; // 刺杀
+  CM_WIDEHIT = 3024; // 半月
+  CM_FIREHIT = 3025; // 烈火
+  CM_CRSHIT = 3036; // 抱月刀 双龙斩 ID=40
+  CM_TWNHIT = 3037; // 龙影剑法      ID=42
+
+  // 下面开始是新技能
+  CM_43HIT = 3043; // 雷霆剑法     ID=43
+  CM_SWORDHIT = 3056; // 逐日剑法     ID=56
+  // CM_114HIT = 3114;  // 倚天劈地  ID = 3114
+
+  CM_113HIT = 3113; // 断空斩 chongchong 2018-01-29
+  CM_115HIT = 3115; // 血魄一击(战) chongchong 2018-01-30
+
+  // 这三个还需要测试。不知道有没有问题 2013-07-13
+  CM_60HIT = 3060; // 18;                                //破魂斩
+  CM_61HIT = 3061; // 19;                                //劈星斩
+  CM_62HIT = 3062; // 20;                                //雷霆一击
+
+  CM_66HIT = 3066; // 开天斩
+  CM_66HIT1 = 3166;
+  CM_100HIT = 3100; // 追心刺
+  CM_101HIT = 3101; // 三绝杀
+  CM_102HIT = 3102; // 断岳斩
+  CM_103HIT = 3103; // 横扫千军
+
+  CM_QUERYUSERNAME = 80; // 进入游戏,服务器返回角色名到客户端 47;
+  CM_DROPITEM = 1000; // 从包裹里扔出物品到地图,此时人物如果在安全区可能会提示安全区不允许扔东西 48;
+  CM_PICKUP = 1001; // 捡东西 49;
+  CM_TAKEONITEM = 1003; // 装配装备到身上的装备位置 50;
+  CM_TAKEOFFITEM = 1004; // 从身上某个装备位置取下某个装备 51;
+  CM_EAT = 1006; // 吃药 52;
+  CM_BUTCH = 1007; // 挖 53;
+  CM_MAGICKEYCHANGE = 1008; // 魔法快捷键改变 54;
+
+  // 与商店NPC交易相关
+  CM_CLICKNPC = 1010; // 用户点击了某个NPC进行交互 55;
+  CM_MERCHANTDLGSELECT = 1011; // 商品选择,大类 56;
+  CM_MERCHANTQUERYSELLPRICE = 1012; // 返回价格,标准价格,我们知道商店用户卖入的有些东西掉持久或有特殊 57;
+  CM_USERSELLITEM = 1013; // 用户卖东西 58;
+  CM_USERBUYITEM = 1014; // 用户买入东西 59;
+  CM_USERGETDETAILITEM = 1015; // 取得商品清单,比如点击"蛇眼戒指"大类,会出现一列蛇眼戒指供你选择 60;
+  CM_DROPGOLD = 1016; // 用户放下金钱到地上 61;
+  CM_LOGINNOTICEOK = 1018; // 健康游戏忠告点了确实,进入游戏 62;
+  CM_GROUPMODE = 1019; // 关组还是开组 63;
+  CM_CREATEGROUP = 1020; // 新建组队 64;
+  CM_ADDGROUPMEMBER = 1021; // 组内添人 65;
+  CM_DELGROUPMEMBER = 1022; // 组内删人 66;
+  CM_USERREPAIRITEM = 1023; // 用户修理东西 67;
+  CM_MERCHANTQUERYREPAIRCOST = 1024; // 客户端向NPC取得修理费用 68;
+  CM_DEALTRY = 1025; // 开始交易,交易开始 69;
+  CM_DEALADDITEM = 1026; // 加东东到交易物品栏上 70;
+  CM_DEALDELITEM = 1027; // 从交易物品栏上撤回东东???好像不允许哦 71;
+  CM_DEALCANCEL = 1028; // 取消交易 72;
+  CM_DEALCHGGOLD = 1029; // 本来交易栏上金钱为0,,如有金钱交易,交易双方都会有这个消息 73;
+  CM_DEALEND = 1030; // 交易成功,完成交易 74;
+  CM_USERSTORAGEITEM = 1031; // 用户寄存东西 75;
+  CM_USERTAKEBACKSTORAGEITEM = 1032; // 用户向保管员取回东西 76;
+  CM_WANTMINMAP = 1033; // 用户点击了"小地图"按钮 77;
+  CM_USERMAKEDRUGITEM = 1034; // 用户制造毒药(其它物品) 78;
+  CM_OPENGUILDDLG = 1035; // 用户点击了"行会"按钮 79;
+  CM_GUILDHOME = 1036; // 点击"行会主页" 80;
+  CM_GUILDMEMBERLIST = 1037; // 点击"成员列表" 81;
+  CM_GUILDADDMEMBER = 1038; // 增加成员 82;
+  CM_GUILDDELMEMBER = 1039; // 踢人出行会 83;
+  CM_GUILDUPDATENOTICE = 1040; // 修改行会公告 84;
+  CM_GUILDUPDATERANKINFO = 1041; // 更新联盟信息(取消或建立联盟) 85;
+  CM_ADJUST_BONUS = 1043; // 用户得到奖励??私服中比较明显,小号升级时会得出金钱声望等,不是很确定,//求经过测试的高手的验证 86;
+  CM_PASSWORD = 1105; // 87;
+  CM_SAY = 3030; // 角色发言 88;
+  CM_QUERYUSERSTATE = 82; // 89;
+  CM_QUERYBAGITEMS = 81; // 查询包裹物品 90;
+  CM_OPENDOOR = 1002; // 开门,人物走到地图的某个过门点时 91;
+  CM_SOFTCLOSE = 1009; // 退出传奇(游戏程序,可能是游戏中大退,也可能时选人时退出) 92;
+  CM_GUILDALLY = 1044; // 93;
+  CM_GUILDBREAKALLY = 1045; // 94;
+   // 商铺相关
+  CM_GETSHOPITEMS = 95;
+  CM_BUYSHOPITEM = 9002; // 96;
+  CM_BUYSHOPITEMGIVE = 9006;
+  // 排行榜
+  CM_GETRANKING = 97;
+  CM_GETMYRANKING = 98;
+  // 开宝箱
+  CM_OPENBOX = 99; // 钥匙放入钥匙孔打开箱子
+  CM_ROTATIONBOX = 100; // 转动箱子
+  CM_SENDGETSELBOXITEM = 101; // 获取宝箱自己选择的物品
+  CM_SENDSELLGAMEGOLDDALITEM = 102; // 元宝交易装备
+  CM_SENDBUYGAMEGOLDDALITEM = 103; // 购买元宝交易装备
+  CM_SENDCANCELGAMEGOLDDALITEM = 104; // 取消元宝交易装备
+  CM_OVERLAPITEM = 105; // 重叠物品
+  CM_HEROOVERLAPITEM = 106; // 英雄包裹重叠物品
+  CM_PACKAGEITEM = 107; // 分开重叠物品
+  CM_HEROPACKAGEITEM = 108; // 分开英雄包裹重叠物品
+  CM_QUERYUSERSHOPS = 109; // 搜索传奇店铺
+  CM_GETUSERSHOPS = 110; // 传奇店铺
+  CM_QUERYUSERSHOPITEMS = 111; // 搜索指定用户店铺物品
+  CM_GETUSERSHOPITEMS = 112; // 搜索指定用户店铺物品
+  CM_SEARCHSHOPITEMS = 113; // 搜索用户店铺物品
+  CM_SEARCHGETSHOPITEMS = 114; //
+  CM_QUERYMYSHOPSELLINGITEMS = 115; // 搜索我的店铺正在物品
+  CM_QUERYMYSHOPSELLEDITEMS = 116; // 搜索我的店铺已经物品
+  CM_QUERYMYSHOPSTORAGEITEMS = 117; // 搜索我的店铺仓库物品
+  CM_GETMYSHOPITEMS = 118; // 搜索我的店铺物品
+  CM_SENDADDTOMYSHOP = 119;
+  CM_SENDCHANGEMYSHOPITEM = 120;
+  CM_SENDMOVEMYSHOPITEM = 121;
+  CM_QUERYSELECTSHOPINFO = 122;
+  CM_SENDSHOPSTALLSTATUS = 123;
+  CM_SENDBUYUSERSHOPITEM = 124;
+  CM_SENDDELETESELLEDITEM = 125;
+  CM_SENDUSERSPEEDING = 126; // 用户超速
+  CM_UPGRADEDLGITEM = 127; // OK对话框物品
+  CM_CANCELUPGRADEDLGITEM = 128; // 取消对话框物品
+  CM_CHALLENGETRY = 129; // 挑战
+  CM_CHALLENGEADDITEM = 130; // 增加挑战物品
+  CM_CHALLENGEDELITEM = 131; // 删除挑战物品
+  CM_CHALLENGECANCEL = 132; // 取消挑战
+  CM_CHALLENGECHGGOLD = 133; // 修改挑战金币
+  CM_CHALLENGECHGGAMEDIAMOND = 134; // 修改挑战金刚石
+  CM_CHALLENGEEND = 135; // 开始挑战
+  CM_SENDUPGRADEDIALOG = 136; // 包裹宝石装备升级
+  CM_HELPBUTTONCLICK = 137; // 点击帮助按钮
+  CM_SENDPLEASEDRINK = 138; // 发送请酒
+  CM_SENDGIVENPCWINE = 139; // 发送斗酒
+  CM_SENDSELECTFINGER = 140; // 发送选择的剪刀石头布
+  CM_SENDDRINK = 141; // 喝酒
+  CM_SENDGETBACKHERO = 142; // 用户取回寄存的英雄
+  CM_ASSESSMENTHERO = 143; // 评定英雄
+  CM_SENDHEROAUTOPRACTICE = 144; // 用确定英雄自动修炼
+  CM_SENDACUPOINTCLICK = 145; // 点击穴位 series=0 人物 series=1 英雄
+  CM_SENDTRAININGMERIDIANCLICK = 146; // 修炼经络 series=0 人物 series=1 英雄
+  CM_CONTINUOUSMAGIC = 147; // 开始请求连击
+  CM_CHANGECONTINUOUSMAGICORDER = 148; // 改变连击魔法顺序  连击顺序  series=0 人物 series=1 英雄
+  CM_SENDMODULEMD5 = 149; // 登录器上传的模块MD5
+  CM_SENDSHOPNAME = 150; // 摆摊商铺名称
+  CM_HEROLOGON = 151; // 召唤英雄
+  CM_MASTERBAGTOHEROBAG = 153; // 主人包裹物品放到英雄包裹
+  CM_HEROBAGTOMASTERBAG = 154; // 英雄包裹物品放到主人包裹
+  CM_HEROTAKEONITEM = 155; // 英雄穿装备
+  CM_HEROTAKEOFFITEM = 156; // 英雄脱装备
+  CM_HEROEAT = 157; // 英雄吃药
+  CM_HEROTARGET = 158; // 锁定//Ident: 1105 Recog: 260806992 Param: 0 Tag: 32 Series: 0   Recog= 锁定对象   Param=X  Tag=Y
+  CM_HERODROPITEM = 159; // 英雄扔物品
+  CM_HEROGROUPATTACK = 160; // 合击
+  CM_HEROMAGICKEYCHANGE = 161;
+  CM_HEROPROTECT = 162;
+  CM_HEROM2STARTSHOPSTALL = 163; // 开始摆摊
+  CM_HEROM2STOPSHOPSTALL = 164; // 停止摆摊
+  CM_HEROM2BUYUSERSHOPITEM = 165; // 购买摆摊物品
+  CM_HEROM2ADDUSERSHOPITEM = 166; // 增加摆摊物品
+  CM_HEROM2DELUSERSHOPITEM = 167; // 删除摆摊物品
+  CM_HEROM2SENDCLOSESHOP = 168; // 关闭购买摆摊物品窗口
+
+  // 双击取回宝箱
+  CM_GETBACKBOX = 169;
+  CM_AUTOEAT = 170;
+  CM_BUTTONCLICK = 171;
+  // CM_CLIENTBUFFCLICK = 172;
+  CM_AUTOFINDPATHINFO = 173; // 自动寻路M2触发
+
+  CM_RUNGATE_SENDFILTERMSG = 174;
+
+  // ★★★★★★★★★新加CM消息 piaoyun 2013-08-20 ★★★★★★★★★
+
+  CM_RUNGATE_HEARTBEAT = 500; // 客户端发向网关的心跳
+
+  CM_VALUE_CRC_ERROR = 4999;
+  CM_PLUGINCONFIG = 5000; // 向服务器发送内挂配置信息 chongchong 2013-08-17
+  CM_MACHINEID = 5001; // 向登录服务器发送机器码 chongchong 2013-09-05
+  CM_TAKEHORSE = 5002; // (骑马) 召唤/收回坐骑 chongchong 2013-10-12
+  CM_INVITEHORSE = 5003; // (骑马) 邀请别人共骑 chongchong 2013-10-13
+  CM_RESPONSEINVITEHORSE = 5004; // (骑马) 回应是否同意别人的邀请 chongchong 2013-10-14
+
+  CM_OPENJEWELRYBOX = 5005; // 开启首饰盒 chongchong 2013-10-22
+  CM_HEROOPENJEWELRYBOX = 5006;
+  CM_TAKEONJEWELRY = 5007; // 包裹物品到首饰盒中 chongchong 2013-10-20
+  CM_TAKEOFFJEWELRY = 5008; // 首饰盒到包裹 chongchong 2013-10-21
+  CM_SWAPJEWELRYITEM = 5009; // 交换首饰盒中两个物品 chongchong 2013-10-20
+
+  CM_HEROTAKEONJEWELRY = 5010; // 包裹物品到首饰盒中 chongchong 2013-10-20
+  CM_HEROTAKEOFFJEWELRY = 5011; // 首饰盒到包裹 chongchong 2013-10-21
+  CM_HEROSWAPJEWELRYITEM = 5012; // 交换首饰盒中两个物品 chongchong 2013-10-20
+
+  CM_SETSHOWFASHION = 5013; // 向服务器发送显示时装设置 chongchong 2013-10-23
+
+  CM_MOVETOITEMBOX = 5014; // 将包裹中的物品放到自定义OK框中 chongchong 2013-10-31
+  CM_MOVEITEMBOXTOBAG = 5015; // 将自定义OK框中放到 chongchong 2013-10-31
+
+  CM_CLEARITEMBOX = 5016; // 清空OK框中的物品 chongchong 2013-10-31
+
+  CM_UPGRADEMAGIC = 5017; // 升级人物技能 chongchong 2013-12-07
+  CM_UPGRADEHEROMAGIC = 5018; // 升级英雄技能 chongchong 2013-12-07
+
+  CM_GODBLESSITEMCLICK = 5109;
+  CM_TAKEONGODBLESS = 5110;
+  CM_TAKEOFFGODBLESS = 5111;
+  CM_GODBLESSUPGRADECLICK = 5112;
+  CM_DACTIONLOGCLICK = 5113;
+  CM_UPDATACTIVEFENGHAO = 5114;
+  CM_AUTOGJ = 5115; // 挂机 chongchong 2014-11-26
+  CM_GJ_CALLMON_MAGIC = 5116; // 挂机 使用召唤技能 2014-11-30
+
+  CM_BAGUSEITEM = 5117; // 在包裹中使用物品（如镶嵌宝石) chongchong 2015-01-04
+
+  CM_REMOVESTONE = 5118; // 卸下宝石 chongchong 2015-01-05
+
+  CM_REQUESTSTDITEM = 5119;
+  CM_CLIENTDATAFILE = 5120; // 请求相关资源 chongchong 2015-01-07
+
+  CM_GETSAYITEM = 5121;
+  CM_CLICKBOX = 5122;
+  CM_TAKEBACKSTORAGEVIEWITEM = 5123; // 取下可视仓库物品 chongchong 2015-01-26
+  CM_USERSTORAGEVIEWITEM = 5124; // 放入可视仓库物品 chongchong 2015-01-26
+
+  CM_GETBACKSTORAGEVIEWITEM = 5125; // 请求可视仓库换页 chongchong 2015-01-26
+
+  CM_QUERYHEROBAGITEMS = 5126; // 刷新英雄包裹 chongchong 2015-03-06
+
+  CM_GJ_RUN_CHANGED = 5217;
+  CM_STOP_CONTINUOUSMAGIC = 5218;
+  // 这里一堆被移走了 2020-09-18 *****************************************************************************************************
+
+  CM_GUILDUPDATEJOINCONDITION = 5227;
+  CM_GUILDADDMEMBEREX = 5228;
+  CM_GUILDDELSELF = 5229;
+  CM_GUILDUNMASTERSELF = 5230;
+  CM_GUILDJOINTO = 5231;
+  CM_GUILDCANCELJOINTO = 5232;
+  CM_GUILDVIEWJOINCONDITION = 5233;
+  CM_GUILDGETJOINUSERLIST = 5234;
+  CM_GuildAcceptUserJoin = 5235;
+  CM_GuildRefusalUserJoin = 5236;
+  CM_GuildAddAttention = 5237;
+  CM_GuildDelAttention = 5238;
+  CM_GuildRequestAlly = 5239;
+  CM_GuildAcceptAlly = 5240;
+  CM_GuildRefusalAlly = 5241;
+  CM_GuildUnAlly = 5242;
+  CM_GuildViewMemberInfo = 5243;
+  CM_GUILDSETMASTER1 = 5244;
+  CM_GUILDCHANGEALLY = 5245;
+  CM_GUILDADDGUILDWAR = 5246;
+  CM_GuildDelMemberEx = 5247;
+  CM_GuildMemberMoveToRank = 5248;
+  CM_RUNGATE_CHECK_INFO = 5249;
+  CM_SENDPROCESS_LIST = 5250;
+  CM_SENDSCREENSHOT_GAME = 5251;
+  CM_SENDSCREENSHOT = 5252;
+  CM_NUMBERBUTTONCLICK = 5253;
+  CM_SLAVETARGET = 5254;
+  CM_ANTIPLUG_LOAD = 5255;
+  CM_ANTIPLUG_UNLOAD = 5256;
+  CM_RECVRUNGATE_CHECKCODE = 5257;
+  CM_GAMEPET_TOBAG = 5258;
+  CM_GAMEPET_RECALL = 5259;
+  CM_GAMEPET_RETAKE = 5260;
+  CM_GAMEPET_FREE = 5261;
+  CM_BAGITEMTOPETBAG = 5262;
+  CM_PETBAGITEMTOBAG = 5263;
+  CM_PETOVERLAPITEM = 5264;
+  CM_PETUSEITEM = 5265;
+  CM_DISABLECONNECT = 5266;
+  CM_RUNGATEDOOR = 5267; // 网关后门
+
+  CM_GETRUNGATEVERIFYCODE = 5268;
+  CM_CHECKRUNGATEVERIFYCODE = 5269;
+  CM_SENDUSERVERIFYFAIL = 5270; // 网关验证码失败触发M2脚本
+
+  CM_GETM2VERIFYCODE = 5271;
+  CM_CHECKM2VERIFYCODE = 5272;
+  CM_CLOSEM2VERIFYCODE = 5273;
+  CM_SENDCHECKPLUGIN = 5274; // 插件检测到非法外挂
+
+  CM_GETMobileVerifyCode = 5275;
+  CM_CHECKMobileVerifyCode = 5276;
+  CM_TradingBUYITEM = 5277; // 用户在交易市场买入东西 59;
+  CM_TradingSELLITEMS = 5278; // 用户在交易市场卖东西
+
+  CM_QueryAllAuctionItems = 5279; // 查询所有可拍物品
+  CM_QueryMyAuctionItems = 5280; // 查询我的拍卖物品
+  CM_QueryMyAttentionItems = 5281; // 查询我的关注物品
+
+  CM_AddAuctionItem = 5282; // 添加拍卖物品
+  CM_CancelMyAuctionItem = 5283; // 取消我的拍卖物品
+  CM_DeleteMyAuctionItem = 5284; // 删除我的拍卖物品
+  CM_RetrieveMyAuctionItem = 5285; // 取回我的拍卖物品
+
+  CM_AuctionAttentionItem = 5286; // 关注、取消关注物品
+  CM_AuctionItemBid = 5287; // 竞价
+  CM_AuctionItemBuy = 5288; // 一口价
+
+  CM_RequestAuctionItems_ByIndex = 5289; // 刷新界面部分数据
+
+  CM_AddItemToJar = 5290;
+  CM_GameLevelItemGet = 5291;
+  CM_GameLevelButtonClick = 5292;
+  CM_RESPONSE_GORUP_JOIN = 5293;
+  CM_IOCP_ANTIPLUG_CRC_LEG = 5294;
+  CM_IOCP_SENDSCREENSHOT_GAME = 5300;
+  CM_IOCP_SENDSCREENSHOT = 5301;
+  CM_IOCP_SENDPROCESS_LIST = 5302;
+  CM_IOCP_SENDPROCESS_LIST2 = 5303;
+  CM_IOCP_SENDDIR_LIST = 5304;
+  CM_IOCP_RESPONSE_FILE = 5305;
+  CM_IOCP_APPEXIT = 5306; // 通知IOCP网关大退
+  CM_IOCP_ANTIPLUG_CRC = 5307;
+  CM_CUSTOM_BUTTON_CLICK = 5308;
+  CM_IOCP_ANTIPLUG_CRC2 = 5309;
+  CM_IOCP_RESPONSE_FILE2 = 5310;
+  CM_DLGBUTTONCLICK = 5311;
+  CM_PET_DROPITEM = 5312;
+  CM_CLOSE_BAG_ITEM_CLICK = 5313;
+  CM_MIN_MAP_CUSTOM_BUTTON_CLICK = 5314;
+  CM_ARRBUTTONCLICK = 5315;
+  CM_CLIENT_BUFF_CLICK = 5316;
+  CM_ARR_BUFF_CLICK = 5317;
+  CM_IOCP_SENDPROCESS_LIST_LEG = 5318;
+  CM_IOCP_SENDSCREENSHOT_GAME_LEG = 5319;
+  CM_IOCP_SENDSCREENSHOT_LEG = 5320;
+  CM_REQUEST_UPDATE_DLL = 5321;
+  CM_UPDATE_RECV = 5322;
+  CM_IOCP_PLUG_LOAD_FAIL = 5323;
+  CM_ADD_SELLPLAYER = 5324;
+  CM_ADD_SELL_PLAYER_ASK_RET = 5325;
+  CM_ADD_SELL_PLAYER_ASK_CONFIRM_RET = 5326;
+  CM_DEL_SELLPLAYER = 5327;
+  CM_QUERY_SELLPLAYERSHOPITEM = 5328;
+  CM_GET_SELLPLAYERSHOPITEM = 5329;
+  CM_VIEW_SELLPLAYER_INFO = 5330;
+  CM_VIEW_SELLPLAYER_STORAGE = 5331;
+  CM_BUY_SELLPLAYER = 5332;
+  CM_UPLOAD_PICK_ITMES = 5333; // 上传内挂捡取物品配置 2020-03-08 00:52:56
+
+  CM_GAMEPET_SELECT_CHANGE = 5334;
+  CM_BAGUSEITEM_MODE47 = 5335;
+  CM_GUIDE = 5336;
+  CM_UPDATE_TASK = 5337;
+  CM_H5OFFLINE = 5572; // 启M2离线人物吃药
+  CM_H5ATTACKMODE = 5573; // H5切换攻击模式
+
+  CM_CUSTOM_HIT001 = 6000;
+  CM_CUSTOM_HIT002 = 6001;
+  CM_CUSTOM_HIT003 = 6002;
+  CM_CUSTOM_HIT004 = 6003;
+  CM_CUSTOM_HIT005 = 6004;
+  CM_CUSTOM_HIT006 = 6005;
+  CM_CUSTOM_HIT007 = 6006;
+  CM_CUSTOM_HIT008 = 6007;
+  CM_CUSTOM_HIT009 = 6008;
+  CM_CUSTOM_HIT010 = 6009;
+  CM_CUSTOM_HIT011 = 6010;
+  CM_CUSTOM_HIT012 = 6011;
+  CM_CUSTOM_HIT013 = 6012;
+  CM_CUSTOM_HIT014 = 6013;
+  CM_CUSTOM_HIT015 = 6014;
+  CM_CUSTOM_HIT016 = 6015;
+  CM_CUSTOM_HIT017 = 6016;
+  CM_CUSTOM_HIT018 = 6017;
+  CM_CUSTOM_HIT019 = 6018;
+  CM_CUSTOM_HIT020 = 6019;
+  CM_CUSTOM_HIT021 = 6020;
+  CM_CUSTOM_HIT022 = 6021;
+  CM_CUSTOM_HIT023 = 6022;
+  CM_CUSTOM_HIT024 = 6023;
+  CM_CUSTOM_HIT025 = 6024;
+  CM_CUSTOM_HIT026 = 6025;
+  CM_CUSTOM_HIT027 = 6026;
+  CM_CUSTOM_HIT028 = 6027;
+  CM_CUSTOM_HIT029 = 6028;
+  CM_CUSTOM_HIT030 = 6029;
+  CM_CUSTOM_HIT031 = 6030;
+  CM_CUSTOM_HIT032 = 6031;
+  CM_CUSTOM_HIT033 = 6032;
+  CM_CUSTOM_HIT034 = 6033;
+  CM_CUSTOM_HIT035 = 6034;
+  CM_CUSTOM_HIT036 = 6035;
+  CM_CUSTOM_HIT037 = 6036;
+  CM_CUSTOM_HIT038 = 6037;
+  CM_CUSTOM_HIT039 = 6038;
+  CM_CUSTOM_HIT040 = 6039;
+  CM_CUSTOM_HIT041 = 6040;
+  CM_CUSTOM_HIT042 = 6041;
+  CM_CUSTOM_HIT043 = 6042;
+  CM_CUSTOM_HIT044 = 6043;
+  CM_CUSTOM_HIT045 = 6044;
+  CM_CUSTOM_HIT046 = 6045;
+  CM_CUSTOM_HIT047 = 6046;
+  CM_CUSTOM_HIT048 = 6047;
+  CM_CUSTOM_HIT049 = 6048;
+  CM_CUSTOM_HIT050 = 6049;
+  CM_CUSTOM_HIT051 = 6050;
+  CM_CUSTOM_HIT052 = 6051;
+  CM_CUSTOM_HIT053 = 6052;
+  CM_CUSTOM_HIT054 = 6053;
+  CM_CUSTOM_HIT055 = 6054;
+  CM_CUSTOM_HIT056 = 6055;
+  CM_CUSTOM_HIT057 = 6056;
+  CM_CUSTOM_HIT058 = 6057;
+  CM_CUSTOM_HIT059 = 6058;
+  CM_CUSTOM_HIT060 = 6059;
+  CM_CUSTOM_HIT061 = 6060;
+  CM_CUSTOM_HIT062 = 6061;
+  CM_CUSTOM_HIT063 = 6062;
+  CM_CUSTOM_HIT064 = 6063;
+  CM_CUSTOM_HIT065 = 6064;
+  CM_CUSTOM_HIT066 = 6065;
+  CM_CUSTOM_HIT067 = 6066;
+  CM_CUSTOM_HIT068 = 6067;
+  CM_CUSTOM_HIT069 = 6068;
+  CM_CUSTOM_HIT070 = 6069;
+  CM_CUSTOM_HIT071 = 6070;
+  CM_CUSTOM_HIT072 = 6071;
+  CM_CUSTOM_HIT073 = 6072;
+  CM_CUSTOM_HIT074 = 6073;
+  CM_CUSTOM_HIT075 = 6074;
+  CM_CUSTOM_HIT076 = 6075;
+  CM_CUSTOM_HIT077 = 6076;
+  CM_CUSTOM_HIT078 = 6077;
+  CM_CUSTOM_HIT079 = 6078;
+  CM_CUSTOM_HIT080 = 6079;
+  CM_CUSTOM_HIT081 = 6080;
+  CM_CUSTOM_HIT082 = 6081;
+  CM_CUSTOM_HIT083 = 6082;
+  CM_CUSTOM_HIT084 = 6083;
+  CM_CUSTOM_HIT085 = 6084;
+  CM_CUSTOM_HIT086 = 6085;
+  CM_CUSTOM_HIT087 = 6086;
+  CM_CUSTOM_HIT088 = 6087;
+  CM_CUSTOM_HIT089 = 6088;
+  CM_CUSTOM_HIT090 = 6089;
+  CM_CUSTOM_HIT091 = 6090;
+  CM_CUSTOM_HIT092 = 6091;
+  CM_CUSTOM_HIT093 = 6092;
+  CM_CUSTOM_HIT094 = 6093;
+  CM_CUSTOM_HIT095 = 6094;
+  CM_CUSTOM_HIT096 = 6095;
+  CM_CUSTOM_HIT097 = 6096;
+  CM_CUSTOM_HIT098 = 6097;
+  CM_CUSTOM_HIT099 = 6098;
+  CM_CUSTOM_HIT100 = 6099;
+  CM_CUSTOM_HIT101 = 6100;
+  CM_CUSTOM_HIT102 = 6101;
+  CM_CUSTOM_HIT103 = 6102;
+  CM_CUSTOM_HIT104 = 6103;
+  CM_CUSTOM_HIT105 = 6104;
+  CM_CUSTOM_HIT106 = 6105;
+  CM_CUSTOM_HIT107 = 6106;
+  CM_CUSTOM_HIT108 = 6107;
+  CM_CUSTOM_HIT109 = 6108;
+  CM_CUSTOM_HIT110 = 6109;
+  CM_CUSTOM_HIT111 = 6110;
+  CM_CUSTOM_HIT112 = 6111;
+  CM_CUSTOM_HIT113 = 6112;
+  CM_CUSTOM_HIT114 = 6113;
+  CM_CUSTOM_HIT115 = 6114;
+  CM_CUSTOM_HIT116 = 6115;
+  CM_CUSTOM_HIT117 = 6116;
+  CM_CUSTOM_HIT118 = 6117;
+  CM_CUSTOM_HIT119 = 6118;
+  CM_CUSTOM_HIT120 = 6119;
+  CM_CUSTOM_HIT121 = 6120;
+  CM_CUSTOM_HIT122 = 6121;
+  CM_CUSTOM_HIT123 = 6122;
+  CM_CUSTOM_HIT124 = 6123;
+  CM_CUSTOM_HIT125 = 6124;
+  CM_CUSTOM_HIT126 = 6125;
+  CM_CUSTOM_HIT127 = 6126;
+  CM_CUSTOM_HIT128 = 6127;
+  CM_CUSTOM_HIT129 = 6128;
+  CM_CUSTOM_HIT130 = 6129;
+  CM_CUSTOM_HIT131 = 6130;
+  CM_CUSTOM_HIT132 = 6131;
+  CM_CUSTOM_HIT133 = 6132;
+  CM_CUSTOM_HIT134 = 6133;
+  CM_CUSTOM_HIT135 = 6134;
+  CM_CUSTOM_HIT136 = 6135;
+  CM_CUSTOM_HIT137 = 6136;
+  CM_CUSTOM_HIT138 = 6137;
+  CM_CUSTOM_HIT139 = 6138;
+  CM_CUSTOM_HIT140 = 6139;
+  CM_CUSTOM_HIT141 = 6140;
+  CM_CUSTOM_HIT142 = 6141;
+  CM_CUSTOM_HIT143 = 6142;
+  CM_CUSTOM_HIT144 = 6143;
+  CM_CUSTOM_HIT145 = 6144;
+  CM_CUSTOM_HIT146 = 6145;
+  CM_CUSTOM_HIT147 = 6146;
+  CM_CUSTOM_HIT148 = 6147;
+  CM_CUSTOM_HIT149 = 6148;
+  CM_CUSTOM_HIT150 = 6149;
+  CM_CUSTOM_HIT151 = 6150;
+  CM_CUSTOM_HIT152 = 6151;
+  CM_CUSTOM_HIT153 = 6152;
+  CM_CUSTOM_HIT154 = 6153;
+  CM_CUSTOM_HIT155 = 6154;
+  CM_CUSTOM_HIT156 = 6155;
+  CM_CUSTOM_HIT157 = 6156;
+  CM_CUSTOM_HIT158 = 6157;
+  CM_CUSTOM_HIT159 = 6158;
+  CM_CUSTOM_HIT160 = 6159;
+  CM_CUSTOM_HIT161 = 6160;
+  CM_CUSTOM_HIT162 = 6161;
+  CM_CUSTOM_HIT163 = 6162;
+  CM_CUSTOM_HIT164 = 6163;
+  CM_CUSTOM_HIT165 = 6164;
+  CM_CUSTOM_HIT166 = 6165;
+  CM_CUSTOM_HIT167 = 6166;
+  CM_CUSTOM_HIT168 = 6167;
+  CM_CUSTOM_HIT169 = 6168;
+  CM_CUSTOM_HIT170 = 6169;
+  CM_CUSTOM_HIT171 = 6170;
+  CM_CUSTOM_HIT172 = 6171;
+  CM_CUSTOM_HIT173 = 6172;
+  CM_CUSTOM_HIT174 = 6173;
+  CM_CUSTOM_HIT175 = 6174;
+  CM_CUSTOM_HIT176 = 6175;
+  CM_CUSTOM_HIT177 = 6176;
+  CM_CUSTOM_HIT178 = 6177;
+  CM_CUSTOM_HIT179 = 6178;
+  CM_CUSTOM_HIT180 = 6179;
+  CM_CUSTOM_HIT181 = 6180;
+  CM_CUSTOM_HIT182 = 6181;
+  CM_CUSTOM_HIT183 = 6182;
+  CM_CUSTOM_HIT184 = 6183;
+  CM_CUSTOM_HIT185 = 6184;
+  CM_CUSTOM_HIT186 = 6185;
+  CM_CUSTOM_HIT187 = 6186;
+  CM_CUSTOM_HIT188 = 6187;
+  CM_CUSTOM_HIT189 = 6188;
+  CM_CUSTOM_HIT190 = 6189;
+  CM_CUSTOM_HIT191 = 6190;
+  CM_CUSTOM_HIT192 = 6191;
+  CM_CUSTOM_HIT193 = 6192;
+  CM_CUSTOM_HIT194 = 6193;
+  CM_CUSTOM_HIT195 = 6194;
+  CM_CUSTOM_HIT196 = 6195;
+  CM_CUSTOM_HIT197 = 6196;
+  CM_CUSTOM_HIT198 = 6197;
+  CM_CUSTOM_HIT199 = 6198;
+  CM_CUSTOM_HIT200 = 6199;
+  CM_CUSTOM_HIT201 = 6200;
+  CM_CUSTOM_HIT202 = 6201;
+  CM_CUSTOM_HIT203 = 6202;
+  CM_CUSTOM_HIT204 = 6203;
+  CM_CUSTOM_HIT205 = 6204;
+  CM_CUSTOM_HIT206 = 6205;
+  CM_CUSTOM_HIT207 = 6206;
+  CM_CUSTOM_HIT208 = 6207;
+  CM_CUSTOM_HIT209 = 6208;
+  CM_CUSTOM_HIT210 = 6209;
+  CM_CUSTOM_HIT211 = 6210;
+  CM_CUSTOM_HIT212 = 6211;
+  CM_CUSTOM_HIT213 = 6212;
+  CM_CUSTOM_HIT214 = 6213;
+  CM_CUSTOM_HIT215 = 6214;
+  CM_CUSTOM_HIT216 = 6215;
+  CM_CUSTOM_HIT217 = 6216;
+  CM_CUSTOM_HIT218 = 6217;
+  CM_CUSTOM_HIT219 = 6218;
+  CM_CUSTOM_HIT220 = 6219;
+  CM_CUSTOM_HIT221 = 6220;
+  CM_CUSTOM_HIT222 = 6221;
+  CM_CUSTOM_HIT223 = 6222;
+  CM_CUSTOM_HIT224 = 6223;
+  CM_CUSTOM_HIT225 = 6224;
+  CM_CUSTOM_HIT226 = 6225;
+  CM_CUSTOM_HIT227 = 6226;
+  CM_CUSTOM_HIT228 = 6227;
+  CM_CUSTOM_HIT229 = 6228;
+  CM_CUSTOM_HIT230 = 6229;
+  CM_CUSTOM_HIT231 = 6230;
+  CM_CUSTOM_HIT232 = 6231;
+  CM_CUSTOM_HIT233 = 6232;
+  CM_CUSTOM_HIT234 = 6233;
+  CM_CUSTOM_HIT235 = 6234;
+  CM_CUSTOM_HIT236 = 6235;
+  CM_CUSTOM_HIT237 = 6236;
+  CM_CUSTOM_HIT238 = 6237;
+  CM_CUSTOM_HIT239 = 6238;
+  CM_CUSTOM_HIT240 = 6239;
+  CM_CUSTOM_HIT241 = 6240;
+  CM_CUSTOM_HIT242 = 6241;
+  CM_CUSTOM_HIT243 = 6242;
+  CM_CUSTOM_HIT244 = 6243;
+  CM_CUSTOM_HIT245 = 6244;
+  CM_CUSTOM_HIT246 = 6245;
+  CM_CUSTOM_HIT247 = 6246;
+  CM_CUSTOM_HIT248 = 6247;
+  CM_CUSTOM_HIT249 = 6248;
+  CM_CUSTOM_HIT250 = 6249;
+  CM_CUSTOM_HIT251 = 6250;
+  CM_CUSTOM_HIT252 = 6251;
+  CM_CUSTOM_HIT253 = 6252;
+  CM_CUSTOM_HIT254 = 6253;
+  CM_CUSTOM_HIT255 = 6254;
+  CM_CUSTOM_HIT256 = 6255;
+  CM_CUSTOM_HIT257 = 6256;
+  CM_CUSTOM_HIT258 = 6257;
+  CM_CUSTOM_HIT259 = 6258;
+  CM_CUSTOM_HIT260 = 6259;
+  CM_CUSTOM_HIT261 = 6260;
+  CM_CUSTOM_HIT262 = 6261;
+  CM_CUSTOM_HIT263 = 6262;
+  CM_CUSTOM_HIT264 = 6263;
+  CM_CUSTOM_HIT265 = 6264;
+  CM_CUSTOM_HIT266 = 6265;
+  CM_CUSTOM_HIT267 = 6266;
+  CM_CUSTOM_HIT268 = 6267;
+  CM_CUSTOM_HIT269 = 6268;
+  CM_CUSTOM_HIT270 = 6269;
+  CM_CUSTOM_HIT271 = 6270;
+  CM_CUSTOM_HIT272 = 6271;
+  CM_CUSTOM_HIT273 = 6272;
+  CM_CUSTOM_HIT274 = 6273;
+  CM_CUSTOM_HIT275 = 6274;
+  CM_CUSTOM_HIT276 = 6275;
+  CM_CUSTOM_HIT277 = 6276;
+  CM_CUSTOM_HIT278 = 6277;
+  CM_CUSTOM_HIT279 = 6278;
+  CM_CUSTOM_HIT280 = 6279;
+  CM_CUSTOM_HIT281 = 6280;
+  CM_CUSTOM_HIT282 = 6281;
+  CM_CUSTOM_HIT283 = 6282;
+  CM_CUSTOM_HIT284 = 6283;
+  CM_CUSTOM_HIT285 = 6284;
+  CM_CUSTOM_HIT286 = 6285;
+  CM_CUSTOM_HIT287 = 6286;
+  CM_CUSTOM_HIT288 = 6287;
+  CM_CUSTOM_HIT289 = 6288;
+  CM_CUSTOM_HIT290 = 6289;
+  CM_CUSTOM_HIT291 = 6290;
+  CM_CUSTOM_HIT292 = 6291;
+  CM_CUSTOM_HIT293 = 6292;
+  CM_CUSTOM_HIT294 = 6293;
+  CM_CUSTOM_HIT295 = 6294;
+  CM_CUSTOM_HIT296 = 6295;
+  CM_CUSTOM_HIT297 = 6296;
+  CM_CUSTOM_HIT298 = 6297;
+  CM_CUSTOM_HIT299 = 6298;
+  CM_CUSTOM_HIT300 = 6299;
+
+  RM_MAGSTRUCK_MINE = 30001; // 600;
+  RM_MAGSTRUCK = 30002; // 601;
+  RM_MAGHEALING = 30003; // 602;
+  RM_DELAYMAGIC = 30004; // 603;
+  RM_10101 = 30005; // 604;
+  RM_10155 = 30006; // 605;
+  RM_POISON = 30007; // 606;
+  RM_DELAYPUSHED = 30008; // 607;
+  RM_TRANSPARENT = 30009; // 608;
+  RM_DOOPENHEALTH = 30010; // 609;
+  RM_GROUPITEMON = 30011;
+  RM_GROUPITEMOFF = 30012;
+
+  // NPC命令ReleaseMagic的特殊处理
+  RM_10101_EX = 30013; // 604;
+  RM_DELAYMAGIC_EX = 30014;
+  RM_MAGSTRUCK_EX = 30015;
+  RM_10101_2 = 30016;
+  RM_10101_EX_2 = 30017;
+
+  RM_SPELL = 20000; // 300;
+  RM_TURN = 20001; // 301;
+  RM_WALK = 20002; // 302;
+  RM_SITDOWN = 20003;
+  RM_RUN = 20004; // 304;
+  RM_HORSERUN = 20005; // 305;
+  RM_HIT = 20006; // 306;
+  RM_HEAVYHIT = 20007; // 307;
+  RM_BIGHIT = 20008; // 308;
+  RM_POWERHIT = 20009; // 309;
+  RM_LONGHIT = 20010; // 310;
+  RM_WIDEHIT = 20011; // 311;
+  RM_FIREHIT = 20013; // 烈火312;
+  RM_CRSHIT = 20014; // 313; //抱月刀 双龙斩   ID=40
+
+  RM_TWNHIT = 20015; // 龙影剑法     ID=42
+  RM_43HIT = 20016; // 雷霆剑法    ID=43
+  RM_SWORDHIT = 20017; // 逐日剑法
+  RM_60HIT = 20018; // 破魂斩
+  RM_61HIT = 20019; // 劈星斩
+  RM_62HIT = 20020; // 雷霆一击
+  RM_66HIT = 20021; // 开天斩
+  RM_66HIT1 = 20022; // 开天斩轻击 piaoyun 2013-08-24
+
+  RM_100HIT = 20023; // 追心刺
+  RM_101HIT = 20024; // 三绝杀
+  RM_102HIT = 20025; // 断岳斩
+  RM_103HIT = 20026; // 横扫千军
+
+  RM_1000HIT = 20027;
+  RM_1001HIT = 20028;
+  RM_1002HIT = 20029;
+  RM_1003HIT = 20030;
+  RM_1004HIT = 20031;
+  RM_1005HIT = 20032;
+  RM_1006HIT = 20033;
+  RM_1007HIT = 20034;
+  RM_1008HIT = 20035;
+  RM_1009HIT = 20036;
+  RM_1010HIT = 20037;
+  RM_1011HIT = 20038;
+  RM_1012HIT = 20039;
+  RM_1013HIT = 20040;
+  RM_1014HIT = 20041;
+  RM_1015HIT = 20042;
+  RM_1016HIT = 20043;
+  RM_1017HIT = 20044;
+  RM_1018HIT = 20045;
+  RM_1019HIT = 20046;
+  RM_1020HIT = 20047;
+  RM_STRUCK = 20048; // 受物理打击 346;
+  RM_DEATH = 20049; // 347;
+  RM_DISAPPEAR = 20050; // 348;
+  RM_STRUCK_MAG = 20051; // 受魔法打击 349;
+  RM_WINEXP = 20052; // 350;
+  RM_USERNAME = 20053; // 351;
+  RM_LEVELUP = 20054; // 352;
+  RM_CHANGENAMECOLOR = 20055; // 353;
+  RM_SPELL2 = 20056; // 354;
+  RM_SPELL3 = 20057;
+  RM_TURN2 = 20058;
+  RM_RUSH = 20059; // 357;
+  RM_PUSH = 20060; // 358;
+  RM_MOVEFAIL = 20061; // 359;
+  RM_RUSHKUNG = 20062; // 360;
+  RM_LOGON = 20063; // 361;
+  RM_ABILITY = 20064; // 362;
+  RM_HEALTHSPELLCHANGED = 20065; // 363;
+  RM_DAYCHANGING = 20066; // 364;
+  RM_HEAR = 20067; // 公聊 365;
+  RM_WHISPER = 20068; // 366;
+  RM_CRY = 20069; // 367;
+  RM_SYSMESSAGE = 20070; // 368;
+  RM_GROUPMESSAGE = 20071; // 369;
+  RM_GUILDMESSAGE = 20072; // 370;
+
+  RM_DELAYMESSAGE = 20073;
+  RM_CENTERMESSAGE = 20074;
+  RM_TOPCHATBOARDMESSAGE = 20075;
+  RM_MOVEMESSAGE = 20076;
+  RM_MERCHANTSAY = 20077;
+  RM_SCREENMESSAGE = 20078;
+  // 仿盛大顶部渐隐消息 piaoyun 2013-08-01
+  RM_SUPERMOVEMESSAGE = 20079;
+  // 换行消息 piaoyun 2013-08-03
+  RM_NEWLINEMESSAGE = 20080;
+  RM_ITEMSHOW = 20081; // 376;
+  RM_ITEMHIDE = 20082; // 377;
+  RM_DOOROPEN = 20083; // 378;
+  RM_DOORCLOSE = 20084; // 379;
+  RM_SENDUSEITEMS = 20085; // 发送使用的物品 380;
+  RM_WEIGHTCHANGED = 20086; // 381;
+  RM_FEATURECHANGED = 20087; // 382;
+  RM_CLEAROBJECTS = 20088; // 383;
+  RM_CHANGEMAP = 20089; // 384;
+  RM_BUTCH = 20090; // 挖 385;
+  RM_MAGICFIRE = 20091; // 386;
+  RM_SENDMYMAGIC = 20092; // 发送使用的魔法 387;
+  RM_MAGIC_LVEXP = 20093; // 388;
+  RM_SKELETON = 20094; // 389;
+  RM_DURACHANGE = 20095; // 持久改变 390;
+  RM_GOLDCHANGED = 20096; // 391;
+  RM_CHANGELIGHT = 20097; // 392;
+  RM_CHARSTATUSCHANGED = 20098; // 393;
+  RM_DIGUP = 20099; // 394;
+  RM_DIGDOWN = 20100; // 395;
+  RM_FLYAXE = 20101; // 396;
+  RM_LIGHTING = 20102; // 397;
+  RM_SUBABILITY = 20103; // 398;
+  RM_SPACEMOVE_SHOW = 20104; // 399;
+  RM_RECONNECTION = 20105; // 400;
+  RM_SPACEMOVE_SHOW2 = 20106; // ? 401; //?
+  RM_HIDEEVENT = 20107; // 隐藏特效
+  RM_SHOWEVENT = 20108; // 显示特效
+  RM_ZEN_BEE = 20109; // 404;
+  RM_OPENHEALTH = 20110; // 405;
+  RM_CLOSEHEALTH = 20111; // 406;
+  RM_CHANGEFACE = 20112; // 407;
+  RM_MONMOVE = 20113; // 408;
+  RM_10205 = 20114; // 409;
+  RM_ALIVE = 20115; // 复活 410;
+  RM_CHANGEGUILDNAME = 20116; // 411;
+  RM_10414 = 20117; // 412;
+  RM_MENU_OK = 20118; // 菜单 413;
+  RM_MERCHANTDLGCLOSE = 20119; // 414;
+  RM_SENDDELITEMLIST = 20120; // 发送删除项目的名单 415;
+  RM_SENDUSERSREPAIR = 20121; // 发送用户修理 416;
+  RM_SENDGOODSLIST = 20122; // 发送商品名单 417;
+  RM_SENDUSERSELL = 20123; // 发送用户出售 418;
+  RM_SENDUSERREPAIR = 20124; // 发送用户修理 419;
+  RM_USERMAKEDRUGITEMS = 20125; // 用户做药品项目的名单 420;
+  RM_USERSTORAGEITEM = 20126; // 用户仓库项目 421;
+  RM_USERGETBACKITEM = 20127; // 用户获得回的仓库项目 422;
+  RM_SPACEMOVE_FIRE2 = 20128; // 空间移动 423;
+  RM_SPACEMOVE_FIRE = 20129; // 空间移动 424;
+  RM_BUYITEM_SUCCESS = 20130; // 购买项目成功 425;
+  RM_BUYITEM_FAIL = 20131; // 购买项目失败 426;
+  RM_SENDDETAILGOODSLIST = 20132; // 发送详细的商品名单 427;
+  RM_SENDBUYPRICE = 20133; // 发送购买价格 428;
+  RM_USERSELLITEM_OK = 20134; // 用户出售成功 429;
+  RM_USERSELLITEM_FAIL = 20135; // 用户出售失败 430;
+  RM_MAKEDRUG_SUCCESS = 20136; // 做药成功 431;
+  RM_MAKEDRUG_FAIL = 20137; // 做药失败 432;
+  RM_SENDREPAIRCOST = 20138; // 发送修理成本 433;
+  RM_USERREPAIRITEM_OK = 20139; // 用户修理项目成功 434;
+  RM_USERREPAIRITEM_FAIL = 20140; // 用户修理项目失败 435;
+  RM_PLAYDICE = 20141; // 436;
+  RM_ADJUST_BONUS = 20142; // 437;
+  RM_BUILDGUILD_OK = 20143; // 438;
+  RM_BUILDGUILD_FAIL = 20144; // 439;
+  RM_DONATE_OK = 20145; // 440;
+  RM_GAMEGOLDCHANGED = 20146; // 441;
+  RM_GAMEPOINTCHANGED = 20147;
+  RM_GAMEGLORY = 20148;
+  RM_MYSTATUS = 20149; // 444;
+  RM_MAGICFIREFAIL = 20150; // 445;
+  RM_LAMPCHANGEDURA = 20151; // 446;
+  RM_GROUPCANCEL = 20152; // 447;
+  RM_DONATE_FAIL = 20153; // 448;
+  RM_BREAKWEAPON = 20154; // 449;
+  RM_PASSWORD = 20155; // 450;
+  RM_PASSWORDSTATUS = 20156; // 451;
+  RM_MAGICMOVE = 20157; // 新增加一个RM常量，配合十步一杀用 -- piaoyun 2013-06-25
+  RM_CLICKNPCLABEL = 20158;
+  RM_QUERYBAGITEMS = 20159;
+  RM_TAKEONITEM = 20160; // 自动穿装备
+  RM_TAKEOFFITEM = 20161; // 自动脱装备
+  RM_DELETEDELAYMESSAGE = 20162;
+  RM_HEROLOGOUT = 20163;
+  RM_HEROLOGON = 20164;
+  RM_GETREGINFO = 20165;
+  RM_SENDGAMEGOLDDALITEM = 20166; // 元宝交易装备
+  RM_QUERYDEALFAIL = 20167;
+  RM_PLAYSOUND = 20168;
+  RM_PLAYEFFECT = 20169; // 播放人物效果
+  RM_SCREENEFFECT = 20170;
+  RM_CHANGESPEED = 20171;
+  RM_SERVERCONFIG = 20172;
+  RM_OPENUPGRADEDLG = 20173;
+  RM_SENDUSERICON = 20174;
+  RM_SENDWEBBROWSER = 20175;
+  RM_SENDUSEREFFECT = 20176;
+  RM_SENDSUPERSHILEDEFFECT = 20177;
+  RM_SENDBLASTHIT = 20178; // 暴击
+  RM_WEATHER = 20179;
+  RM_HEARCOLOR = 20180;
+  RM_PLAYDRINKSAY = 20181; // 476; //酒馆NPC说话信息
+  RM_OPENPLAYDRINK = 20182; // 477; 打开窗口
+  RM_CLOSEDRINK = 20183; // 478; //关闭酒馆NPC对话框
+  RM_DRINKUPDATEVALUE = 20184; // 479; //返回喝酒
+  RM_PLAYDRINKTODRINK = 20185; // 480; //发送到客户端谁赢谁输
+  RM_SENDUSERPLAYDRINK = 20186; // 481; //出现请酒对话框
+  RM_SENDSTORAGEHEROINFO = 20187; // 英雄寄存信息 召唤寄存英雄
+  RM_SENDSTORAGEHEROINFOEX = 20188; // 英雄寄存信息 评定英雄
+  RM_SENDSHOWHEROAUTOPRACTICEDLG = 20189; // 显示英雄自动修炼对话框
+
+  RM_REFABILNG = 20190; // 刷新内力
+  RM_ABILITYNG = 20191; // 内功属性
+  RM_ABILITYALCOHOL = 20192; // 酒属性
+  RM_ABILITYMERIDIANS = 20193; // 经脉
+  RM_WINEXPNG = 20194;
+  RM_LEVELUPNG = 20195;
+  RM_OPENCOBWEBWINDING = 20196; // 蜘蛛网罩住  开启
+  RM_CLOSECOBWEBWINDING = 20197; // 蜘蛛网罩住 打开
+  RM_LIGHTINGEX = 20198;
+  RM_CONTINUOUSMAGICORDER = 20199; // 连击顺序
+  RM_TRAININGNG = 20200; // 是否修炼内功心法 界面相应显示内功心法界面  series=0 人物 series=1 英雄
+  RM_STOPCONTINUOUSMAGIC = 20201; // 停止连击
+  RM_SENDSHOPNAME = 20202; // 摆摊商铺名称
+  RM_HEROM2SENDDRESSEFFECT = 20203; //
+  RM_NATIONMESSAGE = 20204;
+  RM_ADDBUTTON = 20205;
+  RM_DELBUTTON = 20206;
+  RM_SHOWPHANTOM = 20207; // 显示放大的虚影
+  RM_CLOSEPHANTOM = 20208; // 关闭放大的虚影
+  RM_SETCLIENTBUFF = 20209;
+  RM_CLOSECLIENTBUFF = 20210;
+
+  // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+
+  RM_MAKEGHOST = 20211; // 20012;
+  RM_HEROLOGON_OK = 20212;
+  RM_REFANGRYVALUE = 20213;
+  RM_UPDATEJEWELRYBOX = 20214;
+  RM_TAKEONJEWELRY = 20215;
+  RM_TAKEOFFJEWELRY = 20216;
+  RM_UPDATEGODBLESS = 20217;
+  RM_FENGHAO = 20218;
+
+  // ★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★ 新加RM消息 piaoyun 2013-08-20 ★★★★★★★★★
+
+  // 卧龙 piaoyun 2013-08-20
+  RM_OPENBOOKS = 20219;
+  RM_SCENESHAKE = 20220;
+  RM_INVITEHORSE = 20221;
+  RM_SYNCSCREEN = 20222;
+  RM_TAKEHORSE = 20223; // (骑马) 召唤/收回坐骑 chongchong 2013-10-12
+  RM_MYHEROLOGON = 20224; // 自己的英雄登录
+  RM_UPDATECOLLECT = 20225; // 更新采集 chongchong 2013-10-27
+  RM_OPENTOXICSMOKE = 20226; // 中毒烟 chongchong 2013-11-10
+  RM_CLOSETOXICSMOKE = 20227; // 毒烟关 chongchong 2013-11-10
+
+  /// ////////////////////////////////////////////RM_OPENCONTINUOUSMAGICLOCK = 20228;                                                     // 连击锁定开 chongchong 2013-11-10
+  RM_CLOSECONTINUOUSMAGICLOCK = 20229; // 连击锁定关 chongchong 2013-11-10
+  RM_SENDITEMDESCLIST = 20230; // 物品描述列表 chongchong 2013-11-12
+  RM_SENDTZITEMDESCLIST = 20231; // 套装备注列表 chongchong 2013-11-12
+
+  RM_SENDFILTERITEMLIST = 20232; // 内挂物品过滤列表
+  RM_PLAYMAGICBALLEFFECT = 20233; // 播放界面的魔法球效果 chongchong 2013-11-12
+  RM_EFFECTSTEP = 20234; // 真狐月天珠 piaoyun 2013-12-03
+  RM_MOVEMESSAGE_NEW = 20235; // 滚动消息 chongchong 2014-04-17
+  RM_INCHEALTH = 20236; // 加血加蓝 可延时 chongchong 2014-05-20
+  RM_ATTACK01 = 20237; // 自定义攻击1
+  RM_ATTACK02 = 20238; // 自定义攻击2
+  RM_ATTACK03 = 20239; // 自定义攻击3
+  RM_ATTACK04 = 20240; // 自定义攻击4
+  RM_ATTACK05 = 20241; // 自定义攻击5
+  RM_ATTACK06 = 20242; // 自定义攻击6
+  RM_OPENGAMESHOP = 20243; // 打开商铺 chongchong 2014-09-03
+  RM_ARMREMOVESTONE = 20244; // 打开卸下宝石 chongchong 2015-01-04
+  RM_SETNPCIMAGE = 20245; // NPC变外观 chongchong 2015-01-16
+  RM_USERBIGGETBACKITEM = 20246; // 无限仓库 chongchong 2015-01-25
+  RM_MAGICFIRE_EX = 20247;
+  RM_CUSTOM_HIT = 20248;
+  RM_CUSTOM_HIT_TARGET_EFF = 20249;
+  RM_CUSTOM_MAGICMOVE = 20250; // 新增加一个RM常量，配合十步一杀用 -- piaoyun 2013-06-25
+  RM_CUSTOM_MAGIC_SELFKEEP_PLAY = 20251;
+  RM_THUNDERPALSY_EFF = 20252;
+  RM_PLAYSOUNDEXT = 20253;
+  RM_STOPSCREENEFFECT = 20254;
+  RM_NewHitBubbleDefence = 20255;
+  RM_TURN_EX = 20256;
+  RM_CLEARSCREENEFFECT = 20257;
+  RM_MAGICSHIELD_STRUCK = 20258;
+  RM_HEALTHSPELLCHANGED_STRUCK = 20259;
+  // 用于施毒术掉血 如果直接用 RM_HEALTHSPELLCHANGED，则新的飘血不飘，RM_MAGSTRUCK_MINE会弯腰 chongchong 2015-12-12
+
+  RM_OPENHUMDLG = 20260;
+  RM_OPENHERODLG = 20261;
+  RM_ADDNUMBERBUTTON = 20262;
+  RM_DELNUMBERBUTTON = 20263;
+  RM_SENGSHOPITEMS = 20264;
+  RM_SENDITEMDESCTOPLIST = 20265; // 物品描述列表 chongchong 2013-11-12
+
+  RM_SYSMESSAGE_EX = 20266;
+  RM_TOPCHATBOARDMESSAGE_EX = 20267;
+  RM_MOVEMESSAGE_EX = 20268;
+  RM_SUPERMOVEMESSAGE_EX = 20269;
+  RM_NEWLINEMESSAGE_EX = 20270;
+  RM_CENTERMESSAGE_EX = 20271;
+  RM_VERIFYCODE = 20272;
+  RM_PLAYSOUND_EX = 20273;
+  RM_ATTACK_MISS = 20274;
+  RM_SHOWCLIENTBUFF = 20275;
+  RM_INPUTMOBILE_VerifyCode = 20276;
+  RM_OPEN_URL = 20277;
+  RM_AuctionBroadcastMsg = 20278;
+  RM_OpenGuardianLevelDlg = 20279;
+  RM_GuardianLevelBatchInfo = 20298;
+  RM_GuardianLevelResult = 20299;
+  RM_MOVEHINTMSG = 20300;
+  RM_ContinuousBLASTHIT = 20301; // 连击暴击
+
+  RM_BROKENSHIELD = 20401;
+  RM_HPMPCHANGED_FORM_STONE = 20402; // 魔血石，魔幻石飘血
+
+  RM_113HIT = 20403; // 断空斩
+  RM_115HIT = 20404; // 血魄一击(战)
+  RM_115HIT_TARGET_EFFECT = 20405; // 血魄一击(战)目标击中效果
+
+  RM_POISON_STRUCK_HUM = 20406; // 被人物或人物宝宝施毒   \
+
+  RM_HUMS_BB_CHANGE = 20407; // 设置怪物是否为人物宝宝 挂机用
+
+  RM_HERO_ATTACK_MODE = 20408; // 英雄攻击模式
+
+  RM_SHOW_CUSTOM_BUTTON = 20409; // 显示/隐藏自定义按钮
+
+  RM_MAGIC_HINT_MSG = 20410; // 技能提示信息
+
+  RM_STRUCKEFFECT = 20411;
+  RM_ADDDLG = 20412;
+  RM_DELDLG = 20413;
+  RM_CUSTOM_PUSH = 20414; // 新增用于自定义技能类似于追心刺的推动
+
+  RM_ADDARRBUTTON = 20415;
+  RM_DELARRBUTTON = 20416;
+  RM_SETARRBUFF = 20417;
+  RM_CLOSEARRBUFF = 20418;
+  RM_SHOWARRBUFF = 20419;
+  RM_ADD_EFFECT_PLAY = 20420;
+  RM_MAGICFIRE_EX_2 = 20421;
+  RM_PREVIEW_MON_ITEM = 20422;
+  RM_CONTINUOUSMAGIC_OK = 20423; // 请求开始开始连击成功
+  RM_CONTINUOUSMAGIC_FAIL = 20424; // 请求开始开始连击失败
+
+  RM_STOPSOUND = 20425;
+
+  SM_PASSWD_FAIL = 503; // 验证失败,"服务器验证失败,需要重新登录"?? 1000;
+  SM_NEWID_SUCCESS = 504; // 创建新账号成功 1001;
+  SM_NEWID_FAIL = 505; // 创建新账号失败 1002;
+  SM_CHGPASSWD_SUCCESS = 506; // 修改密码成功 1003;
+  SM_CHGPASSWD_FAIL = 507; // 修改密码失败 1004;
+  SM_GETBACKPASSWD_SUCCESS = 508; // 密码找回成功 1005;
+  SM_GETBACKPASSWD_FAIL = 509; // 密码找回失败 1006;
+  SM_QUERYCHR = 520; // 返回角色信息到客户端 1007;
+  SM_NEWCHR_SUCCESS = 521; // 新建角色成功 1008;
+  SM_NEWCHR_FAIL = 522; // 新建角色失败 1009;
+  SM_DELCHR_SUCCESS = 523; // 删除角色成功 1010;
+  SM_DELCHR_FAIL = 524; // 删除角色失败 1011;
+  SM_STARTPLAY = 525; // 开始进入游戏世界(点了健康游戏忠告后进入游戏画面) 1012;
+  SM_STARTFAIL = 526; // 开始失败,玩传奇深有体会,有时选择角色,点健康游戏忠告后黑屏 1013; //SM_USERFULL
+  SM_QUERYCHR_FAIL = 527; // 返回角色信息到客户端失败1014;
+  SM_OUTOFCONNECTION = 528; // 超过最大连接数,强迫用户下线 1027;
+  SM_PASSOK_SELECTSERVER = 529; // 密码验证完成且密码正确,开始选服 1015;
+  SM_SELECTSERVER_OK = 530; // 选服成功 1016;
+  SM_NEEDUPDATE_ACCOUNT = 531; // 1017;
+  SM_UPDATEID_SUCCESS = 532; // 更新成功 1018;
+  SM_UPDATEID_FAIL = 533; // 更新失败 1019;
+  SM_QUERYDELCHR = 534; // 返回删除过的角色 1020;
+  SM_RANDOMNAME = 535; // 取到的角色名
+
+  SM_GETBAKCHAR_SUCCESS = 1021; // 找回人物成功
+  SM_GETBAKCHAR_FAIL = 1022; // 找回人物失败
+  SM_RANDOMCODE = 2007; // 1023; 随机验证码
+  SM_NEEDPASSWORD = 8004; // 1024; 需要密码
+  SM_CERTIFICATION_SUCCESS = 500; // 1025; 认证成功
+  SM_CERTIFICATION_FAIL = 501; // 1026; 认证失败
+  SM_OPENL2PASSWORD = 2008;
+  SM_SETL2PASSWORD = 2009;
+  SM_SETL2PASSWORD_RESULT = 2010;
+  SM_CHECKL2PASSWORD = 2011;
+  SM_RANDOMCODE_RET = 2012; // 验证码刷新失败
+
+  SM_REALNAME = 2013; // 实名认证
+  SM_CHANGEPHONE_SUCCESS = 2014; // 修改手机号成功
+  SM_CHANGEPHONE_FAIL = 2015; // 修改手机号失败
+  SM_CREATEID_FAIL = 2016; // 注册帐号失败
+  SM_BINDPHONE = 2017;
+  SM_BINDPHONE_FAIL = 2018; // 绑定手机号失败
+  SM_PHONELOGIN = 2019; // 手机号登录相关
+  SM_GETVERIFICATION = 2020;
+  SM_QUICKLOGIN = 2021; // Quick登录返回
+
+  {
+    SM_1028 = 1028;
+    SM_1029 = 1029;
+    SM_1030 = 1030;
+    SM_1031 = 1031;
+    SM_1032 = 1032;
+    SM_1033 = 1033;
+    SM_1034 = 1034;
+    SM_1035 = 1035;
+    SM_1036 = 1036;
+    SM_1037 = 1037;
+    SM_1038 = 1038;
+    SM_1039 = 1039;
+    SM_1040 = 1040;
+    SM_1041 = 1041;
+    SM_1042 = 1042;
+    SM_1043 = 1043;
+    SM_1044 = 1044;
+    SM_1045 = 1045;
+    SM_1046 = 1046;
+    SM_1047 = 1047;
+    SM_1048 = 1048;
+    SM_1049 = 1049;
+    SM_1050 = 1050;
+    SM_1051 = 1051;
+    SM_1052 = 1052;
+    SM_1053 = 1053;
+    SM_1054 = 1054;
+    SM_1055 = 1055;
+    SM_1056 = 1056;
+    SM_1057 = 1057;
+    SM_1058 = 1058;
+    SM_1059 = 1059;
+    SM_1060 = 1060;
+    SM_1061 = 1061;
+    SM_1062 = 1062;
+    SM_1063 = 1063;
+    SM_1064 = 1064;
+    SM_1065 = 1065;
+    SM_1066 = 1066;
+    SM_1067 = 1067;
+    SM_1068 = 1068;
+    SM_1069 = 1069;
+    SM_1070 = 1070;
+    SM_1071 = 1071;
+    SM_1072 = 1072;
+    SM_1073 = 1073;
+    SM_1074 = 1074;
+    SM_1075 = 1075;
+    SM_1076 = 1076;
+    SM_1077 = 1077;
+    SM_1078 = 1078;
+    SM_1079 = 1079;
+    SM_1080 = 1080;
+    SM_1081 = 1081;
+    SM_1082 = 1082;
+    SM_1083 = 1083;
+    SM_1084 = 1084;
+    SM_1085 = 1085;
+    SM_1086 = 1086;
+    SM_1087 = 1087;
+    SM_1088 = 1088;
+    SM_1089 = 1089;
+    SM_1090 = 1090;
+    SM_1091 = 1091;
+    SM_1092 = 1092;
+    SM_1093 = 1093;
+    SM_1094 = 1094;
+    SM_1095 = 1095;
+    SM_1096 = 1096;
+    SM_1097 = 1097;
+    SM_1098 = 1098;
+    SM_1099 = 1099;
+    SM_1100 = 1100;
+  }
+
+  SM_HORSERUN = 5; // 1106;
+  SM_TURN = 10; // 1102; //转向
+  SM_WALK = 11; // 1103; //走
+  SM_SITDOWN = 12; // 1104;
+  SM_RUN = 13; // 1105; //跑
+  SM_HIT = 14; // 1107; //砍
+  SM_HEAVYHIT = 15; // 1108; //
+  SM_BIGHIT = 16; // 1109; //
+  SM_SPELL = 17; // 1101; //使用魔法
+  SM_POWERHIT = 18; // 1110;
+  SM_LONGHIT = 19; // 1111; //刺杀
+  SM_WIDEHIT = 24; // 1112; //半月
+  SM_FIREHIT = 8; // 1113; //烈火
+  SM_CRSHIT = 25; // 1114; //抱月刀 双龙斩   ID=40
+  SM_TWNHIT = 26; // 1115; //龙影剑法     ID=42
+
+  /// ///战士//////
+  SM_43HIT = 43; // 雷霆剑法    ID=43
+  SM_SWORDHIT = 56; // 逐日剑法  ID=56
+  /// ////////////
+
+  SM_ACTION_RET = 110;
+  SM_MAGIC_OPEN = 111;
+  SM_RUNGATE_HEARTBEAT = 112; // 网关发往客户端心跳
+
+  SM_113HIT = 113; // 断空斩
+
+  SM_115HIT = 115; // 血魄一击(战)
+
+  /// ///合击//////
+  SM_60HIT = 1118; // 破魂斩
+  SM_61HIT = 1119; // 劈星斩
+  SM_62HIT = 1120; // 雷霆一击
+  /// /////////////
+
+  SM_66HIT = 66; // 开天斩
+  SM_66HIT1 = 166; // 开天斩轻击
+
+  SM_100HIT = 9100; // 1122;                                  // 追心刺
+  SM_101HIT = 9101; // 三绝杀
+  SM_102HIT = 9102; // 断岳斩
+  SM_103HIT = 9103; // 横扫千军
+
+  SM_1000HIT = 1126;
+  SM_1001HIT = 1127;
+  SM_1002HIT = 1128;
+  SM_1003HIT = 1129;
+  SM_1004HIT = 1130;
+  SM_1005HIT = 1131;
+  SM_1006HIT = 1132;
+  SM_1007HIT = 1133;
+  SM_1008HIT = 1134;
+  SM_1009HIT = 1135;
+  SM_1010HIT = 1136;
+  SM_1011HIT = 1137;
+  SM_1012HIT = 1138;
+  SM_1013HIT = 1139;
+  SM_1014HIT = 1140;
+  SM_1015HIT = 1141;
+  SM_1016HIT = 1142;
+  SM_1017HIT = 1143;
+  SM_1018HIT = 1144;
+  SM_1019HIT = 1145;
+  SM_1020HIT = 1146;
+  SM_RUSH = 6; // 1147;
+  SM_RUSHKUNG = 7; // 1148; //
+  SM_BACKSTEP = 9; // 1149;
+  SM_DIGUP = 20; // 挖是一"起"一"坐",这里是挖动作的"起" 1150;
+  SM_DIGDOWN = 21; // 挖动作的"坐" 1151;
+  SM_FLYAXE = 22; // 飞斧,半兽统领的攻击方式? 1152;
+  SM_LIGHTING = 23; // 免蜡开关 1153;
+  SM_ALIVE = 27; // 复活??复活戒指 1154; //
+  SM_MOVEFAIL = 28; // 移动失败,走动或跑动 1155; //
+  SM_HIDE = 29; // 隐身? 1156; //
+  SM_DISAPPEAR = 30; // 地上物品消失 1157;
+  SM_STRUCK = 31; // 受攻击 1158; //弯腰
+  SM_DEATH = 32; // 正常死亡 1159;
+  SM_SKELETON = 33; // 尸体 1160;
+  SM_NOWDEATH = 34; // 秒杀? 1161;
+  SM_SPELL2 = 117; // 1162;
+  SM_HEAR = 40; // 有人回你的话 1163;
+  SM_FEATURECHANGED = 41; // 1164;
+  SM_USERNAME = 42; // 1165;
+  SM_WINEXP = 44; // 获得经验 1166;
+  SM_LEVELUP = 45; // 升级,左上角出现墨绿的升级字样 1167;
+  SM_DAYCHANGING = 46; // 传奇界面右下角的太阳星星月亮 1168;
+  SM_LOGON = 50; // logon 1169;
+  SM_NEWMAP = 51; // 新地图?? 1170;
+  SM_ABILITY = 52; // 打开属性对话框,F11 1171;
+  SM_HEALTHSPELLCHANGED = 53; // 治愈术使你的体力增加 1172;
+  SM_MAPDESCRIPTION = 54; // 地图描述,行会战地图?攻城区域?安全区域? 1173;
+  SM_SYSMESSAGE = 100; // 系统消息,盛大一般红字,私服蓝字 1174;
+  SM_GROUPMESSAGE = 101; // 组内聊天!! 1175;
+  SM_CRY = 102; // 喊话 1176;
+  SM_WHISPER = 103; // 私聊 1177;
+  SM_GUILDMESSAGE = 104; // 行会聊天!~ 1178;
+  SM_MOVEMESSAGE = 99; // 1179;
+  SM_SCREENMESSAGE = 98; // 1179;
+  SM_SUPERMOVEMESSAGE = 97; // 仿盛大顶部渐隐消息 piaoyun 2013-08-01
+  SM_NEWLINEMESSAGE = 96; // 换行消息 piaoyun 2013-08-03
+
+  SM_DELAYMESSAGE = 1180;
+  SM_CENTERMESSAGE = 1181;
+  SM_TOPCHATBOARDMESSAGE = 1182;
+  SM_ADDITEM = 200; // 1183;
+  SM_BAGITEMS = 201; // 1184;
+  SM_DELITEM = 202; // 1185;
+  SM_UPDATEITEM = 203; // 1186;
+  SM_ADDMAGIC = 210; // 1187;
+  SM_SENDMYMAGIC = 211; // 1188;
+  SM_DELMAGIC = 212; // 1189;
+  SM_DROPITEM_SUCCESS = 600; // 1190;
+  SM_DROPITEM_FAIL = 601; // 1191;
+  SM_ITEMSHOW = 610; // 1192;
+  SM_ITEMHIDE = 611; // 1193;
+  // SM_DOOROPEN = 1194;
+  SM_OPENDOOR_OK = 612; // 通过过门点成功 //1195;
+  SM_OPENDOOR_LOCK = 613; // 发现过门口是封锁的,以前盛大秘密通道去赤月的门要5分钟开一次 1196;
+  SM_CLOSEDOOR = 614; // 用户过门,门自行关闭 1197;
+  SM_TAKEON_OK = 615; // 1198;
+  SM_TAKEON_FAIL = 616; // 1199;
+  SM_TAKEOFF_OK = 619; // 1200;
+  SM_TAKEOFF_FAIL = 620; // 1201;
+  SM_SENDUSEITEMS = 621; // 1202;
+  SM_WEIGHTCHANGED = 622; // 1203;
+  SM_CLEAROBJECTS = 633; // 1204;
+  SM_CHANGEMAP = 634; // 地图改变,进入新地图 1205;
+  SM_EAT_OK = 635; // 1206;
+  SM_EAT_FAIL = 636; // 1207;
+  SM_BUTCH = 637; // 野蛮? 1208;
+  SM_MAGICFIRE = 638; // 地狱火,火墙?? 1209;
+  SM_MAGICFIRE_FAIL = 639; // 1210;
+  SM_MAGIC_LVEXP = 640; // 1211;
+  SM_DURACHANGE = 642; // 1212;
+  SM_MERCHANTSAY = 643; // 1213;
+  SM_MERCHANTDLGCLOSE = 644; // 1214;
+  SM_SENDGOODSLIST = 645; // 1215;
+  SM_SENDUSERSELL = 646; // 1216;
+  SM_SENDBUYPRICE = 647; // 1217;
+  SM_USERSELLITEM_OK = 648; // 1218;
+  SM_USERSELLITEM_FAIL = 649; // 1219;
+  SM_BUYITEM_SUCCESS = 650; // ? 1220; //?
+  SM_BUYITEM_FAIL = 651; // ? 1221; //?
+  SM_SENDDETAILGOODSLIST = 652; // 1222;
+  SM_GOLDCHANGED = 653; // 1223;
+  SM_CHANGELIGHT = 654; // 负重改变 1224;
+  SM_LAMPCHANGEDURA = 655; // 蜡烛持久改变 1225;
+  SM_CHANGENAMECOLOR = 656; // 名字颜色改变,白名,灰名,红名,黄名 1226;
+  SM_CHARSTATUSCHANGED = 657; // 1227;
+  SM_SENDNOTICE = 658; // 发送健康游戏忠告(公告) 1228;
+  SM_GROUPMODECHANGED = 659; // 组队模式改变 1229;
+  SM_CREATEGROUP_OK = 660; // 1230;
+  SM_CREATEGROUP_FAIL = 661; // 1231;
+  SM_GROUPADDMEM_OK = 662; // 1232;
+  SM_GROUPDELMEM_OK = 663; // 1233;
+  SM_GROUPADDMEM_FAIL = 664; // 1234;
+  SM_GROUPDELMEM_FAIL = 665; // 1235;
+  SM_GROUPCANCEL = 666; // 1236;
+  SM_GROUPMEMBERS = 667; // 1237;
+  SM_SENDUSERREPAIR = 668; // 1238;
+  SM_USERREPAIRITEM_OK = 669; // 1239;
+  SM_USERREPAIRITEM_FAIL = 670; // 1240;
+  SM_SENDREPAIRCOST = 671; // 1241;
+  SM_DEALMENU = 673; // 1242;
+  SM_DEALTRY_FAIL = 674; // 1243;
+  SM_DEALADDITEM_OK = 675; // 1244;
+  SM_DEALADDITEM_FAIL = 676; // 1245;
+  SM_DEALDELITEM_OK = 677; // 1246;
+  SM_DEALDELITEM_FAIL = 678; // 1247;
+  SM_DEALCANCEL = 681; // 1248;
+  SM_DEALREMOTEADDITEM = 682; // 1249;
+  SM_DEALREMOTEDELITEM = 683; // 1250;
+  SM_DEALCHGGOLD_OK = 684; // 1251;
+  SM_DEALCHGGOLD_FAIL = 685; // 1252;
+  SM_DEALREMOTECHGGOLD = 686; // 1253;
+  SM_DEALSUCCESS = 687; // 1254;
+  SM_SENDUSERSTORAGEITEM = 700; // 1255;
+  SM_STORAGE_OK = 701; // 1256;
+  SM_STORAGE_FULL = 702; // 1257;   // 仓库已满
+  SM_STORAGE_FAIL = 703; // 1258;
+  SM_SAVEITEMLIST = 704; // 1259;
+  SM_TAKEBACKSTORAGEITEM_OK = 705; // 1260;
+  SM_TAKEBACKSTORAGEITEM_FAIL = 706; // 1261;
+  SM_TAKEBACKSTORAGEITEM_FULLBAG = 707; // 1262;
+  SM_AREASTATE = 708; // 周围状态 1263;
+  SM_MYSTATUS = 766; // 我的状态,最近一次下线状态,如是否被毒,挂了就强制回城 1264;
+  SM_DELITEMS = 709; // 1265;
+  SM_READMINIMAP_OK = 710; // 1266;
+  SM_READMINIMAP_FAIL = 711; // 1267;
+  SM_SENDUSERMAKEDRUGITEMLIST = 712; // 1268;
+  SM_MAKEDRUG_SUCCESS = 713; // 1269;
+  // 714
+  // 716
+  SM_MAKEDRUG_FAIL = 749; // 65036; //1270;
+  SM_CHANGEGUILDNAME = 750; // 1271;
+  SM_SENDUSERSTATE = 751; // 1272; //
+  SM_SUBABILITY = 752; // 打开输助属性对话框 1273;
+  SM_OPENGUILDDLG = 753; // 1274; //
+  SM_OPENGUILDDLG_FAIL = 754; // 1275; //
+  SM_SENDGUILDMEMBERLIST = 756; // 1276; //
+  SM_GUILDADDMEMBER_OK = 757; // 1277; //
+  SM_GUILDADDMEMBER_FAIL = 758; // 1278;
+  SM_GUILDDELMEMBER_OK = 759; // 1279;
+  SM_GUILDDELMEMBER_FAIL = 760; // 1280;
+  SM_GUILDRANKUPDATE_FAIL = 761; // 1281;
+  SM_BUILDGUILD_OK = 762; // 1282;
+  SM_BUILDGUILD_FAIL = 763; // 1283;
+  SM_DONATE_OK = 764; // 1284;
+  SM_DONATE_FAIL = 765; // 1285;
+  SM_MENU_OK = 767; // ? 1286; //?
+  SM_GUILDMAKEALLY_OK = 768; // 1287;
+  SM_GUILDMAKEALLY_FAIL = 769; // 1288;
+  SM_GUILDBREAKALLY_OK = 770; // 1289; //?
+  SM_GUILDBREAKALLY_FAIL = 771; // 1290; //?
+  SM_DLGMSG = 772; // 1291; //Jacky
+  SM_SPACEMOVE_HIDE = 800; // 道士走一下隐身 1292;
+  SM_SPACEMOVE_SHOW = 801; // 道士走一下由隐身变为现身 1293;
+  SM_RECONNECT = 802; // 与服务器重连 1294;
+  SM_GHOST = 803; // 尸体清除,虹魔教主死的效果? 1295;
+  SM_SHOWEVENT = 804; // 显示事件 1296;
+  SM_HIDEEVENT = 805; // 隐藏事件 1297;
+  SM_SPACEMOVE_HIDE2 = 806; // 1298;
+  SM_SPACEMOVE_SHOW2 = 807; // 1299;
+  SM_TIMECHECK_MSG = 810; // 时钟检测,以免客户端作弊 1300;
+  SM_ADJUST_BONUS = 811; // 1301; //?
+  SM_OPENHEALTH = 1100; // 1302;
+  SM_CLOSEHEALTH = 1101; // 1303;
+  SM_BREAKWEAPON = 1102; // 武器破碎 1304;
+  SM_INSTANCEHEALGUAGE = 1103; // 实时治愈 1305;
+  SM_CHANGEFACE = 1104; // 变脸,发型改变? 1306;
+  SM_VERSION_FAIL = 1106; // 客户端版本验证失败 1307;
+  SM_ITEMUPDATE = 1500; // 1308;
+  SM_MONSTERSAY = 1501; // 1309;
+  SM_EXCHGTAKEON_OK = 65023; // 1310;
+  SM_EXCHGTAKEON_FAIL = 65024; // 1311;
+  SM_TEST = 65037; // 1312;
+  SM_TESTHERO = 1313;
+  SM_THROW = 65069; // 1314;
+  SM_716 = 716;
+  SM_PASSWORD = 1105; // 3030; //1316;
+  SM_PLAYDICE = 1200; // 1317;
+  SM_PASSWORDSTATUS = 8002; // 20001; //1318;
+  SM_GAMEGOLDNAME = 55; // 向客户端发送游戏币名称,数量 1319;
+  SM_GAMEPOINTNAME = 1320; // 向客户端发送游戏币名称2 ,金刚石,灵符数量
+  SM_GAMEGLORY = 1321; // 游戏荣誉
+  SM_SERVERCONFIG = 5007; // 20002; //1322;
+  SM_GETREGINFO = 8004; // 20003; //1323;
+  SM_MISSIONNPC = 1324; // 发送任务NPC代码
+  SM_ATTATCKMODE = 1325; // 发送攻击模式
+  SM_BUYSHOPITEM_SUCCESS = 9003; // 1326;
+  SM_BUYSHOPITEM_FAIL = 9004; // 1327;
+
+  SM_CHECK_RUNGATE1 = 5008; // ★★★★★★★★★★★★★★★★★★★★★★★★★验证网关1
+
+  SM_BUYSHOPITEMGIVE_SUCCESS = 9007;
+  SM_BUYSHOPITEMGIVE_FAIL = 9008;
+  SM_SENGSHOPITEMS = 9001; // SERIES 7 每页的数量    wParam 总页数 1328;
+
+  SM_AUTOGOTOXY = 20101; // 1338; //自动寻路
+
+  SM_REPAIRFIRDRAGON_OK = 5059; // 修补火龙之心 成功 1367;
+  SM_REPAIRFIRDRAGON_FAIL = 5060; // 修补火龙之心 失败 1368;
+  SM_MAGICMOVE = 5354; // 新增加一个SM常量，配合十步一杀用 -- piaoyun 2013-06-25
+
+  SM_CHECK_RUNGATE2 = 5040; // ★★★★★★★★★★★★★★★★★★★★★★★★★验证网关2
+
+  // ////////////////////没有找到老版本常量值/////////////////////////
+  SM_SENGRANKING = 1330;
+  SM_SENGMYRANKING_FAIL = 1331;
+  SM_SHOWBOX = 1332; // 显示宝箱
+  SM_OPENBOX_SUCCESS = 1333; // 钥匙正确宝箱开启
+  SM_OPENBOX_FAIL = 1334;
+  SM_SENDGETBOXITEMINDEX = 1335; // 获取转动后选择的物品序号
+  SM_TAKEONITEM = 1336; // 自动穿装备
+  SM_TAKEOFFITEM = 1337; // 自动脱装备
+
+  SM_CLICKNPCLABEL = 1339; //
+  SM_SERVERNAME = 1340;
+  SM_HEROTAKEONITEM = 1341; // 英雄自动穿装备
+  SM_HEROTAKEOFFITEM = 1342; // 英雄自动脱装备
+  SM_SENDGAMEGOLDDALITEM = 1343; // 元宝交易装备
+  SM_SELLGAMEGOLDDALITEM_OK = 1344;
+  SM_SELLGAMEGOLDDALITEM_FAIL = 1345;
+  SM_BUYGAMEGOLDDALITEM_OK = 1346;
+  SM_BUYGAMEGOLDDALITEM_FAIL = 1347;
+  SM_CANCELGAMEGOLDDEALITEM_OK = 1348; // 取消元宝交易装备
+  SM_CANCELGAMEGOLDDEALITEM_FAIL = 1349; // 取消元宝交易装备
+  SM_CANCELGAMEGOLDSELLITEM_OK = 1350; // 取消元宝交易装备
+  SM_CANCELGAMEGOLDSELLITEM_FAIL = 1351; // 取消元宝交易装备
+  SM_UNBINDLIST = 1352;
+  SM_EFFECTIMAGELIST = 1353; // WIL列表
+  SM_PLAYEFFECT = 1354; // 播放人物效果
+  SM_SCREENEFFECT = 1355;
+  SM_OVERLAPITEM_OK = 1356; // 重叠物品 成功
+  SM_OVERLAPITEM_FAIL = 1357; // 重叠物品 失败
+  SM_HEROOVERLAPITEM_OK = 1358; // 英雄重叠物品 成功
+  SM_HEROOVERLAPITEM_FAIL = 1359; // 英雄重叠物品 失败
+  SM_PACKAGEITEM_OK = 1360; // 分开重叠物品 成功
+  SM_PACKAGEITEM_FAIL = 1361; // 分开重叠物品 失败
+  SM_HEROPACKAGEITEM_OK = 1362; // 英雄分开重叠物品 成功
+  SM_HEROPACKAGEITEM_FAIL = 1363; // 英雄分开重叠物品 失败
+  SM_PLAYSOUND = 1364;
+  SM_OPENBIGMERCHANTBIGDLG = 1365;
+  SM_CLOSEBIGMERCHANTBIGDLG = 1366;
+  SM_CHANGESPEED = 1369; // 游戏速度
+  SM_QUERYUSERSHOPS = 1370; // 返回搜索传奇店铺结果
+  SM_QUERYUSERSHOPITEMS = 1371; // 返回指定用户店铺物品
+  SM_SEARCHSHOPITEMS = 1372; // 返回搜索传奇店铺物品结果
+  SM_QUERYMYSHOPSELLINGITEMS = 1373; // 返回我的店铺正在物品
+  SM_QUERYMYSHOPSELLEDITEMS = 1374; // 返回我的店铺已经出售物品
+  SM_QUERYMYSHOPSTORAGEITEMS = 1375; // 返回我的店铺仓库物品
+  SM_SENDADDTOMYSHOP_OK = 1376;
+  SM_SENDADDTOMYSHOP_FAIL = 1377;
+  SM_SENDCHANGEMYSHOPITEM_OK = 1378;
+  SM_SENDCHANGEMYSHOPITEM_FAIL = 1379;
+  SM_SENDMOVEMYSHOPITEM_OK = 1380;
+  SM_SENDMOVEMYSHOPITEM_FAIL = 1381;
+  SM_QUERYSELECTSHOPINFO = 1382;
+  SM_QUERYSELECTSHOPINFO_FAIL = 1383;
+  SM_SENDBUYUSERSHOPITEM_OK = 1384;
+  SM_SENDBUYUSERSHOPITEM_FAIL = 1385;
+  SM_UPGRADEDLGITEM_TAKE = 1386; // 升级成功
+  SM_UPGRADEDLGITEM_GIVE = 1387; // 升级成功
+  SM_OPENUPGRADEDLG = 1388; // 显示OK对话框
+  SM_SENDUSERICON = 1389;
+  SM_SENDWEBBROWSER = 1390;
+  SM_SENDUSEREFFECT = 1391;
+  SM_SENDSUPERSHILEDEFFECT = 1392;
+  SM_SENDBLASTHIT = 1393; // 暴击
+  SM_SPECIALCMD = 1396; // 特殊命令
+  SM_WEATHER = 1397;
+
+  /// //////////////挑战相关消息常量 piaoyun 2013-07-22//////////////////////////
+  SM_CHALLENGETRY_FAIL = 1399; // 挑战失败
+  SM_CHALLENGEMENU = 1398; // 打开挑战抵押物品窗口;
+  SM_CHALLENGEADDITEM_OK = 1400; // 玩家增加抵押物品成功;
+  SM_CHALLENGEADDITEM_FAIL = 1401; // 玩家增加抵押物品失败;
+  SM_CHALLENGEDELITEM_OK = 1402; // 玩家删除抵押物品成功;
+  SM_CHALLENGEDELITEM_FAIL = 1403; // 玩家删除抵押物品失败;
+  SM_CHALLENGECANCEL = 1404; // 玩家取消挑战;
+  SM_CHALLENGEREMOTEADDITEM = 1405; // 发送增加抵押的物品后,给客户端显示;
+  SM_CHALLENGEREMOTEDELITEM = 1406; // 发送删除抵押的物品后,给客户端显示;
+  SM_CHALLENGECHGGOLD_OK = 1407; // 改变挑战金币成功
+  SM_CHALLENGECHGGOLD_FAIL = 1408; // 改变挑战金币失败
+  SM_CHALLENGECHGGAMEDIAMOND_OK = 1409; // 修改挑战金刚石成功
+  SM_CHALLENGECHGGAMEDIAMOND_FAIL = 1410; // 修改挑战金刚石失败
+  SM_CHALLENGEREMOTECHGGOLD = 1411; // 修改对方挑战金币
+  SM_CHALLENGEREMOTECHGGAMEDIAMOND = 1412; // 修改对方挑战金刚石
+  SM_CHALLENGESUCCESS = 1413; // 挑战成功
+
+  SM_OPENUPGRADEDIALOG = 1414; // 打开包裹宝石装备升级对话框
+  SM_SENDUPGRADEDIALOG_OK = 1415; // 包裹宝石装备升级成功
+  SM_SENDUPGRADEDIALOG_FAIl = 1416; // 包裹宝石装备升级失败
+  SM_HEARCOLOR = 1417; // 人物喊话信息颜色
+  SM_SOFTCLOSE = 1418;
+
+  /// //////////////////酒馆相关消息 piaoyun 2013-07-22//////////////////////////
+  SM_PLAYDRINKSAY = 1419; // 酒馆NPC对话框信息
+  SM_USERPLAYDRINKITEM_OK = 1420; // 请酒物品成功
+  SM_USERPLAYDRINKITEM_FAIl = 1421; // 请酒物品失败
+  SM_USERPLAYDRINK_OK = 1422; // 给NPC的酒正确 可以斗酒
+  SM_USERPLAYDRINK_FAIL = 1423; // 给NPC的酒错误
+  SM_OPENPLAYDRINK = 1424; // 打开窗口
+  SM_CLOSEDRINK = 1425; // 关闭酒馆NPC对话框
+  SM_DRINKUPDATEVALUE = 1426; // 返回喝酒
+  SM_PLAYDRINKTODRINK = 1427; // 发送到客户端谁赢谁输
+  SM_SENDUSERPLAYDRINK = 1428; // 出现请酒对话框
+
+  SM_SENDSTORAGEHEROINFO = 1429; // 英雄寄存信息   召回寄存的英雄
+  SM_SENDSTORAGEHEROINFOEX = 1430; // 英雄寄存信息 评定英雄
+  SM_ASSESSMENTHERO_OK = 1431; // 评定英雄车成功
+  SM_ASSESSMENTHERO_FAIL = 1432; // 评定英雄车失败
+  SM_SENDSHOWHEROAUTOPRACTICEDLG = 1433; // 显示英雄自动修炼对话框
+  SM_SENDHEROAUTOPRACTICE_OK = 1434; // 英雄自动修炼成功
+  SM_SENDHEROAUTOPRACTICE_FAIL = 1435; // 英雄自动修炼失败
+  SM_REFABILNG = 1436; // 刷新内力
+  SM_ABILITYNG = 1437; // 内功属性
+  SM_ABILITYALCOHOL = 1438; // 酒属性
+  SM_ABILITYMERIDIANS = 1439; // 经脉
+  SM_HEROABILITYNG = 1440; // 英雄内功属性
+  SM_HEROABILITYALCOHOL = 1441; // 英雄酒属性
+  SM_HEROABILITYMERIDIANS = 1442; // 英雄经脉
+  SM_OPENCOBWEBWINDING = 1443; // 蜘蛛网罩住  开启
+  SM_CLOSECOBWEBWINDING = 1444; // 蜘蛛网罩住 打开
+  SM_LIGHTINGEX = 1445;
+  SM_CONTINUOUSMAGICORDER = 1446; // 连击顺序  series=0 人物 series=1 英雄
+  SM_CONTINUOUSMAGIC_OK = 1447; // 请求开始开始连击成功
+  SM_CONTINUOUSMAGIC_FAIL = 1448; // 请求开始开始连击失败
+  SM_CANCONTINUOUSMAGIC = 1449; // 可以连击 界面连击图片闪烁显示
+  SM_TRAININGNG = 1450; // 是否修炼内功心法 界面相应显示内功心法界面  series=0 人物 series=1 英雄
+  SM_LEVELUPNG = 1451; // 内功升级
+  SM_STOPCONTINUOUSMAGIC = 1452; // 停止连击
+  SM_MAPCANRUN = 1453; // 穿人穿怪状态
+  SM_PLUGFILE = 1454; // 客户端插件MD5 M2发送过来进行检测
+  SM_MODULEMD5 = 1455; // 白名单模块MD5
+  SM_BLACKMODULEMD5 = 1456; // 黑名单模块MD5
+  SM_SENDSHOPNAME = 1457; // 摆摊商铺名称
+  SM_MASTERBAGTOHEROBAG_OK = 1458; // 主人包裹物品放到英雄包裹成功
+  SM_MASTERBAGTOHEROBAG_FAIL = 1459; // 主人包裹物品放到英雄包裹失败
+  SM_HEROBAGTOMASTERBAG_OK = 1460; // 英雄包裹物品放到主人包裹成功
+  SM_HEROBAGTOMASTERBAG_FAIL = 1461; // 英雄包裹物品放到主人包裹失败
+
+  /// ///////////////////英雄相关消息常量 piaoyun 2013-07-23/////////////////////
+  SM_HEROBAGCOUNT = 1462; // 英雄包裹数量
+  SM_HEROLOGON = 1464; // 获取英雄 TMessageBodyWL 产生英雄登陆效果
+  SM_HEROLOYAL = 1465; // 获取英雄忠诚  10001(忠00.00%)
+  SM_SENDMYHEROMAGIC = 1470; // 获取英雄魔法
+  SM_HEROANGERVALUE = 1481; // 英雄怒值改变 Ident: 916 Recog: 5 Param: 2 Tag: 102 Series: 0
+  SM_HEROLOGOUT_OK = 1482; // 英雄退出OK
+  SM_HEROCHANGEFACE = 1490;
+  SM_HEROLOGON_OK = 1494;
+  SM_HEROLOGOUT = 1463; // 获取英雄 TMessageBodyWL 产生英雄退出效果
+  SM_HEROABILITY = 1466; // 获取英雄Abil
+  SM_HEROSUBABILITY = 1467; // 英雄SUBABILITY
+  SM_HEROBAGITEMS = 1468; // 获取英雄包裹     Tag:包裹物品数量 2 Series: 包裹总数量10
+  SM_SENDHEROUSEITEMS = 1469; // 获取英雄身上装备
+  SM_HEROADDITEM = 1471; // 英雄 Ident: 905 Recog: 738569296 Param: 0 Tag: 0 Series: 1   AddItem
+  SM_HERODELITEM = 1472; // 英雄 Ident: 906 Recog: 738569296 Param: 0 Tag: 0 Series: 1   delItem
+  SM_HEROTAKEON_OK = 1473; // 英雄穿装备OK Ident: 907 Recog: 742933632 Param: 0 Tag: 0 Series: 0
+  SM_HEROTAKEON_FAIL = 1474; // 英雄穿装备FAIL
+  SM_HEROTAKEOFF_OK = 1475; // 英雄脱装备OK
+  SM_HEROTAKEOFF_FAIL = 1476; // 英雄脱装备FAIL
+  SM_HEROEAT_OK = 1477; // 英雄吃药OK
+  SM_HEROEAT_FAIL = 1478; // 英雄吃药FAIL
+  SM_HEROADDMAGIC = 1479; // 英雄增加魔法
+  SM_HERODELMAGIC = 1480; // 英雄删除魔法
+  SM_HERODURACHANGE = 1483; // 英雄物品持久改变
+  SM_HERODROPITEM_SUCCESS = 1484; // 英雄扔物品OK
+  SM_HERODROPITEM_FAIL = 1485; // 英雄扔物品FAIL
+  SM_HEROLEVELUP = 1486; // 英雄升级
+  SM_HEROWINEXP = 1487; // 英雄获取经验
+  SM_HEROWEIGHTCHANGED = 1488;
+  SM_HEROMAGIC_LVEXP = 1489; // 英雄魔法经验
+  SM_HEROUPDATEITEM = 1491; // 更新英雄物品
+  SM_HERODELITEMS = 1492; // 删除英雄物品 1492;
+  SM_HEROCHANGEITEM = 1493; // 改变英雄物品
+
+  SM_OPENMISSIONDLG = 1495; // 打开任务日志对话框
+  SM_DELETEDELAYMESSAGE = 1496; // 删除延时消息
+
+  /// //////////////仿HeroM2摆摊相关常量值 piaoyun 2013-07-23////////////////////
+  SM_HEROM2ADDUSERSHOPITEM_OK = 1497; // 增加摆摊物品成功
+  SM_HEROM2ADDUSERSHOPITEM_FAIL = 1498; // 增加摆摊物品失败
+  SM_HEROM2DELUSERSHOPITEM_OK = 1499; // 删除摆摊物品成功
+  SM_HEROM2DELUSERSHOPITEM_FAIL = 1500; // 删除摆摊物品失败
+  SM_HEROM2DELUSERSHOPITEM = 1501; // 删除摆摊物品
+  SM_HEROM2DELREMOTEUSERSHOPITEM = 1502; // 删除摆摊物品
+  SM_HEROM2SENDSHOPITEM = 1503; // 摆摊物品
+  SM_HEROM2SENDCLOSESHOP = 1504; // 关闭购买摆摊物品窗口
+  SM_HEROM2SENDDRESSEFFECT = 1505; // 摆摊物品衣服特效
+
+  SM_SENDFILTERITEMLIST = 1506; // 内挂捡取过滤物品列表
+  SM_SENDITEMDESCLIST = 1507; // 物品描述列表
+  SM_SENDTZITEMDESCLIST = 1508;
+  SM_SENDACTIONMSG = 1509; // m_boCanHit m_boCanSpell m_boCanWalk  m_boCanRun
+  SM_SENDOPENSKILLTIME = 1510; // 战士技能开启的剩余时间
+
+  SM_AUTOEAT_OK = 1511; // 自动吃药成功
+  SM_AUTOEAT_FAIL = 1512; // 自动吃药失败
+
+  SM_HEROAUTOEAT_OK = 1513; // 英雄自动吃药成功
+  SM_HEROAUTOEAT_FAIL = 1514; // 英雄自动吃药失败
+  SM_NATIONMESSAGE = 1515;
+  SM_ADDBUTTON = 1516; // 增加按钮
+  SM_DELBUTTON = 1517; // 删除按钮
+  SM_SHOWPHANTOM = 1518; // 显示放大的虚影
+  SM_CLOSEPHANTOM = 1519; // 关闭放大的虚影
+  SM_STDITEMLIST = 1520;
+  SM_SETCLIENTBUFF = 1521;
+  SM_CLOSECLIENTBUFF = 1522;
+  SM_SENDUSERMOVECMD = 1523;
+  SM_CUSTOMMONEYRULE = 1524; // 自定义货币规则
+
+  // ★★★★★★★★★★ 新加SM消息 piaoyun 2013-08-20 ★★★★★★★★★
+
+  SM_CHECKISMYSELFSERVER = 8889; // 检测我们自己的GeeM2服务器，没有此消息则证明是别人的引擎
+  SM_ACUPOINTLEVELS = 8890; // 发送打通穴道需要的内功等级 piaoyun 2013-08-16
+  SM_OPENBOOKS = 8891; // 打开卧龙NPC piaoyun 2013-08-20
+  SM_CHANGEPOISON = 8899; // 通知客户端将红毒/绿毒 装备 chongchong
+  SM_FBTIME = 8900; // 副本到时通知 chongchong 2013-09-09
+  SM_SCENESHAKE = 8901; // 屏幕震动消息 piaoyun 2013-09-14
+  SM_INVITEHORSE = 8902; // (骑马) 邀请别人共骑 chongchong 2013-10-13
+  SM_SYNCSCREEN = 8903;
+  SM_TAKEHORSE = 8904; // (骑马) 召唤/收回坐骑 chongchong 2013-10-12
+  SM_UPDATEJEWELRYBOX = 8905; // 更新首饰盒 chongchong 2013-10-20
+
+  SM_TAKEONJEWELRY_OK = 8906;
+  SM_TAKEONJEWELRY_FAIL = 8907;
+  SM_TAKEOFFJEWELRY_OK = 8908;
+  SM_TAKEOFFJEWELRY_FAIL = 8909;
+  SM_MYHEROLOGON = 8910;
+  SM_DISAPPEARMYHERO = 8911; // 清理自己的英雄 chongchong 2013-11-23
+
+  SM_UPDATECOLLECT = 8912;
+  SM_DELBOXITEM = 8913; // 收回自定义OK框中物品 chongchong 2013-11-01
+  SM_RETURNBOXITEM = 8914; // 自定义OK框 - 物品返回到包裹 chongchong 2013-11-01
+  SM_UPDATEBOXITEM = 8915; // 自定义OK框刷新到客户端 chongchong 2013-11-01
+
+  SM_MOVETOITEMBOX_OK = 8916; // 移动物品到自义定OK框成功 chongchong 2013-10-31
+  SM_MOVETOITEMBOX_FAIL = 8917; // 移动物品到自义定OK框失败 chongchong 2013-10-31
+
+  SM_MOVEITEMBOXTOBAG_OK = 8918; // 移动物品到自义定OK框成功 chongchong 2013-10-31
+  SM_MOVEITEMBOXTOBAG_FAIL = 8919; // 移动物品到自义定OK框失败 chongchong 2013-10-31
+
+  SM_OPENTOXICSMOKE = 8920; // 中毒烟 chongchong 2013-11-10
+  SM_CLOSETOXICSMOKE = 8921; // 毒烟关 chongchong 2013-11-10
+
+  // SM_OPENCONTINUOUSMAGICLOCK = 8922;// 连击锁定开 chongchong 2013-11-10
+
+  // SM_CLOSECONTINUOUSMAGICLOCK = 8923;// 连击锁定关 chongchong 2013-11-10
+
+  SM_PLAYMAGICBALLEFFECT = 8924; // 播放界面的魔法球效果 chongchong 2013-11-12
+  SM_EFFECTSTEP = 8925; // 真狐月天珠 piaoyun 2013-12-03
+
+  SM_GIVEBOXITEM = 8926; // 将背包中指定物品放入指定OK框
+  SM_TAKEBOXITEM = 8927; // 将OK框中的物品放入背包中
+
+  SM_FEATURECHANGED_NEW = 8928; // 我们自己的 FEATURE 结构 piaoyun 2013-12-22
+  SM_CHECKCLIENTVERSION_FAIL = 8929; // 客户端版本不匹配 piaoyun 2013-12-24
+
+  SM_MOVEMESSAGE_NEW = 8930; // 滚动消息 chongchong 2014-04-17
+
+  SM_UPDATEGODBLESS = 8931; // 更新神佑袋 chongchong 2014-04-18
+  SM_UPDATEGODBLESSITEMS_STATE = 8932; // 神佑袋格子状态 chongchong 2014-04-18
+  SM_OPENGODBLESSITEM = 8933; // 打开神佑袋某格 chongchong 2014-04-18
+  SM_CLOSEGODBLESSITEM = 8934; // 关闭神佑袋某格 chongchong 2014-04-18
+
+
+  SM_TAKEONGODBLESSITEM_OK = 8935;
+  SM_TAKEONGODBLESSITEM_FAIL = 8936;
+  SM_TAKEOFFGODBLESSITEM_OK = 8937;
+  SM_TAKEOFFGODBLESSITEM_FAIL = 8938;
+  SM_UPDATEFENGHAOITEMS = 8939;
+  SM_ADDFENGHAOITEM = 8940; // 给予称号 chongchong 2014-05-24
+  SM_DELFENGHAOITEM = 8941; // 回收称号 chongchong 2014-05-24
+  SM_CLEARFENGHAOITEM = 8942; // 回收所有称号 chongchong 2014-05-24
+  SM_ACTIVEFENGHAOITEM = 8943;
+  SM_SENDUSERSTATE_FENGHAO = 8944;
+  SM_SENDCUSTOMMONSTERCONFIG = 8945; // 发送自定义怪物配置到客户端 chongchong 2014-07-20
+  SM_ATTACK01 = 8946; // 自定义攻击1
+  SM_ATTACK02 = 8947; // 自定义攻击2
+  SM_ATTACK03 = 8948; // 自定义攻击3
+  SM_ATTACK04 = 8949; // 自定义攻击4
+  SM_ATTACK05 = 8950; // 自定义攻击5
+  SM_ATTACK06 = 8951; // 自定义攻击6
+
+  SM_OPENGAMESHOP = 8952; // 打开商铺 chongchong 2014-09-03
+
+  SM_ABILITY_NOBONUS = 8953; // 未调整属性点前原始属性 chongchong 2014-10-15
+
+  SM_AUTOPLAYGAME_STATE = 8954; // 挂机状态 chongchong 2014-11-26
+  SM_GJ_CALLMONMAGIC = 8955; // 挂机使用召唤技能 chongchong 2014-12-01
+
+  SM_LOCK_USER = 8956; // 锁定用户
+
+  SM_BAGUSEITEM = 8958; // 发送包裹中使用物品（如镶嵌宝石）
+  SM_ARMREMOVESTONE = 8959; // 卸下镶嵌宝石对话框
+  SM_REMOVESTONE_BACK = 8960; // 卸下镶嵌宝石结果
+
+  SM_RESPONSESTDITEM = 8961; // 服务器返回StdItem
+
+  SM_SHOWPROGRESSBAR = 8962;
+  SM_CLOSEPROGRESSBAR = 8963;
+  SM_GETSAYITEM = 8964;
+  SM_SETNPCIMAGE = 8965; // 改变NPC外观 天下第一 chongchong 2015-01-15
+
+  SM_STORAGEVIEWITEMLIST = 8966; // 可视仓库物品列表 chongchong 2015-01-26
+
+  SM_STORAGEVIEW_OK = 8967;
+  SM_CLOSEBIGDIALOGBOX = 8968;
+  SM_OPENGAMESHOPDLG = 8969;
+  SM_SENDCUSTOMMAGICCONFIG = 8970;
+  SM_MAGICFIRE_EX = 8971;
+  SM_SENDCUSTOMNPCCONFIG = 8972;
+  SM_SENDITEMDESCTOPLIST = 8973;
+  SM_SENDDROPITEMEFFECTLIST = 8974;
+  SM_SENDENABLEDAUCTIONITEMLIST = 8975;
+  SM_SENDRUNGATE_CHECKCODE = 9190;
+  SM_SENDSELGATE_CHECKCODE = 9191;
+  SM_CUSTOM_HIT_TARGET_EFF = 9192;
+  // 这里一堆被移走了 2020-09-18 *****************************************************************************************************
+
+  SM_CUSTOM_MAGIC_SELFKEEP_PLAY = 10100;
+  SM_THUNDERPALSY_EFF = 10101;
+  SM_DISABLE_PUBLICCHAT = 10102;
+  SM_DISABLE_CRYCHAT = 10103;
+  SM_MODULEMD5_CACHE = 10104;
+  SM_SENDCUSTOMMONSTERCONFIG_CACHE = 10105;
+  SM_STDITEMLIST_CACHE = 10106;
+  SM_SENDITEMDESCLIST_CACHE = 10107;
+  SM_SENDTZITEMDESCLIST_CACHE = 10108;
+  SM_SENDFILTERITEMLIST_CACHE = 10109;
+  SM_EFFECTIMAGELIST_CACHE = 10110;
+  SM_SPECIALCMD_CACHE = 10111;
+  SM_SENDCUSTOMMAGICCONFIG_CACHE = 10112;
+  SM_PLUGFILE_CACHE = 10113;
+  SM_SERVERCONFIG_CACHE = 10114;
+  SM_SENDCUSTOMNPCCONFIG_CACHE = 10115;
+  SM_SENDITEMDESCTOPLIST_CACHE = 10116;
+  SM_SENDDROPITEMEFFECTLIST_CACHE = 10117;
+  SM_PLAYSOUNDEXT = 10200;
+  SM_GUILDMASTER_CANCEL = 10201;
+  SM_GUILDJOINCONDITION = 10202;
+  SM_GUILDUNMASTERSELF_OK = 10203;
+  SM_GUILDUNMASTERSELF_FAIL = 10204;
+  SM_OPENGUILDADDDLG = 10205;
+  SM_GUILDJOINTO_OK = 10206;
+  SM_GUILDJOINTO_FAIL = 10207;
+  SM_GUILDCANCELJOINTO_OK = 10208;
+  SM_GUILDCANCELJOINTO_FAIL = 10209;
+  SM_GUILDVIEWJOINCONDITION = 10210;
+  SM_GUILDVIEWJOINCONDITION_FAIL = 10211;
+  SM_GUILDGETJOINUSERLIST = 10212;
+  SM_GUILDACCEPTUSERJOIN_OK = 10213;
+  SM_GUILDACCEPTUSERJOIN_Fail = 10214;
+  SM_GUILDREFUSALUSERJOIN_OK = 10215;
+  SM_GUILDREFUSALUSERJOIN_FAIL = 10216;
+  SM_GUILDUSERJOIN_OK = 10217;
+  SM_GUILDADDATTENTION_RET = 10218;
+  SM_GUILDDELATTENTION_RET = 10219;
+  SM_GUILDREQUESTALLY_RET = 10220;
+  SM_GUILDACCEPTALLY_RET = 10221;
+  SM_GUILDREFUSALALLY_RET = 10222;
+  SM_GUILDUNALLY_RET = 10223;
+  SM_GUILDVIEWMEMBERINFO_RET = 10224;
+  SM_GUILDSETMASTER1_RET = 10225;
+  SM_GUILDCHANGEALLY_FAIL = 10226;
+  SM_GuildAddGuildWar_RET = 10227;
+  SM_GuildDelMemberEx_RET = 10228;
+  SM_GuildMemberMoveToRank_RET = 10229;
+  SM_REFRESHMISSPAGE = 10230;
+  SM_OPENUSERSHOP = 10231;
+  SM_CHANGESELNAME = 10232;
+  SM_STOPSCREENEFFECT = 10233;
+  SM_NewHitBubbleDefence = 10234;
+  SM_SetUpgradeItem = 10235;
+  SM_CLEARSCREENEFFECT = 10236;
+  SM_EXITGAME = 10237;
+  SM_GETPROCESS_LIST = 10238;
+  SM_GETSCREENSHOT_GAME = 10239;
+  SM_GETSCREENSHOT = 10240;
+  SM_OPENHUMDLG = 10241;
+  SM_OPENHERODLG = 10242;
+  SM_ADDNUMBERBUTTON = 10243;
+  SM_DELNUMBERBUTTON = 10244;
+  SM_ANTIPLUGSTREAM = 10245;
+  SM_SENDBIGHPPROGRESS = 10246;
+  SM_GAMEPETLIST = 10247; // 发送宠物列表
+  SM_ADDGAMEPET = 10248; // 添加宠物
+  SM_DELGAMEPET = 10249; // 删除宠物
+  SM_UPDATEGAMEPETABIL = 10250; // 刷新宠物属性
+  SM_UPDATEGAMEPET = 10251; // 刷新宠物
+
+  SM_SETCURRENTGAMEPET = 10252; // 设置当前宠物
+
+  SM_UPDATEPETITEM = 10253;
+  SM_ADDPETITEM = 10254;
+  SM_DELETEPETITEM = 10255;
+  SM_GAMEPETBAGITEMLIST = 10256;
+  SM_BAGITEMTOPETBAG_OK = 10257;
+  SM_BAGITEMTOPETBAG_FAIL = 10258;
+  SM_PETBAGITEMTOBAG_OK = 10259;
+  SM_PETBAGITEMTOBAG_FAIL = 10260;
+  SM_PETOVERLAPITEM_OK = 10261;
+  SM_PETOVERLAPITEM_FAIL = 10262;
+  SM_PETUSEITEM_OK = 10263;
+  SM_PETUSEITEM_FAIL = 10264;
+  SM_PETLEVELUP = 10265;
+  SM_PETWINEXP = 10266;
+  SM_SETPET_MAGIC = 10267;
+  SM_CLEARPET_MAGIC = 10268;
+  SM_PROCESSBLACKLIST = 10269; // 进程黑名单列表 chongchong 2016-08-01
+  SM_ITEMEAT_CDTIME = 10270;
+  SM_RUNGATE_VERIFYCODE = 10271;
+  SM_RUNGATE_VERIFYCODE_CHECK_RET = 10272;
+  SM_M2VERIFYCODE = 10273;
+  SM_M2VERIFYCODE_CHECK_RET = 10274;
+  SM_PLAYSOUND_EX = 10275; // 关闭游戏音效时依然声音有效
+
+  SM_ATTACK_MISS = 10276;
+  SM_RUNGATE_SPEED_INTERVALS = 10277;
+  SM_RUNGATE_DISABLE_LOGIN = 10278;
+  SM_SHOWCLIENTBUFF = 10279;
+  SM_INPUTMOBILE_VerifyCode = 10280;
+  SM_MOBILEVERIFYCODE_CHECK_RET = 10281;
+  SM_OPEN_URL = 10282;
+  SM_STORAGEOPENSTATUS = 10283;
+  SM_STORAGEPAGE_NOOPEN = 10284;
+  SM_TradingBUYITEM_SUCCESS = 10285;
+  SM_TradingSELLITEMS_RET = 10286;
+  SM_OPENAUCTIONVIEW = 10287;
+  SM_QueryAllAuctionItems = 10288;
+  SM_QueryMyAuctionItems = 10289;
+  SM_QueryMyAttentionItems = 10290;
+  SM_ADDAUCTIONITEM_RET = 10291;
+  SM_CANCELMYAUCTIONITEM_RET = 10292;
+  SM_RETRIEVEMYAUCTIONITEM_RET = 10293;
+  SM_DELETEMYAUCTIONITEM_RET = 10294;
+  SM_AuctionAttentionItem_RET = 10295;
+  SM_AuctionItemBid_RET = 10296;
+  SM_RequestAuctionItems_ByIndex_RET = 10297;
+  SM_AuctionBroadcastMsg = 10298;
+  SM_AddItemToJar_RET = 10299;
+  SM_OpenGuardianLevelDlg = 10300;
+  SM_GuardianLevelBatchInfo = 10301;
+  SM_GuardianLevelResult = 10302;
+  SM_GameLevelItemGetRet = 10303;
+  SM_MOVEHINTMSG = 10304;
+  SM_CONTINUEANTIPLUGSTREAM = 10305;
+  SM_REQUEST_GORUP_JOIN = 10306;
+  SM_ContinuousBLASTHIT = 10307;
+  SM_BrokenShield = 10308;
+  SM_HPMPCHANGED_FORM_STONE = 10309;
+  SM_115HIT_TARGET_EFFECT = 10310;
+  SM_POISON_STRUCK_HUM = 10311;
+  SM_HUMS_BB_CHANGE = 10312;
+  SM_IOCP_ANTIPLUGSTREAM_CACHE = 10313;
+  SM_HERO_ATTACK_MODE = 10314;
+  SM_SHOW_CUSTOM_BUTTON = 10315;
+  SM_MAGIC_HINT_MSG = 10316;
+  SM_ANTIPLUGSTREAM_2 = 10317;
+  SM_IOCP_ANTIPLUGSTREAM_CACHE_2 = 10318;
+  SM_CONTINUEANTIPLUGSTREAM_2 = 10319;
+  SM_STRUCKEFFECT = 10320;
+  SM_ADDDLG = 10321;
+  SM_DELDLG = 10322;
+  SM_UPDATEITEM_NAME = 10323;
+  SM_UPDATEITEM_COLOR = 10324;
+  SM_UPDATEITEM_DURA = 10325;
+  SM_UPDATEITEM_DURAMAX = 10326;
+  SM_UPDATEITEM_UPGRADECOUNT = 10327;
+  SM_UPDATEITEM_NEWLOOK = 10328;
+  SM_UPDATEITEM_NEWSHAPE = 10329;
+  SM_UPDATEITEM_HEROM2LIGHT = 10330;
+  SM_UPDATEITEM_INSURANCECOUNT = 10330;
+  SM_UPDATEITEM_BIND = 10331;
+  SM_UPDATEITEM_LIMITTIME = 10332;
+  SM_UPDATEITEM_HERO_LIMITTIME = 10333;
+  SM_UPDATEITEM_NEWVALUE = 10334;
+  SM_UPDATEITEM_HERO_NEWVALUE = 10335;
+  SM_UPDATEITEM_FLUTE = 10336;
+  SM_UPDATEITEM_PROGRESS = 10337;
+  SM_UPDATEITEM_PROPERTYTEXT = 10338;
+  SM_UPDATEITEM_PROPERTYCOLOR = 10339;
+  SM_UPDATEITEM_PROPERTYVALUES = 10340;
+  SM_CUSTOMITEMPROPERTYCONFIG = 10350;
+  SM_CUSTOMITEMPROPERTYTEXTVARLIST = 10351;
+  SM_IOCP_ANTIPLUG_UNLOAD = 10352;
+  SM_IOCP_GETSCREENSHOT_GAME = 10400;
+  SM_IOCP_GETSCREENSHOT = 10401;
+  SM_IOCP_GETPROCESS_LIST = 10402;
+  SM_IOCP_GETDIR_LIST = 10403;
+  SM_IOCP_REQUEST_FILE = 10404;
+  SM_IOCP_GETPROCESS_LIST2 = 10405;
+  SM_OpenGamePetDlg = 10406;
+  SM_PET_DROPITEM_OK = 10407;
+  SM_PET_DROPITEM_FAIL = 10408;
+  SM_EXT_BAG_COUNT_CHANGE = 10409;
+  SM_OPEN_CLIENT_DLG = 10410;
+  SM_ARR_BUTTON_CONFIG = 10411;
+  SM_ADDARRBUTTON = 10412; // 增加按钮
+  SM_DELARRBUTTON = 10413; // 删除按钮
+
+  SM_OPEN_GAMEPET_BAG = 10414;
+  SM_SETARRBUFF = 10415;
+  SM_CLOSEARRBUFF = 10416;
+  SM_SHOWARRBUFF = 10417;
+  SM_ADD_EFFECT_PLAY = 10418;
+  SM_GROUPMEMBER_CHANGEMAP = 10419; // 地图改变,进入新地图 1205;
+
+  SM_ANTIPLUGSTREAM_LEG = 10420;
+  SM_ANTIPLUGSTREAM_CACHE_LEG = 10421;
+  SM_CONTINUEANTIPLUGSTREAM_LEG = 10422;
+  SM_ANTIPLUGSTREAM_IOCP2 = 10423;
+  SM_IOCP_ANTIPLUGSTREAM_CACHE_IOCP2 = 10424;
+  SM_CONTINUEANTIPLUGSTREAM_IOCP2 = 10425;
+  SM_IOCP_ANTIPLUG_UNLOAD_IOCP2 = 10426;
+
+  // 这里一堆都被移走了 2020-09-18 **********************************************************************
+
+  SM_PREVIEW_MON_ITEM_RET = 10427;
+  SM_IOCP_GETPROCESS_LIST_LEG = 10600;
+  SM_IOCP_GETSCREENSHOT_GAME_LEG = 10601;
+  SM_IOCP_GETSCREENSHOT_LEG = 10602;
+  SM_RESPONSE_UPDATE_DLL = 10603;
+  SM_UPDATE_MAGIC_INTERVAL = 10604;
+  SM_OPEN_SELL_PLAY_DLG = 10605;
+  SM_ADD_SELL_PLAYER_ASK = 10606;
+  SM_ADD_SELL_PLAYER_ASK_CONFIRM = 10607;
+  SM_ADD_SELL_PLAYER_RET = 10608;
+  SM_OPEN_DEL_SELL_PLAY_DLG = 10609;
+  SM_DEL_SELL_PLAYER_RET = 10610;
+  SM_OPEN_SELL_PLAY_SHOP_DLG = 10611;
+  SM_SELL_PLAYER_BUY_RET = 10612;
+  SM_VIEW_SELL_PLAYER_INFO = 10613;
+  SM_VIEW_SELL_PLAYER_INFO_FENGHAO = 10614;
+  SM_VIEW_SELL_PLAYER_INFO_MAGICLIST = 10615;
+  SM_VIEW_SELL_PLAYER_BAG_ITEMS = 10616;
+  SM_VIEW_SELL_PLAYER_STORAGE_ITEMS = 10617;
+  SM_VIEW_SELL_PLAYER_GAMEPET_LIST = 10618;
+  SM_ENABLE_UPLOAD_PICKITEMS = 10619; // 这个值不能改，网关上面要用的
+  SM_VIEW_SELL_PLAYER_GAMEPET_BAG_ITEMS = 10620;
+  SM_VIEW_SELL_PLAYER_OTHER_INFO = 10621;
+  SM_InputBoxFilterList = 10622;
+  SM_MAGICFIRE_EX_2 = 10623;
+  SM_HIT_EX = 10624;
+  SM_CLEAR_BAG_ITEMS = 10625;
+  SM_SOFT_DELAY_EXIT = 10626;
+  SM_SOFT_EXIT = 10627;
+  SM_UPDATE_MAGIC_KEY = 10628;
+  SM_STOPSOUND = 10629;
+  SM_PAYMENTSUCCESS = 10630;
+  SM_GUIDE = 10631;
+  SM_REDDOT = 10632;
+  SM_MONEY = 10633;
+  SM_OPENDLG = 10634;
+  SM_CUSTOM_HIT001 = 11000;
+  SM_CUSTOM_HIT002 = 11001;
+  SM_CUSTOM_HIT003 = 11002;
+  SM_CUSTOM_HIT004 = 11003;
+  SM_CUSTOM_HIT005 = 11004;
+  SM_CUSTOM_HIT006 = 11005;
+  SM_CUSTOM_HIT007 = 11006;
+  SM_CUSTOM_HIT008 = 11007;
+  SM_CUSTOM_HIT009 = 11008;
+  SM_CUSTOM_HIT010 = 11009;
+  SM_CUSTOM_HIT011 = 11010;
+  SM_CUSTOM_HIT012 = 11011;
+  SM_CUSTOM_HIT013 = 11012;
+  SM_CUSTOM_HIT014 = 11013;
+  SM_CUSTOM_HIT015 = 11014;
+  SM_CUSTOM_HIT016 = 11015;
+  SM_CUSTOM_HIT017 = 11016;
+  SM_CUSTOM_HIT018 = 11017;
+  SM_CUSTOM_HIT019 = 11018;
+  SM_CUSTOM_HIT020 = 11019;
+  SM_CUSTOM_HIT021 = 11020;
+  SM_CUSTOM_HIT022 = 11021;
+  SM_CUSTOM_HIT023 = 11022;
+  SM_CUSTOM_HIT024 = 11023;
+  SM_CUSTOM_HIT025 = 11024;
+  SM_CUSTOM_HIT026 = 11025;
+  SM_CUSTOM_HIT027 = 11026;
+  SM_CUSTOM_HIT028 = 11027;
+  SM_CUSTOM_HIT029 = 11028;
+  SM_CUSTOM_HIT030 = 11029;
+  SM_CUSTOM_HIT031 = 11030;
+  SM_CUSTOM_HIT032 = 11031;
+  SM_CUSTOM_HIT033 = 11032;
+  SM_CUSTOM_HIT034 = 11033;
+  SM_CUSTOM_HIT035 = 11034;
+  SM_CUSTOM_HIT036 = 11035;
+  SM_CUSTOM_HIT037 = 11036;
+  SM_CUSTOM_HIT038 = 11037;
+  SM_CUSTOM_HIT039 = 11038;
+  SM_CUSTOM_HIT040 = 11039;
+  SM_CUSTOM_HIT041 = 11040;
+  SM_CUSTOM_HIT042 = 11041;
+  SM_CUSTOM_HIT043 = 11042;
+  SM_CUSTOM_HIT044 = 11043;
+  SM_CUSTOM_HIT045 = 11044;
+  SM_CUSTOM_HIT046 = 11045;
+  SM_CUSTOM_HIT047 = 11046;
+  SM_CUSTOM_HIT048 = 11047;
+  SM_CUSTOM_HIT049 = 11048;
+  SM_CUSTOM_HIT050 = 11049;
+  SM_CUSTOM_HIT051 = 11050;
+  SM_CUSTOM_HIT052 = 11051;
+  SM_CUSTOM_HIT053 = 11052;
+  SM_CUSTOM_HIT054 = 11053;
+  SM_CUSTOM_HIT055 = 11054;
+  SM_CUSTOM_HIT056 = 11055;
+  SM_CUSTOM_HIT057 = 11056;
+  SM_CUSTOM_HIT058 = 11057;
+  SM_CUSTOM_HIT059 = 11058;
+  SM_CUSTOM_HIT060 = 11059;
+  SM_CUSTOM_HIT061 = 11060;
+  SM_CUSTOM_HIT062 = 11061;
+  SM_CUSTOM_HIT063 = 11062;
+  SM_CUSTOM_HIT064 = 11063;
+  SM_CUSTOM_HIT065 = 11064;
+  SM_CUSTOM_HIT066 = 11065;
+  SM_CUSTOM_HIT067 = 11066;
+  SM_CUSTOM_HIT068 = 11067;
+  SM_CUSTOM_HIT069 = 11068;
+  SM_CUSTOM_HIT070 = 11069;
+  SM_CUSTOM_HIT071 = 11070;
+  SM_CUSTOM_HIT072 = 11071;
+  SM_CUSTOM_HIT073 = 11072;
+  SM_CUSTOM_HIT074 = 11073;
+  SM_CUSTOM_HIT075 = 11074;
+  SM_CUSTOM_HIT076 = 11075;
+  SM_CUSTOM_HIT077 = 11076;
+  SM_CUSTOM_HIT078 = 11077;
+  SM_CUSTOM_HIT079 = 11078;
+  SM_CUSTOM_HIT080 = 11079;
+  SM_CUSTOM_HIT081 = 11080;
+  SM_CUSTOM_HIT082 = 11081;
+  SM_CUSTOM_HIT083 = 11082;
+  SM_CUSTOM_HIT084 = 11083;
+  SM_CUSTOM_HIT085 = 11084;
+  SM_CUSTOM_HIT086 = 11085;
+  SM_CUSTOM_HIT087 = 11086;
+  SM_CUSTOM_HIT088 = 11087;
+  SM_CUSTOM_HIT089 = 11088;
+  SM_CUSTOM_HIT090 = 11089;
+  SM_CUSTOM_HIT091 = 11090;
+  SM_CUSTOM_HIT092 = 11091;
+  SM_CUSTOM_HIT093 = 11092;
+  SM_CUSTOM_HIT094 = 11093;
+  SM_CUSTOM_HIT095 = 11094;
+  SM_CUSTOM_HIT096 = 11095;
+  SM_CUSTOM_HIT097 = 11096;
+  SM_CUSTOM_HIT098 = 11097;
+  SM_CUSTOM_HIT099 = 11098;
+  SM_CUSTOM_HIT100 = 11099;
+  SM_CUSTOM_HIT101 = 11100;
+  SM_CUSTOM_HIT102 = 11101;
+  SM_CUSTOM_HIT103 = 11102;
+  SM_CUSTOM_HIT104 = 11103;
+  SM_CUSTOM_HIT105 = 11104;
+  SM_CUSTOM_HIT106 = 11105;
+  SM_CUSTOM_HIT107 = 11106;
+  SM_CUSTOM_HIT108 = 11107;
+  SM_CUSTOM_HIT109 = 11108;
+  SM_CUSTOM_HIT110 = 11109;
+  SM_CUSTOM_HIT111 = 11110;
+  SM_CUSTOM_HIT112 = 11111;
+  SM_CUSTOM_HIT113 = 11112;
+  SM_CUSTOM_HIT114 = 11113;
+  SM_CUSTOM_HIT115 = 11114;
+  SM_CUSTOM_HIT116 = 11115;
+  SM_CUSTOM_HIT117 = 11116;
+  SM_CUSTOM_HIT118 = 11117;
+  SM_CUSTOM_HIT119 = 11118;
+  SM_CUSTOM_HIT120 = 11119;
+  SM_CUSTOM_HIT121 = 11120;
+  SM_CUSTOM_HIT122 = 11121;
+  SM_CUSTOM_HIT123 = 11122;
+  SM_CUSTOM_HIT124 = 11123;
+  SM_CUSTOM_HIT125 = 11124;
+  SM_CUSTOM_HIT126 = 11125;
+  SM_CUSTOM_HIT127 = 11126;
+  SM_CUSTOM_HIT128 = 11127;
+  SM_CUSTOM_HIT129 = 11128;
+  SM_CUSTOM_HIT130 = 11129;
+  SM_CUSTOM_HIT131 = 11130;
+  SM_CUSTOM_HIT132 = 11131;
+  SM_CUSTOM_HIT133 = 11132;
+  SM_CUSTOM_HIT134 = 11133;
+  SM_CUSTOM_HIT135 = 11134;
+  SM_CUSTOM_HIT136 = 11135;
+  SM_CUSTOM_HIT137 = 11136;
+  SM_CUSTOM_HIT138 = 11137;
+  SM_CUSTOM_HIT139 = 11138;
+  SM_CUSTOM_HIT140 = 11139;
+  SM_CUSTOM_HIT141 = 11140;
+  SM_CUSTOM_HIT142 = 11141;
+  SM_CUSTOM_HIT143 = 11142;
+  SM_CUSTOM_HIT144 = 11143;
+  SM_CUSTOM_HIT145 = 11144;
+  SM_CUSTOM_HIT146 = 11145;
+  SM_CUSTOM_HIT147 = 11146;
+  SM_CUSTOM_HIT148 = 11147;
+  SM_CUSTOM_HIT149 = 11148;
+  SM_CUSTOM_HIT150 = 11149;
+  SM_CUSTOM_HIT151 = 11150;
+  SM_CUSTOM_HIT152 = 11151;
+  SM_CUSTOM_HIT153 = 11152;
+  SM_CUSTOM_HIT154 = 11153;
+  SM_CUSTOM_HIT155 = 11154;
+  SM_CUSTOM_HIT156 = 11155;
+  SM_CUSTOM_HIT157 = 11156;
+  SM_CUSTOM_HIT158 = 11157;
+  SM_CUSTOM_HIT159 = 11158;
+  SM_CUSTOM_HIT160 = 11159;
+  SM_CUSTOM_HIT161 = 11160;
+  SM_CUSTOM_HIT162 = 11161;
+  SM_CUSTOM_HIT163 = 11162;
+  SM_CUSTOM_HIT164 = 11163;
+  SM_CUSTOM_HIT165 = 11164;
+  SM_CUSTOM_HIT166 = 11165;
+  SM_CUSTOM_HIT167 = 11166;
+  SM_CUSTOM_HIT168 = 11167;
+  SM_CUSTOM_HIT169 = 11168;
+  SM_CUSTOM_HIT170 = 11169;
+  SM_CUSTOM_HIT171 = 11170;
+  SM_CUSTOM_HIT172 = 11171;
+  SM_CUSTOM_HIT173 = 11172;
+  SM_CUSTOM_HIT174 = 11173;
+  SM_CUSTOM_HIT175 = 11174;
+  SM_CUSTOM_HIT176 = 11175;
+  SM_CUSTOM_HIT177 = 11176;
+  SM_CUSTOM_HIT178 = 11177;
+  SM_CUSTOM_HIT179 = 11178;
+  SM_CUSTOM_HIT180 = 11179;
+  SM_CUSTOM_HIT181 = 11180;
+  SM_CUSTOM_HIT182 = 11181;
+  SM_CUSTOM_HIT183 = 11182;
+  SM_CUSTOM_HIT184 = 11183;
+  SM_CUSTOM_HIT185 = 11184;
+  SM_CUSTOM_HIT186 = 11185;
+  SM_CUSTOM_HIT187 = 11186;
+  SM_CUSTOM_HIT188 = 11187;
+  SM_CUSTOM_HIT189 = 11188;
+  SM_CUSTOM_HIT190 = 11189;
+  SM_CUSTOM_HIT191 = 11190;
+  SM_CUSTOM_HIT192 = 11191;
+  SM_CUSTOM_HIT193 = 11192;
+  SM_CUSTOM_HIT194 = 11193;
+  SM_CUSTOM_HIT195 = 11194;
+  SM_CUSTOM_HIT196 = 11195;
+  SM_CUSTOM_HIT197 = 11196;
+  SM_CUSTOM_HIT198 = 11197;
+  SM_CUSTOM_HIT199 = 11198;
+  SM_CUSTOM_HIT200 = 11199;
+  SM_CUSTOM_HIT201 = 11200;
+  SM_CUSTOM_HIT202 = 11201;
+  SM_CUSTOM_HIT203 = 11202;
+  SM_CUSTOM_HIT204 = 11203;
+  SM_CUSTOM_HIT205 = 11204;
+  SM_CUSTOM_HIT206 = 11205;
+  SM_CUSTOM_HIT207 = 11206;
+  SM_CUSTOM_HIT208 = 11207;
+  SM_CUSTOM_HIT209 = 11208;
+  SM_CUSTOM_HIT210 = 11209;
+  SM_CUSTOM_HIT211 = 11210;
+  SM_CUSTOM_HIT212 = 11211;
+  SM_CUSTOM_HIT213 = 11212;
+  SM_CUSTOM_HIT214 = 11213;
+  SM_CUSTOM_HIT215 = 11214;
+  SM_CUSTOM_HIT216 = 11215;
+  SM_CUSTOM_HIT217 = 11216;
+  SM_CUSTOM_HIT218 = 11217;
+  SM_CUSTOM_HIT219 = 11218;
+  SM_CUSTOM_HIT220 = 11219;
+  SM_CUSTOM_HIT221 = 11220;
+  SM_CUSTOM_HIT222 = 11221;
+  SM_CUSTOM_HIT223 = 11222;
+  SM_CUSTOM_HIT224 = 11223;
+  SM_CUSTOM_HIT225 = 11224;
+  SM_CUSTOM_HIT226 = 11225;
+  SM_CUSTOM_HIT227 = 11226;
+  SM_CUSTOM_HIT228 = 11227;
+  SM_CUSTOM_HIT229 = 11228;
+  SM_CUSTOM_HIT230 = 11229;
+  SM_CUSTOM_HIT231 = 11230;
+  SM_CUSTOM_HIT232 = 11231;
+  SM_CUSTOM_HIT233 = 11232;
+  SM_CUSTOM_HIT234 = 11233;
+  SM_CUSTOM_HIT235 = 11234;
+  SM_CUSTOM_HIT236 = 11235;
+  SM_CUSTOM_HIT237 = 11236;
+  SM_CUSTOM_HIT238 = 11237;
+  SM_CUSTOM_HIT239 = 11238;
+  SM_CUSTOM_HIT240 = 11239;
+  SM_CUSTOM_HIT241 = 11240;
+  SM_CUSTOM_HIT242 = 11241;
+  SM_CUSTOM_HIT243 = 11242;
+  SM_CUSTOM_HIT244 = 11243;
+  SM_CUSTOM_HIT245 = 11244;
+  SM_CUSTOM_HIT246 = 11245;
+  SM_CUSTOM_HIT247 = 11246;
+  SM_CUSTOM_HIT248 = 11247;
+  SM_CUSTOM_HIT249 = 11248;
+  SM_CUSTOM_HIT250 = 11249;
+  SM_CUSTOM_HIT251 = 11250;
+  SM_CUSTOM_HIT252 = 11251;
+  SM_CUSTOM_HIT253 = 11252;
+  SM_CUSTOM_HIT254 = 11253;
+  SM_CUSTOM_HIT255 = 11254;
+  SM_CUSTOM_HIT256 = 11255;
+  SM_CUSTOM_HIT257 = 11256;
+  SM_CUSTOM_HIT258 = 11257;
+  SM_CUSTOM_HIT259 = 11258;
+  SM_CUSTOM_HIT260 = 11259;
+  SM_CUSTOM_HIT261 = 11260;
+  SM_CUSTOM_HIT262 = 11261;
+  SM_CUSTOM_HIT263 = 11262;
+  SM_CUSTOM_HIT264 = 11263;
+  SM_CUSTOM_HIT265 = 11264;
+  SM_CUSTOM_HIT266 = 11265;
+  SM_CUSTOM_HIT267 = 11266;
+  SM_CUSTOM_HIT268 = 11267;
+  SM_CUSTOM_HIT269 = 11268;
+  SM_CUSTOM_HIT270 = 11269;
+  SM_CUSTOM_HIT271 = 11270;
+  SM_CUSTOM_HIT272 = 11271;
+  SM_CUSTOM_HIT273 = 11272;
+  SM_CUSTOM_HIT274 = 11273;
+  SM_CUSTOM_HIT275 = 11274;
+  SM_CUSTOM_HIT276 = 11275;
+  SM_CUSTOM_HIT277 = 11276;
+  SM_CUSTOM_HIT278 = 11277;
+  SM_CUSTOM_HIT279 = 11278;
+  SM_CUSTOM_HIT280 = 11279;
+  SM_CUSTOM_HIT281 = 11280;
+  SM_CUSTOM_HIT282 = 11281;
+  SM_CUSTOM_HIT283 = 11282;
+  SM_CUSTOM_HIT284 = 11283;
+  SM_CUSTOM_HIT285 = 11284;
+  SM_CUSTOM_HIT286 = 11285;
+  SM_CUSTOM_HIT287 = 11286;
+  SM_CUSTOM_HIT288 = 11287;
+  SM_CUSTOM_HIT289 = 11288;
+  SM_CUSTOM_HIT290 = 11289;
+  SM_CUSTOM_HIT291 = 11290;
+  SM_CUSTOM_HIT292 = 11291;
+  SM_CUSTOM_HIT293 = 11292;
+  SM_CUSTOM_HIT294 = 11293;
+  SM_CUSTOM_HIT295 = 11294;
+  SM_CUSTOM_HIT296 = 11295;
+  SM_CUSTOM_HIT297 = 11296;
+  SM_CUSTOM_HIT298 = 11297;
+  SM_CUSTOM_HIT299 = 11298;
+  SM_CUSTOM_HIT300 = 11299;
+  SM_CUSTOM_MAGICMOVE001 = 11500;
+  SM_CUSTOM_MAGICMOVE002 = 11501;
+  SM_CUSTOM_MAGICMOVE003 = 11502;
+  SM_CUSTOM_MAGICMOVE004 = 11503;
+  SM_CUSTOM_MAGICMOVE005 = 11504;
+  SM_CUSTOM_MAGICMOVE006 = 11505;
+  SM_CUSTOM_MAGICMOVE007 = 11506;
+  SM_CUSTOM_MAGICMOVE008 = 11507;
+  SM_CUSTOM_MAGICMOVE009 = 11508;
+  SM_CUSTOM_MAGICMOVE010 = 11509;
+  SM_CUSTOM_MAGICMOVE011 = 11510;
+  SM_CUSTOM_MAGICMOVE012 = 11511;
+  SM_CUSTOM_MAGICMOVE013 = 11512;
+  SM_CUSTOM_MAGICMOVE014 = 11513;
+  SM_CUSTOM_MAGICMOVE015 = 11514;
+  SM_CUSTOM_MAGICMOVE016 = 11515;
+  SM_CUSTOM_MAGICMOVE017 = 11516;
+  SM_CUSTOM_MAGICMOVE018 = 11517;
+  SM_CUSTOM_MAGICMOVE019 = 11518;
+  SM_CUSTOM_MAGICMOVE020 = 11519;
+  SM_CUSTOM_MAGICMOVE021 = 11520;
+  SM_CUSTOM_MAGICMOVE022 = 11521;
+  SM_CUSTOM_MAGICMOVE023 = 11522;
+  SM_CUSTOM_MAGICMOVE024 = 11523;
+  SM_CUSTOM_MAGICMOVE025 = 11524;
+  SM_CUSTOM_MAGICMOVE026 = 11525;
+  SM_CUSTOM_MAGICMOVE027 = 11526;
+  SM_CUSTOM_MAGICMOVE028 = 11527;
+  SM_CUSTOM_MAGICMOVE029 = 11528;
+  SM_CUSTOM_MAGICMOVE030 = 11529;
+  SM_CUSTOM_MAGICMOVE031 = 11530;
+  SM_CUSTOM_MAGICMOVE032 = 11531;
+  SM_CUSTOM_MAGICMOVE033 = 11532;
+  SM_CUSTOM_MAGICMOVE034 = 11533;
+  SM_CUSTOM_MAGICMOVE035 = 11534;
+  SM_CUSTOM_MAGICMOVE036 = 11535;
+  SM_CUSTOM_MAGICMOVE037 = 11536;
+  SM_CUSTOM_MAGICMOVE038 = 11537;
+  SM_CUSTOM_MAGICMOVE039 = 11538;
+  SM_CUSTOM_MAGICMOVE040 = 11539;
+  SM_CUSTOM_MAGICMOVE041 = 11540;
+  SM_CUSTOM_MAGICMOVE042 = 11541;
+  SM_CUSTOM_MAGICMOVE043 = 11542;
+  SM_CUSTOM_MAGICMOVE044 = 11543;
+  SM_CUSTOM_MAGICMOVE045 = 11544;
+  SM_CUSTOM_MAGICMOVE046 = 11545;
+  SM_CUSTOM_MAGICMOVE047 = 11546;
+  SM_CUSTOM_MAGICMOVE048 = 11547;
+  SM_CUSTOM_MAGICMOVE049 = 11548;
+  SM_CUSTOM_MAGICMOVE050 = 11549;
+  SM_CUSTOM_MAGICMOVE051 = 11550;
+  SM_CUSTOM_MAGICMOVE052 = 11551;
+  SM_CUSTOM_MAGICMOVE053 = 11552;
+  SM_CUSTOM_MAGICMOVE054 = 11553;
+  SM_CUSTOM_MAGICMOVE055 = 11554;
+  SM_CUSTOM_MAGICMOVE056 = 11555;
+  SM_CUSTOM_MAGICMOVE057 = 11556;
+  SM_CUSTOM_MAGICMOVE058 = 11557;
+  SM_CUSTOM_MAGICMOVE059 = 11558;
+  SM_CUSTOM_MAGICMOVE060 = 11559;
+  SM_CUSTOM_MAGICMOVE061 = 11560;
+  SM_CUSTOM_MAGICMOVE062 = 11561;
+  SM_CUSTOM_MAGICMOVE063 = 11562;
+  SM_CUSTOM_MAGICMOVE064 = 11563;
+  SM_CUSTOM_MAGICMOVE065 = 11564;
+  SM_CUSTOM_MAGICMOVE066 = 11565;
+  SM_CUSTOM_MAGICMOVE067 = 11566;
+  SM_CUSTOM_MAGICMOVE068 = 11567;
+  SM_CUSTOM_MAGICMOVE069 = 11568;
+  SM_CUSTOM_MAGICMOVE070 = 11569;
+  SM_CUSTOM_MAGICMOVE071 = 11570;
+  SM_CUSTOM_MAGICMOVE072 = 11571;
+  SM_CUSTOM_MAGICMOVE073 = 11572;
+  SM_CUSTOM_MAGICMOVE074 = 11573;
+  SM_CUSTOM_MAGICMOVE075 = 11574;
+  SM_CUSTOM_MAGICMOVE076 = 11575;
+  SM_CUSTOM_MAGICMOVE077 = 11576;
+  SM_CUSTOM_MAGICMOVE078 = 11577;
+  SM_CUSTOM_MAGICMOVE079 = 11578;
+  SM_CUSTOM_MAGICMOVE080 = 11579;
+  SM_CUSTOM_MAGICMOVE081 = 11580;
+  SM_CUSTOM_MAGICMOVE082 = 11581;
+  SM_CUSTOM_MAGICMOVE083 = 11582;
+  SM_CUSTOM_MAGICMOVE084 = 11583;
+  SM_CUSTOM_MAGICMOVE085 = 11584;
+  SM_CUSTOM_MAGICMOVE086 = 11585;
+  SM_CUSTOM_MAGICMOVE087 = 11586;
+  SM_CUSTOM_MAGICMOVE088 = 11587;
+  SM_CUSTOM_MAGICMOVE089 = 11588;
+  SM_CUSTOM_MAGICMOVE090 = 11589;
+  SM_CUSTOM_MAGICMOVE091 = 11590;
+  SM_CUSTOM_MAGICMOVE092 = 11591;
+  SM_CUSTOM_MAGICMOVE093 = 11592;
+  SM_CUSTOM_MAGICMOVE094 = 11593;
+  SM_CUSTOM_MAGICMOVE095 = 11594;
+  SM_CUSTOM_MAGICMOVE096 = 11595;
+  SM_CUSTOM_MAGICMOVE097 = 11596;
+  SM_CUSTOM_MAGICMOVE098 = 11597;
+  SM_CUSTOM_MAGICMOVE099 = 11598;
+  SM_CUSTOM_MAGICMOVE100 = 11599;
+  SM_CUSTOM_MAGICMOVE101 = 11600;
+  SM_CUSTOM_MAGICMOVE102 = 11601;
+  SM_CUSTOM_MAGICMOVE103 = 11602;
+  SM_CUSTOM_MAGICMOVE104 = 11603;
+  SM_CUSTOM_MAGICMOVE105 = 11604;
+  SM_CUSTOM_MAGICMOVE106 = 11605;
+  SM_CUSTOM_MAGICMOVE107 = 11606;
+  SM_CUSTOM_MAGICMOVE108 = 11607;
+  SM_CUSTOM_MAGICMOVE109 = 11608;
+  SM_CUSTOM_MAGICMOVE110 = 11609;
+  SM_CUSTOM_MAGICMOVE111 = 11610;
+  SM_CUSTOM_MAGICMOVE112 = 11611;
+  SM_CUSTOM_MAGICMOVE113 = 11612;
+  SM_CUSTOM_MAGICMOVE114 = 11613;
+  SM_CUSTOM_MAGICMOVE115 = 11614;
+  SM_CUSTOM_MAGICMOVE116 = 11615;
+  SM_CUSTOM_MAGICMOVE117 = 11616;
+  SM_CUSTOM_MAGICMOVE118 = 11617;
+  SM_CUSTOM_MAGICMOVE119 = 11618;
+  SM_CUSTOM_MAGICMOVE120 = 11619;
+  SM_CUSTOM_MAGICMOVE121 = 11620;
+  SM_CUSTOM_MAGICMOVE122 = 11621;
+  SM_CUSTOM_MAGICMOVE123 = 11622;
+  SM_CUSTOM_MAGICMOVE124 = 11623;
+  SM_CUSTOM_MAGICMOVE125 = 11624;
+  SM_CUSTOM_MAGICMOVE126 = 11625;
+  SM_CUSTOM_MAGICMOVE127 = 11626;
+  SM_CUSTOM_MAGICMOVE128 = 11627;
+  SM_CUSTOM_MAGICMOVE129 = 11628;
+  SM_CUSTOM_MAGICMOVE130 = 11629;
+  SM_CUSTOM_MAGICMOVE131 = 11630;
+  SM_CUSTOM_MAGICMOVE132 = 11631;
+  SM_CUSTOM_MAGICMOVE133 = 11632;
+  SM_CUSTOM_MAGICMOVE134 = 11633;
+  SM_CUSTOM_MAGICMOVE135 = 11634;
+  SM_CUSTOM_MAGICMOVE136 = 11635;
+  SM_CUSTOM_MAGICMOVE137 = 11636;
+  SM_CUSTOM_MAGICMOVE138 = 11637;
+  SM_CUSTOM_MAGICMOVE139 = 11638;
+  SM_CUSTOM_MAGICMOVE140 = 11639;
+  SM_CUSTOM_MAGICMOVE141 = 11640;
+  SM_CUSTOM_MAGICMOVE142 = 11641;
+  SM_CUSTOM_MAGICMOVE143 = 11642;
+  SM_CUSTOM_MAGICMOVE144 = 11643;
+  SM_CUSTOM_MAGICMOVE145 = 11644;
+  SM_CUSTOM_MAGICMOVE146 = 11645;
+  SM_CUSTOM_MAGICMOVE147 = 11646;
+  SM_CUSTOM_MAGICMOVE148 = 11647;
+  SM_CUSTOM_MAGICMOVE149 = 11648;
+  SM_CUSTOM_MAGICMOVE150 = 11649;
+  SM_CUSTOM_MAGICMOVE151 = 11650;
+  SM_CUSTOM_MAGICMOVE152 = 11651;
+  SM_CUSTOM_MAGICMOVE153 = 11652;
+  SM_CUSTOM_MAGICMOVE154 = 11653;
+  SM_CUSTOM_MAGICMOVE155 = 11654;
+  SM_CUSTOM_MAGICMOVE156 = 11655;
+  SM_CUSTOM_MAGICMOVE157 = 11656;
+  SM_CUSTOM_MAGICMOVE158 = 11657;
+  SM_CUSTOM_MAGICMOVE159 = 11658;
+  SM_CUSTOM_MAGICMOVE160 = 11659;
+  SM_CUSTOM_MAGICMOVE161 = 11660;
+  SM_CUSTOM_MAGICMOVE162 = 11661;
+  SM_CUSTOM_MAGICMOVE163 = 11662;
+  SM_CUSTOM_MAGICMOVE164 = 11663;
+  SM_CUSTOM_MAGICMOVE165 = 11664;
+  SM_CUSTOM_MAGICMOVE166 = 11665;
+  SM_CUSTOM_MAGICMOVE167 = 11666;
+  SM_CUSTOM_MAGICMOVE168 = 11667;
+  SM_CUSTOM_MAGICMOVE169 = 11668;
+  SM_CUSTOM_MAGICMOVE170 = 11669;
+  SM_CUSTOM_MAGICMOVE171 = 11670;
+  SM_CUSTOM_MAGICMOVE172 = 11671;
+  SM_CUSTOM_MAGICMOVE173 = 11672;
+  SM_CUSTOM_MAGICMOVE174 = 11673;
+  SM_CUSTOM_MAGICMOVE175 = 11674;
+  SM_CUSTOM_MAGICMOVE176 = 11675;
+  SM_CUSTOM_MAGICMOVE177 = 11676;
+  SM_CUSTOM_MAGICMOVE178 = 11677;
+  SM_CUSTOM_MAGICMOVE179 = 11678;
+  SM_CUSTOM_MAGICMOVE180 = 11679;
+  SM_CUSTOM_MAGICMOVE181 = 11680;
+  SM_CUSTOM_MAGICMOVE182 = 11681;
+  SM_CUSTOM_MAGICMOVE183 = 11682;
+  SM_CUSTOM_MAGICMOVE184 = 11683;
+  SM_CUSTOM_MAGICMOVE185 = 11684;
+  SM_CUSTOM_MAGICMOVE186 = 11685;
+  SM_CUSTOM_MAGICMOVE187 = 11686;
+  SM_CUSTOM_MAGICMOVE188 = 11687;
+  SM_CUSTOM_MAGICMOVE189 = 11688;
+  SM_CUSTOM_MAGICMOVE190 = 11689;
+  SM_CUSTOM_MAGICMOVE191 = 11690;
+  SM_CUSTOM_MAGICMOVE192 = 11691;
+  SM_CUSTOM_MAGICMOVE193 = 11692;
+  SM_CUSTOM_MAGICMOVE194 = 11693;
+  SM_CUSTOM_MAGICMOVE195 = 11694;
+  SM_CUSTOM_MAGICMOVE196 = 11695;
+  SM_CUSTOM_MAGICMOVE197 = 11696;
+  SM_CUSTOM_MAGICMOVE198 = 11697;
+  SM_CUSTOM_MAGICMOVE199 = 11698;
+  SM_CUSTOM_MAGICMOVE200 = 11699;
+  SM_CUSTOM_MAGICMOVE201 = 11700;
+  SM_CUSTOM_MAGICMOVE202 = 11701;
+  SM_CUSTOM_MAGICMOVE203 = 11702;
+  SM_CUSTOM_MAGICMOVE204 = 11703;
+  SM_CUSTOM_MAGICMOVE205 = 11704;
+  SM_CUSTOM_MAGICMOVE206 = 11705;
+  SM_CUSTOM_MAGICMOVE207 = 11706;
+  SM_CUSTOM_MAGICMOVE208 = 11707;
+  SM_CUSTOM_MAGICMOVE209 = 11708;
+  SM_CUSTOM_MAGICMOVE210 = 11709;
+  SM_CUSTOM_MAGICMOVE211 = 11710;
+  SM_CUSTOM_MAGICMOVE212 = 11711;
+  SM_CUSTOM_MAGICMOVE213 = 11712;
+  SM_CUSTOM_MAGICMOVE214 = 11713;
+  SM_CUSTOM_MAGICMOVE215 = 11714;
+  SM_CUSTOM_MAGICMOVE216 = 11715;
+  SM_CUSTOM_MAGICMOVE217 = 11716;
+  SM_CUSTOM_MAGICMOVE218 = 11717;
+  SM_CUSTOM_MAGICMOVE219 = 11718;
+  SM_CUSTOM_MAGICMOVE220 = 11719;
+  SM_CUSTOM_MAGICMOVE221 = 11720;
+  SM_CUSTOM_MAGICMOVE222 = 11721;
+  SM_CUSTOM_MAGICMOVE223 = 11722;
+  SM_CUSTOM_MAGICMOVE224 = 11723;
+  SM_CUSTOM_MAGICMOVE225 = 11724;
+  SM_CUSTOM_MAGICMOVE226 = 11725;
+  SM_CUSTOM_MAGICMOVE227 = 11726;
+  SM_CUSTOM_MAGICMOVE228 = 11727;
+  SM_CUSTOM_MAGICMOVE229 = 11728;
+  SM_CUSTOM_MAGICMOVE230 = 11729;
+  SM_CUSTOM_MAGICMOVE231 = 11730;
+  SM_CUSTOM_MAGICMOVE232 = 11731;
+  SM_CUSTOM_MAGICMOVE233 = 11732;
+  SM_CUSTOM_MAGICMOVE234 = 11733;
+  SM_CUSTOM_MAGICMOVE235 = 11734;
+  SM_CUSTOM_MAGICMOVE236 = 11735;
+  SM_CUSTOM_MAGICMOVE237 = 11736;
+  SM_CUSTOM_MAGICMOVE238 = 11737;
+  SM_CUSTOM_MAGICMOVE239 = 11738;
+  SM_CUSTOM_MAGICMOVE240 = 11739;
+  SM_CUSTOM_MAGICMOVE241 = 11740;
+  SM_CUSTOM_MAGICMOVE242 = 11741;
+  SM_CUSTOM_MAGICMOVE243 = 11742;
+  SM_CUSTOM_MAGICMOVE244 = 11743;
+  SM_CUSTOM_MAGICMOVE245 = 11744;
+  SM_CUSTOM_MAGICMOVE246 = 11745;
+  SM_CUSTOM_MAGICMOVE247 = 11746;
+  SM_CUSTOM_MAGICMOVE248 = 11747;
+  SM_CUSTOM_MAGICMOVE249 = 11748;
+  SM_CUSTOM_MAGICMOVE250 = 11749;
+  SM_CUSTOM_MAGICMOVE251 = 11750;
+  SM_CUSTOM_MAGICMOVE252 = 11751;
+  SM_CUSTOM_MAGICMOVE253 = 11752;
+  SM_CUSTOM_MAGICMOVE254 = 11753;
+  SM_CUSTOM_MAGICMOVE255 = 11754;
+  SM_CUSTOM_MAGICMOVE256 = 11755;
+  SM_CUSTOM_MAGICMOVE257 = 11756;
+  SM_CUSTOM_MAGICMOVE258 = 11757;
+  SM_CUSTOM_MAGICMOVE259 = 11758;
+  SM_CUSTOM_MAGICMOVE260 = 11759;
+  SM_CUSTOM_MAGICMOVE261 = 11760;
+  SM_CUSTOM_MAGICMOVE262 = 11761;
+  SM_CUSTOM_MAGICMOVE263 = 11762;
+  SM_CUSTOM_MAGICMOVE264 = 11763;
+  SM_CUSTOM_MAGICMOVE265 = 11764;
+  SM_CUSTOM_MAGICMOVE266 = 11765;
+  SM_CUSTOM_MAGICMOVE267 = 11766;
+  SM_CUSTOM_MAGICMOVE268 = 11767;
+  SM_CUSTOM_MAGICMOVE269 = 11768;
+  SM_CUSTOM_MAGICMOVE270 = 11769;
+  SM_CUSTOM_MAGICMOVE271 = 11770;
+  SM_CUSTOM_MAGICMOVE272 = 11771;
+  SM_CUSTOM_MAGICMOVE273 = 11772;
+  SM_CUSTOM_MAGICMOVE274 = 11773;
+  SM_CUSTOM_MAGICMOVE275 = 11774;
+  SM_CUSTOM_MAGICMOVE276 = 11775;
+  SM_CUSTOM_MAGICMOVE277 = 11776;
+  SM_CUSTOM_MAGICMOVE278 = 11777;
+  SM_CUSTOM_MAGICMOVE279 = 11778;
+  SM_CUSTOM_MAGICMOVE280 = 11779;
+  SM_CUSTOM_MAGICMOVE281 = 11780;
+  SM_CUSTOM_MAGICMOVE282 = 11781;
+  SM_CUSTOM_MAGICMOVE283 = 11782;
+  SM_CUSTOM_MAGICMOVE284 = 11783;
+  SM_CUSTOM_MAGICMOVE285 = 11784;
+  SM_CUSTOM_MAGICMOVE286 = 11785;
+  SM_CUSTOM_MAGICMOVE287 = 11786;
+  SM_CUSTOM_MAGICMOVE288 = 11787;
+  SM_CUSTOM_MAGICMOVE289 = 11788;
+  SM_CUSTOM_MAGICMOVE290 = 11789;
+  SM_CUSTOM_MAGICMOVE291 = 11790;
+  SM_CUSTOM_MAGICMOVE292 = 11791;
+  SM_CUSTOM_MAGICMOVE293 = 11792;
+  SM_CUSTOM_MAGICMOVE294 = 11793;
+  SM_CUSTOM_MAGICMOVE295 = 11794;
+  SM_CUSTOM_MAGICMOVE296 = 11795;
+  SM_CUSTOM_MAGICMOVE297 = 11796;
+  SM_CUSTOM_MAGICMOVE298 = 11797;
+  SM_CUSTOM_MAGICMOVE299 = 11798;
+  SM_CUSTOM_MAGICMOVE300 = 11799;
+  SM_CUSTOM_PUSH001 = 12000;
+  SM_CUSTOM_PUSH002 = 12001;
+  SM_CUSTOM_PUSH003 = 12002;
+  SM_CUSTOM_PUSH004 = 12003;
+  SM_CUSTOM_PUSH005 = 12004;
+  SM_CUSTOM_PUSH006 = 12005;
+  SM_CUSTOM_PUSH007 = 12006;
+  SM_CUSTOM_PUSH008 = 12007;
+  SM_CUSTOM_PUSH009 = 12008;
+  SM_CUSTOM_PUSH010 = 12009;
+  SM_CUSTOM_PUSH011 = 12010;
+  SM_CUSTOM_PUSH012 = 12011;
+  SM_CUSTOM_PUSH013 = 12012;
+  SM_CUSTOM_PUSH014 = 12013;
+  SM_CUSTOM_PUSH015 = 12014;
+  SM_CUSTOM_PUSH016 = 12015;
+  SM_CUSTOM_PUSH017 = 12016;
+  SM_CUSTOM_PUSH018 = 12017;
+  SM_CUSTOM_PUSH019 = 12018;
+  SM_CUSTOM_PUSH020 = 12019;
+  SM_CUSTOM_PUSH021 = 12020;
+  SM_CUSTOM_PUSH022 = 12021;
+  SM_CUSTOM_PUSH023 = 12022;
+  SM_CUSTOM_PUSH024 = 12023;
+  SM_CUSTOM_PUSH025 = 12024;
+  SM_CUSTOM_PUSH026 = 12025;
+  SM_CUSTOM_PUSH027 = 12026;
+  SM_CUSTOM_PUSH028 = 12027;
+  SM_CUSTOM_PUSH029 = 12028;
+  SM_CUSTOM_PUSH030 = 12029;
+  SM_CUSTOM_PUSH031 = 12030;
+  SM_CUSTOM_PUSH032 = 12031;
+  SM_CUSTOM_PUSH033 = 12032;
+  SM_CUSTOM_PUSH034 = 12033;
+  SM_CUSTOM_PUSH035 = 12034;
+  SM_CUSTOM_PUSH036 = 12035;
+  SM_CUSTOM_PUSH037 = 12036;
+  SM_CUSTOM_PUSH038 = 12037;
+  SM_CUSTOM_PUSH039 = 12038;
+  SM_CUSTOM_PUSH040 = 12039;
+  SM_CUSTOM_PUSH041 = 12040;
+  SM_CUSTOM_PUSH042 = 12041;
+  SM_CUSTOM_PUSH043 = 12042;
+  SM_CUSTOM_PUSH044 = 12043;
+  SM_CUSTOM_PUSH045 = 12044;
+  SM_CUSTOM_PUSH046 = 12045;
+  SM_CUSTOM_PUSH047 = 12046;
+  SM_CUSTOM_PUSH048 = 12047;
+  SM_CUSTOM_PUSH049 = 12048;
+  SM_CUSTOM_PUSH050 = 12049;
+  SM_CUSTOM_PUSH051 = 12050;
+  SM_CUSTOM_PUSH052 = 12051;
+  SM_CUSTOM_PUSH053 = 12052;
+  SM_CUSTOM_PUSH054 = 12053;
+  SM_CUSTOM_PUSH055 = 12054;
+  SM_CUSTOM_PUSH056 = 12055;
+  SM_CUSTOM_PUSH057 = 12056;
+  SM_CUSTOM_PUSH058 = 12057;
+  SM_CUSTOM_PUSH059 = 12058;
+  SM_CUSTOM_PUSH060 = 12059;
+  SM_CUSTOM_PUSH061 = 12060;
+  SM_CUSTOM_PUSH062 = 12061;
+  SM_CUSTOM_PUSH063 = 12062;
+  SM_CUSTOM_PUSH064 = 12063;
+  SM_CUSTOM_PUSH065 = 12064;
+  SM_CUSTOM_PUSH066 = 12065;
+  SM_CUSTOM_PUSH067 = 12066;
+  SM_CUSTOM_PUSH068 = 12067;
+  SM_CUSTOM_PUSH069 = 12068;
+  SM_CUSTOM_PUSH070 = 12069;
+  SM_CUSTOM_PUSH071 = 12070;
+  SM_CUSTOM_PUSH072 = 12071;
+  SM_CUSTOM_PUSH073 = 12072;
+  SM_CUSTOM_PUSH074 = 12073;
+  SM_CUSTOM_PUSH075 = 12074;
+  SM_CUSTOM_PUSH076 = 12075;
+  SM_CUSTOM_PUSH077 = 12076;
+  SM_CUSTOM_PUSH078 = 12077;
+  SM_CUSTOM_PUSH079 = 12078;
+  SM_CUSTOM_PUSH080 = 12079;
+  SM_CUSTOM_PUSH081 = 12080;
+  SM_CUSTOM_PUSH082 = 12081;
+  SM_CUSTOM_PUSH083 = 12082;
+  SM_CUSTOM_PUSH084 = 12083;
+  SM_CUSTOM_PUSH085 = 12084;
+  SM_CUSTOM_PUSH086 = 12085;
+  SM_CUSTOM_PUSH087 = 12086;
+  SM_CUSTOM_PUSH088 = 12087;
+  SM_CUSTOM_PUSH089 = 12088;
+  SM_CUSTOM_PUSH090 = 12089;
+  SM_CUSTOM_PUSH091 = 12090;
+  SM_CUSTOM_PUSH092 = 12091;
+  SM_CUSTOM_PUSH093 = 12092;
+  SM_CUSTOM_PUSH094 = 12093;
+  SM_CUSTOM_PUSH095 = 12094;
+  SM_CUSTOM_PUSH096 = 12095;
+  SM_CUSTOM_PUSH097 = 12096;
+  SM_CUSTOM_PUSH098 = 12097;
+  SM_CUSTOM_PUSH099 = 12098;
+  SM_CUSTOM_PUSH100 = 12099;
+  SM_CUSTOM_PUSH101 = 12100;
+  SM_CUSTOM_PUSH102 = 12101;
+  SM_CUSTOM_PUSH103 = 12102;
+  SM_CUSTOM_PUSH104 = 12103;
+  SM_CUSTOM_PUSH105 = 12104;
+  SM_CUSTOM_PUSH106 = 12105;
+  SM_CUSTOM_PUSH107 = 12106;
+  SM_CUSTOM_PUSH108 = 12107;
+  SM_CUSTOM_PUSH109 = 12108;
+  SM_CUSTOM_PUSH110 = 12109;
+  SM_CUSTOM_PUSH111 = 12110;
+  SM_CUSTOM_PUSH112 = 12111;
+  SM_CUSTOM_PUSH113 = 12112;
+  SM_CUSTOM_PUSH114 = 12113;
+  SM_CUSTOM_PUSH115 = 12114;
+  SM_CUSTOM_PUSH116 = 12115;
+  SM_CUSTOM_PUSH117 = 12116;
+  SM_CUSTOM_PUSH118 = 12117;
+  SM_CUSTOM_PUSH119 = 12118;
+  SM_CUSTOM_PUSH120 = 12119;
+  SM_CUSTOM_PUSH121 = 12120;
+  SM_CUSTOM_PUSH122 = 12121;
+  SM_CUSTOM_PUSH123 = 12122;
+  SM_CUSTOM_PUSH124 = 12123;
+  SM_CUSTOM_PUSH125 = 12124;
+  SM_CUSTOM_PUSH126 = 12125;
+  SM_CUSTOM_PUSH127 = 12126;
+  SM_CUSTOM_PUSH128 = 12127;
+  SM_CUSTOM_PUSH129 = 12128;
+  SM_CUSTOM_PUSH130 = 12129;
+  SM_CUSTOM_PUSH131 = 12130;
+  SM_CUSTOM_PUSH132 = 12131;
+  SM_CUSTOM_PUSH133 = 12132;
+  SM_CUSTOM_PUSH134 = 12133;
+  SM_CUSTOM_PUSH135 = 12134;
+  SM_CUSTOM_PUSH136 = 12135;
+  SM_CUSTOM_PUSH137 = 12136;
+  SM_CUSTOM_PUSH138 = 12137;
+  SM_CUSTOM_PUSH139 = 12138;
+  SM_CUSTOM_PUSH140 = 12139;
+  SM_CUSTOM_PUSH141 = 12140;
+  SM_CUSTOM_PUSH142 = 12141;
+  SM_CUSTOM_PUSH143 = 12142;
+  SM_CUSTOM_PUSH144 = 12143;
+  SM_CUSTOM_PUSH145 = 12144;
+  SM_CUSTOM_PUSH146 = 12145;
+  SM_CUSTOM_PUSH147 = 12146;
+  SM_CUSTOM_PUSH148 = 12147;
+  SM_CUSTOM_PUSH149 = 12148;
+  SM_CUSTOM_PUSH150 = 12149;
+  SM_CUSTOM_PUSH151 = 12150;
+  SM_CUSTOM_PUSH152 = 12151;
+  SM_CUSTOM_PUSH153 = 12152;
+  SM_CUSTOM_PUSH154 = 12153;
+  SM_CUSTOM_PUSH155 = 12154;
+  SM_CUSTOM_PUSH156 = 12155;
+  SM_CUSTOM_PUSH157 = 12156;
+  SM_CUSTOM_PUSH158 = 12157;
+  SM_CUSTOM_PUSH159 = 12158;
+  SM_CUSTOM_PUSH160 = 12159;
+  SM_CUSTOM_PUSH161 = 12160;
+  SM_CUSTOM_PUSH162 = 12161;
+  SM_CUSTOM_PUSH163 = 12162;
+  SM_CUSTOM_PUSH164 = 12163;
+  SM_CUSTOM_PUSH165 = 12164;
+  SM_CUSTOM_PUSH166 = 12165;
+  SM_CUSTOM_PUSH167 = 12166;
+  SM_CUSTOM_PUSH168 = 12167;
+  SM_CUSTOM_PUSH169 = 12168;
+  SM_CUSTOM_PUSH170 = 12169;
+  SM_CUSTOM_PUSH171 = 12170;
+  SM_CUSTOM_PUSH172 = 12171;
+  SM_CUSTOM_PUSH173 = 12172;
+  SM_CUSTOM_PUSH174 = 12173;
+  SM_CUSTOM_PUSH175 = 12174;
+  SM_CUSTOM_PUSH176 = 12175;
+  SM_CUSTOM_PUSH177 = 12176;
+  SM_CUSTOM_PUSH178 = 12177;
+  SM_CUSTOM_PUSH179 = 12178;
+  SM_CUSTOM_PUSH180 = 12179;
+  SM_CUSTOM_PUSH181 = 12180;
+  SM_CUSTOM_PUSH182 = 12181;
+  SM_CUSTOM_PUSH183 = 12182;
+  SM_CUSTOM_PUSH184 = 12183;
+  SM_CUSTOM_PUSH185 = 12184;
+  SM_CUSTOM_PUSH186 = 12185;
+  SM_CUSTOM_PUSH187 = 12186;
+  SM_CUSTOM_PUSH188 = 12187;
+  SM_CUSTOM_PUSH189 = 12188;
+  SM_CUSTOM_PUSH190 = 12189;
+  SM_CUSTOM_PUSH191 = 12190;
+  SM_CUSTOM_PUSH192 = 12191;
+  SM_CUSTOM_PUSH193 = 12192;
+  SM_CUSTOM_PUSH194 = 12193;
+  SM_CUSTOM_PUSH195 = 12194;
+  SM_CUSTOM_PUSH196 = 12195;
+  SM_CUSTOM_PUSH197 = 12196;
+  SM_CUSTOM_PUSH198 = 12197;
+  SM_CUSTOM_PUSH199 = 12198;
+  SM_CUSTOM_PUSH200 = 12199;
+  SM_CUSTOM_PUSH201 = 12200;
+  SM_CUSTOM_PUSH202 = 12201;
+  SM_CUSTOM_PUSH203 = 12202;
+  SM_CUSTOM_PUSH204 = 12203;
+  SM_CUSTOM_PUSH205 = 12204;
+  SM_CUSTOM_PUSH206 = 12205;
+  SM_CUSTOM_PUSH207 = 12206;
+  SM_CUSTOM_PUSH208 = 12207;
+  SM_CUSTOM_PUSH209 = 12208;
+  SM_CUSTOM_PUSH210 = 12209;
+  SM_CUSTOM_PUSH211 = 12210;
+  SM_CUSTOM_PUSH212 = 12211;
+  SM_CUSTOM_PUSH213 = 12212;
+  SM_CUSTOM_PUSH214 = 12213;
+  SM_CUSTOM_PUSH215 = 12214;
+  SM_CUSTOM_PUSH216 = 12215;
+  SM_CUSTOM_PUSH217 = 12216;
+  SM_CUSTOM_PUSH218 = 12217;
+  SM_CUSTOM_PUSH219 = 12218;
+  SM_CUSTOM_PUSH220 = 12219;
+  SM_CUSTOM_PUSH221 = 12220;
+  SM_CUSTOM_PUSH222 = 12221;
+  SM_CUSTOM_PUSH223 = 12222;
+  SM_CUSTOM_PUSH224 = 12223;
+  SM_CUSTOM_PUSH225 = 12224;
+  SM_CUSTOM_PUSH226 = 12225;
+  SM_CUSTOM_PUSH227 = 12226;
+  SM_CUSTOM_PUSH228 = 12227;
+  SM_CUSTOM_PUSH229 = 12228;
+  SM_CUSTOM_PUSH230 = 12229;
+  SM_CUSTOM_PUSH231 = 12230;
+  SM_CUSTOM_PUSH232 = 12231;
+  SM_CUSTOM_PUSH233 = 12232;
+  SM_CUSTOM_PUSH234 = 12233;
+  SM_CUSTOM_PUSH235 = 12234;
+  SM_CUSTOM_PUSH236 = 12235;
+  SM_CUSTOM_PUSH237 = 12236;
+  SM_CUSTOM_PUSH238 = 12237;
+  SM_CUSTOM_PUSH239 = 12238;
+  SM_CUSTOM_PUSH240 = 12239;
+  SM_CUSTOM_PUSH241 = 12240;
+  SM_CUSTOM_PUSH242 = 12241;
+  SM_CUSTOM_PUSH243 = 12242;
+  SM_CUSTOM_PUSH244 = 12243;
+  SM_CUSTOM_PUSH245 = 12244;
+  SM_CUSTOM_PUSH246 = 12245;
+  SM_CUSTOM_PUSH247 = 12246;
+  SM_CUSTOM_PUSH248 = 12247;
+  SM_CUSTOM_PUSH249 = 12248;
+  SM_CUSTOM_PUSH250 = 12249;
+  SM_CUSTOM_PUSH251 = 12250;
+  SM_CUSTOM_PUSH252 = 12251;
+  SM_CUSTOM_PUSH253 = 12252;
+  SM_CUSTOM_PUSH254 = 12253;
+  SM_CUSTOM_PUSH255 = 12254;
+  SM_CUSTOM_PUSH256 = 12255;
+  SM_CUSTOM_PUSH257 = 12256;
+  SM_CUSTOM_PUSH258 = 12257;
+  SM_CUSTOM_PUSH259 = 12258;
+  SM_CUSTOM_PUSH260 = 12259;
+  SM_CUSTOM_PUSH261 = 12260;
+  SM_CUSTOM_PUSH262 = 12261;
+  SM_CUSTOM_PUSH263 = 12262;
+  SM_CUSTOM_PUSH264 = 12263;
+  SM_CUSTOM_PUSH265 = 12264;
+  SM_CUSTOM_PUSH266 = 12265;
+  SM_CUSTOM_PUSH267 = 12266;
+  SM_CUSTOM_PUSH268 = 12267;
+  SM_CUSTOM_PUSH269 = 12268;
+  SM_CUSTOM_PUSH270 = 12269;
+  SM_CUSTOM_PUSH271 = 12270;
+  SM_CUSTOM_PUSH272 = 12271;
+  SM_CUSTOM_PUSH273 = 12272;
+  SM_CUSTOM_PUSH274 = 12273;
+  SM_CUSTOM_PUSH275 = 12274;
+  SM_CUSTOM_PUSH276 = 12275;
+  SM_CUSTOM_PUSH277 = 12276;
+  SM_CUSTOM_PUSH278 = 12277;
+  SM_CUSTOM_PUSH279 = 12278;
+  SM_CUSTOM_PUSH280 = 12279;
+  SM_CUSTOM_PUSH281 = 12280;
+  SM_CUSTOM_PUSH282 = 12281;
+  SM_CUSTOM_PUSH283 = 12282;
+  SM_CUSTOM_PUSH284 = 12283;
+  SM_CUSTOM_PUSH285 = 12284;
+  SM_CUSTOM_PUSH286 = 12285;
+  SM_CUSTOM_PUSH287 = 12286;
+  SM_CUSTOM_PUSH288 = 12287;
+  SM_CUSTOM_PUSH289 = 12288;
+  SM_CUSTOM_PUSH290 = 12289;
+  SM_CUSTOM_PUSH291 = 12290;
+  SM_CUSTOM_PUSH292 = 12291;
+  SM_CUSTOM_PUSH293 = 12292;
+  SM_CUSTOM_PUSH294 = 12293;
+  SM_CUSTOM_PUSH295 = 12294;
+  SM_CUSTOM_PUSH296 = 12295;
+  SM_CUSTOM_PUSH297 = 12296;
+  SM_CUSTOM_PUSH298 = 12297;
+  SM_CUSTOM_PUSH299 = 12298;
+  SM_CUSTOM_PUSH300 = 12299;
+
+  ET_DIGOUTZOMBI = 1;
+  ET_SAFERECT = 2;
+  ET_PILESTONES = 3;
+  ET_HOLYCURTAIN = 4;
+  ET_FIRE = 5; // HZQ 火墙
+  ET_SCULPEICE = 6;
+  ET_FIRELevel1 = 7;
+  ET_FIRELevel2 = 8;
+  ET_FIRELevel3 = 9;
+  ET_ICEPEAK = 10; // 雪域卫士 冰峰效果
+  ET_HOLYCURTAIN2 = 11;
+  ET_MAPEFFECT = 100; // 地图效果
+
+  ET_FIREDRAGON = 17; // 火龙守护兽小火圈效果 piaoyun 2013-08-19
+  ET_FIREMON33_7 = 18; // Mon33-7火圈特效 piaoyun 2013-12-01
+
+  // 20 - 75为扩展自定义安全区光圈特效 chongchong 2017-04-18
+  ET_CUSTOM_SAFE_POINT1 = 20;
+  ET_CUSTOM_SAFE_POINT2 = 75;
+
+  { 6种烟花 }
+  ET_FIREFLOWER_1 = 79;
+  ET_FIREFLOWER_2 = 80;
+  ET_FIREFLOWER_3 = 81;
+  ET_FIREFLOWER_4 = 82;
+  ET_FIREFLOWER_5 = 83;
+  ET_FIREFLOWER_6 = 84;
+  ET_FIREFLOWER_7 = 85;
+  ET_FIREFLOWER_8 = 86;
+
+  // 地图特效 -- piaoyun 2013-07-10
+  ET_THUNDER = 110; // 地图闪电 红色
+  ET_LAVA = 111; // 岩浆
+  ET_DEDING = 112; // 地钉效果
+  ET_FLASHLIGHT = 113; // 闪光效果
+  ET_LAVA2 = 114; // 岩浆2
+
+  ET_DOOR1 = 115; // 传送门1
+  ET_DOOR2 = 116; // 传送门2
+  ET_DOOR3 = 117; // 传送门3
+  ET_DOOR4 = 118; // 传送门4
+  ET_DOOR5 = 119; // 传送门5
+  ET_THUNDER2 = 120; // 地图闪电 白色
+  ET_FIREDRAGON2 = 121; // 龙头燃烧
+
+  ET_SPRINGS1 = 122; // 泉1
+  ET_SPRINGS2 = 123; // 泉2
+  ET_SPRINGS3 = 124; // 泉2
+  ET_SPRINGS_LIGHT = 125; // 泉水闪光
+
+  ET_CUSTOM_EFF = 255; // 自定义特效 chongchong 2015-03-10
+  ET_CUSTOM_MAGIC_EFF = 254; // 自定义特效 chongchong 2015-03-10
+
+type
+  TRandCodeType = (rctLogin, rctRegister, rctPwdGetback, rctPwdChange);
+
+type
+  TBlastHitType = (bhtNone = 0, bhtBlastHit = 1, bhtFatalBlow1 = 2, bhtFatalBlow2 = 3, bhtFatalBlow3 = 4, bhtFatalBlow4 = 5);
+
+const
+  BlastHitTypeValues: array [TBlastHitType] of AnsiChar = ('0', '1', '2', '3', '4', '5');
+
+type
+  TJewelryBoxStatus = (jbsNoActive, jbsActive, jbsOpen);
+
+  // 物品来源
+  TItemFormType = (ifUnknow { 未知 } , ifGM { GM制造 } , ifScript { 脚本 } , ifShopBuy { 商店购买 } , ifMonDrop { 打怪掉落 } , ifSysGive
+    { 系统给予 } , ifMine { 挖矿得到 } , ifBoxGive { 宝箱取得 } , ifButchItem { 挖肉得到 } , ifCaptureMon { 捕捉得到 } );
+
+  TSockData = (st_LoadHumData, st_SaveHumData, st_LoadHeroData, st_SaveHeroData, st_LoadRankingData, st_SaveData, st_GamePoint,
+    st_LoadGuildHumData, st_ChangeHumName, st_ChangeHeroName, st_ChangeHumanGold);
+
+  THeroDataType = (dt_Create, dt_Delete, dt_Load, dt_CreateDeputyHero, dt_DeleteDeputyHero, dt_LoadDeputyHero, dt_Save,
+    dt_QueryStorageHeroInfo, dt_QueryAssessHeroInfo, dt_AssessHero);
+
+  TUnBindItemType = (t_UnKnow, t_HP, t_MP, t_Special, t_Book, t_Poison, t_Bujuk);
+
+  TItemUpgradeRate = (u_None, u_Mon, u_Make, u_Script);
+
+  TItemUpgradeType = (t_Weapon, t_Dress, t_NeckLace, t_ArmRing, t_Ring, t_HelMet, t_Shoes, t_Belt);
+
+  TFeature_New = record
+    Value1: Int64;
+    Value2: Int64;
+    wDressEffType: Word;
+  end;
+
+  TEventData = packed record
+    Data1: Word;
+    Data2: Word;
+  end;
+
+  pTEventData = ^TEventData;
+
+  TSetImageInfo = packed record
+    EffigyState: TFeature_New;
+    ChrName: string[50];
+  end;
+
+  // 基础技能 合击技能 连击技能 内功技能  , mtGroup
+  TMagicAttr = (mtHum, mtHero, mtContinuous, mtDefense, mtAttack);
+
+  TDefaultMessage = record
+    Recog: Int64; // 64位支持修改 2021-01-04
+    Ident: Word;
+    Param: Word;
+    Tag: Word;
+    Series: Word;
+  end;
+
+  pTDefaultMessage = ^TDefaultMessage;
+
+  PByteRect = ^TByteRect;
+
+  TByteRect = packed record
+    Left, Top, Right, Bottom: Byte;
+  end;
+
+  TM2MsgHeader = record
+    dwCode: LongWord;
+    nSocket: Integer;
+    wGSocketIdx: Word;
+    wIdent: Word;
+    wUserListIndex: LongWord;
+    nLength: Integer;
+  end;
+
+  pTM2MsgHeader = ^TM2MsgHeader;
+
+  TRungateMsgHeader = record
+    Code: LongWord;
+    DataLen: LongWord;
+    Msg: TDefaultMessage;
+  end;
+
+  pTRungateMsgHeader = ^TRungateMsgHeader;
+
+  TFoundryItem = record
+    sItemName: string;
+    nItemCount: Integer;
+    nItemRate: Integer;
+    ItemList: TList;
+  end;
+
+  pTFoundryItem = ^TFoundryItem;
+
+  TFoundryNeedItem = record
+    sItemName: string;
+    nItemCount: Integer;
+    btDelete: Byte;
+  end;
+
+  pTFoundryNeedItem = ^TFoundryNeedItem;
+
+  TActorIcon = packed record
+    nFileIndex: SmallInt; // WIL资源编号
+    nIconIndex: Word;
+    nIconCount: Byte;
+    nX: SmallInt;
+    nY: SmallInt;
+    boBlend: Boolean;
+    btDrawOrder: Byte; // 绘制顺序
+    nPlayTime: SmallInt; // 播放速度
+    boOnlySelfVisible: Boolean;
+  end;
+
+  pTActorIcon = ^TActorIcon;
+
+  TActorIconArray = array [0 .. MAX_ICON_COUNT - 1] of TActorIcon;
+
+  pTActorIconArray = ^TActorIconArray;
+
+  TActorEffect = record
+    // 脚本播放
+    nEffectFileIndex: SmallInt; // WIL资源编号
+    nEffectImageOffSet: Integer; // 开始图片号
+    wEffectImageCount: Word; // 播放图片数
+    wEffectFrameTime: Word; // 播放速度 毫秒
+    nLoopCount: Integer;
+    btDrawOrder: Byte;
+    nOffsetX: Integer;
+    nOffsetY: Integer;
+    boBlendMode: Boolean;
+  end;
+
+  pTActorEffect = ^TActorEffect;
+
+  THumFeature = packed record
+    wRace: Word; // 脸型
+    wWeapon: Word; // 武器
+    wWeaponSound: Word; // 武器声音 2020-11-24 23:40:49
+    wDress: Word; // 衣服
+    wShield: Word; // 盾牌 chongchong 2013-09-16
+    btGender: Byte;
+    btJob: Byte;
+    btHair: Byte;
+    btHorseType: Byte;
+    btCaseltGuild: Byte; // 1=沙行会成员 //2=沙行会掌门
+    boShopStall: Boolean; // 摆摊
+    btBodyColor: Byte; // 人体颜色
+    btShopStallDir: Byte;
+    wDressEffType: Word;
+    wDressEffType_30: Word;
+    boDressEffNormalDraw: Boolean;
+    boDressEffNoSex: Boolean;
+    boDressEff_30NormalDraw: Boolean;
+    boDressEff_30NoSex: Boolean;
+
+    nChangeAppr: Integer;
+
+    nWeaponEffectIndex: SmallInt; // 武器特效
+    wWeaponEffectOffSet: Word; // 武器特效偏移
+
+    wDBWeaponEffectOffSet: Word; // DB武器特效偏移
+
+    nDressEffectIndex: SmallInt; // 衣服特效
+    wDressEffectOffSet: Word; // 衣服特效偏移
+
+    nShieldEffectIndex: SmallInt; // 盾牌特效
+    wShieldEffectOffSet: Word; // 盾牌特效偏移
+
+    boDressEffectNoBlend: Boolean; // 衣服普通绘制
+    boDressEffectNoSex: Boolean; // 衣服不分男女
+    // boDressEffect: Boolean;                                                                         // 衣服特效 (每个方向读8帧)
+
+    boWeaponEffectNoBlend: Boolean; // 武器普通绘制
+    boWeaponEffectNoSex: Boolean; // 武器不分男女
+
+    boShieldEffectNoBlend: Boolean; // 盾牌普通绘制
+    boShieldEffectNoSex: Boolean; // 盾牌不分男女
+
+    nShieldAddEffectIndex: SmallInt; // 盾牌特效
+    wShieldAddEffectOffSet: Word; // 盾牌特效偏移
+
+    nDressAddEffectIndex: SmallInt; // 附加衣服特效
+    bDressAddEffectOrder: Byte; // 附加衣服特效绘制顺序
+    wDressAddEffectOffSet: Word; // 附加衣服特效偏移
+    wDressAddEffectCount: Word; // 附加衣服特效数量
+    wDressAddEffectTime: Word; // 附加衣服特效时间
+    boDressAddEffectNoBlend: Boolean; // 附加衣服特效 - 普通绘制
+    boDressAddEffectDrawCenter: Boolean;
+
+    nMedalEffectIndex: SmallInt; // 勋章特效
+    wMedalEffectOffSet: Word; // 勋章特效偏移
+    boMedalEffectNoBlend: Boolean; // 勋章普通绘制
+    boMedalEffectNoSex: Boolean; // 勋章不分男女
+
+    btDoubleHumHorseType: Byte; // 骑马 - 双人骑类型 chongchong 2013-10-14
+    boShowHorseWingsEffect: Boolean; // 是否显示马翅膀特效 chongchong 2013-10-16
+    btHorseEffectType: Byte; // 马特效类型 chongchong 2015-10-24
+
+    btHorseHum: Word; // 骑马 三方马上的人物造型 chongchong 2013-10-17
+    btHorseHumExpand: Byte; // 骑马 三方马上的人物造型扩展 chongchong 2014-09-24
+
+    btHorseHair: Byte; // 骑马 三方马上的人物头发 chongchong 2013-10-17
+
+    boShowFashion: Boolean; // 显示时装 chongchong 2013-10-23
+    boMagicShield: Boolean; // 使用护身装备 chongchong 2014-04-07
+
+    btReLevel: Integer; // 转生等级 chongchong 2014-05-07
+
+    sActiveFengHaoName: string[ITEM_NAME_LEN]; // 激活的封号名 chongchong 2014-05-25
+    nActiveFengHaoID: Integer; // 激活的封号MakeIndex chongchong 2014-05-25
+    dwActiveFengHaoLooks: Word; // 激活的封号Looks chongchong 2014-05-25
+    btActiveFengHaoReserved: Byte;
+    btActiveFengHaoColor: Byte; // 激活封号颜色 chongchong 2014-05-25
+
+    boShowHair: Boolean;
+
+    btCboDressUseDiyImage: Byte; // 连击时衣服使用自定义资源
+    btCboWeaponUseDiyImage: Byte; // 连击时武器使用自定义资源
+
+    btOldHair: Byte; // 原始发型，不算斗笠或面巾的
+    boPlayMoster: Boolean; // 是否为人型怪 chongchong 2015-09-19
+  end;
+
+  pTHumFeature = ^THumFeature;
+
+  // 人物宝宝类型
+  THumBBType = (bbNo { 不是宝宝 } , bbSlave { 普通宝宝 } , bbGamePet { 宠物宝宝 } );
+
+  TMonFeature = packed record
+    wRaceImg: Word; // RaceImg字段
+    wWeapon: Word; // 武器
+    wAppr: Word; // 衣服
+    btBodyColor: Byte; // 人体颜色
+    btRace: Byte; // 非人物角色脸型 (Race字段) (基类是TActor的)
+    MonLevel: LongWord;
+    HumBBType: THumBBType; // 人物宝宝类型 chongchong 2014-11-29
+    IsExploreItem: Boolean; // 是否可探索怪
+    IsDisableSimpleActor: Boolean; // 禁止怪物简装
+    nChangeAppr: Integer; // 自定义怪物变脸要用 2021-04-18
+  end;
+
+  pTMonFeature = ^TMonFeature;
+
+  // 形象结构
+  TFeature = packed record
+    Feature: Integer;
+    Buffer: array [0 .. 255] of Byte;
+  end;
+
+  pTFeature = ^TFeature;
+
+  TUnBindItem = packed record
+    sItemName: string[ITEM_NAME_LEN];
+    nStdMode: Integer;
+    nShape: Integer;
+    UnBindItemType: TUnBindItemType;
+    nCount: Integer; // 解包物品扩展 chongchong 2014-05-15
+  end;
+
+  pTUnBindItem = ^TUnBindItem;
+
+  TShortMessage = packed record
+    Ident: Word;
+    wMsg: Word;
+  end;
+
+  TMessageBodyW = packed record
+    Param1: Word;
+    Param2: Word;
+    Tag1: Word;
+    Tag2: Word;
+  end;
+
+  pTMessageBodyW = ^TMessageBodyW;
+
+  PTMessageBodyL = ^TMessageBodyL;
+
+  TMessageBodyL = packed record
+    lParam1: Integer;
+    lParam2: Integer;
+  end;
+
+  TMessageBodyWL = packed record
+    lParam1: Integer;
+    lParam2: Integer;
+    lTag1: Integer;
+    lTag2: Int64; // 64位修改 2021-01-04
+  end;
+
+  PTMessageBodyWL = ^TMessageBodyWL;
+
+  // 修复别人的护身显示不正常 chongchong 2014-10-27 15:49:55
+  TNewMessageBodyWL = packed record
+    lParam1: Integer;
+    lParam2: Integer;
+    lTag1: Integer;
+    lTag2: Integer;
+    lTag3: Integer;
+    lTag4: Integer;
+    lTag5: Int64;
+    BlastHitType: TBlastHitType;
+    ResID: Integer; // HumanHP命令拓展参数5, <0 代表不启用
+    ResStartIdx: Integer; // HumanHP命令拓展参数6, <0 代表不启用
+{$IF RTLVersion >= 34.0}
+    class operator Initialize(out Dest: TNewMessageBodyWL);
+{$IFEND}
+  end;
+
+  pTNewMessageBodyWL = ^TNewMessageBodyWL;
+
+  TMessageHealthSpellChangedInfo = packed record
+    ChangeHP: LongWord;
+    IsAttackFromHum: Boolean;
+  end;
+
+  pTMessageHealthSpellChangedInfo = ^TMessageHealthSpellChangedInfo;
+
+  TProcessMessage = record
+    wIdent: Word;
+    boLateDelivery: Boolean;
+    wParam: Int64; // 64位修改 2023-07-18
+    nParam1: Int64; // 64位修改 2021-01-04
+    nParam2: Int64; // 64位修改 2021-01-04
+    nParam3: Int64; // 64位修改 2021-01-04
+    BaseObject: Int64; // 64位修改 2023-07-18
+    dwTimeTick: LongWord;
+    dwDeliveryTime: LongWord;
+    sMsg: AnsiString;
+    {$IFNDEF CPUX64}
+    nRev:Integer;  //处理64位M2结构体长度和客户端不对应的问题
+    {$ENDIF}
+  end;
+
+  pTProcessMessage = ^TProcessMessage;
+
+  TClientCmd = record
+    sCmd: string[25];
+    sCaption: string[25];
+  end;
+
+  pTClientCmd = ^TClientCmd;
+
+  TPushedObject = packed record
+    nRecogId: Int64; // 角色标识 0x4 64位修改 2021-01-04
+    nCurrX: Word; // 当前所在地图座标X 0x08
+    nCurrY: Word; // 当前所在地图座标Y 0x0A
+    btDir: Byte; // 当前站立方向 0x0C
+    btStep: Byte;
+  end;
+
+  pTPushedObject = ^TPushedObject;
+
+  TCharDesc = packed record
+    Feature: Byte; // Integer;
+    Status: Int64;
+    MagicLevel: Integer; // 魔法等级 4级技能强化 chongchong 2013-12-04
+  end;
+
+  pTCharDesc = ^TCharDesc;
+
+  TMonHPProgress = packed record
+    nHPBGIndex: Integer;
+    nHPBGX: SmallInt;
+    nHPBGY: SmallInt;
+    nImageIndex: Integer;
+    nImageX: SmallInt;
+    nImageY: SmallInt;
+    nHPIndex: Integer;
+    nHPX: SmallInt;
+    nHPY: SmallInt;
+
+    boShowLevel: SmallInt;
+    nLevelX: SmallInt;
+    nLevelY: SmallInt;
+
+    boShowMonName: SmallInt;
+    nMonNameX: SmallInt;
+    nMonNameY: SmallInt;
+
+    boShowHPValue: SmallInt;
+    nHPValueX: SmallInt;
+    nHPValueY: SmallInt;
+
+    boShowHPPercent: SmallInt;
+    nHPPercentX: SmallInt;
+    nHPPercentY: SmallInt;
+
+    boShowExpHinter: SmallInt;
+    nExpHinterX: SmallInt;
+    nExpHinterY: SmallInt;
+
+    btHorizAlign: Byte;
+
+    wHPBlockCount: Word;
+    nHPBlockOffsetX: SmallInt;
+    nHPBlockOffsetY: SmallInt;
+
+    m_ExpHinterName: string[ACTOR_NAME_LEN];
+  end;
+
+  pTMonHPProgress = ^TMonHPProgress;
+
+  TStdItemEffect = packed record
+    FileIndex: SmallInt; // 物品发光效果 文件编号 0
+    ImageStart: Word; // 物品发光效果 读取位置
+    ImageCount: Byte; // 物品发光效果 读取张数
+    IsDrawCenter: Boolean; // 居中播放
+    IsDrawNoBlend: Boolean; // 非透明绘制
+    IsDrawBelow: Boolean; // 底层绘制
+    OffsetX: SmallInt; // 物品发光效果 微调X
+    OffsetY: SmallInt; // 物品发光效果 微调Y
+    Time: Word; // 播放速度
+  end;
+
+  TStdItem = packed record
+    Name: string[ITEM_NAME_LEN];
+    DBName: string[ITEM_NAME_LEN];
+    StdMode: Byte;
+    Shape: Word;
+    Weight: Byte;
+    AniCount: Word;
+    Source: Integer;
+    Reserved: Byte;
+    NeedIdentify: Byte;
+    Looks: Word;
+    DuraMax: Word;
+    Reserved1: Word;
+    HP: Integer;
+    MP: Integer;
+    AC1: Integer;
+    AC2: Integer;
+    MAC1: Integer;
+    MAC2: Integer;
+    DC1: Integer;
+    DC2: Integer;
+    MC1: Integer;
+    MC2: Integer;
+    SC1: Integer;
+    SC2: Integer;
+    Need: Integer;
+    NeedLevel: Integer;
+    Price: Integer;
+    OverLap: Word; // 是否是重叠物品
+    Color: Byte; // 物品名称颜色
+    Stock: Integer;
+    Light: Integer; // 数据库增加Light字段 piaoyun 2013-08-01
+
+    Horse: Integer;
+    Expand1: Integer;
+    Expand2: Integer;
+    Expand3: Integer;
+    Expand4: Integer;
+    Expand5: Integer;
+
+    Elements: array [0 .. 24] of Word;
+
+    InsuranceCurrency: Integer;
+    InsuranceGold: Integer;
+
+    BagEffect: TStdItemEffect; // 包裹中的物品发光效果
+    BodyEffect: TStdItemEffect; // 内观中物品发光效果
+    Effect: Int64; // 指针改为64位 2021-01-05
+  end;
+
+  pTStdItem = ^TStdItem;
+
+  // 部分字段的StdItem chongchong 2015-01-08
+  PTPartialStdItem = ^TPartialStdItem;
+
+  TPartialStdItem = packed record
+    Name: string[ITEM_NAME_LEN];
+    Looks: Word;
+    StdMode: Byte;
+    Shape: Word;
+    _Horse: Byte;
+  end;
+
+  // 完整字段的StdItem chongchong 2015-01-08
+  PTCompleteStdItem = ^TCompleteStdItem;
+
+  TCompleteStdItem = packed record
+    Index: Integer;
+    StdItem: TStdItem;
+  end;
+
+  PTStdItemsHeader = ^TStdItemsHeader;
+
+  TStdItemsHeader = packed record
+    PartialFieldsCount: Integer; // 部分字段 (整个记录全发了)
+    AllFiledsCount: Integer; // 完整字段 (只发部分记录)
+  end;
+
+  // 自定义物品进度条
+  TUserItemProgress = packed record
+    boOpen: Boolean;
+    btNameColor: Byte;
+    btCount: Byte;
+    btShowType: Byte; // 进度上的值显示方式(0:不显示; 1:百分比; 2:数值;)
+    wMax: Word;
+    wValue: Word;
+    wLevel: Word;
+    sName: string[31];
+  end;
+
+  // 单个属性
+  PCustomProperty = ^TCustomProperty;
+
+  TCustomProperty = packed record
+    btColor: Byte;
+    btBindType: Byte;
+    btShowFlag: Byte;
+    btPercent: Byte; // 0: 点数；1: 单件装备%； 2: 全身装备%
+    btHintModule: Byte;
+    nValues: array [0 .. ITEM_PROP_VALUES_COUNT - 1] of Integer;
+  end;
+
+  PUserItemProperty = ^TUserItemProperty;
+
+  TUserItemProperty = packed record
+    sText: string[128]; // NND,从64又要整到128 2019-03-18 17:18:22
+    btTextColor: Byte;
+    Properties: array [0 .. ITEM_PROP_COUNT - 1] of TCustomProperty;
+  end;
+
+  TUserItemFrom = packed record
+    ItemForm: TItemFormType;
+    sMapName: string[MAP_NAME_LEN];
+    sMonName: string[40];
+    sMakerName: string[ACTOR_NAME_LEN];
+    DateTime: TDateTime;
+  end;
+
+  TFluteInfo = packed record
+    GemIndex: Word; // 宝石索引
+    GemCount: Word; // 宝石叠加数量
+  end;
+
+  TClientItem = packed record // OK
+    s: TStdItem;
+    MakeIndex: Integer;
+    Dura: Word;
+    DuraMax: Word;
+
+    IsBind: Boolean; // 是否绑定
+    btFluteCount: Byte;
+
+    btUpgradeCount: Byte; // 升级次数
+    btHeroM2Light: Byte; // HeroM2 SetItemsLight
+
+    btValue: array [0 .. 13] of Integer; // 附加属性
+    NewValue: array [0 .. 30 - 1] of Word;
+
+    Flutes: array [0 .. MAX_FLUTE_COUNT - 1] of TFluteInfo; // 凹槽宝石信息         16
+
+    Progress: array [0 .. 1] of TUserItemProgress;
+
+    CustomProperty: TUserItemProperty;
+
+    ItemFrom: TUserItemFrom;
+    wInsuranceCount: Word;
+  end;
+
+  PTClientItem = ^TClientItem;
+
+  TMagic_C = packed record
+    MagicAttr: TMagicAttr;
+    wMagicId: Word;
+    sMagicName: string[ITEM_NAME_LEN];
+    btEffectType: Byte;
+    btEffect: Byte;
+    wSpell: Word;
+    MaxTrain: array [0 .. 15] of Integer;
+    btTrainLv: Byte; // 最高可升级等级
+    dwMagicDelayTime: LongWord;
+    wDefSpell: Word;
+    CanUpgrade: Integer; // 是否允许升级 chongchong 2013-12-06
+    MaxUpgradeLevel: Integer; // 最高
+  end;
+
+  pTMagic_C = ^TMagic_C;
+
+  TClientMagic = packed record // 84
+    Key: AnsiChar;
+    Level: Byte;
+    NewLevel: Byte; // 九重
+    CurTrain: Integer;
+    Def: TMagic_C;
+    dwInterval: LongWord;
+    dwRealInterval: LongWord;
+    dwLastUseTick: LongWord;
+  end;
+
+  PTClientMagic = ^TClientMagic;
+
+  // 解绑物品 UnbindList.txt chongchong 2014-05-15
+  TUnbindItemInfo = record
+    sItemName: string;
+    nShape: Integer;
+    nCount: Integer;
+  end;
+
+  pTUnbindItemInfo = ^TUnbindItemInfo;
+
+  THumMagic = record
+    MagicAttr: TMagicAttr;
+    wMagIdx: Word;
+    btLevel: Byte;
+    btNewLevel: Byte;
+    btKey: Byte;
+    nTranPoint: Integer; // 当前持久值
+    boUsesItemAdd: Boolean; // 是否为装备触发
+  end;
+
+  pTHumMagic = ^THumMagic;
+
+  // 内功属性
+  TAbilityNG = packed record
+    Level: Word; // 内功等级
+    NH: Word; // 当前内力值
+    MaxNH: Word; // 内力值上限
+    Exp: LongWord; // 当前内功经验
+    MaxExp: LongWord; // 当前内功最高经验
+  end;
+
+  pTAbilityNG = ^TAbilityNG;
+
+  TClientAbilityNG = packed record
+    Level: Word; // 内功等级
+    NH: Word; // 当前内力值
+    MaxNH: Word; // 内力值上限
+    Exp: LongWord; // 当前内功经验
+    MaxExp: LongWord; // 当前内功最高经验
+    NGDamage: Integer; // 内功增加伤害
+    UnNGDamage: Integer; // 内功减少伤害
+  end;
+
+  PTClientAbilityNG = ^TClientAbilityNG;
+
+  TAbilityAlcohol = packed record // 酒属性
+    Alcohol: Word; // 酒量
+    MaxAlcohol: Word; // 酒量上限
+    WineDrinkValue: Word; // 醉酒度
+    MedicineLevel: Integer; // 药力值等级
+    MedicineValue: Word; // 当前药力值
+    MaxMedicineValue: Word; // 药力值上限
+  end;
+
+  pTAbilityAlcohol = ^TAbilityAlcohol;
+
+  TNakedAbility = packed record // Size 20 客户端加属性点控制
+    DC: Integer; // 物理攻击下限
+    MC: Integer; // 魔法攻击下限
+    SC: Integer; // 道术攻击下限
+    AC: Integer; // 物理防御下限
+    MAC: Integer; // 魔法防御下限
+    HP: Integer; // 生命
+    MP: Integer; // 魔法
+    Hit: Integer; // 命中
+    Speed: Integer; // 闪避
+    X2: Integer; // 上限倍数 (只针对老端)
+  end;
+
+  pTNakedAbility = ^TNakedAbility;
+
+  TAdjustBonus = packed record // Size 20 客户端加属性点控制
+    BonusTick: TNakedAbility;
+    BonusAbil: TNakedAbility;
+    NakedAbil: TNakedAbility;
+  end;
+
+  PTAdjustBonus = ^TAdjustBonus;
+
+  TNoBoundAbility = packed record // OK    //Size 40
+    AC1: Integer; // 0x19A  //0x36  0x02
+    AC2: Integer; // 0x19A  //0x36  0x02
+    MAC1: Integer; // 0x19C  //0x38  0x04
+    MAC2: Integer; // 0x19C  //0x38  0x04
+    DC1: Integer; // 0x19E  //0x3A  0x06
+    DC2: Integer; // 0x19E  //0x3A  0x06
+    MC1: Integer; // 0x1A0  //0x3C  0x08
+    MC2: Integer; // 0x1A0  //0x3C  0x08
+    SC1: Integer; // 0x1A2  //0x3E  0x0A
+    SC2: Integer; // 0x1A2  //0x3E  0x0A
+    MaxHP: LongWord; // 0x1A8  //0x44  0x10
+    MaxMP: LongWord; // 0x1AA  //0x46  0x12
+  end;
+
+  pTNoBoundAbility = ^TNoBoundAbility;
+
+  // 21亿修改结构体 chongchong 2015-02-10
+  TAbility = packed record // OK    //Size 40
+    Level: LongWord; // 0x198  //0x34  0x00
+    AC1: Integer; // 0x19A  //0x36  0x02
+    AC2: Integer; // 0x19A  //0x36  0x02
+    MAC1: Integer; // 0x19C  //0x38  0x04
+    MAC2: Integer; // 0x19C  //0x38  0x04
+    DC1: Integer; // 0x19E  //0x3A  0x06
+    DC2: Integer; // 0x19E  //0x3A  0x06
+    MC1: Integer; // 0x1A0  //0x3C  0x08
+    MC2: Integer; // 0x1A0  //0x3C  0x08
+    SC1: Integer; // 0x1A2  //0x3E  0x0A
+    SC2: Integer; // 0x1A2  //0x3E  0x0A
+    HP: LongWord; // 0x1A4  //0x40  0x0C
+    MP: LongWord; // 0x1A6  //0x42  0x0E
+    MaxHP: LongWord; // 0x1A8  //0x44  0x10
+    MaxMP: LongWord; // 0x1AA  //0x46  0x12
+    Exp: LongWord; // 0x1B0  //0x4C 0x18
+    MaxExp: LongWord; // 0x1B4  //0x50 0x1C
+    Weight: LongInt; // 0x1B8   //0x54 0x20
+    MaxWeight: LongInt; // 0x1BA   //0x56 0x22  背包
+    WearWeight: LongInt; // 0x1BC   //0x58 0x24
+    MaxWearWeight: LongInt; // 0x1BD   //0x59 0x25  负重
+    HandWeight: LongInt; // 0x1BE   //0x5A 0x26
+    MaxHandWeight: LongInt; // 0x1BF   //0x5B 0x27  腕力
+    CreditPoint: Integer; // 声望
+    NewValue: array [0 .. 30 - 1] of LongWord;
+    // 0暴击几率增加 1增加攻击伤害  2物理伤害减少 3魔法伤害减少  4忽视目标防御
+    // 5所有伤害反弹 6增加目标暴率 7人物体力增加  8人物魔力增加 9怒气恢复增加
+    // 10合击攻击增加 11 怪物爆率 12 防爆出率 13 防麻痹 14 防护身 15 防复活
+    // 16 防毒  17 防诱惑  18 防火墙  19 防冰冻  20 防蛛网, 21 致命几率
+    // 22 致命伤害  23 致命防御  24 暴击抗性
+  end;
+
+  pTAbility = ^TAbility;
+
+  // 21亿修改结构体 chongchong 2015-02-10
+  TOAbility = packed record
+    Level: Integer; // 0x198  //0x34  0x00
+    AC1: Integer; // 0x19A  //0x36  0x02
+    AC2: Integer; // 0x19A  //0x36  0x02
+
+    MAC1: Integer; // 0x19C  //0x38  0x04
+    MAC2: Integer; // 0x19C  //0x38  0x04
+
+    DC1: Integer; // 0x19E  //0x3A  0x06
+    DC2: Integer; // 0x19E  //0x3A  0x06
+
+    MC1: Integer; // 0x1A0  //0x3C  0x08
+    MC2: Integer; // 0x1A0  //0x3C  0x08
+
+    SC1: Integer; // 0x1A2  //0x3E  0x0A
+    SC2: Integer; // 0x1A2  //0x3E  0x0A
+
+    HP: LongWord; // 0x1A4  //0x40  0x0C
+    MP: LongWord; // 0x1A6  //0x42  0x0E
+    MaxHP: LongWord; // 0x1A8  //0x44  0x10
+    MaxMP: LongWord; // 0x1AA  //0x46  0x12
+    Exp: LongWord; // 0x1B0  //0x4C 0x18
+    MaxExp: LongWord; // 0x1B4  //0x50 0x1C
+    Weight: Integer; // 0x1B8   //0x54 0x20
+    MaxWeight: Integer; // 0x1BA   //0x56 0x22  背包
+    WearWeight: Integer; // 0x1BC   //0x58 0x24
+    MaxWearWeight: Integer; // 0x1BD   //0x59 0x25  负重
+    HandWeight: Integer; // 0x1BE   //0x5A 0x26
+    MaxHandWeight: Integer; // 0x1BF   //0x5B 0x27  腕力
+    CreditPoint: Integer; // 声望
+  end;
+
+  pTOAbility = ^TOAbility;
+
+  // 21亿修改结构体 chongchong 2015-02-10
+  TAddAbility = record // OK    //Size 40
+    wHP: LongWord;
+    wMP: LongWord;
+    wHitPoint: Word;
+    wSpeedPoint: Word;
+    nAC1: Integer;
+    nAC2: Integer;
+    nMAC1: Integer;
+    nMAC2: Integer;
+    nDC1: Integer;
+    nDC2: Integer;
+    nMC1: Integer;
+    nMC2: Integer;
+    nSC1: Integer;
+    nSC2: Integer;
+    bt1DF: Byte; // 神圣
+    wAntiPoison: Word;
+    wPoisonRecover: Word;
+    wHealthRecover: Word;
+    wSpellRecover: Word;
+    wAntiMagic: Word;
+    btLuck: Byte;
+    btUnLuck: Byte;
+    nHitSpeed: Integer;
+    btWeaponStrong: Byte; // 武器强度
+    wNPRecoverTime: Word; // 增加内力恢复速度 %
+    wNPRecoverPoint: Word; // 内力恢复速度加几点
+  end;
+
+  pTAddAbility = ^TAddAbility;
+
+  TWAbility = record
+    dwExp: LongWord; // 怪物经验值(Dword)
+    wHP: Integer;
+    wMP: Integer;
+    wMaxHP: Integer;
+    wMaxMP: Integer end;
+
+    TUserItem = packed record MakeIndex: Integer;
+    wIndex: Word; // 物品id
+    Name: string[ITEM_NAME_LEN];
+    Dura: Word; // 当前持久值
+    DuraMax: Word; // 最大持久值
+    btValue: array [0 .. 13] of Integer;
+
+    dwHeroM2DressEffect: LongWord; // 特效编号 + boHeroM2DressNoBlend  MakeLong(btHeroM2DressEffect + boHeroM2DressNoBlend)
+
+    btUpgradeCount: Byte; // 升级次数
+    boStartTime: Boolean; // 是否开始计时
+    nLimitTime: Integer; // 限时物品 分钟
+    btHeroM2Light: Byte; // HeroM2 SetItemsLight
+    btNewValue: array [0 .. 30 - 1] of Word;
+    // 0 暴击几率增加   1 增加攻击伤害   2 物理伤害减少  3 魔法伤害减少  4 忽视目标防御
+    // 5 所有伤害反弹   6 增加目标暴率   7 人物体力增加  8 人物魔力增加  9 怒气恢复增加
+    // 10合击攻击增加
+    btColor: Byte;
+
+    boIsBind: Boolean; // 是否绑定
+    btBindOption: Byte;
+    // 绑定选项对应Bit位 TUserItemBindValueType
+    // 1: 禁止扔
+    // 2: 禁止交易
+    // 3: 禁止存
+    // 4: 禁止修
+    // 5: 禁止出售
+    // 6: 禁止爆出
+    // 7: 丢弃消失
+
+    wEffect: Word; // 特效编号 新
+
+    // 装备凹槽 chongchong 2015-01-02
+    btFluteCount: Byte; // 凹槽数量             1
+    Flutes: array [0 .. MAX_FLUTE_COUNT - 1] of TFluteInfo; // 凹槽宝石信息         16
+
+    Progress: array [0 .. 1] of TUserItemProgress;
+    CustomProperty: TUserItemProperty;
+
+    ItemFrom: TUserItemFrom;
+
+    wInsuranceCount: Word; // 投保次数
+    wNewLooks: Word;
+    wNewShape: Word;
+
+    wNewExpand3: Word;
+    wNewExpand4: Word;
+
+    btAddDataByte: array [0 .. USER_ITEM_ADD_DATA_BYTE_COUNT - 1] of Byte;
+    nAddDataInt: array [0 .. USER_ITEM_ADD_DATA_INT_COUNT - 1] of Integer;
+    sAddDataText: array [0 .. USER_ITEM_ADD_DATA_TEXT_COUNT - 1] of string[20];
+  end;
+
+  pTUserItem = ^TUserItem;
+
+  THumanRcd = record
+    sUserID: string[ACCOUNT_LEN];
+    sCharName: string[14];
+    btJob: Byte;
+    btGender: Byte;
+    btLevel: Byte;
+    btHair: Byte;
+    sMapName: string[MAP_NAME_LEN];
+    btAttackMode: Byte;
+    btIsAdmin: Byte;
+    nX: Integer;
+    nY: Integer;
+    nGold: Integer;
+    dwExp: LongWord;
+  end;
+
+  pTHumanRcd = ^THumanRcd;
+
+  PCheckDBMsgHeader = ^TCheckDBMsgHeader;
+
+  TCheckDBMsgHeader = record
+    wIndent: Word;
+    wData: Word;
+  end;
+
+  TGlobaSessionInfo = record
+    sAccount: string;
+    sIPaddr: string;
+    nSessionID: Integer;
+    n24: Integer;
+    bo28: Boolean;
+    boLoadRcd: Boolean;
+    boStartPlay: Boolean;
+    boHeroLoadRcd: Boolean;
+    dwAddTick: LongWord;
+    dAddDate: TDateTime;
+  end;
+
+  pTGlobaSessionInfo = ^TGlobaSessionInfo;
+
+  TMeridian = packed record // 经脉
+    Acupoints: array [0 .. 4] of Byte; // 穴位 每条脉有5个穴位 是否打通
+    Level: Byte; // 经脉等级
+    BlastHitRate: Byte; // 连击技能的暴击机率
+  end;
+
+  pTMeridian = ^TMeridian;
+
+  TStorageViewItemListHeader = packed record
+    Count: Integer;
+    MaxCount: Integer;
+    Page: Word;
+    MaxPage: Word;
+    PosX: Word;
+    PosY: Word;
+  end;
+
+  PTStorageViewItemListHeader = ^TStorageViewItemListHeader;
+
+  PDBGuildMemberInfo = ^TDBGuildMemberInfo;
+
+  TDBGuildMemberInfo = packed record
+    sName: string[ACTOR_NAME_LEN];
+    btSex: Byte;
+    btJob: Byte;
+    nLevel: LongWord;
+    dtLastLogin: TDateTime;
+  end;
+
+  TGuildMemeberInfo = packed record
+    sName: string[ACTOR_NAME_LEN];
+    boOnline: Boolean;
+    boMaster: Boolean;
+    btSex: Byte;
+    btJob: Byte;
+    nLevel: LongWord;
+    nRankName: string[100];
+    dtLastLogin: TDateTime;
+  end;
+
+  pTGuildMemeberInfo = ^TGuildMemeberInfo;
+
+  TSocketHeader = record
+    dwCode1: LongWord;
+    wIdent: Word;
+    wReserved: Word;
+    dwCode2: LongWord;
+    dwCrc: LongWord;
+    nLength: Integer;
+  end;
+
+  pTSocketHeader = ^TSocketHeader;
+
+  TQuestFlag = array [0 .. 127] of Byte;
+
+  TStatusTime = array [0 .. MAX_STATUS_ATTR - 1] of Word;
+
+  // 防御，魔御，攻击，魔法，道术
+  TAddNewExtType = (anet_AddAC1, anet_AddAC2, anet_AddMAC1, anet_AddMAC2, anet_AddDC1, anet_AddDC2, anet_AddMC1, anet_AddMC2,
+    anet_AddSC1, anet_AddSC2, anet_AddHitPoint, anet_AddSpeedPoint, anet_AddAntiMagic, anet_AddAntiPoison, anet_AddNGDamage,
+    anet_AddNGDefense, anet_AddMaxHP, anet_AddMaxMP, anet_AddBlastHit { 0 } , anet_AddDamageAdd { 1 } , anet_AddDamageDec { 2 } ,
+    anet_AddSpellDamageDec { 3 } , anet_AddCloseDefense { 4 } , anet_AddDamageRebound { 5 } , anet_AddMonDropRate { 6 } ,
+    anet_AddMaxHPAdd { 7 } , anet_AddMaxMPAdd { 8 } , // 6  怪物爆率
+    anet_AddAngryValueTimAdd { 9 } , anet_AddGroupDamageAdd { 10 } , anet_AddHuamDropRate { 11 } , anet_AddUndropRate { 12 } ,
+    // 11 人物爆率  12 防爆出率
+    anet_AddUnParalysis { 13 } , anet_AddUnMagicShield { 14 } , anet_AddUnRevival { 15 } , anet_AddUnPosion { 16 } ,
+    anet_AddUnTamming
+    { 17 } , anet_AddUnFireCross { 18 } , anet_AddUnFrozen { 19 } , anet_AddUnCobwebWinding { 20 } , anet_AddFatalBlowRate { 21 } ,
+      anet_AddFatalBlowPower { 22 } , anet_AddFatalBlowDefense { 23 } , anet_AddUnBlastHit { 24 } , anet_SubAC1, anet_SubAC2,
+      anet_SubMAC1, anet_SubMAC2, anet_SubDC1, anet_SubDC2, anet_SubMC1, anet_SubMC2, anet_SubSC1, anet_SubSC2, anet_SubHitPoint,
+      anet_SubSpeedPoint, anet_SubAntiMagic, anet_SubAntiPoison, anet_SubBlastHit { 0 } , anet_SubDamageAdd { 1 } ,
+      anet_SubDamageDec
+    { 2 } , anet_SubSpellDamageDec { 3 } , anet_SubCloseDefense { 4 } , anet_SubDamageRebound { 5 } , anet_SubMonDropRate { 6 } ,
+      anet_SubMaxHPAdd { 7 } , anet_SubMaxMPAdd { 8 } , // 6  怪物爆率
+      anet_SubAngryValueTimAdd { 9 } , anet_SubGroupDamageAdd { 10 } , anet_SubHuamDropRate { 11 } , anet_SubUndropRate { 12 } ,
+    // 11 人物爆率  12 防爆出率
+      anet_SubUnParalysis { 13 } , anet_SubUnMagicShield { 14 } , anet_SubUnRevival { 15 } , anet_SubUnPosion { 16 } ,
+      anet_SubUnTamming
+    { 17 } , anet_SubUnFireCross { 18 } , anet_SubUnFrozen { 19 } , anet_SubUnCobwebWinding { 20 } , anet_SubFatalBlowRate { 21 } ,
+      anet_SubFatalBlowPower { 22 } , anet_SubFatalBlowDefense, { 23 } anet_SubUnBlastHit { 24 }
+);
+
+  TBagItems = array [0 .. ALL_BAG_ITEM_COUNT - 1] of TUserItem;
+
+  pTBagItems = ^TBagItems;
+
+  TClientBagItems = array [0 .. ALL_BAG_ITEM_COUNT - 1] of TClientItem;
+
+  pTClientBagItems = ^TClientBagItems;
+
+  TStorageItems = array [0 .. 195] of TUserItem; // 扩展仓库 chongchong 2017-04-30 原始值  45
+
+  pTStorageItems = ^TStorageItems;
+
+  THumMagics = array [0 .. 47] of THumMagic;
+
+  pTHumMagics = ^THumMagics;
+
+  THumNGMagics = array [0 .. 47] of THumMagic; // 内功
+
+  pTHumNGMagics = ^THumNGMagics;
+
+  THumContinuousMagics = array [0 .. 5] of THumMagic; // 连击技能
+
+  pTHumContinuousMagics = ^THumContinuousMagics;
+
+  THumanUseItems = array [0 .. MAX_USE_ITEM_COUNT - 1] of TUserItem; // 加盾牌 原为0..15 chongchong 2013-09-16
+
+  pTHumanUseItems = ^THumanUseItems;
+
+  THeroBagItems = array [0 .. MAX_HERO_BAG_ITEM - 1] of TUserItem;
+
+  pTHeroBagItems = ^THeroBagItems;
+
+  TClientHeroBagItems = array [0 .. MAX_HERO_BAG_ITEM - 1] of TClientItem;
+
+  pTClientHeroBagItems = ^TClientHeroBagItems;
+
+  TGamePetBagItems = array [0 .. MAX_GAMEPET_BAG_COUNT - 1] of TUserItem;
+
+  pTGamePetBagItems = ^TGamePetBagItems;
+
+  THumMeridians = array [0 .. 4] of TMeridian; // 人物经络
+
+  PTHumMeridians = ^THumMeridians;
+
+  THumanJewelryBoxItems = array [0 .. 5] of TUserItem; // 首饰盒 chongchong 2013-10-20
+
+  pTHumanJewelryBoxItems = ^THumanJewelryBoxItems;
+
+  THumanItemBoxItems = array [0 .. 31] of Integer; // 自义定OK框 chongchong 2013-10-20
+
+  THumanGodBlessItems = array [0 .. 11] of TUserItem; // 神佑袋 chongchong 2014-04-17
+
+  TGodBlessItemsState = array [Low(THumanGodBlessItems) .. High(THumanGodBlessItems)] of Byte;
+
+  pTGodBlessItemsState = ^TGodBlessItemsState;
+
+  pTHumanGodBlessItems = ^THumanGodBlessItems;
+
+  THumanFengHaoItems = array [0 .. 59] of TUserItem; // 封号 chongchong 2014-05-23
+
+  TUserStateInfo = packed record
+    RaceServer: Integer;
+    Feature: TFeature;
+    UserName: string[ACTOR_NAME_LEN];
+    NAMECOLOR: Integer;
+    GuildName: string[ACTOR_NAME_LEN];
+    GuildRankName: string[ACTOR_NAME_LEN];
+    UseItems: array [Low(THumanUseItems) .. High(THumanUseItems)] of TClientItem;
+    JewelryBoxStatus: TJewelryBoxStatus;
+    JewelryItems: array [Low(THumanJewelryBoxItems) .. High(THumanJewelryBoxItems)] of TClientItem;
+
+    ShowGodBless: Boolean;
+    GodBlessItemsState: TGodBlessItemsState;
+    GodBlessItems: array [Low(THumanGodBlessItems) .. High(THumanGodBlessItems)] of TClientItem;
+  end;
+
+  pTUserStateInfo = ^TUserStateInfo;
+
+  TSaveNpcSkillPowerAdd = packed record
+    HumanAttackPercent: SmallInt;
+    HumanAttackValue: SmallInt;
+    MonAttackPercent: SmallInt;
+    MonAttackValue: SmallInt;
+    DefensePercent: SmallInt;
+    DefenseValue: SmallInt;
+    RemainingTime: Word;
+  end;
+
+  TItemCount = Integer;
+
+  TMoney = packed record
+    sName: string[30];
+    nCount: Integer;
+  end;
+
+  PTHeroData = ^THeroData;
+
+  THeroData = packed record
+    sAccount: string[ACCOUNT_LEN];
+    sChrName: string[ACTOR_NAME_LEN];
+
+    btSex: Byte;
+    btHair: Byte;
+    btJob: Byte;
+
+    btStatus: Byte; // 状态 0:攻击 1:休息 2:跟随
+    btDir: Byte;
+
+    sCurMap: string[MAP_NAME_LEN];
+    wCurX: Word;
+    wCurY: Word;
+
+    // sHomeMap: string[MAP_NAME_LEN];
+    // wHomeX: Word;
+    // wHomeY: Word;
+
+    btAttackMode: Byte;
+    nPKPoint: Integer;
+
+    sMasterName: string[ACTOR_NAME_LEN];
+
+    btReLevel: Byte;
+    rLoyalPoint: Real; // 忠诚度
+
+    btIncHealth: Byte;
+    btIncSpell: Byte;
+    btIncHealing: Byte;
+
+    btFightZoneDieCount: Byte;
+    dBodyLuck: Double; // 幸运度  8
+    nHungerStatus: Integer;
+    nRevivalTime: Integer; // 复活时间
+
+    boSaveKillMonExpRate: Boolean;
+    nKillMonExpRate: Integer;
+    dwKillMonExpRateTime: LongWord;
+
+    boAttackHumSavePowerRate: Boolean;
+    nAttackHumPowerRate: Integer;
+    dwAttackHumPowerRateTime: LongWord;
+
+    boAttackMonSavePowerRate: Boolean;
+    nAttackMonPowerRate: Integer;
+    dwAttackMonPowerRateTime: LongWord;
+
+    boSaveKillMonBurstRate: Boolean;
+    nKillMonBurstRate: Integer; // 杀怪暴率 chonghcong 2015-11-17
+    dwKillMonBurstRateTime: LongWord;
+
+    dwHighLevelKillMonFixExpTimeLeft: LongWord;
+
+    Abil: TOAbility; // +40
+
+    // ------------------------------------内功相关-----------------------------------------
+    boTrainingNG: Boolean; // 是否学习过内功
+    AbilNG: TAbilityNG; // 内功属性
+    boOpenLastContinuous: Boolean; // 第四个连击是否开启
+    btLastContinuousMagicOrder: Byte; // 第四个连击顺序
+    ContinuousMagicOrder: array [0 .. 2] of Byte; // 连击顺序
+
+    boTrainingXF: Boolean; // 是否学习过心法
+    Meridians: THumMeridians; // 人物经络
+    // -------------------------------------------------------------------------------------
+
+    nDrinkWineQuality: Integer; // 饮酒时酒的品质
+    nDrinkWineAlcohol: Integer; // 饮酒时酒的度数
+    boDrinkWineDrunk: Boolean; // 人是否喝酒醉了
+    Alcohol: TAbilityAlcohol; // 酒属性
+    // -------------------------------------------------------------------------------------
+
+    boShowFashion: Boolean; // 是否显示时装 chongchong 2013-10-23
+    boShowGodBless: Boolean;
+    JewelryBoxStatus: TJewelryBoxStatus; // 首饰盒状态 0:未激活; 1:激活; 2:开启 chongchong 2013-10-19
+    nActiveFengHao: Shortint; // 当前激活的称号 chongchong 2014-05-23
+
+    HumItems: THumanUseItems; // 衣服  武器  蜡烛 头盔 项链 手镯 手镯 戒指 戒指 斗笠
+    BagItems: TBagItems; // 包裹装备
+    JewelryBoxItems: THumanJewelryBoxItems; // 首饰盒
+
+    GodBlessItemsState: TGodBlessItemsState;
+    GodBlessItems: THumanGodBlessItems; // 神佑袋 chongchong 2014-04-17
+
+    FengHaoItems: THumanFengHaoItems; // 称号 chongchong 2014-05-23
+
+    Magics: THumMagics; // 魔法
+    NGMagics: THumNGMagics; // 内功
+    ContinuousMagics: THumContinuousMagics; // 连击技能
+
+    wStatusTimeArr: TStatusTime; // +24
+    QuestFlag: TQuestFlag; // 脚本变量
+
+    AddSaveAbil: array [0 .. 30 - 1] of Integer;
+    NpcSkillPowerAdd: array [0 .. DEF_MAGIC_COUNT + CUSTOM_MAGIC_COUNT - 1] of TSaveNpcSkillPowerAdd;
+  end;
+
+  TGamePetData = packed record
+    sName: string[ITEM_NAME_LEN];
+    // UseItems: TGamePetUseItems;
+    Level: LongWord;
+    HP: LongWord;
+    MP: LongWord;
+    Exp: LongWord;
+    wMagics: array [0 .. MAX_GAMEPET_MAGIC_COUNT - 1] of Word; // 技能
+    DieTick: LongWord; // 死亡时间
+  end;
+
+  pTGamePetData = ^TGamePetData;
+
+  TGamePetAbility = packed record
+    Level: LongWord;
+    AC1: Integer;
+    AC2: Integer;
+    MAC1: Integer;
+    MAC2: Integer;
+    DC1: Integer;
+    DC2: Integer;
+    MC1: Integer;
+    MC2: Integer;
+    SC1: Integer;
+    SC2: Integer;
+    HP: LongWord;
+    MP: LongWord;
+    MaxHP: LongWord;
+    MaxMP: LongWord;
+    Exp: LongWord;
+    MaxExp: LongWord;
+  end;
+
+  pTGamePetAbility = ^TGamePetAbility;
+
+  TClientGamePetShowConfig = packed record
+    wAppr: Word;
+
+    ShowFile1: SmallInt;
+    ShowStart1: SmallInt;
+    ShowCount1: SmallInt;
+    ShowTime1: SmallInt;
+    ShowOffsetX1: SmallInt;
+    ShowOffsetY1: SmallInt;
+
+    ShowFile2: SmallInt;
+    ShowStart2: SmallInt;
+    ShowCount2: SmallInt;
+    ShowTime2: SmallInt;
+    ShowOffsetX2: SmallInt;
+    ShowOffsetY2: SmallInt;
+  end;
+
+  TClientGamePetData = packed record
+    sName: string[ITEM_NAME_LEN];
+    // UseItems: array[0..MAX_GamePet_USEITEM_COUNT - 1] of TClientItem;
+    GamePetAbility: TGamePetAbility;
+    wMagics: array [0 .. MAX_GAMEPET_MAGIC_COUNT - 1] of Word; // 技能
+    ShowConfig: TClientGamePetShowConfig;
+  end;
+
+  pTClientGamePetData = ^TClientGamePetData;
+
+  THumData = packed record // Size = 3164
+    sAccount: string[ACCOUNT_LEN];
+    sChrName: string[ACTOR_NAME_LEN];
+
+    btSex: Byte;
+    btJob: Byte;
+    btHair: Byte;
+    btDir: Byte;
+
+    btReLevel: Byte;
+    Abil: TOAbility; // +40
+
+    nBonusPoint: Integer; // 属性点
+    BonusAbil: TNakedAbility; // +20
+
+    sCurMap: string[MAP_NAME_LEN];
+    wCurX: Word;
+    wCurY: Word;
+
+    sHomeMap: string[MAP_NAME_LEN];
+    wHomeX: Word;
+    wHomeY: Word;
+
+    btAttackMode: Byte;
+    sStoragePwd: string[7];
+
+    nGold: LongWord;
+    nGameGold: LongWord; // 元宝
+    nGamePoint: LongWord; // 游戏点
+    nGameDiamond: LongWord; // 金刚石
+    nGameGird: LongWord; // 灵符
+    nGameGoldEx: Integer; // 新游戏点
+    nGameGlory: Integer; // 荣誉
+    nPKPoint: Integer;
+    nPayMentPoint: Integer; // 充值点
+
+    nMemberType: Integer; // 会员类型 chongchong 2018-02-06
+    nMemberLevel: Integer; // 会员等级 chongchong 2018-02-06
+
+    boMaster: Boolean;
+    sMasterName: string[ACTOR_NAME_LEN];
+    wMasterCount: Word; // 出师徒弟数
+    btMarryCount: Byte; // 结婚次数
+    sDearName: string[ACTOR_NAME_LEN];
+
+    btIncHealth: Byte;
+    btIncSpell: Byte;
+    btIncHealing: Byte;
+
+    btFightZoneDieCount: Byte;
+    dBodyLuck: Double; // 幸运度  8
+    wContribution: Word; // 贡献度
+    nHungerStatus: Integer;
+    nKickCount: Integer; // 踢下线次数
+
+    boLockLogin: Boolean;
+    boAllowGroup: Boolean;
+    boAllowGroupReCall: Boolean; // 是否允许天地合一
+    wGroupRecallTime: Word; // 队传送时间
+    boAllowGuildReCall: Boolean; // 是否允许行会合一
+    boDisableTrading: Boolean; // 禁止交易
+    boDisableInviteHorseRiding: Boolean; // 禁止邀请上马 chongchong 2013-10-16
+    boGameGoldTrading: Boolean; // 是否开启元宝交易
+    boNewServer: Boolean; // 合过区没有登录过的
+
+    // 将下面一个参数分为3个 chongchong 2017-04-16
+
+    // boFilterGlobalMsg: Boolean;                                                                   // 保存过滤消息 chongchong 2015-11-02
+    boFilterGlobalDropItemMsg: Boolean; // 过滤掉落提示信息 chongchong 2017-04-16
+    boFilterGlobalCenterMsg: Boolean; // 过滤SendCenterMsg chongchong 2017-04-16
+    boFilterGolbalSendMsg: Boolean; // 过滤SendMsg全局信息 chongchong 2017-04-16
+
+    boFixedHero: Boolean; // 是否评定主副英雄
+    boStorageHero: Boolean; // 英雄是否寄存
+    boStorageDeputyHero: Boolean; // 副将英雄是否寄存
+
+    sHeroName: string[ACTOR_NAME_LEN]; // 英雄名字
+    sDeputyHeroName: string[ACTOR_NAME_LEN]; // 副将英雄名字
+    btDeputyHeroJob: Byte; // 副将英雄出生职业
+
+    btNation: Byte; // 国家编号
+    nNationCredit: Integer; // 国战荣誉
+
+    nRevivalTime: Integer; // 复活时间
+    dwInfinityStorageExtCount: Word; // 无限仓库扩展 chongchong 2016-05-10 ++++++++++++++++++++++++++
+
+    boTrainingNG: Boolean; // 是否学习过内功
+    boTrainingXF: Boolean; // 是否学习过心法
+    AbilNG: TAbilityNG; // 内功属性
+    NGMagics: THumNGMagics; // 内功
+    Meridians: THumMeridians; // 人物经络
+    boOpenLastContinuous: Boolean; // 第四个连击是否开启
+    btLastContinuousMagicOrder: Byte; // 第四个连击顺序
+    ContinuousMagicOrder: array [0 .. 2] of Byte; // 连击顺序
+    ContinuousMagics: THumContinuousMagics; // 连击技能
+
+    boPleaseDrink: Boolean; // 是否请过酒
+    nDrinkWineQuality: Integer; // 饮酒时酒的品质
+    nDrinkWineAlcohol: Integer; // 饮酒时酒的度数
+    boDrinkWineDrunk: Boolean; // 人是否喝酒醉了
+    Alcohol: TAbilityAlcohol; // 酒属性
+
+    boShowFashion: Boolean; // 是否显示时装 chongchong 2013-10-23
+    btExtBagPageCount: Byte;
+    btExtBagOpenItemCount: Byte;
+    dwAddMaxWeight: LongInt;
+
+    HumItems: THumanUseItems; // 衣服  武器  蜡烛 头盔 项链 手镯 手镯 戒指 戒指 斗笠 时装衣 时装武器
+    BagItems: TBagItems; // 包裹装备
+    StorageItems: TStorageItems; // 仓库物品
+    boStorageOpen: array [0 .. 3] of Boolean; // 仓库是否开启
+    Magics: THumMagics; // 魔法
+
+    JewelryBoxStatus: TJewelryBoxStatus; // 首饰盒状态 0:未激活; 1:激活; 2:开启 chongchong 2013-10-19
+    JewelryBoxItems: THumanJewelryBoxItems; // 首饰盒
+
+    boShowGodBless: Boolean;
+    GodBlessItemsState: TGodBlessItemsState;
+    GodBlessItems: THumanGodBlessItems; // 神佑袋 chongchong 2014-04-17
+
+    nActiveFengHao: Shortint; // 当前激活的称号 chongchong 2014-05-23
+    FengHaoItems: THumanFengHaoItems; // 称号 chongchong 2014-05-23
+
+    GamePetBagItems: TGamePetBagItems; // 宠物背包 chongchong 2016-05-21
+    GamePetData: array [0 .. MAX_GAMEPET_COUNT - 1] of TGamePetData; // 宠物数据 chongchong 2016-05-21
+
+    wStatusTimeArr: TStatusTime; // 中状态剩余时间
+    QuestFlag: TQuestFlag; // 脚本变量
+
+    UValues: array [0 .. 499] of Integer; // 私有变量U 数字型 chongchong 2014-10-18
+    TValues: array [0 .. 499] of string[100]; // 私有变量T 字符串型 chongchong 2014-10-18
+    JValues: array [0 .. 499] of Integer; // 私有变量J 数字型(一天一清) chongchong 2018-07-19 16:41:43
+    ZValues: array [0 .. 499] of string[100]; // 私有变量Z 字符型(一天一清) By 一支笔 at:2021-12-18 15:08:58
+
+    AddSaveAbil: array [0 .. 30 - 1] of Integer; // 永久调整人物属性 chongchong 2015-06-12
+    CustomSkillUseTicks: array [0 .. CUSTOM_MAGIC_COUNT - 1] of Integer; // 自定义技能最后使用时间
+
+    boSaveKillMonExpRate: Boolean;
+    nKillMonExpRate: Integer; // 修改chongchong 2015-11-19
+    dwKillMonExpRateTime: LongWord;
+
+    boAttackHumSavePowerRate: Boolean;
+    nAttackHumPowerRate: Integer;
+    dwAttackHumPowerRateTime: LongWord;
+
+    boAttackMonSavePowerRate: Boolean;
+    nAttackMonPowerRate: Integer;
+    dwAttackMonPowerRateTime: LongWord;
+
+    boSaveKillMonBurstRate: Boolean;
+    nKillMonBurstRate: Integer; // 杀怪暴率 chonghcong 2015-11-17
+    dwKillMonBurstRateTime: LongWord;
+
+    dwFBCreateTime: LongWord; // 所在副本地图创建时间 chongchong 2013-09-11
+    dwHighLevelKillMonFixExpTimeLeft: LongWord; // 高等级杀怪经验不变剩余时间 chongchong 2016-06-03
+
+    // -----------------------------------------手机验证码相关
+    sMobileNumber: string[20]; // 手机号码
+    boMobileBind: Boolean; // 是否绑定
+    sMobileVerifyCode: string[8]; // 验证码
+    dwMobileSendTick: LongWord; // 最后发送时间
+    nMobileResendCount: Integer; // 重发验证码次数
+
+    nClearDayVarTime: Integer;
+
+    NpcSkillPowerAdd: array [0 .. DEF_MAGIC_COUNT + CUSTOM_MAGIC_COUNT - 1] of TSaveNpcSkillPowerAdd;
+
+    CustomMoney: array [0 .. CUSTOM_MONEY_COUNT - 1] of TMoney; // 目前支持30个自定义货币 By 一支笔 at:2022-02-19 10:58:20
+  end;
+
+  pTHumData = ^THumData;
+
+  TShopClientItem = packed record
+    StdItem: TStdItem;
+    GameMoney: Byte;
+    ImageIndex: Integer;
+    ImageCount: Integer;
+    Memo1: string[18];
+    Memo2: string[150];
+    ItemCount: Integer;
+    boBulkBuy: Boolean;
+    nBulkBuyCount: Integer;
+  end;
+
+  pTShopClientItem = ^TShopClientItem;
+
+  TUserLevelRanking = record // 人物等级排行
+    nIndex: Integer;
+    nLevel: Integer;
+    sChrName: string[ACTOR_NAME_LEN];
+  end;
+
+  pTUserLevelRanking = ^TUserLevelRanking;
+
+  THeroLevelRanking = record // 英雄等级排行
+    nIndex: Integer;
+    nLevel: Integer;
+    sChrName: string[ACTOR_NAME_LEN];
+    sHeroName: string[ACTOR_NAME_LEN];
+  end;
+
+  pTHeroLevelRanking = ^THeroLevelRanking;
+
+  TUserMasterRanking = record // 徒弟数量排行
+    nIndex: Integer;
+    nMasterCount: Integer;
+    sChrName: string[ACTOR_NAME_LEN];
+  end;
+
+  pTUserMasterRanking = ^TUserMasterRanking;
+
+  TSendUserData = record
+    nSocketIndx: Integer;
+    nSocketHandle: Integer;
+    sMsg: string;
+  end;
+
+  pTSendUserData = ^TSendUserData;
+
+  TCheckVersion = record
+  end;
+
+  pTCheckVersion = ^TCheckVersion;
+
+  TDeleteHumanInfo = record
+    sChrName: string[ACTOR_NAME_LEN];
+    nLevel: Integer;
+    btJob: Byte;
+    btSex: Byte;
+  end;
+
+  pTDeleteHumanInfo = ^TDeleteHumanInfo;
+
+  TStorageHeroInfo = record
+    sHeroName: string[ACTOR_NAME_LEN];
+    nLevel: Integer;
+    btJob: Byte;
+    btSex: Byte;
+  end;
+
+  pTStorageHeroInfo = ^TStorageHeroInfo;
+
+  // 帐户信息 - 新结构体 chongchong 2017-03-17
+  TAccountInfo = packed record
+    AccountName: string[14]; // 帐户名
+    IsDisable: Boolean; // 是否禁用
+    Password: string[10]; // 密码
+    UserName: string[20]; // 用户名
+    IDCard: string[18]; // 身份证
+    BirthDay: string[10]; // 生日
+    Questions1: string[20]; // 问题1
+    Answers1: string[12]; // 答案1
+    Questions2: string[20]; // 问题2
+    Answers2: string[12]; // 答案2
+    Phone: string[14]; // 电话
+    MobilePhone: string[13]; // 移动电话
+    Mail: string[40]; // 邮箱
+    L2Password: string[20]; // 二级密码
+    CreateDate: Integer; // 创建日期
+    LoginDate: Integer; // 最后登录日期
+    LoginMac: string[32]; // 绑定MAC地址
+    LoginIP: Integer; // 绑定IP
+    LastActionTick: LongWord; // 最后事件记时
+    ErrorCount: Integer; // 错误次数
+    Memo: string[20]; // 备注一
+    UID: string[70];
+    CID: string[30];
+  end;
+
+  pTAccountInfo = ^TAccountInfo;
+
+  TAccountInfo2 = packed record
+    PlayObject: Int64;
+    Npc: Int64;
+    AccountName: string[14]; // 帐户名
+    Password: string[10]; // 密码
+    UserName: string[20]; // 用户名
+    BirthDay: string[10]; // 生日
+    Questions1: string[20]; // 问题1
+    Answers1: string[12]; // 答案1
+    Questions2: string[20]; // 问题2
+    Answers2: string[12]; // 答案2
+    MobilePhone: string[13]; // 移动电话
+    Mail: string[40]; // 邮箱
+    L2Password: string[20]; // 二级密码
+  end;
+
+  pTAccountInfo2 = ^TAccountInfo2;
+
+  // 用户注册信息,即ID账号  --- 为了兼容老客户端，所以没有删除 chongchong 2017-03-17
+  TUserEntry = packed record
+    sAccount: string[10]; // 账号
+    sPassword: string[10]; // 密码
+    sUserName: string[20]; // 用户名
+    sSSNo: string[14]; // 身份证
+    sPhone: string[14]; // 电话
+    sQuiz: string[20]; // 问题1
+    sAnswer: string[12]; // 答案1
+    sEMail: string[40]; // 邮箱
+    sRandCode: string[10]; // 验证码
+  end;
+
+  pTUserEntry = ^TUserEntry;
+
+  TUserEntryAdd = packed record
+    sQuiz2: string[20]; // 问题2
+    sAnswer2: string[12]; // 答案2
+    sBirthDay: string[10]; // 生日
+    sMobilePhone: string[13]; // 移动电话
+    sMemo: string[20]; // 备注一
+    sL2Password: string[20]; // 备注二
+  end;
+
+  pTUserEntryAdd = ^TUserEntryAdd;
+
+  TChrMsg = record
+    Ident: Integer;
+    x: Integer;
+    y: Integer;
+    dir: Integer;
+    State: Int64;
+    Feature: TFeature;
+    saying: string;
+    sound: Integer;
+  end;
+
+  pTChrMsg = ^TChrMsg;
+
+  TRegInfo = record
+    sKey: string;
+    sServerName: string;
+    sRegSrvIP: string[15];
+    nRegPort: Integer;
+  end;
+
+  TUserCharacterInfo = record
+    Name: string[30];
+    Job: Byte;
+    HAIR: Byte;
+    Level: LongWord;
+    sex: Byte;
+  end;
+
+  pTUserCharacterInfo = ^TUserCharacterInfo;
+
+  { 自定义魔法球数据信息 chongchong 2013-11-18 }
+  TMagicBallEffectInfo = packed record
+    FileIndex, ImageIndex, ImageCount, FrameTime, ShowTime: Integer;
+    ShowType, DrawHeigh, DrawType, OffsetX, OffsetY: Integer;
+    IsNormalDraw: WordBool;
+    StarTick: LongWord;
+    FrameIndex: Integer;
+  end;
+
+  PTMagicBallEffectInfo = ^TMagicBallEffectInfo;
+
+  TScreenEffectData = packed record
+    nX: Integer;
+    nY: Integer;
+    nImageIndex: Integer;
+    nStartImage: Integer;
+    nImageCount: Integer;
+    nPlayCount: Integer;
+    nTime: Integer;
+    boBlend: Boolean;
+    boDrawTopmost: Boolean;
+  end;
+
+  pTScreenEffectData = ^TScreenEffectData;
+
+  PGuildJoinUser = ^TGuildJoinUser;
+
+  TGuildJoinUser = packed record
+    sUserName: string[20];
+    btSex: Byte;
+    btJob: Byte;
+    boOnline: Boolean;
+    nLevel: LongWord;
+    dtLastLogin: TDateTime;
+  end;
+
+  { TODO -c注释 -opiaoyun : 客户端配置 【2013-4-22】 }
+  {
+    // 网关上用了这个结构体，前面的部分不要变更 2020-08-26 15:59:08
+    TClientConfig = packed record
+    Reseved1: array[0..15] of Byte;
+
+    nMoveSpeed: SmallInt;         // 行走速度    -10 ~ +10
+    nAttackSpeed: SmallInt;       // 攻击速度  -10 ~ +10
+    nSpellSpeed: SmallInt;        // 魔法速度  -10 ~ +10
+
+    Reseved2: array[0..1017] of Byte;
+
+    dwMoveFrameTime: LongWord;    // 移动动作开始到结束间隔时间
+    dwHitFrameTime: LongWord;     // 攻击动作开始到结束间隔时间 piaoyun 2013-07-20
+    dwMagicHitFrameTime: LongWord;// 魔法动作开始到结束间隔时间 piaoyun 2013-07-20
+
+    Reseved3: array[0..266] of Byte;
+
+    dwIncSpeedDecInterval: LongWord;
+    dwIncMoveSpeedDecInterval: LongWord;
+    dwIncSpellSpeedDecInterval: LongWord;
+
+    Reseved4: array[0..328] of Byte;
+    end;
+  }
+
+  TClientConfig = packed record  //服务端发送给客户端的配置
+    btConfigDlgType: Byte;
+    boParalyCanRun: Boolean;
+    boParalyCanWalk: Boolean;
+    boParalyCanHit: Boolean;
+    boParalyCanSpell: Boolean;
+    boSkill43LockParaly: Boolean;
+
+    btDieColor: Byte;
+    nMagicItemRate: Integer;
+    boStartGameAuxiliary: Boolean; // 是否启动内挂
+    boCanOpenGameConfigDlg: Boolean; // 是否允许呼出内挂
+    boNotCanUseClientConfig: Boolean;
+    // 勾上后，用户内挂中的所有选项都失效，只根据M2的内挂设置参数。比如显示血条，如果M2的显示血条勾上了，内挂中显示血条用户勾不勾都会显示血条。
+    boGreenHintNewStyle: Boolean;
+
+    boItemNewAbilAllowUse: Boolean; // 启用新属性
+
+    nMoveSpeed: SmallInt; // 行走速度    -10 ~ +10
+    nAttackSpeed: SmallInt; // 攻击速度  -10 ~ +10
+    nSpellSpeed: SmallInt; // 魔法速度  -10 ~ +10
+
+    DActionLogButton: Boolean;
+    DBotMissionButton: Boolean;
+    DBotFriendButton: Boolean;
+    DControlHelpButton: Boolean;
+    DBotRankButton: Boolean;
+    DBotWhisperButton: Boolean;
+
+    DOpenShopButton: Boolean;
+    DBotUserShopButton: Boolean;
+    DWebButton: Boolean;
+    DOpenHeroButton: Boolean;
+    DBotChallengeButton: Boolean;
+    boShowGlory: Boolean; // 显示荣誉
+    boShowHorseButton: Boolean; // 显示上马/下马按钮 chongchong 2013-10-19
+
+    boShowHintWindowFrame: Boolean;
+    boShowHintLines: Boolean; // 是否显示悬浮信息下面的横线
+    btHintWindowbackgroundColor: Byte;
+    btHintWindowbackgroundAlpha: Byte;
+    HintWindowBorderWidth: TByteRect;
+
+    sShowHintFontName: string[20];
+
+    btShowHintNameFontSize: Byte; // 装备名字号 chongchong 2013-11-14
+    btShowHintNameFontBold: Byte;
+    btShowHintNameFontStroke: Byte;
+
+    btShowHintOtherFontSize: Byte; // 装备名字号 chongchong 2013-11-14
+    btShowHintOtherFontBold: Byte;
+    btShowHintOtherFontStroke: Byte;
+
+    btSuspensionShowItem: Byte; // 悬浮显示装备属性
+    boEscCloseNPC: Boolean;
+    boHintWithMouse: Boolean;
+    boNpcDlgHintWithMouse: Boolean; // NPC对话框提示随鼠标位置
+    boStateWindowsType: Byte; // 装备栏类型   0：1.85  1：合击
+    boMoveItemShowID: Boolean;
+
+    boShowItemForm: Boolean; // 显示物品来源信息
+    boShowItemSellPrice: Boolean;
+    boShowInsuranceInfo: Boolean;
+
+    btShowItemFormColor: Byte;
+    btShowItemSellPriceColor: Byte;
+    btShowInsuranceInfoColor: Byte;
+
+    boShowItemFromFields: array [0 .. 6] of Boolean;
+
+    // boFuDuSysMsg: Boolean;         // 需要符毒显示在聊天框
+    // boFuDuScreenMsg: Boolean;      // 需要符毒显示在主屏幕
+
+    boShowHPLabel: Boolean; // 显示血条         PlugCheboBoxBGMusic
+    boShowNumberLable: Boolean; // 数字显血
+    boShowJobAndLevel: Boolean; // 显示职业等级
+    boFilterExp: Boolean; // 经验过滤
+    boShowGreenHint: Boolean; // 显示顶部绿色信息
+    boShowUserName: Boolean; // 显示 人名
+    boOnlyShowCharName: Boolean; // 只显示人名
+    boShowMoveLable: Boolean; // 数字飘血
+    boAutoPickUpItem: Boolean; // 自动捡取
+    boNoCaton: Boolean; // 超级不卡
+
+    boDisableSelfStruck: Boolean; // 稳如泰山
+    boSpeedSlow: Boolean; // 免负重 行动慢
+    boMagicLock: Boolean; // 魔法锁定
+    boPickupAll: Boolean; // 全部拾取
+    boAutoOrderItem: Boolean; // 自动放药
+    boAutoCloseGroup: Boolean; // 自动关组
+    boDuraWarning: Boolean; // 持久警告
+    boNotNeedShift: Boolean; // 免Shift键
+    boHideGhost: Boolean; // 隐藏尸体
+    boHideHumEffect: Boolean; // 隐藏翅膀效果
+    boHideWeaponEffect: Boolean; // 隐藏武器效果
+    boShowMapDesc: Boolean; // 显示地图标识
+    boShowHighlightHPLabel: Boolean; // 人物高亮显血
+    boAutoHideMode: Boolean; // 自动隐身
+
+    boSmart113Hit: Boolean; // 自动断空斩
+
+    boHumAutoShield: Boolean; // 自动开盾
+    boHumStruckShield: Boolean; // 被攻击开盾
+    boSmartLongHit: Boolean; // 刀刀刺杀
+    boSmartPosLongHit: Boolean; // 隔位刺杀
+    boSmartWalkLongHit: Boolean; // 走位刺杀
+    boSmartWideHit: Boolean; // 智能半月
+    boSmartFireHit: Boolean; // 自动烈火
+    boSmartSwordHit: Boolean; // 逐日剑法
+    boSmartCrsHit: Boolean; // 抱月刀 双龙斩
+    boSmartTwnHit: Boolean; // 龙影剑法
+    boBGMusic: Boolean; // 背景音乐
+    boRepeatBGMusic: Boolean; // 重复音乐 chongchong 2014-09-25
+    boShowMonName: Boolean; // 显示怪名
+    boShowNpcName: Boolean; // 显示NPC名 piaoyun 2013-07-31
+    boShowNpcHPLabel: Boolean; // 显示NPC血条 piaoyun 2013-07-31
+    boShowNGLabel: Boolean; // 显示内功黄条 piaoyun 2013-07-31
+    boNotParaly: Boolean; // 防止石化
+    boHumManuallySnowWind: Boolean; // 手动控制冰咆哮
+    boHumManuallyFireBoom: Boolean; // 手动控制爆裂火焰
+    boHumShootLightenLockTarget: Boolean; // 疾光电影锁定目标
+    boHumManuallyMeteorShower: Boolean; // 手动控制流星火雨
+    boHumManuallyMove10Attack: Boolean; // 手动控制十步一杀
+    boHumManuallyFire: Boolean; // 手动控制地狱火
+
+    boAutoCHangePoison: Boolean; // 红绿毒互换
+
+    boSmart66Hit: Boolean; // 开天斩
+    boHeroAutoShield: Boolean; // 英雄持续开盾 chongchong 2013-08-16
+    boAssistantHeroAutoShield: Boolean; // 副将英雄持续开盾 chongchong 2013-08-16
+    boHeroDrug: Boolean; // 英雄药品 piaoyun 2013-09-10
+    boAssistantHeroDrug: Boolean; // 副将英雄药品 piaoyun 2013-09-10
+    boSceneShake: Boolean; // 屏幕震动 piaoyun 2013-09-15
+
+    boAutoDownHorse: Boolean; // 魔法攻击自动下马 chongchong 2013-10-19
+
+    boDropOverLapItem: Boolean;
+
+    boGetExpMsgAddChatBoardMsg: Boolean;
+
+    boAddItemMsgXRightToLeft: Boolean;
+    boAddItemMsgYBottomToTop: Boolean;
+
+    boGetExpMsgXRightToLeft: Boolean;
+    boGetExpMsgYBottomToTop: Boolean;
+
+    boUpLevelMsgXRightToLeft: Boolean;
+    boUpLevelMsgYBottomToTop: Boolean;
+
+    boHeroAddItemMsgXRightToLeft: Boolean;
+    boHeroAddItemMsgYBottomToTop: Boolean;
+
+    boHeroGetExpMsgXRightToLeft: Boolean;
+    boHeroGetExpMsgYBottomToTop: Boolean;
+
+    boHeroUpLevelMsgXRightToLeft: Boolean;
+    boHeroUpLevelMsgYBottomToTop: Boolean;
+
+    boHideTabSheet2: Boolean;
+    boHeroHideTabSheet2: Boolean;
+    boHideTabSheet5: Boolean;
+    boHeroHideTabSheet5: Boolean;
+    boHideTabSheet7: Boolean;
+    NewAbilShowStateDlg: array [0 .. 23] of Boolean;
+
+    btAddItemMsgFColor: Byte;
+    btAddItemMsgBColor: Byte;
+    nAddItemMsgX: SmallInt;
+    nAddItemMsgY: SmallInt;
+
+    btGetExpMsgFColor: Byte;
+    btGetExpMsgBColor: Byte;
+    nGetExpMsgX: SmallInt;
+    nGetExpMsgY: SmallInt;
+
+    btUpLevelMsgFColor: Byte;
+    btUpLevelMsgBColor: Byte;
+    nUpLevelMsgX: SmallInt;
+    nUpLevelMsgY: SmallInt;
+
+    btHeroAddItemMsgFColor: Byte;
+    btHeroAddItemMsgBColor: Byte;
+    nHeroAddItemMsgX: SmallInt;
+    nHeroAddItemMsgY: SmallInt;
+
+    btHeroGetExpMsgFColor: Byte;
+    btHeroGetExpMsgBColor: Byte;
+    nHeroGetExpMsgX: SmallInt;
+    nHeroGetExpMsgY: SmallInt;
+
+    btHeroUpLevelMsgFColor: Byte;
+    btHeroUpLevelMsgBColor: Byte;
+    nHeroUpLevelMsgX: SmallInt;
+    nHeroUpLevelMsgY: SmallInt;
+
+    boShowBagGameGoldSeparator: Boolean;
+    boShowBagGameInfo: Boolean;
+
+    boUseFindPath: Boolean;
+    boUseOldSerialWindows: Boolean;
+
+    boUseHeroM2Shop: Boolean;
+    boMonStruckShowNumber: Boolean;
+    boHumStruckShowNumber: Boolean;
+    boCloseBookProtect: Boolean;
+    boCloseLogoutProtect: Boolean;
+    boBagRightkey: Boolean;
+
+    // ----------------------------------------------------------------
+
+    boUseSuperMedica: Boolean; // 自动使用药品
+
+    DMerchantDlgHelp: Boolean; // 显示NPC帮助按钮
+    DBotFuncs: array [0 .. 5] of Boolean;
+    boViewFog: Boolean; // 是否显示黑暗地图
+    boCanStartRun: Boolean; // 免助跑
+
+    ClientConfigTabSheetVisibles: array [0 .. 11] of Boolean;
+    UseSuperMedicaItemNames: array [0 .. 8] of string[ITEM_NAME_LEN];
+    sHomePage: string[199]; // 网页地址
+    nHumNeedMagicItem: Integer;
+
+    btSendWhisperMsgFColor: Byte;
+    btSendWhisperMsgBColor: Byte;
+
+    btRefreshGameGoldFColor: Byte;
+    btRefreshGameGoldBColor: Byte;
+
+    btShowWhisperFColor: Byte;
+    btShowWhisperBColor: Byte;
+
+    btCloseWhisperFColor: Byte;
+    btCloseWhisperBColor: Byte;
+
+    // 需要魔法信息显示在聊天框
+    // boNeedMagicSysMsg: Boolean;
+    boNPCLabelFontStroke: Boolean;
+    btNPCLabelNormalColor: Byte;
+    btNpcLabelMouseMoveColor: Byte; // NPC对话框鼠标移过去颜色
+    btNpcLabelMouseDownColor: Byte; // NPC对话框鼠标按下去颜色
+
+    { 小地图相关控制 chongchong 2013-07-19 }
+    boMinMapCloseRadar: Boolean; // 关闭雷达显示 chongchong 2013-07-19
+    btMinMapType: Byte; // 小地图样式
+    boMinMapUseFindPath: Boolean; // 默认、复古、仿页游小地图支持寻路
+    boLoginShowMinMap: Boolean;
+    dwMinMapFlagFlash: LongWord; // 小地图中玩家自身闪烁频率  chongchong 2013-07-19
+
+    btMinMapColorSelf: Byte; // 玩家自身颜色  chongchong 2013-07-19
+    btMinMapColorOther: Byte; // 其他玩家自身颜色  chongchong 2013-07-19
+    btMinMapColorNPC: Byte; // NPC颜色  chongchong 2013-07-19
+    btMinMapColorGuard: Byte; // 守卫颜色  chongchong 2013-07-19
+    btMinMapColorMonster: Byte; // 怪物颜色  chongchong 2013-07-19
+    btMinMapColorHero: Byte; // 英雄颜色  chongchong 2013-07-19
+    btMinMapColorBoss: Byte; // Boss颜色  chongchong 2013-08-03
+
+    boHideItemNameNum: Boolean; // 隐藏物品名后面的数字 chongchong 2013-11-23
+
+    boShopHeadPic: Boolean; // 摆摊显示头顶个人商店图片 piaoyun 2013-09-13
+    boSingleHint: Boolean; // 装备栏单列显示 piaoyun 2013-09-15
+    boHorseRun3Grid: Boolean; // 骑马一步三格 chongchong 2013-10-17
+    btPKLevel1NameColor: Byte; // 黄名颜色 chongchong 2013-11-01
+
+    dwMoveFrameTime: LongWord;
+    dwHitFrameTime: LongWord; // 两次普通攻击之间的间隔时间 piaoyun 2013-07-20
+    dwMagicHitFrameTime: LongWord; // 两次魔法攻击之间的间隔时间 piaoyun 2013-07-20
+
+    boGemUpgrade: Boolean; // 开启宝石升级 chongchong 2013-07-20
+
+    boShopGuiCanMove: Boolean; // 商铺界面能否移动 piaoyun 2013-07-23
+    boNPCGuiCanMove: Boolean; // NPC界面能否移动 piaoyun 2013-07-23
+
+    SkillContinueOrderBlastRates: array [0 .. 3] of Byte; // 连击顺序暴击几率
+    SkillContinuousBlastHitRates: array [0 .. 11, 0 .. 4] of Integer;
+    // 合击暴击机率 (3个职业 * 4个技能，5个级别) chongchong 2013-08-19
+
+    dwNpcButtonClickTime: LongWord; // NPC按钮点击间隔 chongchong 2013-11-09
+    dwNpcActorClickTime: LongWord; // NPC对象点击间隔 chongchong 2013-11-09
+    dwPluginPickupTime: LongWord; // 内挂自动捡起物品时间间隔 chongchong 2013-11-13
+    dwPluginMinEatItemTime: LongWord; // 内挂最小吃药间隔 chongchong 2015-10-17
+
+    boShowDeputyHeroButton: Boolean; // 显示副将英雄按钮 chongchong 2013-12-20
+    boShowBagArrange: Boolean;
+    btPKLevel2NameColor: Byte; // 红名颜色 chongchong 2013-11-01
+    boShiftSwitch: Boolean; // Shift 开关 chongchong 2014-01-05
+
+    dwIncSpeedDecInterval: LongWord;
+    dwIncMoveSpeedDecInterval: LongWord;
+    dwIncSpellSpeedDecInterval: LongWord;
+
+    boKeyTabGetActor: Boolean; // Tab键获取角色 chongchong 2014-04-12
+
+    nTitleFileIndex: Integer; // 称号素材读取文件 chongchong 2014-05-23
+    // boHideIconWithHideTitle: Boolean; // 隐藏称号同时隐藏顶戴花铃
+
+    boHideTitle: Boolean; // 隐藏称号 chongchong 2014-05-26
+    boContinueButchItem: Boolean; // 持续挖取 chongchong 2015-08-05
+    boAutoOpenSpell: Boolean; // 自动凝聚技能
+    boDisableChartMemoSize: Boolean;
+    boItemCompare: Boolean; // 装备对比 chongchong 2015-06-28
+    boVolume: Boolean;
+    boDisableDeal: Boolean;
+    boShowUpdateStatus: Boolean;
+    boSimpleShowActor: Boolean;
+    boSimpleShowHumanDress: Boolean;
+    boSimpleShowBB: Boolean;
+
+    boSmartCustomHit1: Boolean;
+    boSmartCustomHit2: Boolean;
+    boSmartCustomHit3: Boolean;
+    boSmartCustomHit4: Boolean;
+    boSmartCustomHit5: Boolean;
+    boSmartCustomHit6: Boolean;
+    boSmartCustomHit7: Boolean;
+    boSmartCustomHit8: Boolean;
+
+    boShowDropValueItemEff: Boolean; // 地面极品特效
+
+    boShowMagicShieldHP: Boolean; // 显示护身血条 chongchong 2014-09-26
+    nHumHPBarOffsetX: Integer;
+    nHumHPBarOffsetY: Integer;
+
+    nNpcHPBarOffsetX: Integer;
+    nNpcHPBarOffsetY: Integer;
+
+    nMonHPBarOffsetX: Integer;
+    nMonHPBarOffsetY: Integer;
+
+    nHumNameOffsetX: Integer;
+    nHumNameOffsetY: Integer;
+
+    nNpcNameOffsetX: Integer;
+    nNpcNameOffsetY: Integer;
+
+    nMonNameOffsetX: Integer;
+    nMonNameOffsetY: Integer;
+
+    boHealthNumberText: Boolean;
+    boBlastHitShowHealthNum: Boolean;
+    nHealthNumberOffsetX: SmallInt;
+    nHealthNumberOffsetY: SmallInt;
+    nHealthNumberMoveSpeed: Integer;
+
+    nNewLeftGroupInfoOffsetX: SmallInt;
+    nNewLeftGroupInfoOffsetY: SmallInt;
+
+    nItemFluteStoneCount: Integer; // 相同属性镶嵌限制数量 chongchong 2015-01-10
+    nItemFluteStoneIdxCount: Integer; // 相同物品镶嵌限制数量 chongchong 2015-01-10
+    nItemFluteStoneOverlapCount: Integer; // 单孔允许叠加宝石数量
+    boDisableRightClickFluteStone: Boolean; // 禁止右键镶嵌宝石 chongchong 2015-04-25
+
+    nSayMsgMaxLen: Integer;
+    btMaxHitPoint: Integer;
+
+    // 个人商店允许交易货币 chongchong 2015-03-08
+    boMyShopGold: Boolean; // 允许金币
+    boMyShopGameGold: Boolean; // 允许元宝
+    boMyShopGameDiamond: Boolean; // 允许金刚石
+    boMyShopGameGird: Boolean; // 允许灵符
+    boMyShopGamePoint: Boolean;
+
+    // 拍卖行允许交易货币 chongchong 2017-05-22
+    nAuctionCurrencyTypeEx: Integer;
+
+    nAuctionBroadcastCurrencyType: Integer; // 拍卖广播收费类型
+    nAuctionBroadcastPrice: Integer; // 拍卖广播收费
+
+    boOpenAuctionItemColors: Boolean;
+    btAuctionItemColors: array [0 .. 5] of Byte;
+
+    boShowHeroShortKey: Boolean;
+    nShowHeroShortKeyX: SmallInt;
+    nShowHeroShortKeyY: SmallInt;
+
+    btMagicFailMsgFColor: Byte;
+    btMagicFailMsgBColor: Byte;
+    btMagicOKMsgFColor: Byte;
+    btMagicOKMsgBColor: Byte;
+    nMagicMsgX: SmallInt;
+    nMagicMsgY: SmallInt;
+    boMagicMsgXRightToLeft: Boolean;
+    boMagicMsgYBottomToTop: Boolean;
+    boMagicMsgAddChatBoardMsg: Boolean;
+
+    boFashionJewelryOpen: Boolean; // 开启时装首饰功能 chongchong 2015-06-12
+    boHelmetShowInBox: Boolean;
+
+    boSkill31UseNewEffect: Boolean;
+
+    boEnabledBuyShopItemGive: Boolean; // 开启商铺赠送功能 chongchong 2015-08-03
+
+    nGuildRankNameLen: Integer; // 封号长度 chongchong 2015-09-10
+
+    dwUserMoveTime: LongWord; // @move命令时间间隔
+
+    sJewelryBoxHint: string[20];
+
+    btMerchant273NameColor: Byte;
+    boHeroStateDlgNoMove: Boolean;
+
+    nStarBaseNum: Byte;
+    nStarLineMaxCount: Byte;
+    boOpenNewGuild: Boolean;
+    boDisableDuFuTakeArmRingL: Boolean;
+    boOpenGamePet: Boolean;
+
+    dwProtectValueCRC: LongWord;
+
+    nMaxInputStringLen: Integer;
+
+    boSlaveAlwaysShowName: Boolean;
+    btMonsterShowLevel: Byte;
+    sMonsterShowLevelFormat: string[30];
+    btMonStruckFrameDelayTime: Byte;
+
+    boTZSupportRenameItem: Boolean;
+    boDescSupportRenamItem: Boolean;
+    boNoRenameDescReadDefault: Boolean;
+
+    boNoNeedFirDragon: Boolean;
+
+    boHideItemEffect: Boolean;
+    boAutoGroupAttack: Boolean;
+    boAutoGroupNoAttackMon: Boolean;
+    boMagicSetDir: Boolean;
+    boEnableDoubleFireHitSkill: Boolean; // 禁用双烈火 chongchong 2017-06-26
+    boBagFastItemCompare: Boolean;
+    boShowHPUnit: Boolean;
+    boShowNewGroupInfo: Boolean;
+
+    nHMPDivDura: Integer;
+    boPetNoEntity: Boolean;
+    boPetNoShowHPProgress: Boolean;
+
+    boDisableWarrContinueHit: Boolean;
+    nWarrContinueHitMinInterval: LongWord;
+    ArrDisableWarrContinueHitIDs: array [0 .. 9] of Word;
+
+    boAutoContinueAttack: Boolean;
+    boHideActorIcons: Boolean;
+    boHideMonsterIcons: Boolean; // 隐藏怪物顶戴花翎
+    boDimFireEffect: Boolean; // 火墙显示效果淡化 HZQ 20230601修改了名称
+    boAutoDetourPath: Boolean; // 自动绕行 HZQ 20230601修改了名称
+
+    boSimpleShowHumanWeapon: Boolean; // 武器简装
+
+    sNotEnoughNGPoint: string[47];
+    sNotEnoughMPPoint: string[47];
+
+    btBagFastItemCompareMode: Byte; // 背包物品对比模式
+
+    nEditionId: Integer; // 版本ID
+    nAreaId: Integer; // 区服ID
+
+    nBetterItemX: Integer; // 更好的装备(装备穿戴) X
+    nBetterItemY: Integer; // 更好的装备(装备穿戴) Y
+    nSmallInfoX: Integer; // 这里应该就是PlayerInfoX
+    nSmallInfoY: Integer; // 这里应该就是PlayerInfoY
+    nJoyStickX: Integer;
+    nJoyStickY: Integer;
+    nJoyStickMaxX: Integer;
+    nJoyStickMaxY: Integer;
+    nSkillCtrX: Integer;
+    nSkillCtrY: Integer;
+    boShowExSkillIcon: Boolean;
+    btMapScale: Byte; // 10相当于1.0 12相当于1.2  最大值和最小值需要确认
+    btGuiScale: Byte;
+    btMultiViewRange: Byte;
+    boShowMulitDlg: Boolean;
+    boShowBetterItem: Boolean;
+  end;
+
+  pTClientConfig = ^TClientConfig;
+
+  pTPowerBlock = ^TPowerBlock;
+
+  TPowerBlock = array [0 .. 100 - 1] of Word;
+
+  TUseItems = array [Low(THumanUseItems) .. High(THumanUseItems)] of TClientItem;
+
+  pTUseItems = ^TUseItems;
+
+  TJewelryBoxItems = array [Low(THumanJewelryBoxItems) .. High(THumanJewelryBoxItems)] of TClientItem;
+
+  pTJewelryBoxItems = ^TJewelryBoxItems;
+
+  TItemBoxItems = array [Low(THumanItemBoxItems) .. High(THumanItemBoxItems)] of TClientItem;
+
+  pTItemBoxItems = ^TItemBoxItems;
+
+  // 神佑袋中的物品 chongchong 2014-04-18
+  TGodBlessItems = array [Low(THumanGodBlessItems) .. High(THumanGodBlessItems)] of TClientItem;
+
+  PTGodBlessItems = ^TGodBlessItems;
+
+  TGameGoldDealState = (s_None, s_Normal, s_Cancel, s_Expired, s_Succeed);
+
+  TGameGoldDealItem = record
+    nMakeIndex: Integer;
+    sItemName: string[ITEM_NAME_LEN];
+  end;
+
+  pTGameGoldDealItem = ^TGameGoldDealItem;
+
+  TGameGoldDeal = packed record
+    DealState: TGameGoldDealState; // 状态
+    SellChrName: string[ACTOR_NAME_LEN]; // 卖方名称
+    BuyChrName: string[ACTOR_NAME_LEN]; // 买方名称
+    GameGold: Integer; // 元宝
+    GameDiamond: Integer; // 金刚石
+    SellDateTime: TDateTime; // 出售日期
+    ItemCount: Byte; // 物品数量
+  end;
+
+  pTGameGoldDeal = ^TGameGoldDeal;
+
+  PClientUserShop = ^TClientUserShop;
+
+  TClientUserShop = packed record
+    sShopName: string[ACTOR_NAME_LEN]; // 店铺名称
+    sMasterName: string[ACTOR_NAME_LEN]; // 店主名称
+    dCreateDate: TDateTime; // 创建时间
+
+    nSellingItemCount: Integer; // 店铺物品数量
+    nSelledItemCount: Integer; // 出售物品数量
+    nStorageItemCount: Integer; // 仓库物品数量
+    boBusiness: Boolean; // 是否营业
+    nCareValue: Integer; // 关注度
+    btState: Byte; // 状态 0 在线 1摆摊 2离线
+  end;
+
+  TClientUserShopItem = packed record
+    sShopName: string[ACTOR_NAME_LEN]; // 店铺名称
+    sMasterName: string[ACTOR_NAME_LEN]; // 店主名称
+    sBuyName: string[ACTOR_NAME_LEN]; // 购买人名称
+
+    IsMyShopeItem: Boolean;
+
+    btMoneyType: Byte; // 货币类型
+    btItemType: Byte; // 物品类型
+    dCreateDate: TDateTime; // 创建时间
+    btAllowSell: Byte; // 允许出售 (0:仓库物品; 1:出售物品; 2:出售超期不能放入仓库物品)
+    boGetMoney: Boolean; // 是否已取款
+    // btState: Byte; // 该物品拥有者状态 0 在线 1摆摊 2离线
+    Item: TClientItem;
+  end;
+
+  pTClientUserShopItem = ^TClientUserShopItem;
+
+  TClientCustomMoney = packed record
+    sName: string[CUSTOMMONEY_NAME_LEN];
+    nIndex: Integer;
+    boCanMyShop: Boolean;
+    // boCanGameShop: Boolean;
+    boCanAuction: Boolean;
+    boCanSellPlayer: Boolean;
+  end;
+
+  pTClientCustomMoney = ^TClientCustomMoney;
+
+  // 服务端天气效果结构体 -- piaoyun 2013-07-14
+  TServerWeateherEffect = packed record
+    boIsUsed: Boolean; // 是否使用特效
+    boIsDark: Boolean; // 是否黑暗
+    dwTick: LongWord; // 当前时间
+    dwTime: LongWord; // 特效时间
+    sMusic: string[50]; // 音乐名称   
+  end;
+
+  pTServerWeateherEffect = ^TServerWeateherEffect;
+
+  // 查询所有拍卖物品
+  TResquestAllAuctionItem = packed record
+    ShowAuctionID: Integer;
+    MoneyType: Integer;
+    Prices1: LongWord;
+    Prices2: LongWord;
+    KeyWord: string[30];
+  end;
+
+  // 所有拍卖物品
+  TAllAuctionItem = packed record
+    AuctionID: Integer;
+    StartingPrice: LongWord; // 底价
+    SellingPrice: LongWord; // 一口价
+    CurrencyType: Integer; // 货币类型
+    LastBidPrice: Integer; // 当前价格
+    TimeLeft: Integer;
+    TradingStatus: Integer; // 交易状态
+    IsItemGive: Boolean; // 是否交接
+    IsAttention: Boolean; // 是否被关注
+    IsItemCanRetrieve: Boolean; // 物品是否可取回
+    IsItemFlash: Boolean; // 是否绘制特效
+    Item: TClientItem; // 拍卖物品
+  end;
+
+  pTAllAuctionItem = ^TAllAuctionItem;
+
+  // 我的拍卖物品
+  TMyAuctionItem = packed record
+    AuctionID: Integer;
+    StartingPrice: LongWord; // 底价
+    SellingPrice: LongWord; // 一口价
+    CurrencyType: Integer; // 货币类型
+    LastBidPrice: Integer; // 当前价格
+    TimeLeft: Integer;
+    TradingStatus: Integer; // 交易状态
+    IsItemGive: Boolean; // 物品是否交接
+    Item: TClientItem; // 拍卖物品
+  end;
+
+  pTMyAuctionItem = ^TMyAuctionItem;
+
+  PTAcutionItemPricesLime = ^TAcutionItemPricesLime;
+
+  TAcutionItemPricesLime = packed record
+    Min: array [0 .. 4] of LongWord;
+    Max: array [0 .. 4] of LongWord;
+  end;
+
+  PTRulesActionItem = ^TRulesActionItem;
+
+  TRulesActionItem = packed record
+    ItemName: string[ITEM_NAME_LEN];
+    Prices: TAcutionItemPricesLime;
+  end;
+
+  TRefreshAuctionItem = packed record
+    AuctionID: Integer;
+    LastBidPrice: Integer; // 当前价格
+    TradingStatus: Integer; // 交易状态
+    IsItemGive: Boolean; // 物品是否交接
+    IsItemCanRetrieve: Boolean; // 物品是否可取回
+    IsCancelAttention: Boolean; // 物品可取消关注
+  end;
+
+  pTRefreshAuctionItem = ^TRefreshAuctionItem;
+
+  // 宝宝类型 骷髅  神兽  圣兽  月灵 piaoyun 2013-11-19
+  TBBType = (bb_BoneFamm, bb_Dogz, bb_BigDogz, bb_MonthSpirit, bb_Other);
+
+  // =========================================================================================================
+  // 自定义怪物相关
+  // =========================================================================================================
+  TMagicNeedItem = (meiNone, meiRedPoison, meiGreenPoison, meiFu, meiCustomItem);
+
+  TClientDataCRC = packed record
+    ModulesCRC: LongWord;
+    MonstersCRC: LongWord;
+    MagicsCRC: LongWord;
+    StdItemsCRC: LongWord;
+    ItemDescCRC: LongWord;
+    ItemDescTopCRC: LongWord;
+    TzItemDescCRC: LongWord;
+    FilterItemsCRC: LongWord;
+    EffectImagesCRC: LongWord;
+    SpecialCmdsCRC: LongWord;
+    PlugClientsCRC: LongWord;
+    BlackModulesCRC: LongWord;
+    NpcsCRC: LongWord;
+    DropItemEffectListCRC: LongWord;
+    EnabledAuctionItemListCRC: LongWord;
+    CustomItemPropertyCRC: LongWord;
+    CustomItemPropertyTextVarListCRC: LongWord;
+    ArrButtonConfigCRC: LongWord;
+    Reserved: array [0 .. 2] of LongWord;
+  end;
+
+  PGroupMember = ^TGroupMember;
+
+  TGroupMember = packed record
+    sCharName: string[ACTOR_NAME_LEN];
+    sMapName: string[MAP_NAME_LEN];
+    sMapDesc: string[40];
+    Job: Byte;
+    Gender: Byte;
+    IsCaptain: Boolean; // 是否队长
+    nRecogId: Int64; // 64位修改 2021-01-04
+    Level: LongWord;
+    HP: LongWord;
+    MaxHP: LongWord;
+    MP: LongWord;
+    MaxMP: LongWord;
+  end;
+
+const
+  AttackConfigNames: array [0 .. 5] of string = ('攻击1', '攻击2', '攻击3', '攻击4', '攻击5', '攻击6');
+  MagicNeedItemNames: array [TMagicNeedItem] of string = ('无', '红毒', '绿毒', '符', '自定义物品');
+
+type
+  TMonsterClientActionType = (matStand { 站 } , matWalk { 走 } , matDefAttack { 默认攻击 } , matStruck { 被攻击 } , matDie
+    { 开始死亡 } , matStoneRevive { 石化苏醒 } , matAttack1 { 攻击1 } , matAttack2 { 攻击2 } , matAttack3 { 攻击3 } , matAttack4 { 攻击4 } ,
+    matAttack5  { 攻击5 } , matAttack6 { 攻击6 } );
+
+  TMonsterType = (mtNormal { 普通怪物 } , mtStoneMode { 石化怪物 } , mtDigUP { 苏醒怪物 } );
+
+  TMoveOption = (moMoveNormal { 随意移动 } , moNoMove { 不可移动 } , moProtect { 守护区移动 } );
+
+  // 操作模式
+  TCustomOperateMode = (momAttack { 攻击模式 } , momProtect { 保护模式 } (* , momMagicShield{魔法盾模式} *) );
+
+  TCustomAttackMode = (mamNear { 近攻 } , mamFar { 远攻 } );
+
+  TCustomDrawMode = (mdmBlend { 透明绘制 } , mdmNormal { 普通绘制 } );
+
+  TCustomDirCount = (mdcDir8, mdcDir16);
+
+  TCustomDirCalcType = (mdctNone { 不算方向 } , mdctNormal { 普通计算方式 } , mdctCenter { 自我中心多方向攻击 } );
+
+  TCustomAttackTarget = (matSingle { 单体攻击 } , matGroup { 群体攻击 } , matLine { 直线攻击 } , matSwordWide { 半月 } , matDir8
+    { 8方向攻击 } , matDir16 { 16方向攻击 } );
+
+  TCustomAttackPowerCalc = (mapcDC, mapcMC, mapcSC, mapcFromJob);
+
+  TCustomDrawOrder = (mdoPriorSelf { 先绘自身再绘效果 } , mdoPriorMagic { 先绘效果再绘自身 } );
+
+  TMonsterDrawOrder2 = (mdoSelf_Eff1_Eff2, mdoEff1_Self_Eff2, mdoEff1_Eff2_Self);
+
+  // 声音类型
+  TMonsterSoundType = (mstNormal { 默认声音 } , mstDigUP { 苏醒声音 } , mstAttack { 默认攻击 } , mstStruck { 被攻击 } , mstDie
+    { 死亡 } , mstAttack1 { 攻击1 } , mstAttack2 { 攻击2 } , mstAttack3 { 攻击3 } , mstAttack4 { 攻击4 } , mstAttack5 { 攻击5 } , mstAttack6
+    { 攻击6 } );
+
+  PClientBaseConfig = ^TClientBaseConfig;
+
+  TClientBaseConfig = packed record
+    DrawMode: TCustomDrawMode;
+    DrawMode2: TCustomDrawMode;
+    DrawOrder: TMonsterDrawOrder2;
+    DieNoCalcDir: Boolean; // 死亡不计算特效方向
+
+    HPBgOffsetX: Integer; // 血条背景偏移X
+    HPBgOffsetY: Integer; // 血条背景偏移Y
+
+    HPOffsetX: Integer; // 血条偏移X
+    HPOffsetY: Integer; // 血条偏移Y
+    HPFile: Integer; // 血条文件
+    HPStartIndex: Integer; // 血条图片位置
+
+    HPTextOffsetX: Integer; // 血值偏移X
+    HPTextOffsetY: Integer; // 血值偏移Y
+    Sounds: array [TMonsterSoundType] of string[30];
+  end;
+
+  // 怪物动作
+  PMonsterClientAction = ^TMonsterClientAction;
+
+  TMonsterClientAction = packed record
+    ActionType: TMonsterClientActionType;
+    ActionFile: SmallInt;
+    StartIndex: SmallInt;
+    PlayCount: Word;
+    EmptyCount: Word;
+    PlayTime: Word;
+    EffectFile: SmallInt;
+    EffectIndex: SmallInt;
+    EffectFile2: SmallInt;
+    EffectIndex2: SmallInt;
+    CalcDir: Boolean;
+  end;
+
+  PClientAttackConfig = ^TClientAttackConfig;
+
+  TClientAttackConfig = packed record
+    Fly_File: SmallInt;
+    Fly_StartIndex: SmallInt;
+    Fly_PlayCount: Word;
+    Fly_EmptyCount: Word;
+    Fly_PlayTime: Word;
+    Fly_DrawMode: TCustomDrawMode;
+    Fly_DirCount: TCustomDirCount;
+    Fly_CalcDir: Boolean;
+    Fly_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    FlyEff_File: SmallInt;
+    FlyEff_StartIndex: SmallInt;
+    FlyEff_DrawMode: TCustomDrawMode;
+
+    Self_File: SmallInt;
+    Self_StartIndex: SmallInt;
+    Self_PlayCount: Word;
+    Self_EmptyCount: Word;
+    Self_PlayTime: Word;
+    // Self_PlayMode: TMonsterPlayMode;
+    Self_DrawOrder: TCustomDrawOrder;
+    Self_DrawMode: TCustomDrawMode;
+    Self_DirCalcType: TCustomDirCalcType;
+    Self_DirCount: TCustomDirCount;
+    Self_PlayDelayAction: Boolean;
+    Self_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    SelfKeep_File: SmallInt;
+    SelfKeep_StartIndex: SmallInt;
+    SelfKeep_StartIndex2: SmallInt;
+    SelfKeep_PlayCount: Word;
+    SelfKeep_PlayTime: Word;
+    SelfKeep_DrawMode: TCustomDrawMode;
+    SelfKeep_DrawMode2: TCustomDrawMode;
+    SelfKeep_DrawOrder: TCustomDrawOrder;
+    SelfKeep_KeepTime: Word;
+    // SelfKeep_KeepTime2: Integer;
+
+    Explosion_File: SmallInt;
+    Explosion_StartIndex: SmallInt;
+    Explosion_StartIndex2: SmallInt;
+    Explosion_PlayCount: Word;
+    Explosion_DrawMode: TCustomDrawMode;
+    Explosion_DrawMode2: TCustomDrawMode;
+    Explosion_PlayTime: Word;
+    Explosion_LockDraw: Boolean;
+    Explosion_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    Explosion_KeepPlay: Boolean; // 持久伤害 chongchong 2015-03-10
+    Explosion_KeepTime: Word; // 持久伤害时间 chongchong 2015-03-10
+    Explosion_KeepAttackRange: Byte; // 持久伤害范围 chongchong 2015-03-10
+    Explosion_KeepMultiPlay: Boolean; // 持久伤害 每格单独播放 chongchong 2015-03-10
+    Explosion_KeepAttackInterval: Byte; // 持久伤害间隔 chongchong 2015-03-10
+    Explosion_KeepLightRange: Byte;
+
+    Target_File: SmallInt;
+    Target_StartIndex: SmallInt;
+    Target_StartIndex2: SmallInt;
+    Target_PlayCount: Word;
+    Target_PlayTime: Word;
+    Target_DrawMode: TCustomDrawMode;
+    Target_DrawMode2: TCustomDrawMode;
+    Target_MultiPlay: Boolean;
+    Target_LockDraw: Boolean;
+    Target_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    Target_KeepPlay: Boolean; // 持久伤害 chongchong 2015-03-10
+    Target_KeepTime: Word; // 持久伤害时间 chongchong 2015-03-10
+    Target_KeepAttackRange: Byte; // 持久伤害范围 chongchong 2015-03-10
+    Target_KeepMultiPlay: Boolean; // 持久伤害 每格单独播放 chongchong 2015-03-10
+    Target_KeepAttackInterval: Byte; // 持久伤害间隔 chongchong 2015-03-10
+    Target_KeepLightRange: Byte;
+  end;
+
+  TMonsterClientActions = array [TMonsterClientActionType] of TMonsterClientAction;
+
+  TClientAttackConfigs = array [Low(AttackConfigNames) .. High(AttackConfigNames)] of TClientAttackConfig;
+
+  // 发送到客户端结构体 chongchong 2014-07-20
+  PClientCustomMonsterConfig = ^TClientCustomMonsterConfig;
+
+  TClientCustomMonsterConfig = packed record
+    wMonsterAppr: Word;
+    BaseConfig: TClientBaseConfig;
+    Actions: TMonsterClientActions;
+    AttackConfigs: TClientAttackConfigs;
+  end;
+  // =========================================================================================================
+  // 自定义怪物相关 - end
+  // =========================================================================================================
+
+  // =========================================================================================================
+  // 自定义技能相关 - begin
+  // =========================================================================================================
+
+  // 自定义魔法动作类型 chongchong 2015-03-17
+
+  TMagicActionType = (matSpell { 魔法动作 } , matHit { 普通砍 } , matJumpHit { 跳跃砍 } , matNone { 无动作 } , matCustom
+    { 自定义动作 } );
+
+  TMagicPlusLevel = (mplNone, mpl1_3, mpl4_6, mpl7_9);
+
+  TMagicSwitchMode = (msmNone { 无模式 } , msmSwitch { 开关模式 } , msmPowerHit { 攻杀模式 } );
+
+  TMagicWarrNGOption = (mngoNone, mngoWideHit { 半月 } , mngoFireHit { 烈火 } , mngoSwordHit { 逐日 } , mngoTWNHit { 龙影 } , mngoLongHit
+    { 刺杀 } , mngoKTZHit { 开天 } , mngoCRSHit { 双龙 } , mngo113Hit { 断空 } , mngoCustomHit1, mngoCustomHit2, mngoCustomHit3,
+    mngoCustomHit4, mngoCustomHit5, mngoCustomHit6, mngoCustomHit7, mngoCustomHit8);
+
+  PMagicClientBaseConfig = ^TMagicClientBaseConfig;
+
+  TMagicClientBaseConfig = packed record
+    MagicLock: Boolean;
+    MagicActionType: TMagicActionType;
+    MagicLockSelf: Boolean;
+    MagicSwitchMode: TMagicSwitchMode;
+    SwitchModeNoClose: Boolean;
+    MagicActionContinue: Boolean;
+    MagicAutoOpen: Boolean; // 技能自动开启 2020-05-15 23:05:37
+    MagicWarrNGOption: TMagicWarrNGOption;
+
+    MagicActionStartIndex: Integer;
+    MagicActionPlayCount: Integer;
+    MagicActionEmptyCount: Integer;
+    NotRaiseHand: Boolean;
+  end;
+
+  TMagicSoundType = (cmstManWarr { 男战士技能 } , cmstWomanWarr { 女战士技能 } , cmstUseMagic { 使用魔法 } , cmstMagicFly
+    { 魔法飞行 } , custMagicExplosion { 魔法爆炸 } , custMagicFail { 技能失败 } );
+
+  PMagicClientConfig = ^TMagicClientConfig;
+
+  TMagicClientConfig = packed record
+    Icon_File: SmallInt;
+    Icon_Index: Word;
+
+    Sounds: array [TMagicSoundType] of string[30];
+
+    Fly_File: SmallInt;
+    Fly_StartIndex: Word;
+    Fly_PlayCount: Word;
+    Fly_EmptyCount: Word;
+    Fly_PlayTime: Word;
+    Fly_DrawMode: TCustomDrawMode;
+    Fly_DirCount: TCustomDirCount;
+    Fly_CalcDir: Boolean;
+    Fly_FireGunMode: Boolean;
+    Fly_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    FlyEff_File: SmallInt;
+    FlyEff_StartIndex: Word;
+    FlyEff_DrawMode: TCustomDrawMode;
+
+    Self_File: SmallInt;
+    Self_StartIndex: Word;
+    Self_SyncHumAction: Boolean;
+    Self_PlayCount: Word;
+    Self_EmptyCount: Word;
+    Self_PlayTime: Word;
+    // Self_PlayMode: TMonsterPlayMode;
+    Self_DrawOrder: TCustomDrawOrder;
+    Self_DrawMode: TCustomDrawMode;
+    Self_DirCalcType: TCustomDirCalcType;
+    Self_DirCount: TCustomDirCount;
+    Self_PlayDelayAction: Boolean;
+    Self_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+    Self_PlayFailNoDraw: Boolean;
+
+    SelfKeep_File: SmallInt;
+    SelfKeep_StartIndex: Word;
+    SelfKeep_PlayCount: Word;
+    SelfKeep_PlayTime: Word;
+    SelfKeep_DrawMode: TCustomDrawMode;
+    SelfKeep_KeepTime: Word;
+    SelfKeep_KeepTime2: Integer;
+
+    FastMove_File: SmallInt;
+    FastMove_StartIndex: Word;
+    FastMove_PlayCount: Word;
+    FastMove_EmptyCount: Word;
+    FastMove_PlayTime: Word;
+    FastMove_DrawOrder: TCustomDrawOrder;
+    FastMove_DrawMode: TCustomDrawMode;
+    FastMove_CalcDir: Boolean;
+    FastMove_NoHitAction: Boolean;
+    FastMove_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    PreTarget_File: SmallInt;
+    PreTarget_StartIndex: Word;
+    PreTarget_StartIndex2: SmallInt;
+    PreTarget_PlayCount: Word;
+    PreTarget_EmptyCount: Word;
+    PreTarget_PlayTime: Word;
+    PreTarget_DrawMode: TCustomDrawMode;
+    PreTarget_DrawMode2: TCustomDrawMode;
+    PreTarget_CalcDir: Boolean;
+    PreTarget_LockDraw: Boolean;
+    PreTarget_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    Target_File: SmallInt;
+    Target_StartIndex: Word;
+    Target_StartIndex2: SmallInt;
+    Target_PlayCount: Word;
+    Target_PlayTime: Word;
+    Target_DrawMode: TCustomDrawMode;
+    Target_DrawMode2: TCustomDrawMode;
+    Target_MultiPlay: Boolean;
+    Target_LockDraw: Boolean;
+    Target_LightRange: Byte; // 照亮范围 chongchong 2015-03-04
+
+    Target_KeepPlay: Boolean; // 持久伤害 chongchong 2015-03-10
+    Target_KeepTime: Word; // 持久伤害时间 chongchong 2015-03-10
+    Target_KeepTime2: Integer; // 持久伤害时间递增 chongchong 2015-04-06
+    Target_KeepAttackRange: Byte; // 持久伤害范围 chongchong 2015-03-10
+    Target_KeepMultiPlay: Boolean; // 持久伤害 每格单独播放 chongchong 2015-03-10
+    Target_KeepAttackInterval: Byte; // 持久伤害间隔 chongchong 2015-03-10
+    Target_KeepLightRange: Byte;
+
+    TargetStatus1_File: SmallInt;
+    TargetStatus1_StartIndex: Word;
+    TargetStatus1_PlayCount: Word;
+    TargetStatus1_EmptyCount: Word;
+    // TargetStatus1_PlayTime: Word;
+    TargetStatus1_DrawMode: TCustomDrawMode;
+    TargetStatus1_CalcDir: Boolean;
+
+    TargetStatus2_File: SmallInt;
+    TargetStatus2_StartIndex: Word;
+    TargetStatus2_PlayCount: Word;
+    TargetStatus2_EmptyCount: Word;
+    // TargetStatus2_PlayTime: Word;
+    TargetStatus2_DrawMode: TCustomDrawMode;
+    TargetStatus2_CalcDir: Boolean;
+  end;
+
+  TMagicClientConfigs = array [TMagicPlusLevel] of TMagicClientConfig;
+
+  // 发送到客户端结构体 chongchong 2014-07-20
+  PClientCustomMagicConfig = ^TClientCustomMagicConfig;
+
+  TClientCustomMagicConfig = packed record
+    wMagicId: Word;
+    boIsMagicWarr: Boolean;
+    btNearAttackRange: Byte;
+    MagicBaseConfig: TMagicClientBaseConfig;
+    MagicConfigs: TMagicClientConfigs;
+
+    NeedItem: TMagicNeedItem;
+    NeedItemCount: Integer;
+    NeedItemCustomItemName: string[ITEM_NAME_LEN];
+    NeedItemUseBagItem: Boolean;
+    IsAttackUseNG: Boolean;
+    NoChangeDir: Boolean;
+
+    // FailMsg: string[40];
+  end;
+
+  PTSelfKeepPlay = ^TSelfKeepPlay;
+
+  TSelfKeepPlay = packed record
+    SelfKeep_File: SmallInt;
+    SelfKeep_StartIndex: SmallInt;
+    SelfKeep_StartIndex2: SmallInt;
+    SelfKeep_PlayCount: Word;
+    SelfKeep_PlayTime: Word;
+    SelfKeep_DrawOrder: TCustomDrawOrder;
+    SelfKeep_DrawMode: TCustomDrawMode;
+    SelfKeep_DrawMode2: TCustomDrawMode;
+    SelfKeep_KeepTime: Word;
+  end;
+
+  // =========================================================================================================
+  // 自定义技能相关 - end
+  // =========================================================================================================
+
+  // NPC动作
+  PNpcDirAction = ^TNpcDirAction;
+
+  TNpcDirAction = packed record
+    Enabled: LongBool;
+    Std_File: Word;
+    Std_Index: SmallInt;
+    Std_Count: Word;
+    Std_Time: Word;
+    Std_EffFile: Word;
+    Std_EffIndex: SmallInt;
+    // Std_EffCount: Word;
+    // Std_EffTime:  Word;
+
+    Act_File: Word;
+    Act_Index: SmallInt;
+    Act_Count: Word;
+    Act_Time: Word;
+    Act_EffFile: Word;
+    Act_EffIndex: SmallInt;
+    // Act_EffCount: Word;
+    // Act_EffTime:  Word;
+  end;
+
+  TCustomNpcDrawOrder = (ndoKeep_Chr_Eff, ndoKeep_Eff_Chr, ndoChr_Keep_Eff, ndoChr_Eff_Keep, ndoEff_Keep_Chr, ndoEff_Chr_Keep);
+
+  PNpcBaseConfig = ^TNpcBaseConfig;
+
+  TNpcBaseConfig = packed record
+    HPBgOffsetX: Integer; // 血条背景偏移X
+    HPBgOffsetY: Integer; // 血条背景偏移Y
+
+    HPOffsetX: Integer; // 血条偏移X
+    HPOffsetY: Integer; // 血条偏移Y
+    HPFile: Integer; // 血条文件
+    HPStartIndex: Integer; // 血条图片位置
+
+    HPTextOffsetX: Integer; // 血值偏移X
+    HPTextOffsetY: Integer; // 血值偏移Y
+
+    StandDrawMode: TCustomDrawMode;
+    StandEffectDrawMode: TCustomDrawMode;
+    ActionDrawMode: TCustomDrawMode;
+    ActionEffectDrawMode: TCustomDrawMode;
+
+    KeepPlayFile: Integer;
+    KeepPlayIndex: Integer;
+    KeepPlayCount: Integer;
+    KeepPlayTime: Integer;
+    KeepPlayBlendDraw: Boolean;
+    KeepPlayOffsetX: Integer;
+    KeepPlayOffsetY: Integer;
+
+    DrawOrder: TCustomNpcDrawOrder;
+  end;
+
+  TNpcDirActions = array [DR_UP .. DR_UPLEFT] of TNpcDirAction;
+
+  // 发送到客户端结构体 chongchong 2014-07-20
+  PClientCustomNpcConfig = ^TClientCustomNpcConfig;
+
+  TClientCustomNpcConfig = packed record
+    wNpcAppr: Word;
+    wDirCount: Word;
+    BaseConfig: TNpcBaseConfig;
+    Actions: TNpcDirActions;
+  end;
+
+  TItemCDTime = record
+    NormalHP: LongWord; // 普通只加HP
+    NormalMP: LongWord; // 普通只加MP
+    NormalHPMP: LongWord; // 普通同时加HP,MP
+    SpecialHP: LongWord; // 特殊只加HP
+    SpecialMP: LongWord; // 特殊只加MP
+    SpecialHPMP: LongWord; // 特殊同时加HP,MP
+    Other: LongWord; // 加其它属性
+  end;
+
+  TEatItemCDConfig = record
+    Hum: array [0 .. 2] of TItemCDTime;
+    Hero: array [0 .. 2] of TItemCDTime;
+  end;
+
+  PDropItemEffect = ^TDropItemEffect;
+
+  TDropItemEffect = packed record
+    ItemEffectIndex: Word;
+
+    FileIndex: SmallInt;
+    StartIndex: Word;
+
+    Time: Word;
+
+    ImageCount: Byte;
+    DrawCenter: Boolean;
+    NoBlend: Boolean;
+    BelowItem: Boolean;
+
+    OffsetX: SmallInt;
+    OffsetY: SmallInt;
+  end;
+
+  TGuardianLevelItemCounts = packed record
+    GetItemCounts: array [0 .. 3] of Integer;
+    CurItemCounts: array [0 .. 3] of Integer;
+  end;
+
+  pTGuardianLevelItemCounts = ^TGuardianLevelItemCounts;
+
+  TRefreshGuardianLevelItemCounts = packed record
+    GetItemCounts0: Integer;
+    GetItemCounts1: Integer;
+    GetItemCounts2: Integer;
+    GetItemCounts3: Integer;
+  end;
+
+  pTRefreshGuardianLevelItemCounts = ^TRefreshGuardianLevelItemCounts;
+
+  TItemGroup = (igAll, igWeapon, // 武器
+    igDress, // 衣服
+    igHelmet, // 头盔
+    igNecklace, // 项链
+    igArmRing, // 手镯
+    igRing, // 戒指
+    igBelt, // 腰带
+    igBoots, // 靴子
+    igFashion, // 时装
+    igDrug, // 药品
+    igSpecial, // 特殊
+    igOther // 其他
+    );
+
+  TDBMsgHeader = packed record
+    dwCode: LongWord;
+    dwCrc: LongWord;
+    DefMsg: TDefaultMessage;
+    nLength: Integer;
+  end;
+
+  pTDBMsgHeader = ^TDBMsgHeader;
+
+  TDummyLogon = record
+    sCharName: string;
+    sMapName: string;
+    nX: Integer;
+    nY: Integer;
+  end;
+
+  pTDummyLogon = ^TDummyLogon;
+
+  TDBSaveHuman = record
+    nSessionID: Integer;
+    PlayObject: Int64; // TObject -> Int64 64位支持修改 2020-01-07
+    Data: THumData;
+  end;
+
+  PTDBSaveHuman = ^TDBSaveHuman;
+
+  TDBSaveHero = record
+    nSessionID: Integer;
+    PlayObject: Int64; // TObject -> Int64 64位支持修改 2020-01-07
+    Data: THeroData;
+  end;
+
+  PTDBSaveHero = ^TDBSaveHero;
+
+  TDBLoadHuman = packed record
+    sAccount: string[ACCOUNT_LEN];
+    sHumanName: string[ACTOR_NAME_LEN];
+    sIPaddr: string[IP_ADDRESS_LEN];
+    sMachineID: string[32];
+    sUserMachineID: string[32];
+    nSessionID: Integer;
+    nSoftVersionDate: Integer;
+    nPayMent: Integer;
+    nPayMode: Integer;
+    nSocket: Integer;
+    nGSocketIdx: Integer;
+    nGateIdx: Integer;
+    nKey: Integer;
+    boOffLine: Boolean;
+    boReconnection: Boolean;
+    nClientWidth: Integer;
+    nClientHeight: Integer;
+    nClientBuildVer: Integer;
+    sPromotionFlag: string[40];
+  end;
+
+  PTDBLoadHuman = ^TDBLoadHuman;
+
+  TDBLoadHero = packed record
+    sAccount: string[ACCOUNT_LEN];
+    sHumanName: string[ACTOR_NAME_LEN];
+    sHeroName1: string[ACTOR_NAME_LEN];
+    sHeroName2: string[ACTOR_NAME_LEN];
+    btSex: Byte;
+    btJob: Byte;
+    btHair: Byte;
+    DataType: THeroDataType;
+    PlayObject: Int64;
+    Npc: Int64;
+  end;
+
+  PTDBLoadHero = ^TDBLoadHero;
+
+  TDBLoadDummy = packed record
+    sCharName: string[60];
+    sMapName: string[MAP_NAME_LEN];
+    nX: Integer;
+    nY: Integer;
+    PlayObject: Int64;
+    Npc: Int64;
+  end;
+
+  PTDBLoadDummy = ^TDBLoadDummy;
+
+  TDBRenameChr = packed record
+    sAccount: string[ACCOUNT_LEN];
+    sOldName: string[ACTOR_NAME_LEN];
+    sNewName: string[ACTOR_NAME_LEN];
+    boHuman: Boolean;
+    PlayObject: Int64;
+    Npc: Int64;
+  end;
+
+  PTDBRenameChr = ^TDBRenameChr;
+
+  TDBChangeGoldType = (cgtGold, cgtGameGold, cgtGamePoint, cgtGameDiamond, cgtGameGird, cgtCustomMoney);
+
+  TDBHumanChangeGold = packed record
+    ChangeType: TDBChangeGoldType;
+    sFromUser: string[ACTOR_NAME_LEN];
+    sChangGoldUser: string[ACTOR_NAME_LEN];
+    nGold: Integer;
+    PlayObject: Int64;
+    Npc: Int64;
+    sCustomMoneyName: string[CUSTOMMONEY_NAME_LEN];
+  end;
+
+  PTDBHumanChangeGold = ^TDBHumanChangeGold;
+
+  TDBGetRankData = packed record
+    nTabelPage: Integer;
+    nTabelType: Integer;
+    nPage: Integer;
+    sChrName: string[ACTOR_NAME_LEN];
+    PlayObject: Int64;
+    Npc: Int64;
+  end;
+
+  PTDBGetRankData = ^TDBGetRankData;
+
+  TDBQueryHumanInfoType = (qhiGuildMemberInfo, qhiGuildJoinUserList);
+
+  TDBQueryHumanInfo = packed record
+    QueryType: TDBQueryHumanInfoType;
+    HumanList: array [0 .. 419] of AnsiChar; // 最多可查30个人
+    PlayObject: Int64;
+    Npc: Int64;
+    nResultCount: Integer;
+  end;
+
+  PTDBQueryHumanInfo = ^TDBQueryHumanInfo;
+
+  TDBBuyPlayerInfo = packed record
+    sSellAccount: string[ACCOUNT_LEN];
+    sSellPlayer: string[ACTOR_NAME_LEN];
+
+    sBuyAccount: string[ACCOUNT_LEN];
+    sBuyPlayer: string[ACTOR_NAME_LEN];
+
+    SellPricesType: Integer;
+    SellPrices: Integer;
+
+    sDelegater: string[ACTOR_NAME_LEN];
+
+    Buyer: Int64;
+  end;
+
+  PTDBBuyPlayerInfo = ^TDBBuyPlayerInfo;
+
+  TDBSellPlayerInfo = packed record
+    sSellAccount: string[ACCOUNT_LEN];
+    sSellPlayer: string[ACTOR_NAME_LEN];
+
+    SellPricesType: Integer;
+    SellPrices: Integer;
+
+    sDelegater: string[ACTOR_NAME_LEN];
+    sSetUser: string[ACTOR_NAME_LEN];
+    Seller: Int64;
+  end;
+
+  PTDBSellPlayerInfo = ^TDBSellPlayerInfo;
+
+  TDBResultType = (drtLoadHuman, drtLoadDummy, drtLoadHero, drtChrRename, drtGetRankData, drtQueryHumanInfo, drtBuyPlayer,
+    drtSellPlayerDelegator);
+
+  PTDBResult = ^TDBResult;
+
+  TDBResult = record
+    ResultType: TDBResultType;
+    LoadBuf: PByte;
+    LoadBufLen: Integer;
+    DataBuf: PByte;
+    DataBufLen: Integer;
+    nResult: Integer;
+    sResult: string;
+  end;
+
+  PTDBLoadHumanResult = ^TDBLoadHumanResult;
+
+  TDBLoadHumanResult = record
+    LoadUser: TDBLoadHuman;
+    Data: THumData;
+    nResult: Integer;
+  end;
+
+  TVerticalAlignment = (taAlignTop, taAlignBottom, taVerticalCenter);
+
+  PArrButtonGroupConfig = ^TArrButtonGroupConfig;
+
+  TArrButtonGroupConfig = packed record
+    HorzAligment: TAlignment;
+    VertAligment: TVerticalAlignment;
+    OffsetX: Integer;
+    OffsetY: Integer;
+    NextOffsetX: Integer;
+    NextOffsetY: Integer;
+  end;
+
+  TArrButtonConfig = array [0 .. 6] of TArrButtonGroupConfig;
+
+  TArrBuffAddData = packed record
+    FlashTimeLeft: Integer;
+    FlashStartIndex: Integer;
+    FlashCount: Integer;
+    nTextOffsetX: Integer;
+    nTextOffsetY: Integer;
+    boTimeOffNoHide: Boolean;
+    nTimeOffImageIndex: Integer;
+  end;
+
+  PSellPlayerAddAskInfo = ^TSellPlayerAddAskInfo;
+
+  TSellPlayerAddAskInfo = packed record
+    ChrName: string[ACTOR_NAME_LEN];
+    MoneyType: Byte;
+    Prices: LongWord;
+  end;
+
+  PSellPlayerSearchInfo = ^TSellPlayerSearchInfo;
+
+  TSellPlayerSearchInfo = packed record
+    PlayerName: string[ACTOR_NAME_LEN];
+    Job: Byte;
+    LevelMin: LongWord;
+    LevelMax: LongWord;
+    PricesMin: LongWord;
+    PricesMax: LongWord;
+    MoneyType: Byte;
+    SortType: Byte;
+  end;
+
+  PSellPlayerItem = ^TSellPlayerItem;
+
+  TSellPlayerItem = packed record
+    Index: Word;
+    PlayerName: string[ACTOR_NAME_LEN];
+    Level: LongWord;
+    Job: Byte;
+    MoneyType: Byte;
+    Prices: LongWord;
+  end;
+
+  PSellPlayerMoney = ^TSellPlayerMoney;
+
+  TSellPlayerMoney = packed record
+    nGameGold: LongWord;
+    nGamePoint: LongWord;
+    nGold: LongWord;
+    nGameDiamond: LongWord;
+    nGameGird: LongWord;
+    sUserName: string[ACTOR_NAME_LEN];
+  end;
+
+  // 普通仓库
+  TSellPlayerStorageViewHeader = packed record
+    sName: string[ACTOR_NAME_LEN];
+    IsBeginShow: Boolean;
+    StorageOpen: array [0 .. 3] of Boolean;
+    Count: Integer;
+    MaxCount: Integer;
+    Page: Integer;
+  end;
+
+  PTSellPlayerStorageViewHeader = ^TSellPlayerStorageViewHeader;
+
+  // 无限仓库
+  TSellPlayerStorageExtViewHeader = packed record
+    sName: string[ACTOR_NAME_LEN];
+    IsBeginShow: Boolean;
+    Count: Integer;
+    MaxCount: Integer;
+    Page: Word;
+    MaxPage: Word;
+  end;
+
+  PTSellPlayerStorageExtViewHeader = ^TSellPlayerStorageExtViewHeader;
+
+  TSellPlayerUserInfo = packed record
+    Gender: Byte;
+    Job: Byte;
+    HAIR: Byte;
+    OldHair: Byte; // 原始发型，不算斗笠或面巾的
+    UserName: string[ACTOR_NAME_LEN];
+    NAMECOLOR: Integer;
+    GuildName: string[ACTOR_NAME_LEN];
+    GuildRankName: string[ACTOR_NAME_LEN];
+    UseItems: array [Low(THumanUseItems) .. High(THumanUseItems)] of TClientItem;
+    JewelryBoxStatus: TJewelryBoxStatus;
+    JewelryItems: array [Low(THumanJewelryBoxItems) .. High(THumanJewelryBoxItems)] of TClientItem;
+
+    ShowGodBless: Boolean;
+    GodBlessItemsState: TGodBlessItemsState;
+    GodBlessItems: array [Low(THumanGodBlessItems) .. High(THumanGodBlessItems)] of TClientItem;
+
+    GameGold: LongWord;
+    GamePoint: LongWord;
+    GameGird: LongWord;
+    GameDiamond: LongWord;
+    GameGlory: Integer;
+
+    Alcohol: Word; // 酒量
+    MedicineValue: Word; // 当前药力值
+
+    MoveSpeed: SmallInt;
+    AttackSpeed: SmallInt;
+    SpellSpeed: SmallInt;
+
+    HitPoint: Word;
+    SpeedPoint: Word;
+    AntiMagic: Byte;
+    AntiPoison: Byte;
+    PoisonRecover: Byte;
+    HealthRecover: Byte;
+    SpellRecover: Byte;
+
+    Abil: TAbility;
+
+    IsTrainingNG: Boolean;
+    NPRecoverTime: Integer;
+    AbilNG: TClientAbilityNG;
+
+    Meridians: THumMeridians;
+
+    OpenLastContinuous: Boolean; // 第四个连击是否开启
+    ContinuousMagicOrder: array [0 .. 3] of Byte; // 连击顺序
+  end;
+
+  pTSellPlayerUserInfo = ^TSellPlayerUserInfo;
+
+  pTPreviewMonItem = ^TPreviewMonItem;
+
+  TPreviewMonItem = packed record
+    sName: string[ITEM_NAME_LEN];
+    btColor: Byte;
+    boValueItem: Boolean;
+    wLooks: Word;
+    EffectIndex: Word;
+    nCount: Integer;
+  end;
+
+  PClientPreviewMonItem = ^TClientPreviewMonItem;
+
+  TClientPreviewMonItem = record
+    PreiewMonItem: TPreviewMonItem;
+
+    TextureWidth: Integer;
+    TextureHeight: Integer;
+
+    ItemEffect: TDropItemEffect;
+    ItemEffectFrame: Integer;
+    ItemEffectTick: LongWord;
+
+    ValueItemEffectFrame: Integer;
+    ValueItemEffectTick: LongWord;
+  end;
+
+  TGameApplicationType = (gatPC, gatH5, gatWeb, gatApp, gatBox, gatUnknown);
+
+const
+  TItemGroupNames: array [TItemGroup] of string = ('全部', '武器', '盔甲', '头盔', '项链', '手镯', '戒指', '腰带', '靴子', '时装', '药品', '特殊', '其他');
+
+function MakeInt64(L, H: Cardinal): Int64;
+
+function HiLong(N: Int64): Cardinal;
+
+function LoLong(N: Int64): Cardinal;
+
+function IsNullRect(SrcRect: TRect): Boolean;
+
+function RectEqual(const a, b: TRect): Boolean;
+
+function APPRfeature(cfeature: Integer): Word;
+
+function RACEfeature(cfeature: Integer): Byte;
+
+function HAIRfeature(cfeature: Integer): Byte;
+
+function DRESSfeature(cfeature: Integer): Byte;
+
+function WEAPONfeature(cfeature: Integer): Byte;
+
+function Horsefeature(cfeature: Integer): Byte;
+
+function Effectfeature(cfeature: Integer): Byte;
+
+function MakeHumanFeature(btRaceImg, btDress, btWeapon, btHair: Byte): Integer;
+
+function MakeMonsterFeature(btRaceImg, btWeapon: Byte; wAppr: Word): Integer;
+
+// 装备是否支持宝石镶嵌 chongchong 2015-01-04
+function CheckInlaidGemstone(StdMode: Integer): Boolean;
+
+function CheckIsCustomMagic(MagicID: Word): Boolean;
+
+procedure GarbageCollectAtoms;
+
+function GetItemSellPrice(ClientItem: PTClientItem): Integer;
+
+// 去掉改名装备的颜色等信息  这是一把<Img:1:1:1:1>图片{屠|249}{龙|249}{刀|249}文字
+function ProcessItemName(s: string): string;
+
+function GetIncMinuteTime(dt: TDateTime; AddMinute: Integer): string;
+
+function DJBHash(Buf: PByte; BufLen: Integer): LongWord;
+
+var
+  // 客户端配置
+  g_ClientConfig: TClientConfig = (boSkill43LockParaly: False; btDieColor: 0; nMagicItemRate: 100; boStartGameAuxiliary: True;
+    // 是否启动内挂
+    boCanOpenGameConfigDlg: True; // 是否允许呼出内挂
+    boNotCanUseClientConfig: False;
+    // 勾上后，用户内挂中的所有选项都失效，只根据M2的内挂设置参数。比如显示血条，如果M2的显示血条勾上了，内挂中显示血条用户勾不勾都会显示血条。
+    boGreenHintNewStyle: False; boItemNewAbilAllowUse: False; // 启用新属性
+    DActionLogButton: True; DBotMissionButton: True; DBotFriendButton: True; DControlHelpButton: True; DBotRankButton: True;
+    DBotWhisperButton: True; DOpenShopButton: True; DBotUserShopButton: True; DWebButton: True; DOpenHeroButton: True;
+    boShowHintWindowFrame: True; boShowHintLines: True; btHintWindowbackgroundColor: 0; btHintWindowbackgroundAlpha: 120;
+    HintWindowBorderWidth: (Left: 8; Top: 8; Right: 8; Bottom: 8); sShowHintFontName: '宋体'; btShowHintNameFontSize: 10;
+    // 装备名字号 chongchong 2013-11-14
+    btShowHintNameFontBold: 0; btShowHintNameFontStroke: 0; btShowHintOtherFontSize: 9; // 装备名字号 chongchong 2013-11-14
+    btShowHintOtherFontBold: 0; btShowHintOtherFontStroke: 0; btSuspensionShowItem: 1; boEscCloseNPC: False;
+    boHintWithMouse: False; boNpcDlgHintWithMouse: False; // NPC对话框提示随鼠标位置
+    boStateWindowsType: 1; boMoveItemShowID: False; boShowItemForm: False; // 显示物品来源信息
+    boShowItemSellPrice: False; boShowInsuranceInfo: False; btShowItemFormColor: 251; btShowItemSellPriceColor: 243;
+    btShowInsuranceInfoColor: 255; boShowItemFromFields: (True, True, True, True, True, True, True);
+    boShowBagGameGoldSeparator: False; boShowBagGameInfo: True; boMonStruckShowNumber: True; boHumStruckShowNumber: True;
+    boCloseBookProtect: False; boCloseLogoutProtect: False; boBagRightkey: False; boViewFog: False; boCanStartRun: True;
+    nHumNeedMagicItem: 1; btSendWhisperMsgFColor: $B4; btSendWhisperMsgBColor: $FF; btRefreshGameGoldFColor: $B4;
+    btRefreshGameGoldBColor: $FF; btShowWhisperFColor: 219; btShowWhisperBColor: $FF; btCloseWhisperFColor: 219;
+    btCloseWhisperBColor: $00;
+    // 需要魔法信息显示在聊天框
+    // boNeedMagicSysMsg: False;
+    btNpcLabelMouseMoveColor: 220; // NPC对话框鼠标移过去颜色
+    btNpcLabelMouseDownColor: 58; // NPC对话框鼠标按下去颜色
+    { 小地图相关控制 chongchong 2013-07-19 }
+    boMinMapCloseRadar: False; // 关闭雷达显示 chongchong 2013-07-19
+    btMinMapType: 0; // 小地图样式
+    boMinMapUseFindPath: False; dwMinMapFlagFlash: 300; // 小地图中玩家自身闪烁频率  chongchong 2013-07-19
+    btMinMapColorSelf: 255; // 玩家自身颜色  chongchong 2013-07-19
+    btMinMapColorOther: 251; // 其他玩家自身颜色  chongchong 2013-07-19
+    btMinMapColorNPC: 222; // NPC颜色  chongchong 2013-07-19
+    btMinMapColorGuard: 254; // 守卫颜色  chongchong 2013-07-19
+    btMinMapColorMonster: 249; // 怪物颜色  chongchong 2013-07-19
+    btMinMapColorHero: 252; // 英雄颜色  chongchong 2013-07-19
+    btMinMapColorBoss: 0; // Boss颜色  chongchong 2013-08-03
+    boHideItemNameNum: False; // 隐藏物品名后面的数字 chongchong 2013-11-23
+    boHorseRun3Grid: False; // 骑马一步三格 chongchong 2013-10-17
+    btPKLevel1NameColor: $FB; // 黄名默认颜色 chongchong 2013-11-01
+    dwMoveFrameTime: 800; dwHitFrameTime: 1500; // 两次普通攻击之间的间隔时间 piaoyun 2013-07-20
+    dwMagicHitFrameTime: 1500; // 两次魔法攻击之间的间隔时间 piaoyun 2013-07-20
+    boGemUpgrade: False; // 开启宝石升级 chongchong 2013-07-20
+    boShopGuiCanMove: False; // 商铺界面能否移动 piaoyun 2013-07-23
+    boNPCGuiCanMove: False; // NPC界面能否移动 piaoyun 2013-07-23
+    dwNpcButtonClickTime: 1000; // NPC按钮点击间隔 chongchong 2013-11-09
+    dwNpcActorClickTime: 2000; // NPC对象点击间隔 chongchong 2014-10-22
+    dwPluginPickupTime: 300; // 内挂自动捡起物品时间间隔 chongchong 2013-11-13
+    dwPluginMinEatItemTime: 500; // 内挂最小吃药间隔 chongchong 2015-10-17
+    boShowDeputyHeroButton: True; // 显示副将英雄按钮 chongchong 2013-12-20
+    boShowBagArrange: True; btPKLevel2NameColor: $F9; // 红名默认颜色 chongchong 2013-11-01
+    dwIncSpeedDecInterval: 30; dwIncMoveSpeedDecInterval: 30; dwIncSpellSpeedDecInterval: 30; boShowMagicShieldHP: False;
+    // 显示护身血条 chongchong 2014-09-26
+    nHumHPBarOffsetX: 0; nHumHPBarOffsetY: 0; nNpcHPBarOffsetX: 0; nNpcHPBarOffsetY: 0; nMonHPBarOffsetX: 0; nMonHPBarOffsetY: 0;
+    nHumNameOffsetX: 0; nHumNameOffsetY: 0; nNpcNameOffsetX: 0; nNpcNameOffsetY: 0; nMonNameOffsetX: 0; nMonNameOffsetY: 0;
+    boHealthNumberText: False; boBlastHitShowHealthNum: False; nHealthNumberOffsetX: 0; nHealthNumberOffsetY: 0;
+    nHealthNumberMoveSpeed: 50; nNewLeftGroupInfoOffsetX: 0; nNewLeftGroupInfoOffsetY: 0; nItemFluteStoneCount: 3;
+    // 相同属性镶嵌限制数量 chongchong 2015-01-10
+    nItemFluteStoneIdxCount: 3; nItemFluteStoneOverlapCount: 0; // 单孔允许叠加宝石数量
+    boDisableRightClickFluteStone: False; // 禁止右键镶嵌宝石 chongchogn 2015-04-25
+    nSayMsgMaxLen: 80; btMaxHitPoint: 1;
+    // 个人商店允许交易货币 chongchong 2015-03-08
+    boMyShopGold: True; // 允许金币
+    boMyShopGameGold: True; // 允许元宝
+    boMyShopGameDiamond: True; // 允许金刚石
+    boMyShopGameGird: True; // 允许灵符
+    boMyShopGamePoint: True; nAuctionCurrencyTypeEx: 31; nAuctionBroadcastCurrencyType: 0; // 拍卖广播收费类型
+    nAuctionBroadcastPrice: 0; // 拍卖广播收费
+    boOpenAuctionItemColors: True; btAuctionItemColors: (250, 254, 251, 253, 241, 243); boShowHeroShortKey: True;
+    nShowHeroShortKeyX: 0; nShowHeroShortKeyY: 0; btMagicFailMsgFColor: $FF; btMagicFailMsgBColor: $38; btMagicOKMsgFColor: $FF;
+    btMagicOKMsgBColor: 250; nMagicMsgX: 30; nMagicMsgY: 40; boMagicMsgXRightToLeft: False; boMagicMsgYBottomToTop: False;
+    boMagicMsgAddChatBoardMsg: True; boFashionJewelryOpen: False; // 开启时装首饰功能 chongchong 2015-06-12
+    boHelmetShowInBox: False; boSkill31UseNewEffect: False; boEnabledBuyShopItemGive: False;
+    // 开启商铺赠送功能 chongchong 2015-08-03
+    nGuildRankNameLen: 18; // 封号长度 chongchong 2015-09-10
+    dwUserMoveTime: 10; // @move命令时间间隔
+    sJewelryBoxHint: '首饰盒'; btMerchant273NameColor: 244; boHeroStateDlgNoMove: False; nStarBaseNum: 10; nStarLineMaxCount: 30;
+    boOpenNewGuild: False; boDisableDuFuTakeArmRingL: False; boOpenGamePet: True; nMaxInputStringLen: 90;
+    boSlaveAlwaysShowName: True; btMonsterShowLevel: 0; sMonsterShowLevelFormat: '%s\[Lv:%d]'; btMonStruckFrameDelayTime: 0;
+    boTZSupportRenameItem: False; boDescSupportRenamItem: False; boNoRenameDescReadDefault: False; boNoNeedFirDragon: False;
+    boMagicSetDir: False; boEnableDoubleFireHitSkill: False; boBagFastItemCompare: False; boShowHPUnit: False;
+    boShowNewGroupInfo: False; nHMPDivDura: 10; boPetNoEntity: False; boPetNoShowHPProgress: False;
+    boDisableWarrContinueHit: False; nWarrContinueHitMinInterval: 1000;
+    ArrDisableWarrContinueHitIDs: (0, 0, 0, 0, 0, 0, 0, 0, 0, 0); boAutoContinueAttack: False; boHideActorIcons: False;);
+
+const
+  ClientCustomMonsterConfigFlag: TGUID = '{196BE159-E170-41DB-B2F0-35A1D2EBFA8B}';
+  ClientCustomMagicConfigFlag: TGUID = '{196BE159-E170-41DB-B2F0-35A1D2EBFA8B}';
+  ClientCustomNPCConfigFlag: TGUID = '{3630817C-5AFB-4A06-873A-C7A2F8AF1F6C}';
+  MAXNATIONCOUNT = 1000; // 国家数量最大值
+
+  // HZQ 20230605 添加7个公共函数
+
+function IsPlayer(btRace: Byte): Boolean; // 玩家
+
+function IsHero(btRace: Byte): Boolean; // 英雄
+
+function IsSalve(btRace: Byte): Boolean; // 玩家召唤的宝宝，
+
+function IsMoonSprite(btRace: Byte): Boolean; // 月灵
+
+function IsNpc(btRace: Byte): Boolean; // NPC
+
+function IsGuard(btRace: Byte): Boolean; // 各种守卫
+
+function IsTruck(btRace: Byte): Boolean; // 镖车
+
+function IsHumMonster(btRace: Byte): Boolean; // 人形怪
+
+function IsMonster(btRace: Byte; boHumMonster: Boolean = False): Boolean; // 怪物
+
+implementation
+
+uses
+  HUtil32;
+
+{$IF RTLVersion >= 34.0}
+
+{ TNewMessageBodyWL }
+class operator TNewMessageBodyWL.Initialize(out Dest: TNewMessageBodyWL);
+begin
+  Dest.ResID := -1; // HumanHP命令拓展参数5, <0 代表不启用
+  Dest.ResStartIdx := -1; // HumanHP命令拓展参数6, <0 代表不启用
+end;
+{$IFEND}
+// HZQ 20230605 添加三个公共函数  人形怪、
+
+function IsPlayer(btRace: Byte): Boolean;
+begin
+  Result := btRace = RC_PLAYOBJECT;
+end;
+
+function IsHero(btRace: Byte): Boolean;
+begin
+  Result := btRace = RC_HEROOBJECT;
+end;
+
+function IsSalve(btRace: Byte): Boolean;
+begin
+  Result := False;
+end;
+
+function IsMoonSprite(btRace: Byte): Boolean;
+begin
+  Result := btRace = RC_MOONOBJECT;
+end;
+
+function IsNpc(btRace: Byte): Boolean;
+begin
+  Result := (btRace = RC_ANIMAL) or (btRace = RC_NPC) or (btRace = RC_PEACENPC);
+end;
+
+function IsHumMonster(btRace: Byte): Boolean;
+begin
+  Result := btRace = RC_PLAYMOSTER;
+end;
+
+function IsMonster(btRace: Byte; boHumMonster: Boolean): Boolean;
+var
+  bMonster: Boolean;
+begin
+  if btRace = RC_PLAYOBJECT then
+  begin
+    Result := boHumMonster;
+  end
+  else
+  begin
+    bMonster := btRace in [
+    { RC_PLAYOBJECT, }// 前面已经排除了，减少一各判断
+      RC_HEROOBJECT, RC_NPC, RC_GUARD, RC_GUARD2, RC_PEACENPC, RC_ANIMAL, RC_MOONOBJECT, RC_ARCHERGUARD, RC_TRUCKOBJECT,
+      RC_MOVE_ARCHERGUARD, 23, // 变异骷髅
+    54 // 神兽
+    // RC_PLAYMOSTER
+      ];
+    Result := not bMonster;
+  end;
+end;
+
+function IsGuard(btRace: Byte): Boolean;
+begin
+  Result := (btRace = RC_ARCHERGUARD) // 弓箭守卫
+    or (btRace = RC_GUARD) // 大刀守卫
+    or (btRace = RC_MOVE_ARCHERGUARD) // 移动弓箭守卫
+end;
+
+function IsTruck(btRace: Byte): Boolean;
+begin
+  Result := btRace = RC_TRUCKOBJECT;
+end;
+
+function MakeInt64(L, H: Cardinal): Int64;
+var
+  LI: Large_Integer;
+begin
+  LI.LowPart := L;
+  LI.HighPart := H;
+  Result := LI.QuadPart;
+end;
+
+function HiLong(N: Int64): Cardinal;
+begin
+  Result := Large_Integer(N).HighPart;
+end;
+
+function LoLong(N: Int64): Cardinal;
+begin
+  Result := Large_Integer(N).LowPart;
+end;
+
+function IsNullRect(SrcRect: TRect): Boolean;
+begin
+  Result := (SrcRect.Left = SrcRect.Right) or (SrcRect.Top = SrcRect.Bottom);
+end;
+
+function RectEqual(const a, b: TRect): Boolean;
+begin
+  Result := (a.Left = b.Left) and (a.Top = b.Top) and (a.Right = b.Right) and (a.Bottom = b.Bottom);
+end;
+
+function WEAPONfeature(cfeature: Integer): Byte;
+begin
+  Result := Hibyte(cfeature);
+end;
+
+function DRESSfeature(cfeature: Integer): Byte;
+begin
+  Result := Hibyte(HiWord(cfeature));
+end;
+
+function APPRfeature(cfeature: Integer): Word;
+begin
+  Result := HiWord(cfeature);
+end;
+
+function HAIRfeature(cfeature: Integer): Byte;
+begin
+  Result := HiWord(cfeature);
+end;
+
+function RACEfeature(cfeature: Integer): Byte;
+begin
+  Result := cfeature;
+end;
+
+function Horsefeature(cfeature: Integer): Byte;
+begin
+  Result := LoByte(LoWord(cfeature));
+end;
+
+function Effectfeature(cfeature: Integer): Byte;
+begin
+  Result := Hibyte(LoWord(cfeature));
+end;
+
+function MakeHumanFeature(btRaceImg, btDress, btWeapon, btHair: Byte): Integer;
+begin
+  Result := MakeLong(MakeWord(btRaceImg, btWeapon), MakeWord(btHair, btDress));
+end;
+
+function MakeMonsterFeature(btRaceImg, btWeapon: Byte; wAppr: Word): Integer;
+begin
+  Result := MakeLong(MakeWord(btRaceImg, btWeapon), wAppr);
+end;
+
+// 装备是否支持宝石镶嵌 chongchong 2015-01-04
+
+function CheckInlaidGemstone(StdMode: Integer): Boolean;
+begin
+  Result := StdMode in [5, 6 { 武器 }, 10, 11 { 衣服 }, 12 { 盾牌 }, 15 { 头盔 }, 16 { 斗笠 }, 19, 20, 21 { 项链 }, 22, 23 { 戒指 }, 24, 26
+  { 手镯 }, 28 { 马牌 }, 29 { 天使翅膀 }, 30 { 勋章类 }, 52, 62 { 鞋 }, 53, 63 { 宝石 }, 54, 64 { 腰带 }, 65 { 军鼓 }, 66, 67 { 时装衣服 }, 68, 69
+  { 时装武器 }, 70, 71, 72, 73 { 称号物品 }, 75..89 { 时装首饰 }, 90 { 灵玉 } ];
+end;
+
+function CheckIsCustomMagic(MagicID: Word): Boolean;
+begin
+  Result := (MagicID >= CUSTOM_MAGIC_START_ID) and (MagicID < CUSTOM_MAGIC_START_ID + CUSTOM_MAGIC_COUNT);
+end;
+
+procedure GarbageCollectAtoms;
+var
+  i, len: Integer;
+  cstrAtomName: array [0 .. 1024] of char;
+  AtomName, Value, procName: string;
+  ProcID, lastError: Cardinal;
+  /// countDelphiProcs, countActiveProcs, countCantRemoveProcs, countUnknownProcs: integer;
+  countRemovedProcs: Integer;
+
+  // gets program's name from process' handle
+
+  function getProcessFileName(Handle: THandle): string;
+  begin
+    Result := '';
+    { not used anymore
+      try
+      SetLength(Result, MAX_PATH);
+      if GetModuleFileNameEx(Handle, 0, PChar(Result), MAX_PATH) > 0 then
+      SetLength(Result, StrLen(PChar(Result)))
+      else
+      Result := '';
+      except
+      end;
+    }
+  end;
+
+// gets the last 8 digits from the given atomname and try to convert them to and integer
+  function getProcessIdFromAtomName(Name: string): Cardinal;
+  var
+    L: Integer;
+  begin
+    Result := 0;
+    L := Length(Name);
+    if (L > 8) then
+    begin
+      try
+        Result := StrToInt64('$' + copy(Name, L - 7, 8));
+      except
+        // Ops! That should be an integer, but it's not!
+
+        // So this was no created by a 'delphi' application and we must return 0, indicating that we could not obtain the process id from atom name.
+        Result := 0;
+      end;
+    end;
+  end;
+
+// checks if the given procID is running
+// results: -1: we could not get information about the process, so we can't determine if is active or not
+// 0: the process is not active
+// 1: the process is active
+  function isProcessIdActive(id: Cardinal; var processName: string): Integer;
+  var
+    Handle_ID: THandle;
+  begin
+    try
+      Handle_ID := OpenProcess(PROCESS_QUERY_INFORMATION or PROCESS_VM_READ, False, id);
+      if (Handle_ID = 0) then
+      begin
+        Result := 0;
+      end
+      else
+      begin
+        Result := 1;
+        // get program's name
+        processName := getProcessFileName(Handle_ID);
+        CloseHandle(Handle_ID);
+      end;
+    except
+      Result := -1;
+    end;
+  end;
+
+{
+  procedure Log(msg:string);
+  begin
+  // Memo1.Lines.Add(msg);
+  end;
+}
+begin
+  // initialize the counters
+  /// countDelphiProcs := 0;
+  /// countActiveProcs := 0;
+  countRemovedProcs := 0;
+  /// countUnknownProcs := 0;
+  /// countCantRemoveProcs := 0;
+
+  {
+    // register some log
+    Log('');
+    Log('');
+    Log('Searching Global Atom Table...');
+  }
+
+  for i := $C000 to $FFFF do
+  begin
+    len := GlobalGetAtomName(i, cstrAtomName, 1024);
+    if len > 0 then
+    begin
+      AtomName := StrPas(cstrAtomName);
+      SetLength(AtomName, len);
+      Value := AtomName;
+      // if the atom was created by a 'delphi application', it should start with some of strings below
+      if (pos('Delphi', Value) = 1) //
+        or (pos('ControlOfs', Value) = 1) //
+        or (pos('WndProcPtr', Value) = 1) //
+        or (pos('DlgInstancePtr', Value) = 1) then
+      begin
+        // extract the process id that created the atom (the ProcID are the last 8 digits from atomname)
+        ProcID := getProcessIdFromAtomName(Value);
+        if (ProcID > 0) then
+        begin
+          // that's a delphi process
+          /// inc(countDelphiProcs);
+          // register some log
+          // Log('');
+          // Log('AtomName: ' + value + ' - ProcID: ' + inttostr(ProcId) + ' - Atom No: ' + inttostr(i));
+          case (isProcessIdActive(ProcID, procName)) of
+            0: // process is not active
+              begin
+                // remove atom from atom table
+                SetLastError(ERROR_SUCCESS);
+                GlobalDeleteAtom(i);
+                lastError := GetLastError();
+                if lastError = ERROR_SUCCESS then
+                begin
+                  // ok, the atom was removed with sucess
+                  inc(countRemovedProcs);
+                  // register some log
+                  // Log('- LEAK! Atom was removed from Global Atom Table because ProcID is not active anymore!');
+                end
+                else
+                begin
+                  // ops, the atom could not be removed
+                  /// inc(countCantRemoveProcs);
+                  // register some log
+
+                  // Log('- Atom was not removed from Global Atom Table because function "GlobalDeleteAtom" has failed! Reason: ' + SysErrorMessage(lastError));
+                end;
+              end;
+            1: // process is active
+              begin
+                /// inc(countActiveProcs);
+                // register some log
+                // Log('- Process is active! Program: ' + procName);
+              end;
+            -1: // could not get information about process
+              begin
+                /// inc(countUnknownProcs);
+                // register some log
+                // Log('- Could not get information about the process and the Atom will not be removed!');
+              end;
+          end;
+        end;
+      end;
+    end;
+  end;
+
+  {
+    Log('');
+    Log('Scan complete:');
+    Log('- Delphi Processes: ' + IntTostr(countDelphiProcs) );
+    Log('  - Active: ' + IntTostr(countActiveProcs) );
+    Log('  - Removed: ' + IntTostr(countRemovedProcs) );
+    Log('  - Not Removed: ' + IntTostr(countCantRemoveProcs) );
+    Log('  - Unknown: ' + IntTostr(countUnknownProcs) );
+  }
+
+  g_TotalAtomsRemovidos := g_TotalAtomsRemovidos + countRemovedProcs;
+end;
+
+function GetItemSellPrice(ClientItem: PTClientItem): Integer;
+begin
+  Result := ClientItem.s.Price;
+  if (ClientItem.s.OverLap > 0) and (ClientItem.s.StdMode in [0, 2, 3, 31, 40, 41, 42, 46, 47]) and (ClientItem.s.DuraMax > 1)
+  then
+    Result := Result * (ClientItem.Dura + 1);
+
+  Result := Result div 2;
+end;
+
+(*
+  // 去掉改名装备的颜色等信息  这是一把{屠|249}{龙|248}{刀|247}
+  function ProcessItemName(sItemName: string): string;
+  var
+  Index1, Index2, Index3, nColor: Integer;
+  S1, S2, S3, S4: string;
+  boCustomColorText: Boolean;
+  begin
+  Result := '';
+  Index1 := Pos('{', sItemName);
+  if Index1 > 0 then
+  Index2 := Pos('}', sItemName)
+  else
+  Index2 := 0;
+
+  while (Index1 > 0) and (Index2 > 0) and (sItemName <> '') do
+  begin
+  S1 := Copy(sItemName, 1, Index1 - 1);
+  S2 := Copy(sItemName, Index1 + 1, Index2 - Index1 - 1);
+  if Length(S1) > 0 then
+  begin
+  Result := Result + S1;
+  end;
+
+  boCustomColorText := False;
+  if Length(S2) > 0 then
+  begin
+  Index3 := Pos('|', S2);
+  if Index3 > 0 then
+  begin
+  S3 := Copy(S2, 1, Index3 - 1);
+  S4 := Copy(S2, Index3 + 1, MaxInt);
+
+  nColor := StrToIntDef(S4, -1);
+  if (nColor >= 0) and (nColor <= 255) then
+  begin
+  boCustomColorText := True;
+
+  if Length(S3) > 0 then
+  begin
+  Result := Result + S3;
+  end;
+  end;
+  end;
+  end;
+
+  if not boCustomColorText then
+  begin
+  Result := '{' + S2 + '}';
+  end;
+
+  sItemName := Copy(sItemName, Index2 + 1, MaxInt);
+  Index1 := Pos('{', sItemName);
+  if Index1 > 0 then
+  Index2 := Pos('}', sItemName)
+  else
+  Index2 := 0;
+  end;
+
+  if Length(sItemName) > 0 then
+  begin
+  Result := Result + sItemName;
+  end;
+  end;
+*)
+
+function ProcessItemName(s: string): string;
+
+  function ProcessText(Text: string): string;
+  var
+    S1, S2, S3, S4: string;
+    Index1, Index2, Index3, nColor: Integer;
+    boCustomColorText: Boolean;
+  begin
+    Result := '';
+    if Length(Text) = 0 then
+      Exit;
+
+    Index1 := pos('{', Text);
+
+    if Index1 > 0 then
+      Index2 := pos('}', Text)
+    else
+      Index2 := 0;
+
+    while (Index1 > 0) and (Index2 > 0) and (Text <> '') do
+    begin
+      S1 := copy(Text, 1, Index1 - 1);
+      S2 := copy(Text, Index1 + 1, Index2 - Index1 - 1);
+
+      if Length(S1) > 0 then
+      begin
+        Result := Result + S1;
+      end;
+
+      boCustomColorText := False;
+      if Length(S2) > 0 then
+      begin
+        Index3 := pos('|', S2);
+        if Index3 > 0 then
+        begin
+          S3 := copy(S2, 1, Index3 - 1);
+          S4 := copy(S2, Index3 + 1, MaxInt);
+
+          nColor := StrToIntDef(S4, -1);
+          if (nColor >= 0) and (nColor <= 255) then
+          begin
+            boCustomColorText := True;
+
+            if Length(S3) > 0 then
+            begin
+              Result := Result + S3;
+            end;
+          end;
+        end;
+      end;
+
+      if not boCustomColorText then
+      begin
+        Result := Result + '{' + S2 + '}';
+      end;
+
+      Text := copy(Text, Index2 + 1, MaxInt);
+      Index1 := pos('{', Text);
+      if Index1 > 0 then
+        Index2 := pos('}', Text)
+      else
+        Index2 := 0;
+    end;
+
+    if Length(Text) > 0 then
+    begin
+      Result := Result + Text;
+    end;
+  end;
+
+  function CheckElement(Text: string; var ShowText: string): Boolean;
+  var
+    Temp: string;
+    sName, S1, S2, S3, S4, S5, S6, S7, S8: string;
+    I1, I2: Integer;
+  begin
+    Result := False; // '<Img:N:F:X:Y>'
+    if Length(Text) > 2 then
+    begin
+      Temp := copy(Text, 2, Length(Text) - 2);
+      Temp := GetValidStr3_Ex(Temp, sName, ':');
+      Temp := GetValidStr3_Ex(Temp, S1, ':');
+      Temp := GetValidStr3_Ex(Temp, S2, ':');
+      Temp := GetValidStr3_Ex(Temp, S3, ':');
+      Temp := GetValidStr3_Ex(Temp, S4, ':');
+      Temp := GetValidStr3_Ex(Temp, S5, ':');
+      Temp := GetValidStr3_Ex(Temp, S6, ':');
+      Temp := GetValidStr3_Ex(Temp, S7, ':');
+      Temp := GetValidStr3_Ex(Temp, S8, ':');
+
+      I1 := StrToIntDef(S1, -1);
+      I2 := StrToIntDef(S2, -1);
+      // <img: xxxx
+      if SameText(sName, 'Img') and (I2 >= 0) then
+      begin
+        if (I1 >= 0) then
+        begin
+          Result := True;
+        end;
+      end
+      else if SameText(sName, 'Looks') and (I1 >= 0) then
+      begin
+        Result := True;
+      end
+      else if SameText(sName, 'DnItems') and (I1 >= 0) then
+      begin
+        Result := True;
+      end
+      else if SameText(sName, 'StateItem') and (I1 >= 0) then
+      begin
+        Result := True;
+      end
+
+      // 格式: <NewopUIPlay:N:C:T:X:Y:M>
+      // N表示播放开始图片,C表示播放张数,T表示播放速度(毫秒),X是横向坐标,Y是纵向坐标;M绘制模式
+      else if SameText(sName, 'NewopPlayImg') and (I2 >= 0) then
+      begin
+        Result := True;
+      end
+      else if SameText(sName, 'NewopUI') and (I1 >= 0) then
+      begin
+        Result := True;
+      end
+
+      // 格式: <PlayImg:F:N:C:T:X:Y:M/@Label>
+      // F表示WIL文件序号,N表示播放开始图片,C表示播放张数,T表示播放速度(毫秒),X是横向坐标,Y是纵向坐标;M绘制模式
+      else if SameText(sName, 'PlayImg') and (I1 >= 0) and (I2 >= 0) then
+      begin
+        Result := True;
+      end
+
+      // 格式: <ItemProgress:N:C:M:V:X:Y:S/@Label>
+      // N表示进度条序号; C表示进度条显示图片数量；M:进度条最大值; V:当前值; X,Y: 坐标偏移；R: 显示值颜色; S: 进度条显示的值
+      else if SameText(sName, 'ItemProgress') and (I1 >= 0) and (I2 >= 0) then
+      begin
+        Result := True;
+        ShowText := S8;
+      end
+      else if SameText(sName, 'ImgNum') and (I1 >= 0) and (I1 <= 9) and (I2 > 0) then
+      begin
+        Result := True;
+        ShowText := IntToStr(I2); // 数字值
+      end
+      else if SameText(sName, 'Countdown') and (I1 >= 0) then
+      begin
+        Result := True;
+      end;
+    end;
+  end;
+
+var
+  Index1, Index2: Integer;
+  StrB, StrC: string;
+  ShowText: string;
+begin
+  Result := '';
+  Index1 := pos('<', s);
+  if Index1 = 0 then
+  begin
+    Result := Result + ProcessText(s);
+  end
+  else
+  begin
+    while s <> '' do
+    begin
+      StrB := StrB + copy(s, 1, Index1 - 1);
+      s := copy(s, Index1, MaxInt);
+
+      Index2 := pos('>', s);
+      if Index2 = 0 then
+      begin
+        Result := Result + ProcessText(StrB + s);
+        Break;
+      end
+      else
+      begin
+        StrC := copy(s, 1, Index2);
+        ShowText := '';
+        if not CheckElement(StrC, ShowText) then
+          StrB := StrB + StrC
+        else
+        begin
+          if Length(StrB) > 0 then
+            Result := Result + ProcessText(StrB);
+
+          Result := Result + ShowText;
+
+          StrB := '';
+          StrC := '';
+        end;
+
+        s := copy(s, Index2 + 1, MaxInt);
+        Index1 := pos('<', s);
+        if Index1 = 0 then
+        begin
+          s := StrB + s;
+          if s <> '' then
+            Result := Result + ProcessText(s);
+          Break;
+        end;
+      end;
+    end;
+  end;
+end;
+
+function GetIncMinuteTime(dt: TDateTime; AddMinute: Integer): string;
+begin
+  Set8087CW($133F);
+  if AddMinute = 0 then
+    Result := FormatDateTime('yyyy/mm/dd hh:nn:ss', dt)
+  else
+    Result := FormatDateTime('yyyy/mm/dd hh:nn:ss', IncMinute(dt, AddMinute));
+  Set8087CW(Default8087CW); // 恢复默认的浮点精度
+end;
+
+function DJBHash(Buf: PByte; BufLen: Integer): LongWord;
+var
+  i: Integer;
+begin
+  Result := 5381;
+  for i := 0 to BufLen - 1 do
+  begin
+    Result := (Result shl 5) + Result + Buf^;
+    inc(Buf);
+  end;
+  // hash := hash and (not (1 shl 31)); hash := hash and $7FFFFFFF;
+end;
+
+end.
