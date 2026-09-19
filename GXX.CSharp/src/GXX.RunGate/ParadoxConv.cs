@@ -299,10 +299,10 @@ public static partial class ParadoxConv
         int i = 1;
         while (i <= s.Length)
         {
-            if (s[i - 1] != 0 || s[i] != 0)
+            if (s[i - 1 + 0] != 0 || s[i - 1 + 1] != 0)
                 throw EConvException.Create("UCS4", "Cp1251",
-                    "$" + s[i - 1].ToString("X2") + s[i].ToString("X2") + s[i + 1].ToString("X2") + s[i + 2].ToString("X2"));
-            if (!TryLookup(Ucs4ToCp1251Table, s[i + 1], s[i + 2], s[i + 2], out byte outByte))
+                    "$" + s[i - 1].ToString("X2") + s[i - 1 + 1].ToString("X2") + s[i - 1 + 2].ToString("X2") + s[i - 1 + 3].ToString("X2"));
+            if (!TryLookup(Ucs4ToCp1251Table, s[i - 1 + 2], s[i - 1 + 3], s[i - 1 + 3], out byte outByte))
                 throw EConvException.Create("UCS4", "Cp1251", "$" + s[i - 1].ToString("X2"));
             result.Add(outByte);
             i = i + 4;
@@ -324,10 +324,10 @@ public static partial class ParadoxConv
         int i = 1;
         while (i <= s.Length)
         {
-            if (s[i - 1] != 0 || s[i] != 0)
+            if (s[i - 1 + 0] != 0 || s[i - 1 + 1] != 0)
                 throw EConvException.Create("UCS4", "Cp866",
-                    "$" + s[i - 1].ToString("X2") + s[i].ToString("X2") + s[i + 1].ToString("X2") + s[i + 2].ToString("X2"));
-            if (!TryLookup(Ucs4ToCp866Table, s[i + 1], s[i + 2], s[i + 2], out byte outByte))
+                    "$" + s[i - 1].ToString("X2") + s[i - 1 + 1].ToString("X2") + s[i - 1 + 2].ToString("X2") + s[i - 1 + 3].ToString("X2"));
+            if (!TryLookup(Ucs4ToCp866Table, s[i - 1 + 2], s[i - 1 + 3], s[i - 1 + 3], out byte outByte))
                 throw EConvException.Create("UCS4", "Cp866", "$" + s[i - 1].ToString("X2"));
             result.Add(outByte);
             i = i + 4;
@@ -367,10 +367,10 @@ public static partial class ParadoxConv
         int i = 1;
         while (i <= s.Length)
         {
-            if (s[i - 1] != 0 || s[i] != 0)
+            if (s[i - 1 + 0] != 0 || s[i - 1 + 1] != 0)
                 throw EConvException.Create("UCS4", "Koi8r",
-                    "$" + s[i - 1].ToString("X2") + s[i].ToString("X2") + s[i + 1].ToString("X2") + s[i + 2].ToString("X2"));
-            if (!TryLookup(Ucs4ToKoi8rTable, s[i + 1], s[i + 2], s[i + 2], out byte outByte))
+                    "$" + s[i - 1].ToString("X2") + s[i - 1 + 1].ToString("X2") + s[i - 1 + 2].ToString("X2") + s[i - 1 + 3].ToString("X2"));
+            if (!TryLookup(Ucs4ToKoi8rTable, s[i - 1 + 2], s[i - 1 + 3], s[i - 1 + 3], out byte outByte))
                 throw EConvException.Create("UCS4", "Koi8r", "$" + s[i - 1].ToString("X2"));
             result.Add(outByte);
             i = i + 4;
@@ -408,10 +408,10 @@ public static partial class ParadoxConv
         int i = 1;
         while (i <= s.Length)
         {
-            if (s[i - 1] != 0 || s[i] != 0)
+            if (s[i - 1 + 0] != 0 || s[i - 1 + 1] != 0)
                 throw EConvException.Create("UCS4", "ISO 8859-5",
-                    "$" + s[i - 1].ToString("X2") + s[i].ToString("X2") + s[i + 1].ToString("X2") + s[i + 2].ToString("X2"));
-            if (!TryLookup(Ucs4ToIso88595Table, s[i + 1], s[i + 2], s[i + 2], out byte outByte))
+                    "$" + s[i - 1].ToString("X2") + s[i - 1 + 1].ToString("X2") + s[i - 1 + 2].ToString("X2") + s[i - 1 + 3].ToString("X2"));
+            if (!TryLookup(Ucs4ToIso88595Table, s[i - 1 + 2], s[i - 1 + 3], s[i - 1 + 3], out byte outByte))
                 throw EConvException.Create("UCS4", "ISO 8859-5", "$" + s[i - 1].ToString("X2"));
             result.Add(outByte);
             i = i + 4;
