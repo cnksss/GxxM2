@@ -523,6 +523,12 @@ public class FrmRouteEdit : Form
     /// <summary>RouteEdit.pas:82 `FIsChanged: Boolean`。</summary>
     public byte FIsChanged;
 
+    /// <summary>
+    /// WinForms 适配：VirtualTrees 的 `FocusedNode` 在未创建窗口句柄时不可用，
+    /// 托管侧额外记录一份焦点节点序号（真实 UI 下与 vstRunGate.FocusedItem 一致）。
+    /// </summary>
+    public int FocusedNodeIndex = -1;
+
     /// <summary>RouteEdit.pas:126-266 `TPropertyEditLink` 的节点模型（数据源）。</summary>
     public readonly List<TRunGateNode> Nodes = new List<TRunGateNode>();
 
@@ -755,13 +761,14 @@ public class FrmRouteEdit : Form
         {
             vstRunGate.Items[vstRunGate.Items.Count - 1].Selected = true;
             vstRunGate.FocusedItem = vstRunGate.Items[vstRunGate.Items.Count - 1];
+            FocusedNodeIndex = vstRunGate.Items.Count - 1;
         }
     }
 
     /// <summary>RouteEdit.pas:722-743 `btnDelClick`。</summary>
     public void btnDelClick(object Sender, EventArgs e)
     {
-        int focused = vstRunGate.FocusedItem != null ? vstRunGate.FocusedItem.Index : -1;
+        int focused = vstRunGate.FocusedItem != null ? vstRunGate.FocusedItem.Index : FocusedNodeIndex;
         int newFocus;
         if (!RouteEditLogic.BtnDel(Nodes, focused, ref FIsChanged, out newFocus)) return;
         SyncTreeView();
@@ -769,6 +776,11 @@ public class FrmRouteEdit : Form
         {
             vstRunGate.Items[newFocus].Selected = true;
             vstRunGate.FocusedItem = vstRunGate.Items[newFocus];
+            FocusedNodeIndex = newFocus;
+        }
+        else
+        {
+            FocusedNodeIndex = -1;
         }
     }
 
