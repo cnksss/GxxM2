@@ -217,13 +217,13 @@ public class TFileItemDB
             if ((sLineText != "") && (sLineText[0] == ';')) continue;   // 原文 sLineText[1]（Delphi 1-based）
             string sItemType = "", sItemName = "", sHint = "", sPickUp = "", sShowName = "", sShowSpecial = "", sAutoMove = "";
             char[] div = { ',', '\t' };
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sItemType, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sItemName, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sHint, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sPickUp, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sShowName, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sShowSpecial, div);
-            sLineText = HUtil32.GetValidStr3(sLineText, ref sAutoMove, div);
+            sLineText = GetValidStr3(sLineText, ref sItemType, div);
+            sLineText = GetValidStr3(sLineText, ref sItemName, div);
+            sLineText = GetValidStr3(sLineText, ref sHint, div);
+            sLineText = GetValidStr3(sLineText, ref sPickUp, div);
+            sLineText = GetValidStr3(sLineText, ref sShowName, div);
+            sLineText = GetValidStr3(sLineText, ref sShowSpecial, div);
+            sLineText = GetValidStr3(sLineText, ref sAutoMove, div);
             int nItemType = DelphiRTL.StrToIntDef(sItemType, -1);
             if ((sItemName != "") &&
                 (nItemType >= (int)TItemType.i_All /*Low(TItemType)*/) &&
@@ -569,6 +569,70 @@ public class TFileItemDB
 
     /// <summary>原文 Graphics.clBlue = $FF0000（Delphi TColor 为 BGR 布局）。</summary>
     public const int ClBlue = 0x00FF0000;
+
+    // ================================================================================
+    // GetValidStr3 —— **Delphi RTL 语义的忠实复刻**
+    // --------------------------------------------------------------------------------
+    // 为什么不直接用 GXX.Core.Util.HUtil32.GetValidStr3：
+    //   该既有实现与 Source/Common/HUtil32.pas:1243-1341 的原文语义**不一致**：
+    //   原文会"丢掉最前面的分隔符（连续的都丢）再取第一段非分隔符文本"
+    //   （HUtil32.pas:1278-1292 / 1318-1332 的注释"丢掉最前面的分隔符，不管多少个"），
+    //   而既有 C# 版在**入参以分隔符开头时 Dest 返回空串**。
+    //   实测：原文 GetValidStr3(",布衣,1") → Dest="布衣"、Result=",1"；
+    //         既有 C# 版 → Dest=""（随后 LoadFormList 取不到 sItemName 而整行被丢弃）。
+    //   本车道不得修改 GXX.Core（基线属其它车道），故在此逐字复刻原文算法供本单元使用，
+    //   并把该差异登记为"发现的基线缺陷"（见交付报告）。
+    // ================================================================================
+
+    /// <summary>
+    /// Delphi <c>HUtil32.GetValidStr3(Str:string; var Dest:string; const Divider:array of Char):string</c>
+    /// （HUtil32.pas:1243-1341，逐字复刻 ANSI 分支 1301-1339）：
+    /// 跳过**开头连续的任意个分隔符**，把随后的第一段非分隔符文本写入 <paramref name="Dest"/>，
+    /// 返回**从该段之后的分隔符起**的剩余串（含该分隔符）；
+    /// 若全串都是分隔符或为空，则 Dest 为原串（Delphi <c>Dest := Str</c> 初值）。
+    /// </summary>
+    public static string GetValidStr3(string Str, ref string Dest, char[] Divider)
+    {
+        Dest = Str;
+        int Len = Str.Length;
+        int DividerCount = Divider.Length;
+        if ((Len == 0) || (DividerCount == 0)) return "";
+
+        bool IsStart = false;
+        int StartIndex = 1;   // Delphi 1-based
+
+        for (int I = 1; I <= Len; I++)
+        {
+            char C = Str[I - 1];
+            bool IsFound = false;
+            for (int II = 0; II <= DividerCount - 1; II++)
+            {
+                if (C == Divider[II]) { IsFound = true; break; }
+            }
+
+            // 丢掉最前面的分隔符，不管多少个，只要是连一起的就全部丢掉
+            if (IsFound)
+            {
+                if (IsStart)
+                {
+                    Dest = DelphiRTL.Copy(Str, StartIndex, I - StartIndex);
+                    return DelphiRTL.Copy(Str, I + 1, Len - I);
+                }
+            }
+            else if (!IsStart)
+            {
+                IsStart = true;
+                StartIndex = I;
+            }
+        }
+
+        // 如果只有最前面有分隔符，后面都没有，把最前面的分隔符全丢掉
+        if (StartIndex > 1)
+        {
+            Dest = DelphiRTL.Copy(Str, StartIndex, Len - StartIndex + 1);
+        }
+        return "";
+    }
 }
 
 /// <summary>
