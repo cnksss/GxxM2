@@ -190,13 +190,48 @@ public partial class TCreature
         return Grobal2Const.DR_UP;
     }
 
-    /// <summary>GetNextPosition：从 (x,y) 沿 dir 走 n 步的目标坐标。</summary>
+    /// <summary>
+    /// GetNextPosition：从 (x,y) 沿 dir 走 n 步的目标坐标。
+    ///
+    /// **批次J189 修正（对齐 Delphi 的 `case` 语义）**：
+    /// 原文 `TEnvirnoment.GetNextPosition`（`Envir.pas` 4528-4583）是
+    /// `case nDir of` 加**八个显式标签**，且函数开头先 `snX := sX; snY := sY;`
+    /// —— 因此**任何未列举的方向值都不匹配任何标签、坐标保持传入值**
+    /// （即"非法方向 = 原地不动"）。
+    ///
+    /// 修正前的实现是 `x + DirDeltaX(dir) * n`，而 `DirDeltaX` 为
+    /// `s_DirX[Math.Min(dir, (byte)7)]` —— 当 `dir` 是由 `-1` 截断而来的
+    /// **255** 时会被 `Math.Min` **夹到 7**、于是错误地按 `DR_UPLEFT` 移动。
+    /// 这使 `(nDir - 1) mod 8`（`ObjSmartMon.pas:903` 等处，`nDir = 0` 时得 -1）
+    /// 在 C# 侧产生了原文没有的位移。批次J188 已如实记录该偏差，
+    /// 本批次按原文语义修正。
+    ///
+    /// **注意**：本方法按 `dir` 合法与否分派，**不做地图边界钳位**
+    /// （原文的边界判断在 `case` 各分支内、依赖 `m_nWidth`/`m_nHeight`，
+    /// 本方法未持有环境对象，故由调用方的 `CanWalk` 负责）；
+    /// 与 `EnvirPositionCore.NextPosition`（含边界的完整 1:1 版）**不是同一方法**、
+    /// 二者各自对应原文的不同调用场景。
+    /// </summary>
     public static bool GetNextPosition(int x, int y, byte dir, int n, out int nx, out int ny)
     {
-        nx = x + TMonster.DirDeltaX(dir) * n;
-        ny = y + TMonster.DirDeltaY(dir) * n;
+        // **原文：snX := sX; snY := sY; 然后 case nDir of —— 未列举值即不动。**
+        nx = x;
+        ny = y;
+
+        if (dir > 7)
+            return true;
+
+        int[] dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
+        int[] dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
+
+        nx = x + dx[dir] * n;
+        ny = y + dy[dir] * n;
+
         return true;
     }
+
+    /// <summary>**方向合法性判据（本方法修正后新增）。**</summary>
+    public static bool IsLegalDirection(int dir) => dir >= 0 && dir <= 7;
 
     /// <summary>MagCanHitTarget：视线判定（距离 + 直线可走）。</summary>
     public bool MagCanHitTarget(int sx, int sy, TCreature? target)
