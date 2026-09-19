@@ -29,28 +29,25 @@ namespace GXX.Client.DxComponent;
 //        SetOnGetImage  → SetOnGetImageV2
 //        DoClick        → DoClickV2
 //        DoMouseDown/Move/Up → 原文 604-617 都是空实现，故无需落点
-//   2. `property Style:TButtonStyle`（原文 156）→ 托管属性名 **ButtonStyle**
-//      （`Style` 在 WinForms Control 上已被占用；改名策略与上游接缝的 `Hint → HintText` 一致）。
-//      `DxLabel.cs` 内部保留了私有 `Style` 转发以保持该文件原样。
+//
+//   2. **对外承诺的成员名一律用原文 published 名**（这是与 LoadDx 车道的接口契约）：
+//        `property ClickCount:TClickSound`（原文 154，read/write FClickSound）
+//        `property Style:TButtonStyle`     （原文 156，read/write FButtonStyle）
+//        `property DrawAligment:TDrawAligment`（原文 165）
+//      类型归属：`TClickSound` / `TDrawAligment` 在原文 `DxComponents.pas` 54/49 是**顶层**枚举，
+//      故托管侧定义在 `DxControls.cs` 顶层；`TButtonStyle` 是 `DxComponents.pas` 53 的顶层枚举。
+//      （上一波车道5 曾把 TClickSound/TDrawAligment 内嵌进它造的 TDxImageButton 最小接缝，
+//        那是临时形态；本波按原文回归顶层。LoadDx 侧若仍写 `TDxImageButton.TClickSound`，
+//        需要用 `using TClickSound = GXX.Client.DxComponent.TClickSound;` 别名对齐。）
+//
 //   3. TGameImages → IDxImageLibrary（GetImage / GetGray）。
 //      `FImage.GetCachedImage(FCurrentFrame, nX, nY)` → GetImage + nX=nY=0（同 DxImageForm）。
 //   4. GameCanvas.Draw(x, y, SrcRect, Texture, BlendMode) → IDxSurfacePainterExt.DrawBlend。
 //      Blend 常量：`Blend_SrcAlphaColor`（FBlendDraw 时），否则**字面量 2**（原文如此）。
 //   5. MyGetTickCount → DxTickCount.MyGetTickCount（可注入，便于动画单测）。
-//   6. `TDxLabel.Style` 的私有转发是本文件 ButtonStyle 的兼容层 —— 见 DxLabel.cs 顶部说明。
+//   6. `GuiType`（原文 488 `GuiType := t_Button`）在上游接缝的 TDxControl 上未暴露，故本类自带。
 // =====================================================================================
 
-/// <summary>
-/// DxComponents.pas 54 TClickSound。
-/// （上一波车道5 把它内嵌在最小接缝类里；现提升为 namespace 级，保持 1:1 名称可用。）
-/// </summary>
-public enum TClickSoundNS { csNone, csStone, csGlass, csNorm }
-
-/// <summary>
-/// DxComponents.pas 49 TDrawAligment。
-/// （同上：由最小接缝的内嵌枚举提升为 namespace 级。）
-/// </summary>
-public enum TDrawAligmentNS { daFill, daBottom }
 
 // -------------------------------------------------------------------------------------
 // DxImageButton.pas 21-92 / 179-462：TButtonAnimation
@@ -267,7 +264,7 @@ public class TButtonAnimation : IDisposable
         {
             isShow = !_owner.Enabled;
         }
-        else if (_owner.ButtonStyle == TButtonStyle.bsButton)
+        else if (_owner.Style == TButtonStyle.bsButton)
         {
             if (_owner.MouseDowned)
             {
@@ -526,8 +523,8 @@ public class TDxImageButton : TDxControl
     /// <summary>原文 154/140 ClickCount（原文类型 TClickSound）。</summary>
     public TClickSound ClickCount { get => _clickSound; set => _clickSound = value; }
 
-    /// <summary>原文 156 `property Style:TButtonStyle`（托管名 ButtonStyle，理由见文件头第 2 条）。</summary>
-    public TButtonStyle ButtonStyle { get => _buttonStyle; set => _buttonStyle = value; }
+    /// <summary>原文 156 `property Style:TButtonStyle read FButtonStyle write FButtonStyle`（托管侧保持原文名 Style）。</summary>
+    public TButtonStyle Style { get => _buttonStyle; set => _buttonStyle = value; }
 
     /// <summary>原文 158/116 CaptionDownOffsetX。</summary>
     public int CaptionDownOffsetX { get => _captionDownOffsetX; set => _captionDownOffsetX = value; }
@@ -583,7 +580,7 @@ public class TDxImageButton : TDxControl
     /// <summary>原文 504-509 TDxImageButton.CheckAutoSize：**只有 bsButton 才走继承的自动定尺**。</summary>
     public void CheckAutoSizeV2()
     {
-        if (ButtonStyle == TButtonStyle.bsButton)
+        if (Style == TButtonStyle.bsButton)
             CheckAutoSizeBase();
     }
 
@@ -631,7 +628,7 @@ public class TDxImageButton : TDxControl
 
         if (Caption != "")
         {
-            if (ButtonStyle == TButtonStyle.bsButton && d != null && d.Width >= 2 && d.Height >= 2)
+            if (Style == TButtonStyle.bsButton && d != null && d.Width >= 2 && d.Height >= 2)
             {
                 nWidth = d.Width;
                 nHeight = d.Height;
@@ -700,7 +697,7 @@ public class TDxImageButton : TDxControl
     /// </summary>
     public int ResolveFaceIndex()
     {
-        if (ButtonStyle == TButtonStyle.bsButton)
+        if (Style == TButtonStyle.bsButton)
         {
             if (MouseDowned)
             {
@@ -741,7 +738,7 @@ public class TDxImageButton : TDxControl
     /// <summary>原文 798-822 SetChecked：bsRadio 时先清空**同父下所有** bsRadio 按钮的 Checked。</summary>
     public void SetChecked(bool value)
     {
-        switch (ButtonStyle)
+        switch (Style)
         {
             case TButtonStyle.bsRadio:
                 {
@@ -769,7 +766,7 @@ public class TDxImageButton : TDxControl
         for (int i = 0; i < DxControlOps.ComponentCount(DxOwner); i++)
         {
             var d = DxControlOps.Components(DxOwner, i);
-            if (d is TDxImageButton b && b.ButtonStyle == TButtonStyle.bsRadio)
+            if (d is TDxImageButton b && b.Style == TButtonStyle.bsRadio)
                 b.SetChecked(false);
         }
     }
@@ -794,7 +791,7 @@ public class TDxImageButton : TDxControl
             return true;
         }
 
-        switch (ButtonStyle)
+        switch (Style)
         {
             case TButtonStyle.bsRadio:
                 {
@@ -827,7 +824,7 @@ public class TDxImageButton : TDxControl
     /// <summary>原文 848-868 TDxImageButton.InRange：bsButton 走 inherited；否则只判 VisibleRect + OnInRealArea。</summary>
     public override bool InRange(int x, int y)
     {
-        if (ButtonStyle == TButtonStyle.bsButton)
+        if (Style == TButtonStyle.bsButton)
             return base.InRange(x, y);
 
         if (DxRectUtil.PointInRect(TDxPoint.Point(x, y), VisibleRect))
@@ -973,7 +970,7 @@ public class TDxImageButton : TDxControl
                         vRect.Left = vRect.Right - texture.Width;
                     }
 
-                    if (ButtonStyle == TButtonStyle.bsButton && MouseDowned)
+                    if (Style == TButtonStyle.bsButton && MouseDowned)
                     {
                         vRect.Left = vRect.Left + _captionOffsetX + _buttonDownOffsetX;
                         vRect.Top = vRect.Top + _captionOffsetY + _buttonDownOffsetY;
@@ -1057,7 +1054,7 @@ public class TDxImageButton : TDxControl
         DxControlHooks.SetModalControl(this, DxControlHooks.GetModalControl(src));
         MouseDownBlendMode = src.MouseDownBlendMode;
         MouseMoveBlendMode = src.MouseMoveBlendMode;
-        ButtonStyle = src.ButtonStyle;
+        Style = src.Style;
 
         Animation.Assign(src.Animation);
     }

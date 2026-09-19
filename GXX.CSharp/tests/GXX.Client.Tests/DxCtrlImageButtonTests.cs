@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using GXX.Client.DxComponent;
 using Xunit;
@@ -12,7 +12,7 @@ namespace GXX.Client.Tests;
 //   * TButtonAnimation：ShowType 门控（ResolveIsShow，7 种 ShowType × 3 种 Style 的交叉）、
 //     帧推进（AdvanceFrame，含 PlayCount 播完即停 / 回绕 / 「先回绕后回调」）、
 //     绘制几何（BuildDrawPlan，UseImageOffset / OutsideAreaDraw / 四边裁剪）
-//   * TDxImageButton：构造默认值、ButtonStyle / CaptionOffset* / ExpandWidth 的 setter 副作用、
+//   * TDxImageButton：构造默认值、Style / CaptionOffset* / ExpandWidth 的 setter 副作用、
 //     ResolveFaceIndex（5 个 face 的优先级）、ComputeCaptionChangeSize（bsButton 直取图 / 文本量算 /
 //     ExpandWidth / Bold +2 / 空 Caption 取图）、SetChecked（bsRadio 互斥）、DoClickV2 状态机、
 //     InRange（bsButton 走基类 / 其他 Style 只判 VisibleRect）
@@ -63,7 +63,7 @@ public class DxCtrlImageButtonTests
         Assert.Equal(20, b.Height);
         Assert.Equal(TDxAlignment.taCenter, b.Alignment);
         Assert.Equal(TClickSound.csNone, b.ClickCount);
-        Assert.Equal(TButtonStyle.bsButton, b.ButtonStyle);
+        Assert.Equal(TButtonStyle.bsButton, b.Style);
         Assert.False(b.Checked);
         Assert.Equal(1, b.CaptionDownOffsetX);
         Assert.Equal(1, b.CaptionDownOffsetY);
@@ -131,7 +131,7 @@ public class DxCtrlImageButtonTests
         var b = new TDxImageButton { Caption = "ab" };
         b.ImageIndex.Image = Lib((40, 8));
         b.ImageIndex.Up = 0;
-        b.ButtonStyle = TButtonStyle.bsCheckBox;        // 非 bsButton → 走文本量算分支
+        b.Style = TButtonStyle.bsCheckBox;        // 非 bsButton → 走文本量算分支
 
         var before = b.ComputeCaptionChangeSize();
         Assert.NotNull(before);
@@ -165,7 +165,7 @@ public class DxCtrlImageButtonTests
         TButtonStyle style, bool downed, bool moved, bool isChecked,
         int up, int hot, int down, int chk, int dis, int expected)
     {
-        var b = new TButtonHost { ButtonStyle = style };
+        var b = new TButtonHost { Style = style };
         b.ImageIndex.Up = up;
         b.ImageIndex.Hot = hot;
         b.ImageIndex.Down = down;
@@ -183,7 +183,7 @@ public class DxCtrlImageButtonTests
     {
         // 原文 711：`MouseDowned and (Down >= 0) and (Checked >= 0)` → Down；
         // 只满足 MouseDowned 而 Checked < 0 时**不走 Down**，落到 Hot。
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.ImageIndex.Up = 1;
         b.ImageIndex.Hot = 2;
         b.ImageIndex.Down = 3;
@@ -211,7 +211,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void CaptionChange_BsButton_TakesImageSizeDirectly_WhenAtLeast2x2()
     {
-        var b = new TDxImageButton { Caption = "x", ButtonStyle = TButtonStyle.bsButton };
+        var b = new TDxImageButton { Caption = "x", Style = TButtonStyle.bsButton };
         b.ImageIndex.Image = Lib((40, 8));
         b.ImageIndex.Up = 0;
 
@@ -227,10 +227,10 @@ public class DxCtrlImageButtonTests
     {
         // 原文 744：bsButton 直取图要求 `D.Width >= 2 and D.Height >= 2`；
         // 1x1 不满足 → 走文本量算分支（此时 d 仍有效，故再加 `+1 +D.Width`）
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.ImageIndex.Image = Lib((1, 1));
         b.ImageIndex.Up = 0;
-        b.Caption = "x";                    // 在 ButtonStyle 之后设，避免构造期提前跑几何
+        b.Caption = "x";                    // 在 Style 之后设，避免构造期提前跑几何
 
         // 注入一个与 1x1 图完全不同的文本度量（99x7），以便区分走的是哪条分支
         object fakeFont = new object();
@@ -251,17 +251,17 @@ public class DxCtrlImageButtonTests
     }
 
     [Fact]
-    public void CaptionChange_NonButtonStyle_NeverTakesImageSizeDirectly()
+    public void CaptionChange_NonStyle_NeverTakesImageSizeDirectly()
     {
         // 同样的图，在 bsCheckBox 下**不能**直取（原文 744 要求 bsButton），
         // 而在 bsButton 下且图 >= 2x2 时必须直取 —— 这是两条分支的稳定开关断言，
         // 不依赖 Bold/字体的具体像素值。
-        var bsButton = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var bsButton = new TButtonHost { Style = TButtonStyle.bsButton };
         bsButton.ImageIndex.Image = Lib((40, 8));
         bsButton.ImageIndex.Up = 0;
         bsButton.Caption = "x";
 
-        var checkBox = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var checkBox = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         checkBox.ImageIndex.Image = Lib((40, 8));
         checkBox.ImageIndex.Up = 0;
         checkBox.Caption = "x";
@@ -300,7 +300,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void CaptionChange_NoImageWithCaption_TextPathOnly()
     {
-        var b = new TDxImageButton { Caption = "z", ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TDxImageButton { Caption = "z", Style = TButtonStyle.bsCheckBox };
         var size = b.ComputeCaptionChangeSize();
 
         Assert.NotNull(size);
@@ -312,7 +312,7 @@ public class DxCtrlImageButtonTests
     public void CaptionChange_WithFontInjection_MeasuresText()
     {
         // 注入一个「每字符 7px 宽、12px 高」的假字体环境，验证文本量算分支真的被走到
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         object fakeFont = new object();
         b.FontEnv.FindFont = (name, size, style) => fakeFont;
         b.FontEnv.GetImageInfos = (f, text) =>
@@ -335,7 +335,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void CaptionChange_BoldFont_AddsTwoToBothDimensions()
     {
-        var b = new TDxImageButton { Caption = "ab", ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TDxImageButton { Caption = "ab", Style = TButtonStyle.bsCheckBox };
         object fakeFont = new object();
         b.CaptionColor.Up.Bold = true;      // 默认已是 True，此处显式写出以表意
         b.FontEnv.FindFont = (name, size, style) => fakeFont;
@@ -352,7 +352,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void CaptionChange_NonBoldFont_SkipsThePlusTwo()
     {
-        var b = new TDxImageButton { Caption = "ab", ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TDxImageButton { Caption = "ab", Style = TButtonStyle.bsCheckBox };
         b.CaptionColor.Up.Bold = false;     // 显式关掉（默认是 True）
         object fakeFont = new object();
         b.FontEnv.FindFont = (name, size, style) => fakeFont;
@@ -371,7 +371,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void CaptionChange_SetterUpdatesWidthAndHeight()
     {
-        var b = new TDxImageButton { Caption = "x", ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TDxImageButton { Caption = "x", Style = TButtonStyle.bsCheckBox };
         b.ImageIndex.Image = Lib((15, 4));
         b.ImageIndex.Up = 0;
 
@@ -389,8 +389,8 @@ public class DxCtrlImageButtonTests
     public void SetChecked_Radio_ClearsSiblings()
     {
         var root = new TDxControlEngine { ClientRect = TDxRect.Bounds(0, 0, 800, 600) };
-        var a = new TButtonHost { ButtonStyle = TButtonStyle.bsRadio };
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsRadio };
+        var a = new TButtonHost { Style = TButtonStyle.bsRadio };
+        var b = new TButtonHost { Style = TButtonStyle.bsRadio };
         DxControlOps.InserComponent(root, a);
         DxControlOps.InserComponent(root, b);
 
@@ -408,7 +408,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void SetChecked_NonRadio_IsPlainAssignment()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.SetChecked(true);
         Assert.True(b.Checked);
         b.SetChecked(false);
@@ -418,7 +418,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void DoClickV2_CheckBox_TogglesAndFiresSoundAndClick()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.Designing = false;
         var log = new List<string>();
         b.OnClickSound = (s, cs) => log.Add($"sound:{cs}");
@@ -434,7 +434,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void DoClickV2_CheckBox_TogglesBack()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.Designing = false;
         b.SetChecked(true);
 
@@ -445,7 +445,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void DoClickV2_Radio_AlreadyChecked_DoesNotFire()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsRadio };
+        var b = new TButtonHost { Style = TButtonStyle.bsRadio };
         b.SetChecked(true);
         Assert.True(b.Checked);
 
@@ -468,8 +468,8 @@ public class DxCtrlImageButtonTests
     public void DoClickV2_Radio_ClearsSiblingAndTakesSelection()
     {
         var root = new TDxControlEngine { ClientRect = TDxRect.Bounds(0, 0, 800, 600) };
-        var a = new TDxImageButton { ButtonStyle = TButtonStyle.bsRadio };
-        var b = new TDxImageButton { ButtonStyle = TButtonStyle.bsRadio };
+        var a = new TDxImageButton { Style = TButtonStyle.bsRadio };
+        var b = new TDxImageButton { Style = TButtonStyle.bsRadio };
         DxControlOps.InserComponent(root, a);
         DxControlOps.InserComponent(root, b);
         a.Designing = false;
@@ -492,7 +492,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void DoClickV2_Button_FiresSoundAndClick()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.Designing = false;
         var log = new List<string>();
         b.OnClickSound = (s, cs) => log.Add("sound");
@@ -506,7 +506,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void DoClickV2_DesigningPath_GoesStraightToClick()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.Designing = true;                 // 设计期
         var log = new List<string>();
         b.OnClickSound = (s, cs) => log.Add("sound");
@@ -524,7 +524,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void InRange_BsButton_UsesBaseImplementation()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.ClientRect = TDxRect.Bounds(0, 0, 20, 20);
         b.Designing = false;
 
@@ -535,7 +535,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void InRange_NonButton_HonoursOnInRealAreaVeto()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.ClientRect = TDxRect.Bounds(0, 0, 20, 20);
         b.Designing = false;
 
@@ -582,10 +582,10 @@ public class DxCtrlImageButtonTests
     // （astNormalShow 在 Normal 态为 True，另有专门用例覆盖，此处不重复）
     [InlineData(TButtonAnimationShowType.astHotShow, false, false, false)]
     [InlineData(TButtonAnimationShowType.astDownShow, false, false, false)]
-    public void ResolveIsShow_ButtonStyle_NormalState(TButtonAnimationShowType showType, bool downed, bool moved,
+    public void ResolveIsShow_Style_NormalState(TButtonAnimationShowType showType, bool downed, bool moved,
         bool expected)
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.Animation.FShowType = showType;
         if (downed) b.SetMouseDowned(true);
         if (moved) b.SetMouseMoveed(true);
@@ -594,17 +594,17 @@ public class DxCtrlImageButtonTests
     }
 
     [Fact]
-    public void ResolveIsShow_ButtonStyle_NormalState_OnlyNormalShow()
+    public void ResolveIsShow_Style_NormalState_OnlyNormalShow()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.Animation.FShowType = TButtonAnimationShowType.astNormalShow;
         Assert.True(b.Animation.ResolveIsShow());
     }
 
     [Fact]
-    public void ResolveIsShow_ButtonStyle_HotState_OnlyHotShow()
+    public void ResolveIsShow_Style_HotState_OnlyHotShow()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.SetMouseMoveed(true);
 
         b.Animation.FShowType = TButtonAnimationShowType.astHotShow;
@@ -615,9 +615,9 @@ public class DxCtrlImageButtonTests
     }
 
     [Fact]
-    public void ResolveIsShow_ButtonStyle_DownState_OnlyDownShow()
+    public void ResolveIsShow_Style_DownState_OnlyDownShow()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.SetMouseDowned(true);
 
         b.Animation.FShowType = TButtonAnimationShowType.astDownShow;
@@ -628,9 +628,9 @@ public class DxCtrlImageButtonTests
     }
 
     [Fact]
-    public void ResolveIsShow_ButtonStyle_MouseDownedTakesPrecedenceOverMouseMoved()
+    public void ResolveIsShow_Style_MouseDownedTakesPrecedenceOverMouseMoved()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         b.SetMouseDowned(true);
         b.SetMouseMoveed(true);
 
@@ -644,7 +644,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void ResolveIsShow_CheckBox_CheckedBeatsMouseDownedWhileMoving()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.SetMouseMoveed(true);
         b.SetMouseDowned(true);
         b.SetChecked(true);
@@ -659,7 +659,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void ResolveIsShow_CheckBox_NotMovingCheckedOnlyCheckShow()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
         b.SetChecked(true);
 
         b.Animation.FShowType = TButtonAnimationShowType.astCheckShow;
@@ -672,7 +672,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void ResolveIsShow_CheckBox_NotMovingNotCheckedOnlyNormalShow()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsCheckBox };
+        var b = new TButtonHost { Style = TButtonStyle.bsCheckBox };
 
         b.Animation.FShowType = TButtonAnimationShowType.astNormalShow;
         Assert.True(b.Animation.ResolveIsShow());
@@ -816,7 +816,7 @@ public class DxCtrlImageButtonTests
     [Fact]
     public void AdvanceFrame_ShowTypeGate_BlocksWhenNotShown()
     {
-        var b = new TButtonHost { ButtonStyle = TButtonStyle.bsButton };
+        var b = new TButtonHost { Style = TButtonStyle.bsButton };
         var a = b.Animation;
         a.FShowType = TButtonAnimationShowType.astDownShow;   // 当前未按下 → 不显示
         a.Image = Lib((10, 10));
@@ -1114,7 +1114,7 @@ public class DxCtrlImageButtonTests
         var src = new TButtonHost
         {
             ClientRect = TDxRect.Bounds(11, 22, 33, 44),
-            ButtonStyle = TButtonStyle.bsRadio,
+            Style = TButtonStyle.bsRadio,
             Caption = "hi",
             CaptionDownOffsetX = 4,
             CaptionDownOffsetY = 5,
@@ -1131,7 +1131,7 @@ public class DxCtrlImageButtonTests
 
         Assert.Equal(11, dst.Left);
         Assert.Equal(22, dst.Top);
-        Assert.Equal(TButtonStyle.bsRadio, dst.ButtonStyle);
+        Assert.Equal(TButtonStyle.bsRadio, dst.Style);
         Assert.Equal("hi", dst.Caption);
         Assert.Equal(4, dst.CaptionDownOffsetX);
         Assert.Equal(5, dst.CaptionDownOffsetY);
@@ -1163,7 +1163,7 @@ public class DxCtrlImageButtonTests
     // ===============================================================================
 
     [Fact]
-    public void CheckAutoSizeV2_OnlyAppliesForButtonStyle()
+    public void CheckAutoSizeV2_OnlyAppliesForStyle()
     {
         // 用两个独立实例：原文 `CheckAutoSize` 一旦按图定尺就把 FAutoSizeSetFlag 置 $FF，
         // 之后**同一个控件**再调也不会重算（原文 2127 的 `FAutoSizeSetFlag = 0` 守卫）——
@@ -1172,7 +1172,7 @@ public class DxCtrlImageButtonTests
         nonButton.ImageIndex.Image = Lib((60, 30));
         nonButton.ImageIndex.Up = 0;
         nonButton.AutoSize = true;
-        nonButton.ButtonStyle = TButtonStyle.bsCheckBox;
+        nonButton.Style = TButtonStyle.bsCheckBox;
 
         nonButton.CheckAutoSizeV2();
         Assert.Equal(5, nonButton.Width);           // 非 bsButton → 不做自动定尺
@@ -1181,7 +1181,7 @@ public class DxCtrlImageButtonTests
         button.ImageIndex.Image = Lib((60, 30));
         button.ImageIndex.Up = 0;
         button.AutoSize = true;
-        button.ButtonStyle = TButtonStyle.bsButton;
+        button.Style = TButtonStyle.bsButton;
 
         button.CheckAutoSizeV2();
         Assert.Equal(60, button.Width);             // bsButton → 按图定尺

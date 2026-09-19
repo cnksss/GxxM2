@@ -8,7 +8,7 @@ namespace GXX.Client.DxComponent;
 //   删除上一波（车道5）为支撑 TDxLabel 而落的 `TDxImageButton` **最小接缝类**，
 //   令 `TDxLabel : TDxControl`（原文 TDxLabel = class(TDxImageButton)，基类改由
 //   src/GXX.Client/DxComponent/DxImageButton.cs 的全量 TDxImageButton 提供）；
-//   并把接缝里的字段型 `Style` 改为转发到基类 TDxImageButton 的 `ButtonStyle`。
+//   并把接缝里的字段型 `Style` 改为直接继承基类 TDxImageButton 的 `Style`（原文 156 published 名）。
 // DxLabel.pas 本身的移植语义**未改动任何一处**。
 // -------------------------------------------------------------------------------------
 /// <summary>
@@ -33,13 +33,8 @@ public sealed class TDxLabel : TDxImageButton
     private int _rowSpacing;
     private int _expandLineHeight;
 
-    /// <summary>
-    /// DxImageButton.pas 156 `property Style:TButtonStyle` 的兼容别名（保持 public，
-    /// 因为 `DxLabelTests.cs` 与 DxLabel.pas 语义都直接用 `Style` 这个名字）。
-    /// 基类改为**全量** TDxImageButton 后，其 published 名 `Style` 的托管落点是 `ButtonStyle`
-    /// （`Style` 在 WinForms Control 上已被占用），故此处转发并保持本文件其余代码一字不改。
-    /// </summary>
-    public TButtonStyle Style { get => ButtonStyle; set => ButtonStyle = value; }
+    // 注：原文 TDxLabel 经 TDxImageButton 继承 `property Style:TButtonStyle`（DxImageButton.pas 156），
+    // 本类不再自带别名 —— 直接用基类 TDxImageButton.Style（与原文一致）。
 
     /// <summary>DxLabel.pas 19 FRowSpacing。</summary>
     public int RowSpacing
