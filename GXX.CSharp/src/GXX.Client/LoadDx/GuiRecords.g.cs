@@ -1160,7 +1160,7 @@ public sealed class TGuiImageButton
     public bool AutoSize;
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
     public bool Checked;
-    public TDxImageButton.TClickSound ClickCount;
+    public TClickSound ClickCount;
     public TButtonStyle Style;
     public int CaptionDownOffsetX;
     public int CaptionDownOffsetY;
@@ -1175,7 +1175,7 @@ public sealed class TGuiImageButton
         v.AutoSize = GuiCodec.ReadBool(b, at + 24);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 28);
         v.Checked = GuiCodec.ReadBool(b, at + 124);
-        v.ClickCount = (TDxImageButton.TClickSound)b[at + 125];
+        v.ClickCount = (TClickSound)b[at + 125];
         v.Style = (TButtonStyle)b[at + 126];
         v.CaptionDownOffsetX = GuiCodec.ReadInt32(b, at + 128);
         v.CaptionDownOffsetY = GuiCodec.ReadInt32(b, at + 132);
@@ -1233,7 +1233,7 @@ public sealed class TGuiImageButton_New2
     public bool AutoSize;
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
     public bool Checked;
-    public TDxImageButton.TClickSound ClickCount;
+    public TClickSound ClickCount;
     public TButtonStyle Style;
     public int CaptionDownOffsetX;
     public int CaptionDownOffsetY;
@@ -1250,7 +1250,7 @@ public sealed class TGuiImageButton_New2
         v.AutoSize = GuiCodec.ReadBool(b, at + 28);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 32);
         v.Checked = GuiCodec.ReadBool(b, at + 128);
-        v.ClickCount = (TDxImageButton.TClickSound)b[at + 129];
+        v.ClickCount = (TClickSound)b[at + 129];
         v.Style = (TButtonStyle)b[at + 130];
         v.CaptionDownOffsetX = GuiCodec.ReadInt32(b, at + 132);
         v.CaptionDownOffsetY = GuiCodec.ReadInt32(b, at + 136);
@@ -1400,7 +1400,7 @@ public sealed class TGuiImageButton_New3
     public bool AutoSize;
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
     public bool Checked;
-    public TDxImageButton.TClickSound ClickCount;
+    public TClickSound ClickCount;
     public TButtonStyle Style;
     public int CaptionDownOffsetX;
     public int CaptionDownOffsetY;
@@ -1418,7 +1418,7 @@ public sealed class TGuiImageButton_New3
         v.AutoSize = GuiCodec.ReadBool(b, at + 28);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 32);
         v.Checked = GuiCodec.ReadBool(b, at + 128);
-        v.ClickCount = (TDxImageButton.TClickSound)b[at + 129];
+        v.ClickCount = (TClickSound)b[at + 129];
         v.Style = (TButtonStyle)b[at + 130];
         v.CaptionDownOffsetX = GuiCodec.ReadInt32(b, at + 132);
         v.CaptionDownOffsetY = GuiCodec.ReadInt32(b, at + 136);
@@ -2460,7 +2460,7 @@ public sealed class TGuiSwitchButtonSetting
 
     public TGuiImageIndex ImageIndex = new TGuiImageIndex();
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
-    public TDxImageButton.TClickSound ClickSound;
+    public TClickSound ClickSound;
     public TDxAlignment Alignment;
     public int CaptionOffsetX;
     public int CaptionOffsetY;
@@ -2478,7 +2478,7 @@ public sealed class TGuiSwitchButtonSetting
         var v = new TGuiSwitchButtonSetting();
         v.ImageIndex = TGuiImageIndex.ReadAt(b, at + 0);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 20);
-        v.ClickSound = (TDxImageButton.TClickSound)b[at + 116];
+        v.ClickSound = (TClickSound)b[at + 116];
         v.Alignment = (TDxAlignment)b[at + 117];
         v.CaptionOffsetX = GuiCodec.ReadInt32(b, at + 120);
         v.CaptionOffsetY = GuiCodec.ReadInt32(b, at + 124);
@@ -2590,7 +2590,7 @@ public sealed class TGuiLabel
     public int BackgroundColor;
     public TGuiCaptionColor BorderColor = new TGuiCaptionColor();
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
-    public TDxImageButton.TClickSound ClickCount;
+    public TClickSound ClickCount;
     public TButtonStyle Style;
     public int CaptionDownOffsetX;
     public int CaptionDownOffsetY;
@@ -2605,7 +2605,7 @@ public sealed class TGuiLabel
         v.BackgroundColor = GuiCodec.ReadInt32(b, at + 4);
         v.BorderColor = TGuiCaptionColor.ReadAt(b, at + 8);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 104);
-        v.ClickCount = (TDxImageButton.TClickSound)b[at + 200];
+        v.ClickCount = (TClickSound)b[at + 200];
         v.Style = (TButtonStyle)b[at + 201];
         v.CaptionDownOffsetX = GuiCodec.ReadInt32(b, at + 204);
         v.CaptionDownOffsetY = GuiCodec.ReadInt32(b, at + 208);
@@ -2663,7 +2663,7 @@ public sealed class TGuiLabel_New
     public int BackgroundColor;
     public TGuiCaptionColor BorderColor = new TGuiCaptionColor();
     public TGuiCaptionColor CaptionColor = new TGuiCaptionColor();
-    public TDxImageButton.TClickSound ClickCount;
+    public TClickSound ClickCount;
     public TButtonStyle Style;
     public int CaptionDownOffsetX;
     public int CaptionDownOffsetY;
@@ -2679,7 +2679,7 @@ public sealed class TGuiLabel_New
         v.BackgroundColor = GuiCodec.ReadInt32(b, at + 4);
         v.BorderColor = TGuiCaptionColor.ReadAt(b, at + 8);
         v.CaptionColor = TGuiCaptionColor.ReadAt(b, at + 104);
-        v.ClickCount = (TDxImageButton.TClickSound)b[at + 200];
+        v.ClickCount = (TClickSound)b[at + 200];
         v.Style = (TButtonStyle)b[at + 201];
         v.CaptionDownOffsetX = GuiCodec.ReadInt32(b, at + 204);
         v.CaptionDownOffsetY = GuiCodec.ReadInt32(b, at + 208);

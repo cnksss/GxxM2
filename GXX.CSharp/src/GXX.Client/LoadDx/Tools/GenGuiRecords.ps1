@@ -100,7 +100,7 @@ $existingEnums = @('TClientVersion','TReferenceX','TButtonAnimationShowType','TG
                    'TProgressValueType','TLineStyle','TButtonStyle','TClickSound',
                    'TAlignEx','TDrawAligment')
 # Delphi name -> C# name when the seam declares the type somewhere other than namespace level
-$typeNameRemap = @{ 'TClickSound' = 'TDxImageButton.TClickSound' }   # nested inside TDxImageButton in DxLabel.cs
+$typeNameRemap = @{ 'TClickSound' = 'TClickSound' }   # nested inside TDxImageButton in DxLabel.cs
 function Map-CsName([string]$name) { if ($typeNameRemap.ContainsKey($name)) { return $typeNameRemap[$name] } return $name }
 # VCL enums referenced by the records but not declared in DxComponents.pas -> generated here
 $vclEnumValues = @{
