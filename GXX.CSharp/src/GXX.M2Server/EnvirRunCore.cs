@@ -362,7 +362,7 @@ public static class EnvirRunCore
     public static bool WeatherExpiryStrictGreater() => true;
 
     /// <summary>**恰好等于时长不算过期。**</summary>
-    public static bool ExactDurationNotExpired() => !WeatherExpired(100, 500, 400);
+    public static bool ExactDurationNotExpired() => !WeatherExpired(true, 500, 400, 100);
 
     /// <summary>过期模型。</summary>
     public static bool WeatherExpired(bool used, uint now, uint tick, uint duration)
