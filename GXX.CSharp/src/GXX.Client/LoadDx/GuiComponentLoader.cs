@@ -226,9 +226,9 @@ public static class GuiComponentLoader
                         dxImageForm.BackgroundColor = g.BackgroundColor;
                         dxImageForm.BackgroundAlpha = g.BackgroundAlpha;
 
-                        AssignAnimation(dxImageForm.Animation1, g.Animation1);
-                        AssignAnimation(dxImageForm.Animation2, g.Animation2);
-                        AssignAnimation(dxImageForm.Animation3, g.Animation3);
+                        AssignImageFormAnimation(dxImageForm.Animation1, g.Animation1);
+                        AssignImageFormAnimation(dxImageForm.Animation2, g.Animation2);
+                        AssignImageFormAnimation(dxImageForm.Animation3, g.Animation3);
                     }
                     else
                     {
@@ -244,9 +244,9 @@ public static class GuiComponentLoader
                         dxImageForm.BackgroundColor = g.BackgroundColor;
                         dxImageForm.BackgroundAlpha = g.BackgroundAlpha;
 
-                        AssignAnimation(dxImageForm.Animation1, g.Animation1);
-                        AssignAnimation(dxImageForm.Animation2, g.Animation2);
-                        AssignAnimation(dxImageForm.Animation3, g.Animation3);
+                        AssignImageFormAnimation(dxImageForm.Animation1, g.Animation1);
+                        AssignImageFormAnimation(dxImageForm.Animation2, g.Animation2);
+                        AssignImageFormAnimation(dxImageForm.Animation3, g.Animation3);
                     }
                 }
                 break;
@@ -262,7 +262,7 @@ public static class GuiComponentLoader
                     dxFormShape.ImageIndex.Down = g.ImageIndex.Down;
                     dxFormShape.ImageIndex.Disabled = g.ImageIndex.Disabled;
                     dxFormShape.Center = g.Center;
-                    for (i = 0; i <= dxFormShape.ImageCount - 1; i++)
+                    for (i = 0; i <= dxFormShape.ShapeImageCount - 1; i++)
                     {
                         dxFormShape.Items[i].ImageType = g.ImageIndexs[i].ImageType;
                         dxFormShape.Items[i].ImageIndex = g.ImageIndexs[i].ImageIndex;
@@ -660,7 +660,9 @@ public static class GuiComponentLoader
             case TGuiType.t_ListView:
             case TGuiType.t_TreeView:
                 {
-                    var dxScrollControl = (TDxScrollControl)dxControl;
+                    // 去重后：正式基类 GXX.Client.DxComponent.TDxScrollControl 是空抽象类（DxControls.cs），
+                    // 字段面在本车道的承载接缝 TDxScrollControlSeam 上（其派生自正式基类）。
+                    var dxScrollControl = (TDxScrollControlSeam)dxControl;
                     if (guiVersion < Ver20160508)
                     {
                         reader.ReadRecord(TGuiMemo.SizeOf, TGuiMemo.ReadAt, out var g);
@@ -1332,7 +1334,15 @@ public static class GuiComponentLoader
         => TDxRect.Rect(GuiCodec.ReadInt32(b, at + 0), GuiCodec.ReadInt32(b, at + 4),
                         GuiCodec.ReadInt32(b, at + 8), GuiCodec.ReadInt32(b, at + 12));
 
-    private static void AssignAnimation(TDxGuiAnimation target, TGuiAnimation source)
+    /// <summary>
+    /// <c>t_Form</c> 的动画赋值（原文 LoadDxControl.pas:219-230）。
+    /// <para>
+    /// 去重（2026-09-20）：目标类型由本车道的接缝 <c>TDxGuiAnimation</c> 改为正式归属
+    /// <c>GXX.Client.DxComponent.TDxImageFormAnimation</c>（DxImageForm.cs）。
+    /// 名字映射：原文 <c>DrawBeforeDef</c> → 正式类的 <c>PaintBeforeDefault</c>（同义，1 个布尔）。
+    /// </para>
+    /// </summary>
+    private static void AssignImageFormAnimation(TDxImageFormAnimation target, TGuiAnimation source)
     {
         target.ImageType = source.ImageType;
         target.StartIndex = source.StartIndex;
@@ -1345,7 +1355,7 @@ public static class GuiComponentLoader
         target.OutsideAreaDraw = source.OutsideAreaDraw;
         target.Draw = source.Draw;
         target.BlendDraw = source.BlendDraw;
-        target.DrawBeforeDef = source.DrawBeforeDef;
+        target.PaintBeforeDefault = source.DrawBeforeDef;   // 原文 DrawBeforeDef
         // 原文如此（LoadDxControl.pas:219-230）：TGuiAnimation 没有 HorzAlignment/VertAlignment/AdjustYByHeight，
         // 只有 TGuiMainBottomFormAnimation 才有；故这三个字段在此不赋值（保持控件默认）。
     }

@@ -13,7 +13,7 @@
 | 项 | 内容 |
 |---|---|
 | 分支 | `par/p2-client-loaddx` |
-| commit | `819379e8`（并行批次P2-1）+ 本报告提交（并行批次P2-2） |
+| commit | `819379e8`（并行批次P2-1：代码+测试）、`d6c4b5f9`（并行批次P2-2：本报告）、并行批次P2-fix（去重，见 **§10**） |
 | 门禁 | `dotnet build GXX.slnx -c Debug` → **0 error**（71 个警告全部来自既有文件，**本车道新增文件 0 警告**）；`dotnet test tests\GXX.Client.Tests` → **2425 passed / 0 failed** |
 | 新增测试 | **147** 个（`--list-tests` 差分：全量 2425，前缀 `GXX.Client.Tests.LoadDx` 147；本车道开工前基线 2278） |
 | 新增源文件 | 8 个（含 1 个生成器 + 1 个生成文件） |
@@ -37,6 +37,7 @@
 | `GXX.CSharp/tests/GXX.Client.Tests/LoadDxControlLoaderTests.cs` | 58 用例 | 基础版：23 个分支 + 遍历 + 递归 + 地址线性登记 |
 | `GXX.CSharp/tests/GXX.Client.Tests/LoadDxControlExLoaderTests.cs` | 25 用例 | Ex 版：名字表 + Free 语义 + Patch 版 + **两单元差异断言** |
 | `GXX.CSharp/tests/GXX.Client.Tests/LoadDxResourceTests.cs` | 13 用例 | ZDAT→zlib→控件树端到端 + 异常路径 + DES 接缝 |
+| `GXX.CSharp/tests/GXX.Client.Tests/LoadDxNamespaceCollisionTests.cs` | 5 用例 | **命名空间撞车守卫**（`GXX.Client.LoadDx` × `GXX.Client.DxComponent` 公开类型简单名交集必须为空），见 §10 |
 
 ---
 
@@ -527,3 +528,74 @@ TDxControl main = refMain.Value;
 * 门禁：解决方案 build 0 error；`GXX.Client.Tests` 2425 通过 / 0 失败（新增 147）。
 * 关键结论给后续批次：**这些窗口的布局真源就是本单元 + `DxComponents.pas` 的记录布局**，
   `.dfm` 对齐不适用；消费方只需实现 `IDxGuiResourceProvider` 注入 `ZDAT` 资源即可复用整条栈。
+
+---
+
+## 10. 去重（并行批次P2-fix，2026-09-20）
+
+### 10.1 事故与裁决
+
+车道 `p2-dxcontrols-rest` 把 `DxControls.pas` / `DxImageForm.pas` 的全量移植并入
+`GXX.Client.DxComponent` 后，与本车道 `GXX.Client.LoadDx` 里早先自造的接缝类型**同名**。
+凡是同时 `using` 两个命名空间的文件（本项目全部测试）都报 `CS0104`。
+
+**根因**：C# 的"当前命名空间声明优先于 `using` 导入"规则掩盖了源码侧的撞车 ——
+`src/GXX.Client`（我自己的命名空间）编译**通过**，而 `GXX.Client.Tests` 里两个命名空间都在作用域，
+于是 82 处 `CS0104` 全部落在测试工程。
+
+**裁决（并行调度会话）**：`GXX.Client.DxComponent` 是这些类型的正式归属；本车道删除自造声明、改引用。
+
+### 10.2 全量重复清单（用脚本对两个命名空间的公开类型求交集得出，非人工搜）
+
+| # | 类型名 | 本车道原声明位置 | 正式归属（`GXX.Client.DxComponent`） | 处理 |
+|---|---|---|---|---|
+| 1 | `TAlignEx` | `GuiRecords.g.cs`（生成） | `DxImageForm.cs` | 生成器加入"已有归属"清单，不再生成；值与顺序逐个核对**完全一致**（`alxNone..alxBottomRight`） |
+| 2 | `TDrawAligment` | `GuiRecords.g.cs`（生成） | `DxControls.cs` | 同上；`daFill/daBottom` 一致（正式那份无 `: byte` 底层类型，读写用显式转换，字节宽度不变） |
+| 3 | `TDxControlRef` | `DxControlSeams.cs` | `DxControls.cs` | 删除自造类；正式类**无无参构造** → `THashedStringList.Register` 改 `new TDxControlRef(null)`；`Value` 字段同名 |
+| 4 | `TDxImageForm` | `DxControlSeams.cs` | `DxImageForm.cs` | 删除自造类；`LoadComponent` 的 `t_Form` 分支直接用正式类 |
+| 5 | `TDxImageFormShape` | `DxControlSeams.cs` | `DxImageForm.cs` | 删除自造类与 `TDxFormShapeItem`（由正式 `TDxFormShapeImage` 取代，成员名逐个一致） |
+| 6 | `TDxScrollControl` | `DxControlSeams.cs` | `DxControls.cs` | 本车道承载面改名 `TDxScrollControlSeam` 并**派生自**正式抽象基类；4 个子类改挂到承载面 |
+
+### 10.3 引用侧同步改动（只改引用，未改语义）
+
+| 文件 | 改动 |
+|---|---|
+| `Tools/GenGuiRecords.ps1` | `$existingEnums` 增加 `TAlignEx`/`TDrawAligment` → 不再生成重复枚举 |
+| `GuiComponentLoader.cs` | `AssignAnimation` → `AssignImageFormAnimation`，目标类型改为正式 `TDxImageFormAnimation`；**唯一字段名映射**：原文 `DrawBeforeDef` → 正式类 `PaintBeforeDefault`。`dxFormShape.ImageCount` → `ShapeImageCount`。滚动族转换目标改为 `TDxScrollControlSeam` |
+| `DxControlSeams.cs` | 删除上文第 3-6 项的自造类；`TDxGuiAnimation` 保留（现在只被 `TDxMainBottomForm` 接缝使用，正式类没有对应类型） |
+| `LoadDxControlExLoaderTests.cs` | `new TDxControlRef()` → `new TDxControlRef(null)`（正式类无无参构造） |
+| `LoadDxControlLoaderTests.cs` | `Assert.Equal(200, BackgroundAlpha)` → `(byte)200`（正式 `TDxImageForm.BackgroundAlpha` 是 `byte`，原接缝误用 `int`） |
+| `LoadDxNamespaceCollisionTests.cs`（新增） | **回归守卫**：断言两个命名空间公开类型简单名交集为空；断言 6 个去重名只属于 `DxComponent`；断言滚动族确实挂在正式基类之下；反向断言本车道自有接缝仍在（防止"顺手删干净"） |
+
+### 10.4 验证（用对方的**真实**文件，不是替身）
+
+| 步骤 | 结果 |
+|---|---|
+| ① 复现（未修复 + 按对方真实声明做的最小替身） | `GXX.Client.Tests` **82 处 CS0104**（`TDxControlRef`×64 / `TDxImageForm`×8 / `TDrawAligment`×4 / `TAlignEx`×4 / `TDxImageFormShape`×2） |
+| ② 修复后 + 替身 | `GXX.Client` 0 error；`GXX.Client.Tests` **2425 通过 / 0 失败** |
+| ③ 修复后 + **`par/p2-dxcontrols-rest` 的两个真实文件**（`git show` 取出后临时放在本车道目录 `LoadDx/_verify_ref/`，命名空间不变；`GXX.slnx` 全量 build + 测试） | **0 error**；`GXX.Client.Tests` **2430 通过 / 0 失败**（2425 + 5 条守卫）；验证后临时目录已删除 |
+| ④ 仅本车道（对方车道**未**合并） | 12 处 `CS0246`（`TAlignEx`/`TDrawAligment`/`TDxControlRef`/`TDxImageFormAnimation`/`TDxScrollControl` 等）—— **这是本车道分支的已知依赖，见 §10.5** |
+
+### 10.5 未完成 / 依赖（需调度会话决策）
+
+1. **本车道分支无法独立构建**：去重后本车道引用了 `p2-dxcontrols-rest` 的
+   `src/GXX.Client/DxComponent/{DxControls.cs,DxImageForm.cs}`，而本工作树还没有这两个文件。
+   解决方式（任一）：
+   * 把 `par/p2-dxcontrols-rest` 合并进 `par/p2-client-loaddx`（推荐；合并后本车道即可独立绿），或
+   * 集成时把这两个车道**一起**合入（本报告 §10.4 ③ 已证明该状态全绿），或
+   * 授权本车道在自己的工作树执行一次 `git merge par/p2-dxcontrols-rest`（车道规程默认禁止 merge）。
+2. **`GXX.Client.DxComponent` 内部仍有一处同名重复（不是本车道的问题，供统一）**：
+   | 类型 | 顶层声明 | 嵌套声明 | 影响 |
+   |---|---|---|---|
+   | `TClickSound` | `DxControls.cs`（`DxComponents.pas:54` 的正式归属） | `DxLabel.cs:22` 的 `TDxImageButton.TClickSound` | 本车道 `GuiRecords.g.cs` 的按钮/开关记录字段**只能**用嵌套那份，因为 `TDxImageButton.ClickSound` 的属性类型就是嵌套枚举（`dxImageButton.ClickSound = g.ClickCount` 直接赋值）。建议在 `DxLabel.cs` 侧改用顶层 `TClickSound` 并删掉嵌套声明，本车道随后可去掉 `$typeNameRemap` |
+3. **将来会撞车的接缝名（建议提前登记归属）**：本车道仍有 14 个类型的名字与
+   `DxComponent` 未来必然移植的单元同名，一旦那些单元落地就会再次 `CS0104`：
+   `TDxEdit`(DxEdit.pas)、`TDxImageEdit`(DxImageEdit.pas)、`TDxImageGrid`(DxImageGrid.pas)、
+   `TDxPopupMenu`(DxPopupMenu.pas)、`TDxComboBox`(DxComboBox.pas)、`TDxPageControl` + `TDxTabSheet`(DxPageControl.pas)、
+   `TDxScrollBox` + `TDxChatMemo` + `TDxListView` + `TDxTreeView`(DxMemo.pas / DxListView.pas)、
+   `TDxMainBottomForm`(DxMainBottomForm.pas)、`TDxMagicBall`(DxMagicBall.pas)、`TDxSexPanel`(DxSexPanel.pas)、
+   `TDxGroupAttackProgress`(DxGroupAttackProgress.pas)、`TDxSwitchButton`(DxSwitchButton.pas)。
+   派发这些单元时请指定"移植者拥有该名字"，本车道届时按本次同样的方式交接（删除接缝 + 改引用 + 更新守卫测试）。
+   `LoadDxNamespaceCollisionTests` 会在撞车发生时立刻变红并点名。
+4. **已关闭的旧待办**：§8.2 第 2 条"`TDxImageFormShape.ImageCount` 待核对"已确认 ——
+   正式类 `ShapeImageCount => Items.Length`，`Items = new TDxFormShapeImage[8]`，与本车道取的 **8** 一致。
