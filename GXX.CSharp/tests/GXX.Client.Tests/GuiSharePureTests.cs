@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -805,9 +805,54 @@ public sealed class GuiSharePureTests : IDisposable
     {
         var g = new TNpcGraphicButton(null);
         Assert.Null(g.GraphicTexture);
+        Assert.Equal(0, g.Tag);                 // 原文 25142 Self.Tag := 0
         var tex = new TTexture();
         g.GraphicTexture = tex;
         Assert.Same(tex, g.GraphicTexture);
+    }
+
+    [Fact]
+    public void NpcGraphicButtonSetGraphicGoesThroughTheTextureSeam()
+    {
+        var g = new TNpcGraphicButton(null);
+        var graphic = new TGraphic();
+        var produced = new TTexture();
+        TGraphic seen = null;
+        TNpcGraphicButton.NewTextureFromGraphicHandler = gr => { seen = gr; return produced; };
+        try
+        {
+            g.SetGraphic(graphic);
+            Assert.Same(graphic, seen);
+            Assert.Same(produced, g.GraphicTexture);
+        }
+        finally
+        {
+            TNpcGraphicButton.NewTextureFromGraphicHandler = null;
+        }
+    }
+
+    [Fact]
+    public void NpcGraphicButtonPaintDrawsAtVirtualRectOrigin()
+    {
+        var g = new TNpcGraphicButton(null);
+        var tex = new TTexture { Width = 8, Height = 4 };
+        g.GraphicTexture = tex;
+        g.Left = 30;
+        g.Top = 40;
+
+        MShareGlobals.GameCanvas = new TGameCanvas();
+        g.Paint();
+
+        Assert.Single(MShareGlobals.GameCanvas.Draws);
+        Assert.Equal((30, 40, tex), MShareGlobals.GameCanvas.Draws[0]);
+    }
+
+    [Fact]
+    public void NpcGraphicButtonDestroyIsSafeWithoutTexture()
+    {
+        var g = new TNpcGraphicButton(null);
+        g.Destroy();                            // 原文 if m_GraphicTexture <> nil then Free
+        Assert.Null(g.GraphicTexture);
     }
 
     [Fact]
@@ -947,6 +992,17 @@ public sealed class GuiSharePureTests : IDisposable
         Assert.Equal(2, f.ExGuildJoinJob);
         Assert.Equal(35, f.ExGuildJoinLevel);
         Assert.Equal("欢迎", f.ExGuildJoinMsg);
+    }
+
+    [Fact]
+    public void OpenGuildViewMemeberInfoCachesTheWholeRecord()
+    {
+        var f = new TestFrmDlg();
+        var info = new GXX.Core.Protocol.TGuildMemeberInfo();
+        f.OpenGuildViewMemeberInfo(info);
+        // 结构体整体赋值：再传一次不同的值应覆盖（原文 FGuildViewMemberInfo := MemberInfo）
+        f.OpenGuildViewMemeberInfo(default);
+        Assert.Equal(default, f.ExGuildViewMemberInfo);
     }
 
     [Fact]
@@ -1312,4 +1368,5 @@ internal sealed class TestFrmDlg : GXX.Client.GUI.Share.TFrmDlg
     public string ExGuildJoinMsg => FGuildJoinMsg;
     public TList ExScreenMagicBtnList => FScreenMagicBtnList;
     public int ExMiniMapLoadIndex => FMiniMapLoadIndex;
+    public GXX.Core.Protocol.TGuildMemeberInfo ExGuildViewMemberInfo => FGuildViewMemberInfo;
 }

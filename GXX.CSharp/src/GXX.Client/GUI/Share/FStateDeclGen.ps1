@@ -26,7 +26,7 @@ $Handwritten = @(
   'IsInputChatEdit','ShowChatEdit','HideChatEdit',
   'ClearScreenMagicButtons','AddScreenMagicButton','DelScreenMagicButton','FindMagicButton',
   'OnMagicButtonClick','OnMagicButtonDblClick','OnMagicButtonMove',
-  'SaveMagicButtons'
+  'SaveMagicButtons','OpenGuildViewMemeberInfo'
 )
 
 $lines = Get-Content -LiteralPath $Src -Encoding Default

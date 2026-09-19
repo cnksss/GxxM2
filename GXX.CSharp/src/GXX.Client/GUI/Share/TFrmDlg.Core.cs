@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Core.Protocol;
@@ -298,6 +298,15 @@ public partial class TFrmDlg
     public virtual string GetPreHistroySendSay()
     {
         return "";
+    }
+
+    /// <summary>
+    /// FState.pas:24120-24123 procedure TFrmDlg.OpenGuildViewMemeberInfo(MemberInfo:TGuildMemeberInfo)。
+    /// 原文只把入参缓存到 protected 字段（整个记录赋值）。
+    /// </summary>
+    public virtual void OpenGuildViewMemeberInfo(TGuildMemeberInfo MemberInfo)
+    {
+        FGuildViewMemberInfo = MemberInfo;
     }
 
     // ==========================================================================================

@@ -1200,9 +1200,6 @@ public partial class TFrmDlg
     /// <summary>Source line 801 : procedure RefreshDGuildManageListViewWJ; virtual; abstract;</summary>
     public virtual void RefreshDGuildManageListViewWJ()
         => throw new NotSupportedException("TFrmDlg.RefreshDGuildManageListViewWJ: abstract in Delphi (FState.pas:801)");
-    /// <summary>Source line 802 : procedure OpenGuildViewMemeberInfo(MemberInfo:TGuildMemeberInfo); virtual;</summary>
-    public virtual void OpenGuildViewMemeberInfo(TGuildMemeberInfo MemberInfo)
-        => throw new NotSupportedException("TFrmDlg.OpenGuildViewMemeberInfo: not ported yet (FState.pas:802)");
     /// <summary>Source line 803 : procedure OpenGuildEditGradeDlg; virtual; abstract;</summary>
     public virtual void OpenGuildEditGradeDlg()
         => throw new NotSupportedException("TFrmDlg.OpenGuildEditGradeDlg: abstract in Delphi (FState.pas:803)");

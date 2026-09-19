@@ -486,27 +486,43 @@ public class TNpcGraphicButton : TDxImageButton
 {
     private TTexture m_GraphicTexture;
 
-    /// <summary>原文注释：HZQ 20230605 创建一个永久位图 BUTTON，素材不是来自于 GameImages。</summary>
+    /// <summary>
+    /// FState.pas:25138-25143 constructor TNpcGraphicButton.Create(AOwner:TDxControl)。
+    /// 原文：inherited Create(AOwner); Self.Tag := 0;
+    /// </summary>
     public TNpcGraphicButton(TDxControl AOwner) : base(AOwner)
     {
+        Tag = 0;
     }
 
-    /// <summary>FState.pas:25145 destructor TNpcGraphicButton.Destroy。</summary>
+    /// <summary>FState.pas:25145-25151 destructor TNpcGraphicButton.Destroy（原文 Free 贴图后 inherited）。</summary>
     public virtual void Destroy()
     {
+        // 原文 if m_GraphicTexture <> nil then m_GraphicTexture.Free; —— 托管侧由 GC 回收。
     }
 
-    /// <summary>FState.pas:25153 procedure TNpcGraphicButton.SetGraphic(AGraphic:TGraphic)。</summary>
+    /// <summary>
+    /// FState.pas:25153-25156 procedure TNpcGraphicButton.SetGraphic(AGraphic:TGraphic)。
+    /// 原文：m_GraphicTexture := NewTextureFromGraphic(AGraphic);
+    /// 【接缝：待 DxCanvas/HGE 的 NewTextureFromGraphic（TGraphic → TTexture）移植后接入】
+    /// </summary>
     public void SetGraphic(TGraphic AGraphic)
     {
-        // 【接缝：待 DxCanvas/HGE 的 Graphic→TTexture 转换移植后接入】
-        // 原文：把 AGraphic 转成 m_GraphicTexture。
+        m_GraphicTexture = NewTextureFromGraphicHandler?.Invoke(AGraphic);
     }
 
-    /// <summary>FState.pas:25158 procedure TNpcGraphicButton.Paint。</summary>
+    /// <summary>NewTextureFromGraphic 的接缝注入点（DxCanvas/HGE 未移植）。</summary>
+    public static Func<TGraphic, TTexture> NewTextureFromGraphicHandler;
+
+    /// <summary>
+    /// FState.pas:25158-25163 procedure TNpcGraphicButton.Paint。
+    /// 原文：inherited; GameCanvas.Draw(VirtualRect.Left, VirtualRect.Top, m_GraphicTexture);
+    /// GameCanvas 走车道1 的 MShareGlobals.TGameCanvas（可断言绘制调用）。
+    /// </summary>
     public virtual void Paint()
     {
-        // 【接缝：待 DxImageButton.Paint 移植后接入 m_GraphicTexture 绘制】
+        // 原文 inherited（TDxImageButton.Paint 的自身绘制，待 DxImageButton.pas 移植）
+        GXX.Client.GUI.Mir.MShareGlobals.GameCanvas.Draw(VirtualRect.Left, VirtualRect.Top, m_GraphicTexture);
     }
 
     /// <summary>原文 property GraphicTexture:TTexture read m_GraphicTexture write m_GraphicTexture。</summary>
