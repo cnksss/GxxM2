@@ -299,7 +299,7 @@ public static class GuiComponentLoader
                         DxGuiFonts.DxFontAssign(dxImageButton.CaptionColor.Disabled, g.CaptionColor.Disabled);
 
                         dxImageButton.Checked = g.Checked;
-                        dxImageButton.ClickSound = g.ClickCount;
+                        dxImageButton.ClickCount = g.ClickCount;
                         dxImageButton.Style = g.Style;
                         dxImageButton.Caption = string.Empty;
                         dxImageButton.CaptionColor.Up.Name = reader.ReadGuiFontName(g.CaptionColor.Up);
@@ -335,7 +335,7 @@ public static class GuiComponentLoader
                         DxGuiFonts.DxFontAssign(dxImageButton.CaptionColor.Disabled, g.CaptionColor.Disabled);
 
                         dxImageButton.Checked = g.Checked;
-                        dxImageButton.ClickSound = g.ClickCount;
+                        dxImageButton.ClickCount = g.ClickCount;
                         dxImageButton.Style = g.Style;
                         dxImageButton.Caption = string.Empty;
                         dxImageButton.CaptionColor.Up.Name = reader.ReadGuiFontName(g.CaptionColor.Up);
@@ -371,7 +371,7 @@ public static class GuiComponentLoader
                         DxGuiFonts.DxFontAssign(dxImageButton.CaptionColor.Disabled, g.CaptionColor.Disabled);
 
                         dxImageButton.Checked = g.Checked;
-                        dxImageButton.ClickSound = g.ClickCount;
+                        dxImageButton.ClickCount = g.ClickCount;
                         dxImageButton.Style = g.Style;
                         dxImageButton.Caption = string.Empty;
 

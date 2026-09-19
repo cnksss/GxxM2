@@ -6,7 +6,7 @@ using GXX.Client.DxComponent;
 // Delphi 的 TAlignment 在既有接缝里叫 TDxAlignment（DxComponents.pas 的 TAlignment 与 VCL 同序）。
 using TAlignment = GXX.Client.DxComponent.TDxAlignment;
 // 既有接缝把 TClickSound 声明成 TDxImageButton 的嵌套枚举（DxLabel.cs:22），故此处跟随。
-using TClickSound = GXX.Client.DxComponent.TDxImageButton.TClickSound;
+using TClickSound = GXX.Client.DxComponent.TClickSound;
 
 namespace GXX.Client.LoadDx;
 
