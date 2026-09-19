@@ -8,22 +8,23 @@
 
 ## 1. 分支与提交
 
-分支从 `main @ 5bd12133` 切出。**`P2c-1`/`P2c-2` 已被集成会话并入 `main`**
-（`main` 上可见提交 `4acf4376 integrate par/p2c-client-tail`，其父为 `b9a2303e`），
-其余 5 个提交仍待集成。
+分支从 `main @ 5bd12133` 切出，共 8 个提交。**集成会话在本车道工作期间已滚动并入前 6 个**：
 
-| # | commit | 说明 | 测试属性数 |
-|---|---|---|---|
-| P2c-1 | `7f1b3ce1` | GlobalString / uWeatherEffectDef / ClientBuff / uAntiPlug / DepUtils / Mpeg / LanguagesDEPfix / uExceptionStruct（8 单元） | 96 |
-| P2c-2 | `b9a2303e` | WinSock2.pas（常量 463 条 + packed 结构 + socket 接缝） | 54 |
-| P2c-3 | `4db0f6b3` | StringHashMap / uDropItemEffectList / LogHelper / IECache | 76 |
-| P2c-4 | `e5f82a14` | CheckProcessModules（含 60 条加密版权表）/ uFrmNGItemEdit | 40 |
-| P2c-5 | `0c763cca` | NPCFormDeBug（脚本生成逻辑 + 接缝 + 文本 DFM 对齐） | 52 |
-| P2c-6 | `d1409c2a` | UpdateEngine（协议/校验码/三级队列/消息解析 + 传输接缝） | 74 |
-| P2c-7 | `339855cb` | HerbActor（**部分移植** + 覆盖登记） | 45 |
+| # | commit | 说明 | 测试属性数 | 是否已入 `main` |
+|---|---|---|---|---|
+| P2c-1 | `7f1b3ce1` | GlobalString / uWeatherEffectDef / ClientBuff / uAntiPlug / DepUtils / Mpeg / LanguagesDEPfix / uExceptionStruct（8 单元） | 96 | ✅ `4acf4376` |
+| P2c-2 | `b9a2303e` | WinSock2.pas（常量 463 条 + packed 结构 + socket 接缝） | 54 | ✅ `4acf4376` |
+| P2c-3 | `4db0f6b3` | StringHashMap / uDropItemEffectList / LogHelper / IECache | 76 | ✅ `a1cc094a` |
+| P2c-4 | `e5f82a14` | CheckProcessModules（含 60 条加密版权表）/ uFrmNGItemEdit | 40 | ✅ `a1cc094a` |
+| P2c-5 | `0c763cca` | NPCFormDeBug（脚本生成逻辑 + 接缝 + 文本 DFM 对齐） | 52 | ✅ `00723d1d` |
+| P2c-6 | `d1409c2a` | UpdateEngine（协议/校验码/三级队列/消息解析 + 传输接缝） | 74 | ✅ `17247af5` |
+| P2c-7 | `339855cb` | HerbActor（**部分移植** + 覆盖登记） | 45 | ⏳ 待集成 |
+| P2c-8 | `ea28d38c` | 本报告 | — | ⏳ 待集成 |
 
-> `P2c-1`/`P2c-2` 的 SHA 已进入 `main`，因此当前 `git merge-base HEAD main = b9a2303e`；
-> **`main` 尚未收到** `4db0f6b3`、`e5f82a14`、`0c763cca`、`d1409c2a`、`339855cb`。
+> 核对命令：`git log --oneline main | Select-String p2c` → 4 条 `integrate par/p2c-client-tail`
+> 合并提交；`git ls-tree -r --name-only main -- GXX.CSharp/src/GXX.Client/Tail` → **19 个源文件**；
+> `main` 上 `Tail*` 测试文件 **11 个**（本报告与 HerbActor 尚未入 `main`）。
+> 因此 `git merge-base HEAD main = d1409c2a`，**本车道未入 `main` 的提交仅 `339855cb` 与 `ea28d38c`**。
 
 ### 1.1 一次分区违规及其修正（重要）
 
