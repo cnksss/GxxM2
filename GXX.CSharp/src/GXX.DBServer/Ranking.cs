@@ -448,6 +448,13 @@ public class FrmRankingDlg : Form
     /// <summary>Ranking.pas:87-105 `Open`：全局量 → 控件；ButtonSave.Enabled := False；Timer.Enabled := True；ShowModal。</summary>
     public void Open()
     {
+        OpenCore();
+        ShowDialog();   // Self.ShowModal
+    }
+
+    /// <summary>Ranking.pas:87-103 `Open` 主体（拆出以便单测，不含 ShowModal）。</summary>
+    public void OpenCore()
+    {
         m_boRefRanking = 0;
         CheckBoxAutoRefRanking.Checked = DBShareSeam.g_boAutoRefRanking != 0;
         seRankingCount.Value = DBShareSeam.g_nRankingCount;
@@ -462,8 +469,6 @@ public class FrmRankingDlg : Form
         //RadioButton2.Checked:= Boolean(g_nAutoRefRankingType);
         ButtonSave.Enabled = false;
         Timer.Enabled = true;
-
-        ShowDialog();   // Self.ShowModal
     }
 
     /// <summary>Ranking.pas:107-221 `RefRanking`（转发到 RankingLogic.RefRanking）。</summary>
