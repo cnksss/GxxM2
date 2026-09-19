@@ -16,4 +16,11 @@
   <ItemGroup>
     <None Update="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+  <!-- 并行车道 par/p2c-client-tail：从 Delphi 原文「脚本抽取 + 回读比对」得到的常量金标。
+       以 EmbeddedResource 打进测试程序集，测试用 GetManifestResourceStream 读取，
+       不依赖输出目录的文件复制。资源名 = RootNamespace + '.' + 文件名。 -->
+  <ItemGroup>
+    <EmbeddedResource Include="TailGlobalString.golden.tsv" LogicalName="GXX.Client.Tests.TailGlobalString.golden.tsv" />
+    <EmbeddedResource Include="TailWeatherEffect.golden.tsv" LogicalName="GXX.Client.Tests.TailWeatherEffect.golden.tsv" />
+  </ItemGroup>
 </Project>
