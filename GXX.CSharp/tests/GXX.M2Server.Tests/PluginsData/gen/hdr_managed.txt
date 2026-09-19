@@ -1,0 +1,8 @@
+// =====================================================================================
+// PluginInterface.pas 1:1 转换：托管接口层（19 个 I*Func 接口 + 各记录的保留槽位属性）。
+//
+// 与 PluginInterfaceTables.g.cs 中的 T*Func 记录一一对应：接口的每个成员即该记录的一个
+// 函数指针字段，参数/返回值语义完全相同（PAnsiChar→byte[]、var DestLen→ref uint、
+// pT*→ref T*、BOOL→bool）；`Reserved: array[0..N-1] of Pointer` 以 IntPtr 属性表达。
+// 原生插件按 ABI 委托实现，托管插件按本接口实现，两者由 PluginAssemblyLoader 装载。
+// =====================================================================================
