@@ -142,12 +142,31 @@
 **已覆盖行号范围：1-250（interface 全量）、252-6202（implementation 全量）。**
 **未覆盖行号范围：6203-6205（`end.` + 尾部空行）；4632-4657（原文 `{ }` 注释掉的 `TSqliteHeroDB.DoDelete/DoDeleteRestore`，按原样不实现）。**
 
+> 另：`MySqlRoleDB.pas` 的 `Owner.HumanDB.GetHumanHeroName(...)`（4588）与所有 `Do*` 的**公开包装**都在
+> `RoleDB.pas:533-1248`（不在本单元内）。为了让 `Do*` 可被调用，`MySqlRoleDB.Base.cs` 额外 1:1 移植了
+> **`THumanDB` 25 个 + `THeroDB` 10 个公开包装**（`Lock → try(Do*) → except MainOutMessage(E.Message) → UnLock`，
+> 含"异常时返回初值"的语义）。这部分是 `RoleDB.pas` 的行，不在上表行号范围内。
+
 ### 2.4 语句 / SQL 覆盖
 - `TMySqlHumanDB.DoInit` 86 条 `FStatement*.Sql`：**86/86 逐字**（`MySqlRoleDBStatements.Human`）。
 - `TMySqlHeroDB.DoInit` 54 条：**54/54 逐字**（`MySqlRoleDBStatements.Hero`）。
 - `.Prepare`（Human 86 + Hero 54）、`.Finalize`（同数）、`ResetAllGetDataStatement/SaveDataStatement` 全部逐条对应。
 - `UpdateDB_1..10` 的 31 条 `FDB.Exec` 语句：**31/31 逐字**（`MySqlRoleDbMigrationSql`）。
 - 行内动态 SQL（`DoErase` 43 条、`SaveHumanData` 21 条、`SaveHeroData` 14 条）：逐字。
+
+### 2.5 抽取回读比对（**禁止手工转录**的可核验证据）
+
+`D:\chuanqi\_gbkread\verify_sql3.py` / `verify_mig.py`（仓库外，不入库）做了**独立**回读：
+
+```
+从 .pas 原文独立重解析（自带注释剥离 + 字符串拼接器）        → 140 条
+从生成的 .cs 反向解析常量（反斜杠反转义，按 Human/Hero 分块） → 140 条
+两边逐字节 == 比较                                          → 0 处不一致
+`Names` 字典键 ↔ 常量字段一一对应                            → 一致
+UpdateDB_1..10 的 31 条 FDB.Exec 文本                        → 0 处不一致
+```
+
+即：**SQL 文本没有一处手工转录**，全部由脚本抽取 + 独立回读验证。
 
 ---
 
@@ -261,6 +280,10 @@ IRoleMySqlDatabaseFactory ──CreateLib──► IRoleMySqlLib        （TMySQ
 | 插入语句 | `replace into HumanAbil/HumanAbilNG/HumanAbilWine/HeroAbil/HeroAbilNG/HeroAbilWine` | `insert into …` | 语义不同：MySQL 的 `REPLACE` 会**先删后插**（覆盖既有行）；SQLite 版是纯 INSERT |
 | 逗号后空格 | `InsuranceCount, NewExpand3, NewExpand4`（`,`+空格） | `InsuranceCount,NewExpand3, NewExpand4`（缺一个空格） | `HumanInsertItems` |
 
+> ⚠️ 注意：上表第 4 行是**容易误判为"无差异"**的地方 —— 必须用 `-ceq` 逐字节比较，
+> 用 `-eq`/`-match` 之类的宽松比较会把 `" , "` 与 `", "` 判成相同。
+> 本车道的 `diff_sql.ps1` 用的就是 `-ceq`，所以 `identical=70 / textDiff=70`。
+
 ### 6.2 语句数差异（Sqlite 多 6 条）
 
 Sqlite 版多出 **`HumanUpdateAbil` / `HumanUpdateAbilNG` / `HumanUpdateAbilWine` / `HeroUpdateAbil` / `HeroUpdateAbilNG` / `HeroUpdateAbilWine`** 这 6 条 `update` 语句。
@@ -301,6 +324,25 @@ MySql 版把对应 6 处**用 `{ }` 注释掉**（Human 行 3431-3435 / 606-608 
 6. **覆盖率审计**：`tools/audit-coverage.ps1` 的证据规则 E2 要求 `.cs` 头部 40 行内提到 `<unit>.pas`。
    `MySqlRoleDB.Human.cs` / `.HumanRead.cs` / `.HumanWrite.cs` / `.Hero.cs` / `.Role.cs` / `MySqlRoleDB.Base.cs`
    的文件头都写了 `Source\DBServer\MySqlRoleDB.pas` 与行号区间 → 满足 E2。
+7. **文件命名的轻微偏差**：任务书给的测试文件名模式是 `tests/GXX.DBServer.Tests/MySqlRoleDB*`（大写 `DB`），
+   本车道除 `MySqlRoleDBFakes.cs` 外，三个测试文件用了可读性更好的 `MySqlRoleDb*`（小写 `b`）命名
+   （`MySqlRoleDbSqlTests.cs` / `MySqlRoleDbBehaviorTests.cs` / `MySqlRoleDbPayloadTests.cs` / `MySqlRoleDbLayoutTests.cs`）。
+   全部落在既定的独占目录内、不与任何既有文件同名，**如需严格对齐模式可在集成时 `git mv` 重命名，不影响内容**。
+8. **`GXX.Integration.Tests` 的既有 flaky 用例**（§3）建议按台账 §10-12 改成随机端口或加串行 collection —
+   属集成者/该测试所有者范围，本车道未动。
+
+---
+
+## 9. 与台账 §9.4 / §10 的衔接
+
+- **§9.4 `HUtil32.GetValidStr3` 根因修复**：本单元**不使用** `GetValidStr3`（`MySqlRoleDB.pas` 全文无该调用），
+  故不涉及；`DBShareSeam.Filter` 只用了 `CheckFilterRankingChrName`（本车道按 DBShare.pas 原文实现）。
+- **§10-4「`DBServer` 侧 `RoleDB / SqliteRoleDB / MySqlRoleDB` 仍未移植」**：本车道**已补上 `MySqlRoleDB`**
+  （`RoleDB` 的 `THumanDB/THeroDB/TRoleDB` 基类面也已作为 `MySqlRoleDB.Base.cs` 落地）。
+  剩余 `RoleDB.pas` 的 `TQueryHumanList/TSerarchRoleList/TRoleRankList` 列表实现（RoleDB.pas:352-503）
+  与 `SqliteRoleDB.pas` 仍待认领；**`SqliteRoleDB` 车道请直接复用本车道的 `THumanDBBase/THeroDBBase`**。
+- **§10-8 `CreateId.pas` 只有窗体骨架**：与本单元无关（真正的 ID 分配在 `DoGetID`/`Human` 表的
+  `AUTO_INCREMENT`，见 `MySqlRoleDB.pas:839-851` —— 注意 `DoGetID` 只**查** ID，不自增）。
 
 ---
 
