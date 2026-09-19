@@ -403,7 +403,7 @@ public sealed class LoadDxRecordLayoutTests
     public void ReadAt_With_NonZero_Base_Offset()
     {
         // LoadControlFromMemory 的 "at" 参数必须真正生效（不是永远从 0 读）。
-        var rec = new TGuiLabel { BackgroundColor = 0x123456, ClickCount = (GXX.Client.DxComponent.TDxImageButton.TClickSound)2 };
+        var rec = new TGuiLabel { BackgroundColor = 0x123456, ClickCount = (GXX.Client.DxComponent.TClickSound)2 };
         var bytes = new byte[TGuiLabel.SizeOf + 8];
         rec.WriteAt(bytes, 8);
         var back = TGuiLabel.ReadAt(bytes, 8);

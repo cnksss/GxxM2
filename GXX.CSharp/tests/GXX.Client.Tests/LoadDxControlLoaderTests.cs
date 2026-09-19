@@ -217,7 +217,7 @@ public sealed class LoadDxControlLoaderTests
             AutoSize = true,
             CaptionLen = 0,
             Style = TButtonStyle.bsRadio,
-            ClickCount = (GXX.Client.DxComponent.TDxImageButton.TClickSound)3,
+            ClickCount = (GXX.Client.DxComponent.TClickSound)3,
         };
         var payload = GuiTest.New().Raw(rec.ToBytes()).ToArray();
 
