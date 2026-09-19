@@ -65,7 +65,9 @@ public sealed class LoadDxControlExLoaderTests
     [Fact]
     public void ControlRef_Is_A_Mutable_Slot()
     {
-        var reference = new TDxControlRef();
+        // 去重后 TDxControlRef 来自 GXX.Client.DxComponent（DxControls.cs）；
+        // 正式类**没有无参构造**，故这里显式传 null 表示"空槽"。
+        var reference = new TDxControlRef(null);
         Assert.Null(reference.Value);
         reference.Value = new TDxImageGrid();
         Assert.IsType<TDxImageGrid>(reference.Value);

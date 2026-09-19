@@ -15,18 +15,22 @@ namespace GXX.Client.LoadDx;
 //
 // 【为什么是接缝而不是移植】
 //   LoadDxControl*.pas 的 LoadComponent 需要 23 种 TDx* 控件作为赋值目标。
-//   仓库现状（P1 车道5 已合并）只提供了 5 种：
+//   本文件只定义**还没有正式归属**的那些；凡是 `GXX.Client.DxComponent` 已经提供的，
+//   一律引用，绝不重复声明（一个类型只有一个归属 —— 台账 §9.3）。
+//
+//   截至 2026-09-20，DxComponent 已提供（本文件全部改为引用）：
 //       TDxControl（基类）/ TDxImageButton / TDxLabel / TDxLine / TDxImageProgress / TDXTrackBar
-//   （见 src/GXX.Client/DxComponent/*.cs）。其余 18 种本文件按"最小可用面"定义：
-//   只声明 LoadComponent 真的会写的成员，**不做绘制/命中测试**，并在每处标注
-//   // 接缝：待 <单元名> 移植后接入
+//       + 车道 p2-dxcontrols-rest 并入的：
+//         TDxImageForm / TDxImageFormShape / TDxFormShapeImage / TDxImageFormAnimation（DxImageForm.cs）
+//         TDxScrollControl（抽象基类）/ TDxControlRef / TDrawAligment / TAlignEx（DxControls.cs / DxImageForm.cs）
+//   本文件仍然自有（待各自单元移植后交接）：
+//       TDxEdit / TDxImageEdit / TDxImageGrid / TDxScrollControlSeam(+4 子类) / TDxPopupMenu /
+//       TDxComboBox / TDxPageControl / TDxTabSheet / TDxMainBottomForm / TDxMagicBall /
+//       TDxSexPanel / TDxGroupAttackProgress / TDxSwitchButton ...
 //
 // 【为什么不另造控件】
 //   所有接缝类一律继承 GXX.Client.DxComponent.TDxControl，复用其
 //   DxOwner / ImageIndex / BorderColor / CaptionColor(DrawCaptionFont) / 位置语义。
-//   对照台账 §9.3：同一 Delphi 单元只能由一条车道负责接缝 —— 本文件**不重新定义**
-//   TDxControl / TDxFont / TDxCaptionColor / TDxImageIndex / TDxImageButton / TDxLabel /
-//   TDxLine / TDxImageProgress / TDXTrackBar，一律引用既有实现。
 //
 // 【差异落点】既有控件缺少的成员（如 TDxImageButton.Animation）挂在本文件的
 //   TDxControlExtra 附带对象上（ConditionalWeakTable），不修改既有文件。
@@ -83,20 +87,6 @@ public sealed class TDxGuiStrings
     public string Text = string.Empty;
 }
 
-/// <summary>Delphi DxControls.pas 的 TDxImageInfo 级别接缝（TDxImageFormShape.Items[] 元素）。</summary>
-public sealed class TDxFormShapeItem
-{
-    public TImageType ImageType;
-    public int ImageIndex;
-    public TAlignEx Align;
-    public bool Draw;
-    public bool Stretch;
-    public bool Center;
-    public int BlendMode;
-    public TDxRect SourceRect;
-    public TDxRect DestRect;
-}
-
 /// <summary>Delphi DxControls.pas 的 TDxViewField（TDxListView.Fields[] 元素）。</summary>
 public sealed class TDxListViewField
 {
@@ -105,7 +95,15 @@ public sealed class TDxListViewField
     public string Caption = string.Empty;
 }
 
-/// <summary>接缝：待 DxImageProgress.pas 已移植 → 复用 TProgressSetting，此处仅给动画子块。</summary>
+/// <summary>
+/// 动画子块，只由本车道的 <see cref="TDxMainBottomForm"/> 接缝使用。
+/// <para>
+/// 说明（去重后）：<c>t_Form</c> 的动画已改用 <c>GXX.Client.DxComponent.DxImageForm.cs</c> 的
+/// <c>TDxImageFormAnimation</c>（正式归属）；本类型只在 MainBottomForm 的接缝里保留，
+/// 因为 <c>DxMainBottomForm.pas</c> 尚未移植、它比 <c>TDxImageFormAnimation</c> 多出
+/// HorzAlignment/VertAlignment/AdjustYByHeight 三个字段。
+/// </para>
+/// </summary>
 public sealed class TDxGuiAnimation
 {
     public TImageType ImageType;
@@ -126,33 +124,16 @@ public sealed class TDxGuiAnimation
 }
 
 // -------------------------------------------------------------------------------------
-// 12 个待移植控件的最小接缝
+// 待移植控件的最小接缝（**只列真正还没有正式归属的那些**）
+//
+// 去重记录（2026-09-20，车道 p2-dxcontrols-rest 并入后）：
+//   TDxImageForm / TDxImageFormShape / TDxFormShapeItem → 改用 DxComponent/DxImageForm.cs 的
+//       TDxImageForm / TDxImageFormShape / TDxFormShapeImage（本文件不再声明）
+//   TDxScrollControl → 改用 DxComponent/DxControls.cs 的正式抽象基类；
+//       本车道只在其上派生一个承载面 TDxScrollControlSeam
+//   TAlignEx / TDrawAligment → 由 GuiRecords.g.cs 改为引用 DxComponent 的那一份
+//   TDxControlRef → 改用 DxComponent/DxControls.cs 的正式类
 // -------------------------------------------------------------------------------------
-
-/// <summary>接缝：待 DxImageForm.pas 移植后接入（原文 TDxImageForm:TDxControl）。</summary>
-public class TDxImageForm : TDxControl
-{
-    public int BackgroundAlpha;
-    public TDxGuiAnimation Animation1 = new TDxGuiAnimation();
-    public TDxGuiAnimation Animation2 = new TDxGuiAnimation();
-    public TDxGuiAnimation Animation3 = new TDxGuiAnimation();
-}
-
-/// <summary>接缝：待 DxImageForm.pas 移植后接入（原文 TDxImageFormShape:TDxImageForm）。</summary>
-public sealed class TDxImageFormShape : TDxImageForm
-{
-    /// <summary>原文 ImageCount 恒为 9（TGuiFormShapeInfoArray = array[0..8-1]）。</summary>
-    public int ImageCount = 8;
-
-    public readonly TDxFormShapeItem[] Items = CreateItems();
-
-    private static TDxFormShapeItem[] CreateItems()
-    {
-        var items = new TDxFormShapeItem[8];
-        for (int i = 0; i < items.Length; i++) items[i] = new TDxFormShapeItem();
-        return items;
-    }
-}
 
 /// <summary>接缝：待 DxEdit.pas 移植后接入（原文 TDxEdit:TDxControl）。</summary>
 public class TDxEdit : TDxControl
@@ -208,8 +189,15 @@ public sealed class TDxImageGrid : TDxControl
     public int ViewTopLine;
 }
 
-/// <summary>接缝：待 DxMemo.pas 移植后接入（原文 TDxScrollControl:TDxControl，TDxScrollBox/TDxChatMemo/TDxListView/TDxTreeView 皆其子类）。</summary>
-public class TDxScrollControl : TDxControl
+/// <summary>
+/// 滚动控件族的承载面接缝（原文 TDxScrollControl 的字段来自 DxMemo.pas，尚未移植）。
+/// <para>
+/// **去重后**：基类改用正式归属 <c>GXX.Client.DxComponent.TDxScrollControl</c>
+/// （`DxControls.cs`，抽象类，只有两个 MouseWheel 虚方法）；本类型只在其上补
+/// 「LoadComponent 真会写」的字段面，故改名 <c>TDxScrollControlSeam</c>，避免与正式类同名。
+/// </para>
+/// </summary>
+public class TDxScrollControlSeam : TDxScrollControl
 {
     public TDxImageIndex ScrollImageIndex = new TDxImageIndex();
     public TDxImageIndex PrevImageIndex = new TDxImageIndex();
@@ -230,10 +218,10 @@ public class TDxScrollControl : TDxControl
 }
 
 /// <summary>接缝：待 DxMemo.pas 移植后接入（原文 TDxScrollBox:TDxScrollControl）。</summary>
-public sealed class TDxScrollBox : TDxScrollControl { }
+public sealed class TDxScrollBox : TDxScrollControlSeam { }
 
 /// <summary>接缝：待 DxMemo.pas 移植后接入（原文 TDxChatMemo:TDxScrollControl）。</summary>
-public sealed class TDxChatMemo : TDxScrollControl
+public sealed class TDxChatMemo : TDxScrollControlSeam
 {
     public string FontName = string.Empty;
     public int FontSize;
@@ -242,7 +230,7 @@ public sealed class TDxChatMemo : TDxScrollControl
 }
 
 /// <summary>接缝：待 DxMemo.pas / DxListView.pas 移植后接入（原文 TDxListView:TDxScrollControl）。</summary>
-public sealed class TDxListView : TDxScrollControl
+public sealed class TDxListView : TDxScrollControlSeam
 {
     public int ColCount;
     public bool ShowGridLine;
@@ -264,7 +252,7 @@ public sealed class TDxListView : TDxScrollControl
 }
 
 /// <summary>接缝：待 DxMemo.pas 移植后接入（原文 TDxTreeView:TDxScrollControl）。</summary>
-public sealed class TDxTreeView : TDxScrollControl
+public sealed class TDxTreeView : TDxScrollControlSeam
 {
     public bool ShowButton;
 }
@@ -492,16 +480,9 @@ public sealed class TDxSwitchButton : TDxControl
 // 名字表（LoadDxControlEx 的 ControlAddrList:THashedStringList）
 // -------------------------------------------------------------------------------------
 
-/// <summary>
-/// 对应 <c>^TDxControl</c>（Delphi 的"控件指针的指针"）。
-/// 原文 LoadSubComponent 里 <c>pControlAddr^ := DxControl</c> 就是往这个槽里写。
-/// </summary>
-public sealed class TDxControlRef
-{
-    public TDxControl Value;
-    public TDxControlRef(TDxControl value = null) => Value = value;
-    public static implicit operator TDxControlRef(TDxControl c) => new TDxControlRef(c);
-}
+// 去重记录（2026-09-20）：`TDxControlRef`（对应 `^TDxControl`）原本在本文件声明，
+// 现改用正式归属 `GXX.Client.DxComponent.TDxControlRef`（DxControls.cs）。
+// 与旧接缝的唯一差别：正式类**没有无参构造**，故 Register 用 `new TDxControlRef(null)`。
 
 /// <summary>
 /// 对应 <c>THashedStringList</c> 的最小接缝（Delphi 侧来自 HashList/MShare）。
@@ -536,7 +517,7 @@ public sealed class THashedStringList
     /// <summary>测试/构建用：把一个控件指针槽登记进表（相当于原文 objRootControl 的 RTTI 字段表）。</summary>
     public TDxControlRef Register(string name)
     {
-        var reference = new TDxControlRef();
+        var reference = new TDxControlRef(null);   // 正式类无无参构造
         AddObject(name, reference);
         return reference;
     }

@@ -105,33 +105,11 @@ public enum TMagicBallValueAlignment : byte
     mbaBottom = 3
 }
 
-// src: DxComponents.pas:49
-public enum TDrawAligment : byte
-{
-    daFill = 0,
-    daBottom = 1
-}
-
 // src: DxComponents.pas:52
 public enum TInValue : byte
 {
     vInteger = 0,
     vString = 1
-}
-
-// src: DxComponents.pas:88
-public enum TAlignEx : byte
-{
-    alxNone = 0,
-    alxTop = 1,
-    alxBottom = 2,
-    alxLeft = 3,
-    alxRight = 4,
-    alxClient = 5,
-    alxTopLeft = 6,
-    alxTopRight = 7,
-    alxBottomLeft = 8,
-    alxBottomRight = 9
 }
 
 // src: VCL (referenced by DxComponents.pas)

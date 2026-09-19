@@ -754,7 +754,7 @@ public sealed class LoadDxControlLoaderTests
         var (_, slotsMid, _) = Load(One(TGuiType.t_Form, GuiTest.New().Raw(midRec.ToBytes()).ToArray(),
             version: GuiTest.Ver20160409, name: "f"));
         var mid = Assert.IsType<TDxImageForm>(slotsMid[0]);
-        Assert.Equal(200, mid.BackgroundAlpha);
+        Assert.Equal((byte)200, mid.BackgroundAlpha);   // 正式 TDxImageForm.BackgroundAlpha 是 byte，不是 int
         Assert.Equal(0xAB, mid.BackgroundColor);
 
         var newRec = new TGuiImageForm_New3();

@@ -92,9 +92,13 @@ Add-Scalar 'TFontStyles' 1 1 'byte' 'set'
 Add-Scalar 'TShiftState' 1 1 'byte' 'set'
 Add-Scalar 'TMouseEvents' 1 1 'TMouseEvents' 'enum'
 
-# types that already exist in GXX.Client.DxComponent (never regenerate: CS0101 risk)
+# types that already exist in GXX.Client.DxComponent (never regenerate: CS0101/CS0104 risk).
+# TAlignEx / TDrawAligment became DxComponent-owned on 2026-09-20 (lane p2-dxcontrols-rest:
+# DxImageForm.cs / DxControls.cs) - they are the single home for those two enums now, so we
+# reference them instead of emitting our own copies.
 $existingEnums = @('TClientVersion','TReferenceX','TButtonAnimationShowType','TGuiType','TImageType','TMouseEvents',
-                   'TProgressValueType','TLineStyle','TButtonStyle','TClickSound')
+                   'TProgressValueType','TLineStyle','TButtonStyle','TClickSound',
+                   'TAlignEx','TDrawAligment')
 # Delphi name -> C# name when the seam declares the type somewhere other than namespace level
 $typeNameRemap = @{ 'TClickSound' = 'TDxImageButton.TClickSound' }   # nested inside TDxImageButton in DxLabel.cs
 function Map-CsName([string]$name) { if ($typeNameRemap.ContainsKey($name)) { return $typeNameRemap[$name] } return $name }
