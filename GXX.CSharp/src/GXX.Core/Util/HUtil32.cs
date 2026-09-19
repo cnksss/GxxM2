@@ -645,14 +645,57 @@ public static class HUtil32
         catch { }
     }
 
-    // ---------------- 布尔转换 ----------------
+    // ---------------- 布尔转换（HUtil32.pas 原文有**四套互不相同**的语义，禁止"统一"） ----------------
+    //
+    // 原文行号（Source/Common/HUtil32.pas）：
+    //   BoolToStr    2884-2890  → 'TRUE'/'FALSE'（**大写**；既不是 -1/0，也不是 1/0）
+    //   BoolToStr2   2892-2898  → '1'/'0'
+    //   BooleanToStr 2900-2906  → '是'/'否'（与同单元 BoolToCStr 508-516 重复，原文即两处同义）
+    //   BoolToIntStr 503-506    → IntToStr(Integer(boo)) = '1'/'0'（Integer(True)=1，不是 -1）
+    //   BoolToCStr   508-516    → '是'/'否'
+    //   BoolToInt    495-501    → 1/0
+    //   StrToBool    449-452    → Boolean(Str_ToInt(Str, 0))，即"整数非 0 即 True"
+    // 另外两套不属于本单元，各自独立：
+    //   SysUtils.BoolToStr（默认重载）    → '-1'/'0'，见 GXX.Core.Rtl.DelphiRTL.BoolToStr
+    //   TCustomIniFile.WriteBool          → '1'/'0'，见 GXX.Core.Util.TFastIniFile.WriteBool
+    // 是否解析到 HUtil32 版取决于调用单元的 uses：GameCenter/GMain.pas:5-11 与
+    // M2Engine/Forms/GameConfig.pas:5-7 都**没有** HUtil32，所以它们的 BoolToStr 是 SysUtils 版（-1/0）。
 
+    /// <summary>
+    /// HUtil32.pas:2884-2890 —— 原文返回**大写** <c>'TRUE'</c>/<c>'FALSE'</c>。
+    ///
+    /// ⚠ 历史实现返回 <c>"True"/"False"</c>（大小写不符），但既有断言
+    /// <c>tests/GXX.Core.Tests/CoreTests.cs:448</c> 与
+    /// <c>tests/GXX.GameCenter.Tests/GShareDeclTests.cs:256</c> 依赖该文本，且这两个文件不在本车道
+    /// 白名单内 —— 故按"不静默改语义"原则保留旧行为，另立 <see cref="BoolToStrDelphi"/> 作忠实复刻。
+    /// 集成期把本方法改为 <c>=> BoolToStrDelphi(boo)</c> 并同步那两处断言即可（见
+    /// docs/并行报告-p2-core-rtl.md 的"遗留项"）。
+    /// </summary>
     public static string BoolToStr(bool boo) => boo ? "True" : "False";
+
+    /// <summary>HUtil32.pas:2884-2890 逐字复刻：<c>'TRUE'</c>/<c>'FALSE'</c>（大写）。</summary>
+    public static string BoolToStrDelphi(bool boo) => boo ? "TRUE" : "FALSE";
+
+    /// <summary>HUtil32.pas:2892-2898 逐字复刻：<c>'1'</c>/<c>'0'</c>。</summary>
     public static string BoolToStr2(bool boo) => boo ? "1" : "0";
-    public static string BooleanToStr(bool boo) => boo ? "True" : "False";
+
+    /// <summary>HUtil32.pas:2900-2906 逐字复刻：<c>'是'</c>/<c>'否'</c>（旧实现返回 "True"/"False"，与原文不符，已修正）。</summary>
+    public static string BooleanToStr(bool boo) => boo ? "是" : "否";
+
+    /// <summary>HUtil32.pas:503-506 逐字复刻：<c>IntToStr(Integer(boo))</c> → <c>'1'</c>/<c>'0'</c>。</summary>
     public static string BoolToIntStr(bool boo) => boo ? "1" : "0";
+
+    /// <summary>HUtil32.pas:508-516 逐字复刻：<c>'是'</c>/<c>'否'</c>。</summary>
     public static string BoolToCStr(bool boo) => boo ? "是" : "否";
+
+    /// <summary>HUtil32.pas:495-501 逐字复刻：<c>1</c>/<c>0</c>（注意与 SysUtils 的 -1/0 无关）。</summary>
     public static int BoolToInt(bool boo) => boo ? 1 : 0;
+
+    /// <summary>
+    /// HUtil32.pas:449-452 逐字复刻：<c>Result := Boolean(Str_ToInt(Str, 0))</c> —— 整数非 0 即 True，
+    /// 非数字串（含 <c>'TRUE'</c>！）回落到 0 → False。故 <c>StrToBool(BoolToStrDelphi(true)) == false</c>，
+    /// 原文这一对函数**不互逆**（差异断言见 BoolStrSemanticsTests）。
+    /// </summary>
     public static bool StrToBool(string str) => Str_ToInt(str, 0) != 0;
 
     public static int GetDayCount(DateTime maxDate, DateTime minDate)

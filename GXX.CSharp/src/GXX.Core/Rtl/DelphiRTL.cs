@@ -96,6 +96,27 @@ public static unsafe class DelphiRTL
     }
     public static string FloatToStr(double v) => v.ToString("R", System.Globalization.CultureInfo.InvariantCulture);
 
+    // ---------------- 布尔 → 字符串（SysUtils 语义；**只有这一套是 -1/0**） ----------------
+
+    /// <summary>
+    /// SysUtils.BoolToStr(B: Boolean; UseBoolStrs: Boolean = False)。
+    ///
+    /// Delphi 7 的**默认**重载（UseBoolStrs = False）返回 <c>'-1'</c>/<c>'0'</c> —— 既不是
+    /// <c>'1'/'0'</c>（那是 HUtil32.BoolToStr2 与 TCustomIniFile.WriteBool），也不是
+    /// <c>'True'/'False'</c>（那是 HUtil32.BoolToStr 的大写形态 'TRUE'/'FALSE' 之外的另一套）。
+    /// UseBoolStrs = True 时返回 <c>'True'</c>/<c>'False'</c>（STrue/SFalse 资源串）。
+    ///
+    /// 依据：本仓库不含 Delphi RTL 源码（Source/ 下无 SysUtils.pas），无法给出 RTL 行号；
+    /// 项目内三处按该语义独立落地的桩可互证：
+    ///   * GXX.GameCenter/GShareTypes.cs:137-149（DelphiSystem.BoolToStr）
+    ///   * GXX.M2Server/Forms/GeneralConfigForm.cs:474-475（DelphiBoolToStr）
+    ///   * GXX.SelGate/SelGateConfig.cs:363
+    /// 典型调用点：GameCenter/GMain.pas:1991-1993、M2Engine/Forms/GameConfig.pas:2146-2147
+    /// （这两个单元的 uses 里**没有** HUtil32，故 BoolToStr 解析到 SysUtils 版 → 落盘 '-1'/'0'）。
+    /// </summary>
+    public static string BoolToStr(bool value, bool useBoolStrs = false)
+        => useBoolStrs ? (value ? "True" : "False") : (value ? "-1" : "0");
+
     public static string Format(string fmt, params object[] args)
         => DelphiFormat.Format(fmt, args);
 
@@ -218,7 +239,14 @@ public static class DelphiFormat
         {
             case 'd':
             {
-                long v = Convert.ToInt64(arg ?? 0L);
+                // Delphi 7 SysUtils.FormatBuf 的整数分支：实参是 Boolean（TVarRec.VType = vtBoolean）时
+                // **不按 0/1 渲染**，而是与 SysUtils.BoolToStr 默认重载一致 → True = '-1'、False = '0'
+                // （Delphi 的既有语义，不是笔误：整数分支里 Boolean 走的是 -1/0 的 Ordinal 约定）。
+                // 依据：本仓库不含 Delphi RTL 源码（Source/ 下无 SysUtils.pas），无行号可引；见
+                // GXX.Core.Rtl.DelphiRTL.BoolToStr 的 XML 注释列出的三处互证桩与典型调用点。
+                // 另：%u / %x / %p 未跟随（Boolean 仍按 0/1 渲染）——RTL 里它们是否与 %d 同分支无法
+                // 在本仓库取证，按"不凭直觉"原则保持现状，已登记为报告中的存疑项。
+                long v = arg is bool bo ? (bo ? -1L : 0L) : Convert.ToInt64(arg ?? 0L);
                 s = System.Math.Abs(v).ToString(new string('0', System.Math.Max(prec, 1)));
                 if (v < 0) s = "-" + s;
                 break;
