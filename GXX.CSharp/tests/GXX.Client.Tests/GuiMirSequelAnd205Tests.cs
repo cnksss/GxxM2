@@ -322,6 +322,8 @@ public sealed class GuiMirNewUI205Tests
             var w = Make();
             w.DMerchantDlg.Width = 280;
             MShareGlobals.g_ConfigClient.boUseOldSerialWindows = 0;      // 366 else 分支
+            // 接缝默认 DHeroStateDlg = null（Mir205 资源里两个英雄状态窗互斥），测试显式创建新版窗口
+            w.DHeroStateDlg = new TDxImageForm();
             w.DHeroStateDlg.Visible = true;
             w.DHeroStateDlg.Left = 999;
             w.DHeroStateDlg185.Visible = true;
@@ -350,6 +352,7 @@ public sealed class GuiMirNewUI205Tests
             MShareGlobals.g_ConfigClient.boUseOldSerialWindows = 1;      // 361
             w.DHeroStateDlg185.Visible = true;
             w.DHeroStateDlg185.Left = 777;
+            w.DHeroStateDlg = new TDxImageForm();                        // 互斥窗口，此处显式创建以验证「旧路径不动新窗口」
             w.DHeroStateDlg.Visible = true;
             w.DHeroStateDlg.Left = 999;
 

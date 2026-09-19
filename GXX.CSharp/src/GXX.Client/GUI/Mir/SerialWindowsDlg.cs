@@ -205,8 +205,11 @@ public class TSerialWindows : TFrmDlg
         DItemBag = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 340, 230);
         DMenuDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 120, 200);
         DSellDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 260, 240);
-        DHeroStateDlg = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 250, 220);
         DHeroStateDlg185 = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 250, 220);
+        // DHeroStateDlg：与 DHeroStateDlg185 是**互斥**的两个英雄状态窗（205/续章用 185 版，
+        // 连击版用新版）。原文 MirNewUI205Dlg.pas:362 与 367 两处都判 `<> nil`，正说明资源里
+        // 只会创建其中一个，故此处保持 null，由资源栈按版本创建。
+        DHeroStateDlg = null;
 
         // ---- 登录/注册 ----
         DLogin = (TDxImageForm)Rect(new TDxImageForm(), 0, 0, 400, 300);
