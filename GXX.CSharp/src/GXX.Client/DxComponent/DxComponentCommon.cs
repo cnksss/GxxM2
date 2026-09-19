@@ -821,14 +821,20 @@ public abstract class TDxControl : Control
     private bool _mouseMoveed;                             // FMouseMoveed
     private bool _checked;                                 // FChecked（TDxImageButton 段）
 
-    /// <summary>GameCanvas.Active（绘制守卫）。</summary>
-    protected IDxSurfacePainter Painter = new TDxNullPainter();
+    /// <summary>GameCanvas.Active（绘制守卫）。原文 TDxControl 通过 GameCanvas 全局取用，无保护级。</summary>
+    public IDxSurfacePainter Painter = new TDxNullPainter();
 
     /// <summary>字体/字形接缝。</summary>
     public TDxFontEnv FontEnv = new();
 
     /// <summary>父控件（原文 FOwner，用于 VisibleRect/VirtualRect 递推；避免与 Control.Owner 撞名）。</summary>
     public TDxControl DxOwner;
+
+    /// <summary>
+    /// 原文 GetVirtualRect 的递推基点：Owner 为 nil 时是 ClientRect；Owner 非 nil 时是
+    /// MoveRect(ClientRect, Owner.VirtualRect.TopLeft)。允许子类注入（原文的递推链在托管侧的等价落点）。
+    /// </summary>
+    public Func<TDxRect> VirtualRectOverride;
 
     public TDxControl()
     {
@@ -898,6 +904,11 @@ public abstract class TDxControl : Control
     {
         get
         {
+            if (VirtualRectOverride != null)
+                return DxOwner == null
+                    ? VirtualRectOverride()
+                    : DxRectUtil.ShortRect(VirtualRectOverride(), DxOwner.VisibleRect);
+
             if (DxOwner == null)
                 return ClientRect;
 
@@ -912,6 +923,9 @@ public abstract class TDxControl : Control
     {
         get
         {
+            if (VirtualRectOverride != null)
+                return VirtualRectOverride();
+
             if (DxOwner == null)
                 return ClientRect;
 
@@ -947,7 +961,14 @@ public abstract class TDxControl : Control
         set => SetPosition(3, value);
     }
 
-    /// <summary>原文 TDxControl.Enabled（默认 True）。</summary>
+    /// <summary>
+    /// 原文 TDxControl.Visible（默认 True，构造 1804 FVisible := True）。
+    /// 注意：这里必须用 `new` 屏蔽 WinForms Control.Visible —— 无父容器的 WinForms 控件
+    /// 其 Visible 恒为 false，若被屏蔽掉会让原文语义（默认可见）失效。
+    /// </summary>
+    public new bool Visible { get => _visible; set => _visible = value; }
+
+    /// <summary>原文 TDxControl.Enabled（默认 True，构造 1805 FEnabled := True）。</summary>
     public new bool Enabled { get => _enabled; set => _enabled = value; }
 
     /// <summary>原文 TDxControl.Designing（原文构造 := True）。</summary>
