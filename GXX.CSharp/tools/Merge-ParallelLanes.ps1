@@ -34,19 +34,13 @@ if ($gitCommon -ne $gitDir) {
     throw "Run this script in the PRIMARY worktree (git-dir=$gitDir, common-dir=$gitCommon)"
 }
 
-# --- 1. trunk must be clean ------------------------------------------------
+# --- 1. collect trunk dirt (used later for a precise collision test) --------
 # Coordination files written by the dispatch session itself are ignored here:
 # they are intentionally left untracked until final integration.
 # (ASCII-only pattern on purpose -- PS 5.1 reads .ps1 as ANSI.)
 $COORD_PATTERN = 'GXX\.CSharp/(docs|tools)/'
-$dirty = git -C $repo status --porcelain | Where-Object { $_ -notmatch $COORD_PATTERN }
-if ($dirty) {
-    Write-Host ""
-    Write-Host "[ABORT] Primary worktree has uncommitted changes -> the sequential session is working." -ForegroundColor Yellow
-    Write-Host "        Wait until it commits, then re-run."
-    $dirty | ForEach-Object { Write-Host "    $_" }
-    exit 2
-}
+$dirty = @(git -C $repo status --porcelain -uall | Where-Object { $_ -notmatch $COORD_PATTERN })
+$dirtyPaths = @($dirty | ForEach-Object { $_.Substring(3).Trim('"') })
 
 # --- 2. collect lane status ------------------------------------------------
 $plan = @()
@@ -63,7 +57,32 @@ foreach ($lane in $Lanes) {
     $plan += [pscustomobject]@{ Lane = $lane; Branch = $branch; Ahead = $ahead; Behind = $behind; Files = $files }
 }
 
-if (-not $plan) { Write-Host ""; Write-Host "No lane to merge." -ForegroundColor Green; exit 0 }
+if (-not $plan) {
+    if ($dirty.Count -gt 0) {
+        Write-Host "[note] trunk has uncommitted changes (sequential session at work):" -ForegroundColor DarkGray
+        $dirty | ForEach-Object { Write-Host "    $_" -ForegroundColor DarkGray }
+    }
+    Write-Host "No lane to merge." -ForegroundColor Green
+    exit 0
+}
+
+# --- 2b. trunk dirt is only fatal where it COLLIDES with a lane file --------
+# A lane adds brand-new files; merging it cannot disturb the sequential
+# session's in-flight files as long as the two sets are disjoint.  That is what
+# makes it safe to integrate while the other session keeps working.
+if ($dirty.Count -gt 0) {
+    $planPaths = @{}
+    foreach ($p in $plan) { foreach ($f in $p.Files) { $planPaths[$f] = $p.Branch } }
+    $collisions = @($dirtyPaths | Where-Object { $planPaths.ContainsKey($_) })
+    if ($collisions.Count -gt 0) {
+        Write-Host ""
+        Write-Host "[ABORT] trunk uncommitted changes collide with lane files:" -ForegroundColor Yellow
+        $collisions | ForEach-Object { Write-Host "    $_" }
+        exit 2
+    }
+    Write-Host ""
+    Write-Host ("[ok] trunk is dirty with {0} path(s), none of them touched by the lanes -> merge is safe" -f $dirtyPaths.Count) -ForegroundColor DarkGray
+}
 
 Write-Host ""
 Write-Host "=== merge plan ===" -ForegroundColor Cyan
@@ -114,5 +133,12 @@ if (-not $SkipBuild) {
 }
 
 Write-Host ""
-Write-Host "=== merge finished, all gates green ===" -ForegroundColor Green
+if ($SkipBuild) {
+    Write-Host "=== merge finished (integration gate SKIPPED) ===" -ForegroundColor Yellow
+    Write-Host "Run the gate yourself where it cannot disturb the sequential session, e.g."
+    Write-Host "  git -C .worktrees/<lane> merge main   # lane worktree now equals the merged trunk"
+    Write-Host "  cd .worktrees/<lane>/GXX.CSharp ; dotnet build GXX.slnx -c Release ; dotnet test GXX.slnx -c Release"
+} else {
+    Write-Host "=== merge finished, all gates green ===" -ForegroundColor Green
+}
 Write-Host "Next: register new test projects in GXX.slnx; update docs/parallel ledger section 6."

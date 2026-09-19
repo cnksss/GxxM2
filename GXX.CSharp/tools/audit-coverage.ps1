@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 #  audit-coverage.ps1   (ASCII-only on purpose: Windows PowerShell 5.1 reads
 #  .ps1 as ANSI, so non-ASCII literals here would break parsing.)
 #
