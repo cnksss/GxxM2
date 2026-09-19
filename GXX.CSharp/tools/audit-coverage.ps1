@@ -1,4 +1,4 @@
-﻿# ============================================================
+# ============================================================
 #  audit-coverage.ps1   (ASCII-only on purpose: Windows PowerShell 5.1 reads
 #  .ps1 as ANSI, so non-ASCII literals here would break parsing.)
 #
@@ -64,11 +64,26 @@ $csByBase = @{}
 foreach ($f in $csFiles) { $csByBase[$f.BaseName.ToLowerInvariant()] = $true }
 
 # latin1 keeps byte->char 1:1 so ASCII substring search is encoding-agnostic
+#
+# E2 was originally "some src .cs mentions <unit>.pas anywhere" -- that produced
+# FALSE POSITIVES: an aggregate/service file whose comments merely happen to name
+# the unit (e.g. GShare.pas named inside GameCenterService.cs) was scored as a
+# port.  A genuine port documents its source in the FILE HEADER doc comment, so
+# E2 now only looks at the first HEAD_LINES lines; a mention found later in the
+# file is downgraded to WEAK (reported, never counted as mapped).
+$HEAD_LINES = 40
 $latin1 = [System.Text.Encoding]::GetEncoding(28591)
 $csText = @{}
+$csHead = @{}
 foreach ($f in $csFiles) {
     if ($f.FullName -notmatch '\\src\\') { continue }
-    try { $csText[$f.FullName] = [System.IO.File]::ReadAllText($f.FullName, $latin1) } catch { }
+    try {
+        $t = [System.IO.File]::ReadAllText($f.FullName, $latin1)
+        $csText[$f.FullName] = $t
+        $ls = $t -split "`n"
+        if ($ls.Count -gt $HEAD_LINES) { $t = ($ls[0..($HEAD_LINES - 1)] -join "`n") }
+        $csHead[$f.FullName] = $t
+    } catch { }
 }
 Write-Host "src text loaded  : $($csText.Count)"
 
@@ -94,9 +109,13 @@ foreach ($d in $Dir) {
         $unit = $f.BaseName
         $e1 = $csByBase.ContainsKey($unit.ToLowerInvariant())
         $e2 = $false
+        $e2w = $false
         if (-not $e1) {
             $needle = "$unit.pas"
-            foreach ($k in $csText.Keys) { if ($csText[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; break } }
+            foreach ($k in $csHead.Keys) { if ($csHead[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; break } }
+            if (-not $e2) {
+                foreach ($k in $csText.Keys) { if ($csText[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2w = $true; break } }
+            }
         }
         $e3 = $false
         if (-not ($e1 -or $e2)) { $e3 = $checklistText.IndexOf($unit, [StringComparison]::Ordinal) -ge 0 }
@@ -108,15 +127,17 @@ foreach ($d in $Dir) {
 
         # E4 = the unit is explicitly assigned to a parallel lane, i.e. in flight,
         # NOT finished. It must never be counted as mapped.
+        # WEAK = only a non-header mention exists: explicitly NOT a port.
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($mapped) { 'MAPPED' }
+                   elseif ($e2w) { 'WEAK' }
                    elseif ($e4) { 'ASSIGNED' }
                    elseif ($e3) { 'CHECKLIST_ONLY' }
                    else { 'UNMAPPED' }
 
         $rows += [pscustomobject]@{
             Dir = $d; Unit = $unit; Lines = $lines; KB = [math]::Round($f.Length / 1KB)
-            E1 = $e1; E2 = $e2; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel
+            E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel
         }
     }
 }
@@ -128,6 +149,7 @@ $byDir = $rows | Group-Object Dir | ForEach-Object {
         Dir         = $_.Name
         Units       = $g.Count
         Mapped      = ($g | Where-Object Verdict -eq 'MAPPED').Count
+        Weak        = ($g | Where-Object Verdict -eq 'WEAK').Count
         Assigned    = ($g | Where-Object Verdict -eq 'ASSIGNED').Count
         ChecklistOn = ($g | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
         Unmapped    = ($g | Where-Object Verdict -eq 'UNMAPPED').Count
@@ -143,13 +165,14 @@ $byDir | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
 $tot = [pscustomobject]@{
     Units       = $rows.Count
     Mapped      = ($rows | Where-Object Verdict -eq 'MAPPED').Count
+    Weak        = ($rows | Where-Object Verdict -eq 'WEAK').Count
     Assigned    = ($rows | Where-Object Verdict -eq 'ASSIGNED').Count
     ChecklistOn = ($rows | Where-Object Verdict -eq 'CHECKLIST_ONLY').Count
     Unmapped    = ($rows | Where-Object Verdict -eq 'UNMAPPED').Count
     Vendor      = ($rows | Where-Object Verdict -eq 'VENDOR').Count
 }
-Write-Host ("TOTAL units={0}  mapped={1}  assigned={2}  checklist-only={3}  unmapped={4}  vendor={5}" -f `
-    $tot.Units, $tot.Mapped, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor) -ForegroundColor Green
+Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  vendor={6}" -f `
+    $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor) -ForegroundColor Green
 
 Write-Host ''
 Write-Host '=== top UNMAPPED by size (candidate next batches) ===' -ForegroundColor Yellow
