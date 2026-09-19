@@ -811,6 +811,9 @@ public sealed class TFrmBasicSet : System.Windows.Forms.Form
         WriteConfigBoolean(sSectionServer, sIdentNewLoginInto, Config.boNewLoginInto);
         WriteConfigBoolean(sSectionServer, sIdentNewLoginPhone, Config.boNewLoginPhone);
         WriteConfigBoolean(sSectionServer, sIdentNewLoginMustHasPhone, Config.boNewLoginMustHasPhone);
+
+        // Delphi TIniFile.WriteString 每次调用即落盘；GXX.Core.TFastIniFile 为内存缓存 → 末尾统一落盘
+        ini.UpdateFile();
     }
 
     /// <summary>BasicSet.pas:652 ButtonSaveClick。</summary>

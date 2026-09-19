@@ -50,6 +50,16 @@ public sealed class TFrmUserInfoEdit : System.Windows.Forms.Form
     /// </summary>
     public int SimulatedModalResult = LoginSrvForms.mrCancel;
 
+    /// <summary>测试注入：模态判定之前回调（用于模拟用户在对话框中输入后点确定）。</summary>
+    public Action<TFrmUserInfoEdit>? OnBeforeModalCheck;
+
+    /// <summary>
+    /// DFM 层可见性（DFM: Label14 TLabel 默认 Visible=True）。
+    /// WinForms 的 Control.Visible 在窗体未 Show 时恒返回 False，与 Delphi TControl.Visible（读存储值）
+    /// 语义不同 → 用字段 1:1 复刻原文的 `if Label14.Visible` 判定。
+    /// </summary>
+    public bool Label14_Visible = true;
+
     public TFrmUserInfoEdit()
     {
         InitializeComponent();
@@ -181,7 +191,7 @@ public sealed class TFrmUserInfoEdit : System.Windows.Forms.Form
             edtAccountName.Enabled = true;
         }
 
-        if (Label14.Visible)
+        if (Label14_Visible)   // 原文 if Label14.Visible（见字段注释）
         {
             Label14.Text = "二级密码:";
         }
@@ -202,6 +212,7 @@ public sealed class TFrmUserInfoEdit : System.Windows.Forms.Form
         edtMail.Text = AccountInfo.MailStr;
 
         int mr = showModal ? (int)ShowDialog() : SimulatedModalResult;
+        if (!showModal) OnBeforeModalCheck?.Invoke(this);   // 测试接缝：模拟用户输入
         if (mr != LoginSrvForms.mrOk) return false;
         if (boNew)
         {
