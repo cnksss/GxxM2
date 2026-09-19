@@ -1,0 +1,51 @@
+# unit-map.tsv -- explicit Delphi unit -> parallel lane assignment
+#
+# Read by tools/audit-coverage.ps1 (evidence E4). A row here means the unit is
+# OWNED BY A LANE AND IN FLIGHT -- it is reported as ASSIGNED, never as MAPPED.
+# Remove a row once the unit's C# port has landed on main and is detected by E1/E2.
+#
+# Columns: <Delphi unit basename> \t <lane branch> [\t note]
+# Key is the basename only, so duplicate basenames (e.g. AsyncCalls.pas exists in
+# M2Engine, Client-HGE and RunGate) match all copies; keep that in mind.
+#
+# ---- wave P1 (2026-09-19) ----
+HeroWindowsDlg	par/lane-client-gui-mir
+Mir185WindowsDlg	par/lane-client-gui-mir
+MirSequelDlg	par/lane-client-gui-mir
+Mir176WindowsDlg	par/lane-client-gui-mir
+MirNewUI205Dlg	par/lane-client-gui-mir
+Wzl	par/lane-resources
+Uib	par/lane-resources
+Wis	par/lane-resources
+IniFilesEx	par/lane-rungate-utils
+ParadoxConv	par/lane-rungate-utils
+RunGatePluginInterface	par/lane-rungate-utils
+VerifyCodeUtils	par/lane-rungate-utils
+EncryptUnit_LF	par/lane-rungate-utils
+uIPDownThread	par/lane-rungate-utils
+Ranking	par/lane-dbserver-utils
+RouteEdit	par/lane-dbserver-utils
+FDBexpl	par/lane-dbserver-utils
+AddrEdit	par/lane-dbserver-utils
+uRunGateList	par/lane-dbserver-utils
+RouteManage	par/lane-dbserver-utils
+Setting	par/lane-dbserver-utils
+CreateId	par/lane-dbserver-utils
+TestSelGate	par/lane-dbserver-utils
+DXConsts	par/lane-dxcomponent
+DxCanvas	par/lane-dxcomponent
+DxLabel	par/lane-dxcomponent
+DxLine	par/lane-dxcomponent
+DxImageProgress	par/lane-dxcomponent
+DXTrackBar	par/lane-dxcomponent
+BasicSet	par/lane-login-logdata
+MySqlAccountDB	par/lane-login-logdata
+uFrmDataManager	par/lane-login-logdata
+uFrmBatchEditAccountInfo	par/lane-login-logdata
+FrmFindId	par/lane-login-logdata
+EditUserInfo	par/lane-login-logdata
+MonSoc	par/lane-login-logdata
+FAccountView	par/lane-login-logdata
+LogManage	par/lane-login-logdata
+uFastFileStream	par/lane-login-logdata
+uFrmRemoteQuerySetting	par/lane-login-logdata
