@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Runtime.CompilerServices;
@@ -1578,6 +1578,14 @@ public static class DxControlOps
     {
         var root = RootCtrlOf(self);
         if (root == null) return;                  // 原文此处会 AV；托管侧守卫
+
+        // 原文的 getter/setter 是分开的落点，setter 结尾写 **Self 自己的** FMouseMoveed：
+        //   property MouseMoveed:Boolean read GetMouseMoveed write SetMouseMoveed;
+        //   function  GetMouseMoveed: Result := Self = RootCtrl.MouseMoveControl;
+        // 上游接缝把 FMouseMoveed 暴露成字段型属性、且 getter 也读该字段，故这里两个落点都写：
+        //   ① root.MouseMoveControl（原 getter 语义）
+        //   ② self.MouseMoveed（原 FMouseMoveed 字段语义）
+        // 只写 ① 会让既有「读字段」的控件代码（如各 Xxx.Paint 里的 MouseMoveed 判定）拿到陈旧值。
         if (value)
         {
             if (root.MouseMoveControl != null && !ReferenceEquals(root.MouseMoveControl, self))
@@ -1585,6 +1593,7 @@ public static class DxControlOps
 
             var previous = root.MouseMoveControl;
             root.MouseMoveControl = self;
+            self.MouseMoveed = true;
 
             if (!ReferenceEquals(previous, self))
                 OnMouseEnterCore(self);
@@ -1596,12 +1605,15 @@ public static class DxControlOps
             if (root.MouseMoveControl != null)
                 OnMouseLeaveCore(root.MouseMoveControl);
             root.MouseMoveControl = null;
+            self.MouseMoveed = false;
         }
     }
 
     /// <summary>
     /// DxControls.pas 2864-2878 TDxControl.SetMouseDowned：
     /// True → 旧 MouseDownControl 收 DoMouseUp；挂上 Self；DoMouseDown。
+    /// 与 SetMouseMoveed 同理：同时写 `root.MouseDownControl`（原 getter 语义）与
+    /// `self.MouseDowned`（原 FMouseDowned 字段语义）。
     /// </summary>
     public static void SetMouseDowned(TDxControl self, bool value)
     {
@@ -1613,6 +1625,7 @@ public static class DxControlOps
                 OnMouseUpCore(root.MouseDownControl);
 
             root.MouseDownControl = self;
+            self.MouseDowned = true;
             OnMouseDownCore(self);
         }
         else
@@ -1620,6 +1633,7 @@ public static class DxControlOps
             if (root.MouseDownControl != null)
                 OnMouseUpCore(root.MouseDownControl);
             root.MouseDownControl = null;
+            self.MouseDowned = false;
         }
     }
 

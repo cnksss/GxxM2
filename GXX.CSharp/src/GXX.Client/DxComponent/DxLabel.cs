@@ -3,102 +3,14 @@ using System.Collections.Generic;
 
 namespace GXX.Client.DxComponent;
 
-/// <summary>
-/// DxImageButton.pas 94-... TDxImageButton 的**最小接缝面**（只保留 TDxLabel 依赖到的部分）。
-///
-/// 依据 DxImageButton.pas 466-489（构造函数）：
-///   AutoSize := True; Width := 100; Height := 20; Alignment := taCenter;
-///   FClickSound := csNone; FButtonStyle := bsButton; FChecked := False;
-///   FCaptionColor := TDxCaptionColor.Create; FCaptionDownOffsetX := 1; FCaptionDownOffsetY := 1;
-///   FButtonDownOffsetX := 0; FButtonDownOffsetY := 0; FDrawAligment := daFill;
-///   FCaptionOffsetX := 0; FCaptionOffsetY := 0; FExpandWidth := 0; GuiType := t_Button;
-///
-/// 接缝：TDxImageButton 的图片绘制、动画（TButtonAnimation）、按键音、PopupMenu 弹出等
-/// 未在本车道移植；待 DxImageButton.pas 归属批次移植后由该类型接管。
-/// </summary>
-public class TDxImageButton : TDxControl
-{
-    /// <summary>DxImageButton.pas 46-54 TClickSound。</summary>
-    public enum TClickSound { csNone, csStone, csGlass, csNorm }
-
-    /// <summary>DxImageButton.pas FButtonStyle（默认 bsButton）。</summary>
-    public TButtonStyle Style { get; set; } = TButtonStyle.bsButton;
-
-    /// <summary>DxImageButton.pas FChecked（原文 104：Checked := False）。</summary>
-    public bool ButtonChecked { get => Checked; set => Checked = value; }
-
-    /// <summary>DxImageButton.pas FCaptionColor。</summary>
-    public TDxCaptionColor CaptionColor { get; protected set; }
-
-    /// <summary>DxImageButton.pas FCaptionDownOffsetX（默认 1）。</summary>
-    public int CaptionDownOffsetX { get; set; } = 1;
-
-    /// <summary>DxImageButton.pas FCaptionDownOffsetY（默认 1）。</summary>
-    public int CaptionDownOffsetY { get; set; } = 1;
-
-    /// <summary>DxImageButton.pas FButtonDownOffsetX（默认 0）。</summary>
-    public int ButtonDownOffsetX { get; set; }
-
-    /// <summary>DxImageButton.pas FButtonDownOffsetY（默认 0）。</summary>
-    public int ButtonDownOffsetY { get; set; }
-
-    /// <summary>DxImageButton.pas FCaptionOffsetX（默认 0）。</summary>
-    public int CaptionOffsetX { get; set; }
-
-    /// <summary>DxImageButton.pas FCaptionOffsetY（默认 0）。</summary>
-    public int CaptionOffsetY { get; set; }
-
-    /// <summary>DxImageButton.pas FExpandWidth（默认 0）。</summary>
-    public int ExpandWidth { get; set; }
-
-    /// <summary>DxImageButton.pas FClickSound（默认 csNone）。</summary>
-    public TClickSound ClickSound { get; set; } = TClickSound.csNone;
-
-    /// <summary>DxImageButton.pas FDrawAligment（TDrawAligment，默认 daFill = 0）。</summary>
-    public int DrawAligment { get; set; }
-
-    /// <summary>接缝：TDxImageButton.CheckAutoSize（504-509）—— 仅 Style = bsButton 时才走基类。</summary>
-    protected override void CheckAutoSizeBase()
-    {
-        if (Style == TButtonStyle.bsButton)
-            base.CheckAutoSizeBase();
-    }
-
-    public TDxImageButton()
-    {
-        // DxImageButton.pas 471-488 逐项（注意 Alignment 被覆盖为 taCenter）
-        AutoSize = true;
-        Width = 100;
-        Height = 20;
-        Alignment = TDxAlignment.taCenter;
-        ClickSound = TClickSound.csNone;
-        Style = TButtonStyle.bsButton;
-        Checked = false;
-        CaptionColor = new TDxCaptionColor();
-        CaptionDownOffsetX = 1;
-        CaptionDownOffsetY = 1;
-        ButtonDownOffsetX = 0;
-        ButtonDownOffsetY = 0;
-        DrawAligment = 0;   // daFill
-        CaptionOffsetX = 0;
-        CaptionOffsetY = 0;
-        ExpandWidth = 0;
-        GuiType = TGuiType.t_Button;
-    }
-
-    /// <summary>DxImageButton.pas 488：GuiType := t_Button。</summary>
-    public TGuiType GuiType { get; set; } = TGuiType.t_None;
-
-    /// <summary>
-    /// DxImageButton.pas 511-... MouseDown：原文先处理 PopupMenu 定位再走基类。
-    /// TDxPopupMenu 未移植 → 交由基类接缝。
-    /// </summary>
-    public override void MouseDown(TDxMouseButton button, TDxShiftState shift, int x, int y)
-    {
-        base.MouseDown(button, shift, x, y);
-    }
-}
-
+// -------------------------------------------------------------------------------------
+// 车道 p2-dxcontrols-rest（并行调度会话裁决）对本文件的**唯一结构性改动**：
+//   删除上一波（车道5）为支撑 TDxLabel 而落的 `TDxImageButton` **最小接缝类**，
+//   令 `TDxLabel : TDxControl`（原文 TDxLabel = class(TDxImageButton)，基类改由
+//   src/GXX.Client/DxComponent/DxImageButton.cs 的全量 TDxImageButton 提供）；
+//   并把接缝里的字段型 `Style` 改为直接继承基类 TDxImageButton 的 `Style`（原文 156 published 名）。
+// DxLabel.pas 本身的移植语义**未改动任何一处**。
+// -------------------------------------------------------------------------------------
 /// <summary>
 /// DxLabel.pas 1:1 逐字移植（1-262）。TDxLabel = class(TDxImageButton)。
 ///
@@ -120,6 +32,9 @@ public sealed class TDxLabel : TDxImageButton
 {
     private int _rowSpacing;
     private int _expandLineHeight;
+
+    // 注：原文 TDxLabel 经 TDxImageButton 继承 `property Style:TButtonStyle`（DxImageButton.pas 156），
+    // 本类不再自带别名 —— 直接用基类 TDxImageButton.Style（与原文一致）。
 
     /// <summary>DxLabel.pas 19 FRowSpacing。</summary>
     public int RowSpacing
