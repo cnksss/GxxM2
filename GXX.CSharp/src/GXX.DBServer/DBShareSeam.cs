@@ -368,15 +368,15 @@ public static class DBShareSeam
                 sLineText = DelphiRTL.Trim(LoadList[I]);
                 if ((sLineText != "") && (sLineText[0] != ';'))
                 {
-                    sGameGate = HUtil32.GetValidStr3(sLineText, ref sSelGateIPaddr, new[] { ' ', '\t' });
+                    sGameGate = HUtil32Seam.GetValidStr3(sLineText, ref sSelGateIPaddr, new[] { ' ', '\t' });
                     if ((sGameGate == "") || (sSelGateIPaddr == "")) continue;
                     g_RouteInfo[nRouteIdx].sSelGateIP = DelphiRTL.Trim(sSelGateIPaddr);
                     g_RouteInfo[nRouteIdx].nGateCount = 0;
                     nGateIdx = 0;
                     while (sGameGate != "")
                     {
-                        sGameGate = HUtil32.GetValidStr3(sGameGate, ref sGameGateIPaddr, new[] { ' ', '\t' });
-                        sGameGate = HUtil32.GetValidStr3(sGameGate, ref sGameGatePort, new[] { ' ', '\t' });
+                        sGameGate = HUtil32Seam.GetValidStr3(sGameGate, ref sGameGateIPaddr, new[] { ' ', '\t' });
+                        sGameGate = HUtil32Seam.GetValidStr3(sGameGate, ref sGameGatePort, new[] { ' ', '\t' });
                         g_RouteInfo[nRouteIdx].sGameGateIP[nGateIdx] = DelphiRTL.Trim(sGameGateIPaddr);
                         g_RouteInfo[nRouteIdx].nGameGatePort[nGateIdx] = DelphiRTL.StrToIntDef(sGameGatePort, 0);
                         nGateIdx++;
@@ -418,11 +418,11 @@ public static class DBShareSeam
 
                             sLineText = TStringsHelper.ValueFromIndex(sLineText);
 
-                            sLineText = HUtil32.GetValidStr3(sLineText, ref S1, new[] { ' ', '\t' });
-                            sLineText = HUtil32.GetValidStr3(sLineText, ref S2, new[] { ' ', '\t' });
-                            sLineText = HUtil32.GetValidStr3(sLineText, ref S3, new[] { ' ', '\t' });
-                            sLineText = HUtil32.GetValidStr3(sLineText, ref S4, new[] { ' ', '\t' });
-                            sLineText = HUtil32.GetValidStr3(sLineText, ref S5, new[] { ' ', '\t' });
+                            sLineText = HUtil32Seam.GetValidStr3(sLineText, ref S1, new[] { ' ', '\t' });
+                            sLineText = HUtil32Seam.GetValidStr3(sLineText, ref S2, new[] { ' ', '\t' });
+                            sLineText = HUtil32Seam.GetValidStr3(sLineText, ref S3, new[] { ' ', '\t' });
+                            sLineText = HUtil32Seam.GetValidStr3(sLineText, ref S4, new[] { ' ', '\t' });
+                            sLineText = HUtil32Seam.GetValidStr3(sLineText, ref S5, new[] { ' ', '\t' });
 
                             nPort = DelphiRTL.StrToIntDef(S3, 0);
                             if (HUtil32.IsIPaddr(S2) && (nPort > 0) && (nPort <= 65535))

@@ -277,8 +277,8 @@ public static class RouteEditLogic
             string checkIp;
             if (g <= 4)                       // 第2..5组：校验本组文本
                 checkIp = sGameGateIP;
-            else                              // 第6..8组：原文误用 FRouteInfo.sGameGateIP[g-1]（尚未赋值的槽位）
-                checkIp = FRouteInfo.sGameGateIP[g - 1];
+            else                              // 第6..8组：原文误用 FRouteInfo.sGameGateIP[g]（本组**尚未赋值**的槽位）
+                checkIp = FRouteInfo.sGameGateIP[g];
 
             if ((!HUtil32.IsIPaddr(checkIp)) || (nGameGatePort <= 0))
             {

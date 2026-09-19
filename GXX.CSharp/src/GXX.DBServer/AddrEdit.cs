@@ -180,16 +180,16 @@ public static class AddrEditLogic
             if ((sStr != "") && (sStr[0] != ';'))
             {
                 string sStr1 = "";
-                sStr = HUtil32.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
+                sStr = HUtil32Seam.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
                 grid.SetCell(0, n1C, sStr1);
                 int n18 = 0;
                 while (true)
                 {
                     if (sStr != "")
                     {
-                        sStr = HUtil32.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
+                        sStr = HUtil32Seam.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
                         grid.SetCell(n18 * 2 + 1, n1C, sStr1);
-                        sStr = HUtil32.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
+                        sStr = HUtil32Seam.GetValidStr3(sStr, ref sStr1, new[] { ' ', '\t' });
                         grid.SetCell(n18 * 2 + 2, n1C, sStr1);
                         n18++;
                         if (n18 <= 4) continue;
