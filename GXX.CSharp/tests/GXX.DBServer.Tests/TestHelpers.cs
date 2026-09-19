@@ -69,7 +69,10 @@ public sealed class MemoryHumDataDB : IHumDataDB
     public int CloseCount;
     public int RebuildCount;
 
-    public int Count => Records.Count;
+    /// <summary>覆盖 Count（用于模拟"Count 与 Get 不一致"的异常实现）。</summary>
+    public int? CountOverride;
+
+    public int Count => CountOverride ?? Records.Count;
 
     public bool Open()
     {
