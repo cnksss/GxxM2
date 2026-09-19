@@ -100,6 +100,17 @@ public sealed class TClientConfig
     /// <summary>原文 TClientConfig.btConfigDlgType:Byte；0 表示走 JSY 之外的配置对话框。</summary>
     public byte btConfigDlgType;
 
+    /// <summary>
+    /// 原文 TClientConfig.boNotCanUseClientConfig:Boolean。
+    /// 原文 GameConfigDlg.pas 的注释：
+    /// "勾上后，用户内挂中的所有选项都失效，只根据M2的内挂设置参数。"
+    /// （MirsConfigDlg.pas:1080 拿它做 CheckBoxClickEx 的总门禁）
+    /// </summary>
+    public bool boNotCanUseClientConfig;
+
+    /// <summary>原文 TClientConfig.dwUseItemIntervalTime（用药间隔下限，MirsConfigDlg.pas:1541 等以 Max 夹紧）。</summary>
+    public uint dwUseItemIntervalTime;
+
     // 接缝：待 Grobal2.pas 的 TClientConfig 完整移植后接入其余字段
     // （boParalyCanRun/boParalyCanWalk/nMoveSpeed/nAttackSpeed/nSpellSpeed/… 以及
     //  GameConfig 侧的 ClientConfigs 数组）。
