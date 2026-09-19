@@ -195,7 +195,11 @@ public sealed class TDxLabel : TDxImageButton
     public TDxPoint PaintTo(IDxSurfacePainter painter)
     {
         var vbRect = VisibleRect;
-        if (vbRect.Bottom <= vbRect.Top || vbRect.Right <= vbRect.Left) return new TDxPoint(0, 0);
+        if (vbRect.Bottom <= vbRect.Top || vbRect.Right <= vbRect.Left)
+        {
+            // 原文如此（165）：退化时**连 Designing 边框都不画**，直接 Exit。
+            return new TDxPoint(0, 0);
+        }
         var vtRect = VirtualRect;
 
         Painter = painter ?? Painter;
