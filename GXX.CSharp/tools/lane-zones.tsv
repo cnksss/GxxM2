@@ -2,27 +2,20 @@
 # docs/并行派发台账.md  section 2.  Read by tools/verify-lanes.ps1.
 #
 # Columns: <lane name> \t <allowed path glob> ; <allowed path glob> ; ...
-# Globs are matched against repo-relative POSIX paths.  '*' does not cross '/',
-# '**' does.  Keep this file ASCII-only.
+# A glob prefixed with '!' is an ALLOW-MODIFY grant (the lane may also change
+# files that already existed).  Keep this file ASCII-only.
 #
-# Rules enforced by verify-lanes.ps1:
-#   * every path a lane touched must match one of its globs
-#   * a lane may only ADD files -- modifying or deleting a tracked file is a
-#     violation (lanes are told to create new files only; shared-file edits are
-#     reserved for the integrator at merge time)
-# CARVE-OUT for lane-client-gui-mir: the Mir dialogs need DxControls/DxComponents,
-# and that lane started porting them into GUI/DxComponent/.  The dispatcher
-# relocates those two files into src/GXX.Client/DxComponent/ at merge time
-# (lane-dxcomponent does NOT create those two filenames, so there is no clash).
-# The carve-out is capped at those two filenames; no further files may be added.
-lane-client-gui-mir	GXX.CSharp/src/GXX.Client/GUI/Mir/**;GXX.CSharp/src/GXX.Client/GUI/DxComponent/DxControls.cs;GXX.CSharp/src/GXX.Client/GUI/DxComponent/DxComponents.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMir*
-lane-resources	GXX.CSharp/src/GXX.Client/ReadResources/**;GXX.CSharp/tests/GXX.Client.Tests/Resource*
-lane-rungate-utils	GXX.CSharp/src/GXX.RunGate/**;GXX.CSharp/tests/GXX.RunGate.Tests/**
-lane-dbserver-utils	GXX.CSharp/src/GXX.DBServer/**;GXX.CSharp/tests/GXX.DBServer.Tests/**
-lane-dxcomponent	GXX.CSharp/src/GXX.Client/DxComponent/**;GXX.CSharp/tests/GXX.Client.Tests/Dx*
-lane-login-logdata	GXX.CSharp/src/GXX.LoginSrv/**;GXX.CSharp/src/GXX.LogDataServer/**;GXX.CSharp/tests/GXX.LoginSrv.Tests/**;GXX.CSharp/tests/GXX.LogDataServer.Tests/**
-lane-client-guiconfig	GXX.CSharp/src/GXX.Client/GUI/GameConfig/**;GXX.CSharp/tests/GXX.Client.Tests/GuiCfg*
-lane-client-statewin	GXX.CSharp/src/GXX.Client/GUI/NewStateWin/**;GXX.CSharp/tests/GXX.Client.Tests/GuiSw*
-lane-gamecenter	GXX.CSharp/src/GXX.GameCenter/**;GXX.CSharp/tests/GXX.GameCenter.Tests/**
-lane-selgate	GXX.CSharp/src/GXX.SelGate/**;GXX.CSharp/tests/GXX.SelGate.Tests/**
-lane-core-sql	GXX.CSharp/src/GXX.Core/Data/**;GXX.CSharp/tests/GXX.Core.Tests/SqlCreateTable*
+# ---- P2 wave (2026-09-20) ----
+p2-core-rtl	!GXX.CSharp/src/GXX.Core/Rtl/DelphiRTL.cs;!GXX.CSharp/src/GXX.Core/Util/HUtil32.cs;!GXX.CSharp/src/GXX.Core/Util/FastIniFile.cs;!GXX.CSharp/src/GXX.DBServer/HUtil32Seam.cs;!GXX.CSharp/src/GXX.Client/GUI/GameConfig/FilterItems.cs;GXX.CSharp/tests/GXX.Core.Tests/CoreRtl*;GXX.CSharp/tests/GXX.Core.Tests/BoolStr*;GXX.CSharp/docs/并行报告-p2-core-rtl.md
+p2-core-async	GXX.CSharp/src/GXX.Core/Async/**;GXX.CSharp/tests/GXX.Core.Tests/Async*;GXX.CSharp/docs/并行报告-p2-core-async.md
+p2-dbserver-mysql	GXX.CSharp/src/GXX.DBServer/MySqlRoleDB*.cs;GXX.CSharp/tests/GXX.DBServer.Tests/MySqlRoleDB*;GXX.CSharp/docs/并行报告-p2-dbserver-mysql.md
+p2-rungate-impl	GXX.CSharp/src/GXX.RunGate/RunGateUtils*.cs;GXX.CSharp/src/GXX.RunGate/Iocp*.cs;GXX.CSharp/src/GXX.RunGate/uBuffer*.cs;GXX.CSharp/src/GXX.RunGate/uFrm*.cs;GXX.CSharp/tests/GXX.RunGate.Tests/RunGateUtils*;GXX.CSharp/tests/GXX.RunGate.Tests/Iocp*;GXX.CSharp/tests/GXX.RunGate.Tests/Buffer*;GXX.CSharp/docs/并行报告-p2-rungate-impl.md
+p2-resources-pak	GXX.CSharp/src/GXX.Client/ReadResources/Pak*.cs;GXX.CSharp/tests/GXX.Client.Tests/ResourcePak*;GXX.CSharp/docs/并行报告-p2-resources-pak.md
+p2-resources-uib	GXX.CSharp/src/GXX.Client/ReadResources/Uib.cs;GXX.CSharp/tests/GXX.Client.Tests/ResourceUib*;GXX.CSharp/docs/并行报告-p2-resources-uib.md
+p2-dxcontrols-rest	GXX.CSharp/src/GXX.Client/DxComponent/DxControls.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxImageForm.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxImageButton.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxMagicBall.cs;GXX.CSharp/src/GXX.Client/DxComponent/GfxFonts.cs;GXX.CSharp/src/GXX.Client/DxComponent/Magnetic.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxControlsExt*.cs;GXX.CSharp/tests/GXX.Client.Tests/DxCtrl*;GXX.CSharp/docs/并行报告-p2-dxcontrols-rest.md
+p2-client-loaddx	GXX.CSharp/src/GXX.Client/LoadDx/**;GXX.CSharp/tests/GXX.Client.Tests/LoadDx*;GXX.CSharp/docs/并行报告-p2-client-loaddx.md
+p2-client-fstate	GXX.CSharp/src/GXX.Client/GUI/Share/**;GXX.CSharp/tests/GXX.Client.Tests/GuiShare*;GXX.CSharp/docs/并行报告-p2-client-fstate.md
+p2b-m2-dblayer	GXX.CSharp/src/GXX.M2Server/DbLayer/**;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayer*;GXX.CSharp/docs/并行报告-p2b-m2-dblayer.md
+p2b-m2-plugins	GXX.CSharp/src/GXX.M2Server/Plugins/**;GXX.CSharp/tests/GXX.M2Server.Tests/Plugins*;GXX.CSharp/docs/并行报告-p2b-m2-plugins.md
+p2c-common-crypto	GXX.CSharp/src/GXX.Core/Crypto/AESUtils.cs;GXX.CSharp/src/GXX.Core/Crypto/DesUnit.cs;GXX.CSharp/src/GXX.Core/Util/HashUnit.cs;GXX.CSharp/src/GXX.Core/Util/HashObjList.cs;GXX.CSharp/src/GXX.Core/Util/CheckUnit.cs;GXX.CSharp/src/GXX.Core/Compress/ZipUnit.cs;GXX.CSharp/src/GXX.Core/Compress/CompressUnit.cs;GXX.CSharp/src/GXX.Core/UpdateCommon.cs;GXX.CSharp/src/GXX.Core/Stubs/MemoryModule.cs;GXX.CSharp/src/GXX.Core/Stubs/MemoryModuleDef.cs;GXX.CSharp/tests/GXX.Core.Tests/CryptoAes*;GXX.CSharp/tests/GXX.Core.Tests/CryptoDesUnit*;GXX.CSharp/tests/GXX.Core.Tests/HashUnit*;GXX.CSharp/tests/GXX.Core.Tests/CommonTail*;GXX.CSharp/docs/并行报告-p2c-common-crypto.md
+p2c-client-tail	GXX.CSharp/src/GXX.Client/Tail/**;GXX.CSharp/tests/GXX.Client.Tests/Tail*;GXX.CSharp/docs/并行报告-p2c-client-tail.md
