@@ -199,8 +199,9 @@ public sealed class TDxTextTextureLayout
 ///   * TDIB（DIB.pas，251KB，未移植）→ IDxDib 最小面
 ///   * g_DefColorTable 等查找表的装载来自 GameImages（见 TDxCanvasColorTables 注释）
 ///
-/// 原文缺陷已照抄并标注：见 CopyTexture 的 `srcLeft`（大小写不匹配）与
-/// `srcPitch * I`（应为 i）——均为原文如此（DxCanvas.pas:1119-1121/1129-1131）。
+/// 原文缺陷已照抄并标注：见 CopyTexture 内层列循环的上界 `srcwidth - 1`
+/// （j 的起点是 srcleft，故 x &lt; 0 时会漏掉右端 srcleft 个像素）——
+/// 原文如此（DxCanvas.pas:1119 / 1129 `for j := srcLeft to srcwidth - 1`）。
 /// </summary>
 public static class DxCanvas
 {
@@ -1299,10 +1300,11 @@ public static class DxCanvas
     /// <summary>
     /// DxCanvas.pas 1068-1149 1:1（逐像素搬运）。
     ///
-    /// **原文缺陷照抄并标注**：内层两个循环用的是 `srcLeft`（小写 l，原文并未声明该名字，
-    /// 实际是 `srcleft` 的笔误；Delphi 大小写不敏感，故编译通过、语义等于 srcleft），
-    /// 以及 `srcPitch * I`（大写 I —— 是外层的行号变量，**不是**内层的 i；原文如此）。
-    /// 本移植用 `I`（外层行号）与 `j`（内层列号）如实表达，见 DxCanvas.pas:1119-1121 / 1129-1131。
+    /// **原文缺陷照抄并标注**：内层列循环的上界是 `srcwidth - 1`，而 j 的起点是 `srcleft`；
+    /// srcleft = 0（x &gt;= 0）时二者恰好一致，一旦 x &lt; 0 循环就提前结束，
+    /// 右端 srcleft 个像素拷不过去（原文 DxCanvas.pas:1119 / 1129 `for j := srcLeft to srcwidth - 1`）。
+    /// 另：`srcPitch * I` 里的大写 I 与内层 i 是**同一标识符**（Delphi 大小写不敏感），
+    /// 即按行号取行偏移、语义正确 —— 保留原写法以免被误读为缺陷。
     ///
     /// Blend=False：`if srcPoint^ &lt;&gt; 0 then targetPoint^ := srcPoint^`
     /// Blend=True ：同上，另按 `nGray := (30*B + 59*G + 11*R) div 100` 写 rgbReserved。
