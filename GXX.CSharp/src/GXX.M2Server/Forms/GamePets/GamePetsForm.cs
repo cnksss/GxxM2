@@ -403,6 +403,12 @@ public sealed partial class GamePetsForm : System.Windows.Forms.Form
 
         cbbLevelExp = new System.Windows.Forms.ComboBox { Left = 8, Top = 10, Width = 200, DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList };
         // :188 cbbLevelExpClick
+        // ⚠ 接缝说明（与原文的形式差异，行为等价）：DFM 绑的是 `OnClick`，Delphi 里
+        //   `ItemIndex := n` **不会**触发 OnClick（只有用户点选才触发）；WinForms 的
+        //   ComboBox 没有"用户点击"事件可绑定，故改绑 `SelectedIndexChanged`。
+        //   后果：**程序化**改 `SelectedIndex` 在托管侧也会触发一次处理器（Delphi 不会）。
+        //   本窗体自身代码从不程序化设置该项目（DoOpen 用 `Items.Clear()+Add` 重建，
+        //   不设 SelectedIndex），故生产路径行为一致；仅测试需注意"设置索引即已触发一次"。
         cbbLevelExp.SelectedIndexChanged += (_, _) => cbbLevelExpClick(cbbLevelExp);
         TabSheet1.Controls.Add(cbbLevelExp);
 
@@ -527,6 +533,18 @@ public sealed partial class GamePetsForm : System.Windows.Forms.Form
         seGamePetNameCount.ValueChanged += (_, _) => seGamePetNameCountChange(seGamePetNameCount);
         seGamePetRecallTime.ValueChanged += (_, _) => seGamePetRecallTimeChange(seGamePetRecallTime);
     }
+
+    /// <summary>暴露给测试：`boModValued`（原文 private 字段，:220）。</summary>
+    public bool BoModValued => boModValued;
+
+    /// <summary>暴露给测试：`boOpened`（原文 private 字段，:219）。</summary>
+    public bool BoOpened => boOpened;
+
+    /// <summary>
+    /// 把 `boModValued` 复位为 false（原文只在构造期与 :1180 两处置 false）。
+    /// 仅供测试在 `DoOpen` 之后构造"未置脏"初态；不改变任何生产行为。
+    /// </summary>
+    public void ResetModValuedForTest() => boModValued = false;
 
     /// <summary>暴露给测试：原文 private 处理器的直调入口（事件处理器直调 + 决策镜像）。</summary>
     public void RaiseParamHandler(string controlName, bool value)

@@ -326,10 +326,17 @@ public sealed class FreshForm : IDisposable
 {
     public readonly GamePetsForm Form;
 
+    /// <summary>捕获的弹窗（与 GamePetsTestBase.Messages 同形）。</summary>
+    public readonly List<(string Text, string Caption, int Flags)> Messages = new();
+
     public FreshForm()
     {
         Form = StaRunner.New(() => new GamePetsForm());
-        Form.MessageBoxHandler = (_, _, _) => M2Forms.IDOK;
+        Form.MessageBoxHandler = (text, caption, flags) =>
+        {
+            Messages.Add((text, caption, flags));
+            return M2Forms.IDOK;
+        };
         Form.WriteBoolHandler = (_, _) => { };
         Form.WriteIntegerHandler = (_, _) => { };
         Form.WriteStringHandler = (_, _) => { };
