@@ -45,18 +45,12 @@ public static class CustomItemPropertyLogic
     /// :472 <c>g_CustomItemPropertyTextVarList.Text := mmoVar.Text</c>。
     /// </para>
     /// <para>
-    /// GXX.Core.Util.TStringList **没有** Text 属性，故在此落地；已登记越区请求，
-    /// 待 TStringList 补上 Text/SetTextStr 后本函数改为转调（见报告 §6）。
+    /// ★ 迁移记录（车道 p8-m2-itemprop-misc 请求 #3，已执行）：本方法原为临时实现
+    /// （因 <c>GXX.Core.Util.TStringList</c> 缺 <c>Text</c>）；现 <c>TStringList.Text</c> 已按
+    /// <c>TStrings.GetTextStr/SetTextStr</c> 补齐，本方法**降级为纯转调**，保留 Delphi 侧函数名。
     /// </para>
     /// </summary>
-    public static string GetTextStr(TStringList list)
-    {
-        if (list == null) return "";
-        var sb = new System.Text.StringBuilder();
-        for (int i = 0; i < list.Count; i++)
-            sb.Append(list[i]).Append(sLineBreak);
-        return sb.ToString();
-    }
+    public static string GetTextStr(TStringList list) => list == null ? "" : list.Text;
 
     /// <summary>
     /// Delphi <c>TStrings.SetTextStr</c>（classes.pas）：按 <c>#13</c> / <c>#10</c> / <c>#13#10</c>
@@ -69,23 +63,12 @@ public static class CustomItemPropertyLogic
     /// <item><c>"a\n\nb"</c> → <c>["a","","b"]</c>（连续 LF 产生空行）；</item>
     /// <item>裸 <c>\r</c>（无 \n）也算换行（原文 <c>if P^ = #13 then Inc(P); if P^ = #10 then Inc(P);</c>）。</item>
     /// </list>
+    /// <para>★ 迁移记录同 <see cref="GetTextStr"/>：现为纯转调 <c>TStringList.Text</c> 的 setter。</para>
     /// </summary>
     public static void SetTextStr(TStringList list, string value)
     {
         if (list == null) return;
-        list.Clear();
-        value ??= "";
-        int p = 0;
-        int len = value.Length;
-        while (p < len)
-        {
-            int start = p;
-            while (p < len && value[p] != '\n' && value[p] != '\r')
-                p++;
-            list.Add(value.Substring(start, p - start));
-            if (p < len && value[p] == '\r') p++;
-            if (p < len && value[p] == '\n') p++;
-        }
+        list.Text = value;
     }
 
     /// <summary>
