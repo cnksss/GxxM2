@@ -159,29 +159,34 @@ public abstract partial class TCreature
 
     /// <summary>
     /// 原文 `m_ItemList: TList; // 0x40C 人物背包(Dword)数量`（**ObjBase.pas:322，在 TBaseObject 上**）。
-    /// ⚠ 托管侧另一个同名/近义成员已存在：`Engine/ObjBase.cs:166`
-    /// `public List&lt;TUserItem&gt; m_ItemList = new();` —— **本车道未改它**（`Engine/**` 只读）。
     /// 本访问器为原文 **`TBaseObject` 的四个背包方法**（`AddItemToBag`/`IsEnoughBag`/
     /// `IsEnoughBagEx`/`CheckItems`，ObjBase.pas:708/630/13698/752）提供基类落点：
     /// 这些方法在原文里属于 `TBaseObject`，托管侧提到 `TCreature` 这一层才符合原文归属。
-    /// 元素类型取 `TUserItemView`（`AddAbility.cs:64`，与既有的 `m_UseItems` 一致）。
     /// </summary>
     /// <remarks>
-    /// ★ 整合说明（**请集成方处理**，见交付报告「接缝清单」）：`Engine/ObjBase.cs:166` 的
-    /// `List&lt;TUserItem&gt; m_ItemList` 目前**没有任何调用方**（`git grep -n "m_ItemList" main --
-    /// 'GXX.CSharp/src/**/*.cs'` 只命中该声明本身）。建议二选一：
-    /// <list type="bullet">
-    ///   <item><description>把 `ObjBase.cs:166` 的类型改为 `List&lt;TUserItemView&gt;` 并删除本访问器的
-    ///     私有后备字段，让 `TPlayObject.m_ItemList` 成为**唯一**背包容器（推荐）；</description></item>
-    ///   <item><description>或保留两个容器，但必须明确规定「背包」= <c>BagItems</c>，
-    ///     `m_ItemList` 降级为历史遗留（不推荐 —— 会造成同一概念两份数据）。</description></item>
+    /// ★★ 集成方裁定（2026 第三轮，台账 §26，**方案 A**）与**当前执行状态**：
+    /// <list type="number">
+    ///   <item><description>**已做**：`Engine/ObjBase.cs:170` 的 `m_ItemList` 已由 `List&lt;TUserItemView&gt;`
+    ///     改为 **`List&lt;TUserItem?&gt;`** —— `GXX.Core.Protocol.TUserItem` 为唯一存储与权威，
+    ///     可空是为了保留原文 `pTUserItem` 的"空槽"语义（原文多处 `if UserItem = nil then Continue`）。</description></item>
+    ///   <item><description>**未做（阻塞）**：把本行改成 `protected virtual List&lt;TUserItem?&gt; BagItems => m_ItemList;`
+    ///     并删除私有后备字段 `m_BagItems`、删除下面 4 个只读委托
+    ///     （`PlayerSurfaceItemSeams.ItemMakeIndex/ItemName/ItemDura/ItemDuraMax`，本文件 :85/:88/:91/:94）
+    ///     —— **这一步会连带改变本文件 6 个公开成员的签名**
+    ///     （`Bag` / `AddToBag` / `AddItemToBag` / `CheckItems` / `CheckItemsIndex` / `SendAddItem` / `SendDelItem`），
+    ///     而 `tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs`（归属车道 `p6-m2-playersurface`，
+    ///     **不在 p4-m2-objnpc 的分区表内**）有约 **40 处**调用点依赖现有 `TUserItemView` 签名
+    ///     （其中含 `ItemMakeIndex/ItemName/ItemDura/ItemDuraMax` 四个委托的直接赋值）。
+    ///     按「绝不改他人文件」纪律，本车道**未执行**该步 —— 否则提交即构建红。
+    ///     **需要集成方二选一**：① 把该测试文件加入本车道分区（或另派车道）；
+    ///     ② 由 `p6-m2-playersurface` 自行适配其测试后再落这一步。</description></item>
     /// </list>
     /// </remarks>
     protected virtual List<TUserItemView> BagItems => m_BagItems;
 
     /// <summary>
-    /// 背包容器（`TPlayObject` 与 `TCreature` 的其他派生共用同一实现；
-    /// `ObjBase.cs:166` 的 `m_ItemList` **未接入**，见 <see cref="BagItems"/> 的整合说明）。
+    /// 背包私有后备字段 —— **待删**（接线到 <c>m_ItemList</c> 后即消失；删除条件见
+    /// <see cref="BagItems"/> 的裁定说明第 2 条）。
     /// </summary>
     protected readonly List<TUserItemView> m_BagItems = new();
 

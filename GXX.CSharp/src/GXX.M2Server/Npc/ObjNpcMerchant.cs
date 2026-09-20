@@ -323,7 +323,7 @@ public partial class TMerchant
     /// `nDura / nItemCount` 是实数除法 → Delphi 抛 `EZeroDivide`；托管侧得 `NaN`，
     /// `Round(NaN)` 抛 `OverflowException` —— 两侧都是"崩溃"，已单测锁死。</para>
     /// </summary>
-    public void sub_4A0218(TPlayObject User, List<object> ItemList, out byte btDc, out byte btSc, out byte btMc,
+    public void sub_4A0218(TPlayObject User, List<TUserItem?> ItemList, out byte btDc, out byte btSc, out byte btMc,
         out byte btDura)
     {
         int nDcMin = 0;
@@ -339,9 +339,11 @@ public partial class TMerchant
         List<object> DuraList = new();
         for (int I = ItemList.Count - 1; I >= 0; I += -1)
         {
+            // 原文 1710-1711：`UserItem := ItemList.Items[I]; if UserItem = nil then Continue;`
+            // —— 元素类型用 `TUserItem?`（可空值类型）以保留原文 `pTUserItem` 的"空槽"语义。
             if (ItemList[I] == null)
                 continue;
-            TUserItem ui = (TUserItem)ItemList[I];
+            TUserItem ui = ItemList[I]!.Value;
             if (NpcSeams.GetStdItemName(ui.wIndex) == NpcSeams.sBlackStone)
             {
                 DuraList.Add(EnvirWalkDoorCore.DelphiRound(ui.Dura / 1.0E3));
