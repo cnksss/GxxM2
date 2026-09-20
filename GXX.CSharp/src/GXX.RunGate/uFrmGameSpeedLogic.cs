@@ -376,7 +376,7 @@ public static class FormGlobals
     public static bool g_boFilterSayTriggerScript = false;
 
     /// <summary>GateShare.pas:1136 `g_ProcessBlackList: TProcessBlacklist;`。</summary>
-    public static readonly TProcessBlackList g_ProcessBlackList = new TProcessBlackList();
+    public static readonly TProcessBlacklist g_ProcessBlackList = new TProcessBlacklist();
 
     /// <summary>GateShare.pas:1137-1138。</summary>
     public static string g_ProcessBlacklistStr = "";
@@ -619,7 +619,7 @@ public static class FormGlobals
         g_WordFilterList.Clear();
         g_LogClientPacketUser.Clear();
         g_ProcessBlackList.Clear();
-        g_ProcessBlackList.MaxCount = ProcessBlackListDefaultMaxCount;   // ★ 复位 FMaxCount（原 :3271）
+        g_ProcessBlackList.MaxCountForTest = ProcessBlackListDefaultMaxCount;   // ★ 复位 FMaxCount（原 :3271）
         g_MagicCDList.Clear();
         Array.Clear(g_boSendSpeedIntervalsToClient, 0, g_boSendSpeedIntervalsToClient.Length);
         for (int i = 0; i < g_sActionIntervalsFileNames.Length; i++) g_sActionIntervalsFileNames[i] = "";
@@ -897,47 +897,13 @@ public class TSafeHashStringList
     }
 }
 
-/// <summary>接缝：待 GateShare.pas `TProcessInfo` / `TProcessBlacklist` 移植后接入。
-/// 原文要点（GateShare.pas:3271-3300）：`FMaxCount := 80`；Count &gt;= MaxCount 时 Add 直接返回 nil；
-/// MD5 必须 32 字符且 IsHexString；重复（同名+同 MD5）返回 nil。</summary>
-public class TProcessInfo
-{
-    public string ProcessName = "";
-    public string ProcessMD5 = "";
-}
-
-/// <summary>GateShare.pas `TProcessBlacklist` 的最小保真移植（本窗体族只用 Add/Delete/Count/MaxCount/Items）。</summary>
-public class TProcessBlackList
-{
-    private readonly List<TProcessInfo> FList = new List<TProcessInfo>();
-
-    public int MaxCount { get; set; } = 80;      // 原 GateShare.pas:3271 FMaxCount := 80
-
-    public int Count => FList.Count;
-    public TProcessInfo[] Items => FList.ToArray();
-
-    public void Lock() { }
-    public void UnLock() { }
-
-    public void Clear() => FList.Clear();
-
-    /// <summary>GateShare.pas:3296-3300 `function Add(ProcessName, ProcessMD5): PTProcessInfo`。</summary>
-    public TProcessInfo Add(string processName, string processMD5)
-    {
-        if (FList.Count >= MaxCount) return null;     // 原 :3296
-        foreach (var item in FList)
-        {
-            if (string.Equals(item.ProcessMD5, processMD5, StringComparison.OrdinalIgnoreCase))
-                return null;                          // 原 :3298（MD5 已存在）
-        }
-        var info = new TProcessInfo { ProcessName = processName, ProcessMD5 = processMD5 };
-        FList.Add(info);
-        return info;
-    }
-
-    public void Delete(TProcessInfo info) => FList.Remove(info);
-    public void Delete(int index) { if (index >= 0 && index < FList.Count) FList.RemoveAt(index); }
-}
+// ── 以下两个接缝类已由 **GateShare.pas 的 1:1 移植**接管，见 `GateShareContainers.cs`：
+//    `TProcessInfo`（原 :165-169）与 `TProcessBlacklist`（原 :171-199 / :3261-3374）。
+//    对齐时修正了接缝的三处偏差：
+//      * 类型名 `TProcessBlackList`（大写 L）→ 原文 `TProcessBlacklist`（小写 l，uFrmProcessBlacklist.pas
+//        自身就两种拼写混用，Delphi 不敏感）；
+//      * `Add` 现在按原文 :3301 把 `ProcessMD5` 转 **大写**；
+//      * `MaxCount` 按原文 :189 改为**只读**，测试改用 `MaxCountForTest`。
 
 // ── 以下 `TMagicInterval` / `TMagicIntervalList` 已由 **MagicIntervalUtils.pas 的 1:1 移植**
 //    接管：见 `GateShareMagicIntervalUtils.cs`（同工程同命名空间）。
