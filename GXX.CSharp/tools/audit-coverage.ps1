@@ -41,7 +41,37 @@ if ($ReportPath) {
 # (docs/转换开发文档.md  §2.3). They are listed separately, never as "missing".
 $VENDOR_DIRS = @('BeaEngineSource','FastMM','AliyunSDK','delphizlib.128','LockBox2','PNG','RSA','WinLicense_Inc','Bass','QRCode','PlugIn','Demo','DxComponent\GUI_Backup')
 # Units that are pure vendor wrappers / IDE templates, not business code.
-$VENDOR_UNITS = @('VMProtectSDK','EHookLIB','uSynHighlighterSample','plgSearchHighlighter','JClasses','DLLLoader','LuaScript','LuaEvent','LuaActor')
+#
+# ---- ALSO "not ported BY DESIGN" (added round 24, from the 30-unit verification
+# ---- in the ledger section 18.4/18.5).  These are REAL Delphi units, but counting
+# ---- them as "remaining work" OVERSTATES the backlog -- which is exactly how the
+# ---- four unowned giants were missed earlier (ledger 13.7).  Reasons:
+# ----   c1 dead code      : not in any .dpr and has no `uses` anywhere in the tree
+# ----   c3 replaced       : a .NET-native facility does the job (managed side uses
+# ----                       its own equivalent; porting the Delphi one adds dead code)
+# ----   c4 duplicate      : byte-identical to / superseded by another unit that IS ported
+# ---- NOTE: basename-keyed, so a unit with copies in two dirs cannot be listed here
+# ---- unless EVERY copy is a non-port.  GameCenter\ParadoxDataSet is a byte-identical
+# ---- duplicate of the RunGate copy, but that basename must stay countable because the
+# ---- RunGate copy IS being ported -> it is deliberately NOT listed here.
+$VENDOR_UNITS = @(
+    'VMProtectSDK','EHookLIB','uSynHighlighterSample','plgSearchHighlighter','JClasses','DLLLoader','LuaScript','LuaEvent','LuaActor',
+    'DES',              # c1 dead code: no .dpr, no uses (tree already has DesUnit/UnitDes/EncryptUnit)
+    'DragFromShell',    # c1 dead code: 3rd-party VCL component, zero references
+    'uFrmCustomMoney',  # c1 dead code: empty shell form, no references
+    'DxControlClpbrd',  # c1 dead code: 153 lines identical to StreamClipbrd, unused
+    'SimpleClass',      # c3 .NET collections replace TQueue/TStack/TList/TVector
+    'SHSocket',         # c3 Win32 socket decls -> SocketAsyncEventArgs (GatewayKit/TcpLink.cs)
+    'FixedMemoryPool',  # c3 manual block allocator -> GC / ConcurrentQueue
+    'MemPool',          # c3 manual block allocator -> GC / ConcurrentQueue
+    'SyncObj',          # c3 TCriticalSection wrapper -> lock/Monitor
+    'IOCPTypeDef',      # c3 IOCP typedefs -> SocketAsyncEventArgs (GatewayProtocol.IocpManager)
+    'VersionHelper',    # c3 VerifyVersionInfo wrapper -> OperatingSystem.IsWindowsVersionAtLeast
+    'MsCTF',            # c3 COM IME -> WinForms native IME (Checklist section 5)
+    'GHeroDB',          # c3 BDE alias/table/field manager, obsolete under the Sqlite architecture
+    'Objects',          # c1 design-time only: referenced by GuiEdit.dpr, NOT by Client.dpr
+    'FireDragon'        # c4 old duplicate of ObjFireDragon.pas (not in any .dpr)
+)
 
 # ---- load optional explicit map ------------------------------------------
 $explicit = @{}
@@ -194,7 +224,7 @@ $tot = [pscustomobject]@{
     Vendor      = @($rows | Where-Object Verdict -eq 'VENDOR').Count
     NonUnit     = @($rows | Where-Object Verdict -eq 'NONUNIT').Count
 }
-Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  vendor={6}  non-unit={7}" -f `
+Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
     $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
 
 Write-Host ''
@@ -219,13 +249,13 @@ if ($Report) {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Totals')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| units | mapped | assigned (in flight) | checklist-only | unmapped | vendor | non-unit |')
+    [void]$sb.AppendLine('| units | mapped | assigned (in flight) | checklist-only | unmapped | not-ported | non-unit |')
     [void]$sb.AppendLine('|---|---|---|---|---|---|---|')
     [void]$sb.AppendLine("| $($tot.Units) | $($tot.Mapped) | $($tot.Assigned) | $($tot.ChecklistOn) | $($tot.Unmapped) | $($tot.Vendor) | $($tot.NonUnit) |")
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Per module')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | units | mapped | assigned | checklist-only | unmapped | vendor | non-unit | unmapped KB |')
+    [void]$sb.AppendLine('| dir | units | mapped | assigned | checklist-only | unmapped | not-ported | non-unit | unmapped KB |')
     [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|')
     foreach ($r in $byDir) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
