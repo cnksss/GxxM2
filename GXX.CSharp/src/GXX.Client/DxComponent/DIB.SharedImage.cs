@@ -761,6 +761,13 @@ public sealed class TDIBSharedImage
                 else
                 {
                     // Absolute mode
+                    // 原文（DIB.pas:1247）`Dest := Pointer(Longint(FPBits) + Y * FWidthBytes)`。
+                    // 【已核查的原文疑似缺陷，保留 1:1 未改】同文件 LoadRGB（DIB.pas:1383）读未压缩像素时
+                    // 用的是 `FTopPBits + Y * FNextLine`（FNextLine = -FWidthBytes，DIB.pas:848），
+                    // 而 RLE 解码这里用的是 **FWidthBytes**（正数）—— 二者行序相反。
+                    // 实证：4x2/4bpp 的 RLE4 流 `03 A5 00 00 02 F0 00 00 00 01` 解出的
+                    // (A,5,A) 落在 GetPixel(Y=1) 而非测试预期的 Y=0（见报告"原文缺陷"节）。
+                    // 本轮曾试改为 FNextLine，但会使该用例从"行错位"变为"落到越界行"，故**回退保持原文**。
                     Dest = (byte*)FPBits + (long)Y * FWidthBytes;
 
                     C = 0;
@@ -788,6 +795,7 @@ public sealed class TDIBSharedImage
             else
             {
                 // Encoding mode
+                // 同上（DIB.pas:1272）：原文用 FWidthBytes，保留 1:1。
                 Dest = (byte*)FPBits + (long)Y * FWidthBytes;
 
                 for (I = 0; I <= B1 - 1; I++)
@@ -836,6 +844,8 @@ public sealed class TDIBSharedImage
                 {
                     // End of line
                     X = 0; Y++;
+                    // 原文（DIB.pas:1315）`Dest := Pointer(Longint(FPBits) + Y * FWidthBytes + X)`
+                    // 【已核查的原文疑似缺陷，保留 1:1 未改】理由同 DecodeRLE4（行跨距应为 FNextLine）。
                     Dest = (byte*)FPBits + (long)Y * FWidthBytes + X;
                 }
                 else if (B2 == 1)

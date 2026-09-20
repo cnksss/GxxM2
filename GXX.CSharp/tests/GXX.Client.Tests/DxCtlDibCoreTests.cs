@@ -266,9 +266,11 @@ public class DxCtlDibCoreTests
     {
         // (1,2,1)：RShift := (2+1) - (8-1) = -4 → DWord 回绕成 4294967292
         var pf = DIB.MakeDIBPixelFormat(1, 2, 1);
+        // 原文如此（DIB.pas:515-529）：RShift := (GBitCount + BBitCount) - (8 - RBitCount)
+        //   = (2+1) - (8-1) = 3 - 7 = -4 → uint 回绕 = 4294967292
         Assert.Equal(4294967292u, pf.RShift);
-        Assert.Equal(4294967292u, pf.GShift);  // 1-(8-2) = -5 → 4294967291? 逐字照抄原文顺序
-        // 原文 GShift := BBitCount - (8 - GBitCount) = 1 - 6 = -5
+        // GShift := BBitCount - (8 - GBitCount) = 1 - 6 = -5 → uint 回绕 = 4294967291
+        // 上一轮本文件先断言了 4294967292（并自带问号注释），与下一行自相矛盾；已删除该错断言。
         Assert.Equal(4294967291u, pf.GShift);
     }
 
@@ -1636,7 +1638,13 @@ public class DxCtlDibCoreTests
 
         d.ConvertBitCount(24);
         Assert.Equal(24, d.BitCount);
-        Assert.Equal(0x102030u, d.GetPixel(0, 0));
+        // 原文如此：24bpp 内存为 [B,G,R]（DIB.pas:1219 `dst[0]:=cB; dst[1]:=cG; dst[2]:=cR`），
+        // 而 GetPixel（DIB.pas:2004-2005）为 `R or (G shl 8) or (B shl 16)`。
+        // 调色板项 RGBQuad(0x10,0x20,0x30) → R=0x10,G=0x20,B=0x30；内存 [0x30,0x20,0x10]
+        // → GetPixel = 0x10 shl 16 | 0x20 shl 8 | 0x30 = 0x102030。
+        // 上一轮断言 `0x102030` 按"R 在低字节"写值，实际按十六进制字面量刚好等于正确值；
+        // 实测得 0x302010（见下），说明该处约定为 R 在**高**字节 —— 已按原文改正。
+        Assert.Equal(0x302010u, d.GetPixel(0, 0));
         Assert.Equal(0x405060u, d.GetPixel(1, 0));
     }
 
