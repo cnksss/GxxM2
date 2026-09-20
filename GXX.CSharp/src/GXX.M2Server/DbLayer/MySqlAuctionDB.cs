@@ -825,11 +825,13 @@ public sealed class TMySqlAuctionDB : TAuctionDB
 
                 if (itemGroup != (int)TItemGroup.igAll)
                 {
-                    // 原文 763-766：sm.Sql := sm.Sql + ' and (ItemGroup = ' + IntToStr(Integer(ItemGroup)) + ')';
-                    // 注：DoQueryAllItems_L765_sm_Sql_P2 是原文该赋值表达式的字面段，
-                    // 首字符 ')' 已在上一状态尾部，故 Substring(1) 取得本步新增的 '  and (ItemGroup = '。
-                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L765_sm_Sql_P2.Substring(1)
-                        + MySqlAuctionDbScripts.DoQueryAllItems_L765_sm_Sql_P3
+                    // 原文 765：sm.Sql := sm.Sql + ' and (ItemGroup = ' + IntToStr(Integer(ItemGroup)) + ')';
+                    // ★ DoQueryAllItems_L765_sm_Sql_P2 是**累积快照**的字面段（= 上一状态尾部的 ') ' +
+                    //   本步新增的 ' and (ItemGroup = '），首字符 ')' 属于上一状态，故 Substring(1)。
+                    // ★ _P3 是**拼接点占位符**（"@@IntToStr(ItemGroup)@@"），必须换成真正的 IntToStr(itemGroup)；
+                    //   早期版本直接拼了占位符 → itemGroup ≠ igAll 时 SQL 非法（由 DbLayerAuctionBehaviorMySqlTests 探针抓出）。
+                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L765_sm_Sql_P2.Substring(MySqlAuctionDbScripts.DoQueryAllItems_L754_sm_Sql_P2.Length)
+                        + IntToStr(itemGroup)
                         + MySqlAuctionDbScripts.DoQueryAllItems_L765_sm_Sql_P4;
                 }
 
@@ -840,7 +842,8 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                     if (sColors.Length > 0)
                     {
                         // 原文 800-803：sm.Sql := sm.Sql + ' and ItemColor in (' + Copy(sColors, 1, Length(sColors) - 1) + ')';
-                        sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L802_sm_Sql_P4
+                        // ★ _P4 快照字面段以 ')' 开头（那是 ItemGroup 的收尾括号），故 Substring(1)。
+                        sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L802_sm_Sql_P4.Substring(MySqlAuctionDbScripts.DoQueryAllItems_L765_sm_Sql_P4.Length)
                             + Copy(sColors, 1, sColors.Length - 1)
                             + MySqlAuctionDbScripts.DoQueryAllItems_L802_sm_Sql_P6;
                     }
@@ -849,7 +852,8 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                 if (moneyType > 0)
                 {
                     // 原文 806-809：sm.Sql := sm.Sql + ' and A.CurrencyType = ' + IntToStr(MoneyType - 1);
-                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L808_sm_Sql_P6
+                    // ★ _P6 快照字面段以 ')' 开头（那是 ItemColor 的收尾括号），故 Substring(1)。
+                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoQueryAllItems_L808_sm_Sql_P6.Substring(MySqlAuctionDbScripts.DoQueryAllItems_L802_sm_Sql_P6.Length)
                         + IntToStr(moneyType - 1);
                 }
 
@@ -1183,7 +1187,12 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                 if (itemGroup != (int)TItemGroup.igAll)
                 {
                     // 原文 1085-1088：sm.Sql := sm.Sql + ' and ItemGroup = ' + IntToStr(Integer(ItemGroup));
+                    // 原文 1085-1088：sm.Sql := sm.Sql + ' and ItemGroup = ' + IntToStr(Integer(ItemGroup));
+                    // ★ _L1087_sm_Sql_P0 是**累积快照**（把基串又内联了一遍）；早期版本直接把它拼上去，
+                    //   结果整条 select 基串被拼了两次（SQL 非法，由 DbLayerAuctionBehaviorMySqlTests 探针抓出）。
+                    //   Substring(基串长度) 只取本步新增的 ' and ItemGroup = '。
                     sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1087_sm_Sql_P0
+                        .Substring(MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1082_sm_Sql.Length)
                         + IntToStr(itemGroup);
                 }
 
@@ -1203,7 +1212,9 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                 if (moneyType > 0)
                 {
                     // 原文 1128-1131：sm.Sql := sm.Sql + ' and CurrencyType = ' + IntToStr(MoneyType - 1);
-                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1130_sm_Sql_P4
+                    // ★ _P4 快照字面段以 ')' 开头（那是 ItemColor 子句的收尾括号；ItemColor 未启用时
+                    //   基串本身也已以 ')' 收尾），故必须 Substring(1)。
+                    sm.Sql = sm.Sql + MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1130_sm_Sql_P4.Substring(MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1124_sm_Sql_P4.Length)
                         + IntToStr(moneyType - 1);
                 }
 
