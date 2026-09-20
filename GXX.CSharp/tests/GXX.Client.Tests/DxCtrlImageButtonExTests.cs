@@ -69,7 +69,7 @@ public class DxCtrlImageButtonExTests
             DxImageButtonExEnv.FindFont = (name, size, style) =>
             {
                 FindFontCalls++;
-                return name == "" ? null : Font;
+                return Font;                 // 默认总是命中（各用例可局部改成返回 null）
             };
             DxImageButtonExEnv.TextWidth = (f, t) => t.Length * 6;
             DxImageButtonExEnv.TextHeight = (f, t) => 12;
@@ -1335,5 +1335,462 @@ public class DxCtrlImageButtonExTests
 
         Assert.Equal(0, line.Width);             // PlayImg 是 TTokenPlayImage → 不计入行尺寸
         Assert.Equal(0, line.Height);
+    }
+
+    // ===============================================================================
+    // 十、TDxImageButtonEx（原文 142-156 / 743-887）
+    // ===============================================================================
+
+    /// <summary>
+    /// 造一个已接好绘制器与尺寸的 Ex 按钮（vtRect 由 ClientRect 决定）。
+    ///
+    /// `bold` 会写 `CaptionColor.Up.Bold` —— **必须在 SetCaptionAV2 之前**，因为
+    /// `ProcessButtonText` 是在建 token 时把 `Font.Bold` 拷进 `FFontStroke` 的。
+    /// 注意 `TDxCaptionColor` 的 Up/Hot/Down/Checked/Disabled **默认 Bold = true**
+    /// （DxControls.cs 的 TDxCaptionColor 构造），故不传 `bold: false` 时每个文本 token
+    /// 会走 BoldTextOut 的 5 次 TextRect。
+    ///
+    /// `AutoSize = false` 也是必需的：原文语义下 `DoCaptionChange` 会按 Caption/图片
+    /// 重算 `Width/Height`（空标题 → 0x0），几何用例必须先把尺寸钉住。
+    /// </summary>
+    private static TDxImageButtonEx MakeButton(Scope scope, int width = 200, int height = 40,
+        int left = 0, int top = 0, bool bold = false)
+    {
+        var b = new TDxImageButtonEx();
+        b.AutoSize = false;
+        b.ClientRect = TDxRect.Bounds(left, top, width, height);
+        b.Painter = scope.Painter;
+        b.CaptionColor.Up.Bold = bold;
+        DxImageButtonExEnv.Painter = scope.Painter;
+        return b;
+    }
+
+    private static string CaptionColorOf(TDxImageButtonEx b) => $"{b.CaptionColor.Up.Color:X6}";
+
+    [Fact]
+    public void ImageButtonEx_Ctor_CreatesEmptyLineList()
+    {
+        using var _ = new Scope();
+        var b = new TDxImageButtonEx();
+
+        Assert.NotNull(b.LineList);
+        Assert.Equal(0, b.LineList.Count);
+        Assert.Equal(0, b.LineList.Width);
+        Assert.Equal(0, b.LineList.Height);
+    }
+
+    [Fact]
+    public void ImageButtonEx_Ctor_InheritsButtonDefaults()
+    {
+        using var _ = new Scope();
+        var b = new TDxImageButtonEx();
+
+        Assert.Equal(100, b.Width);                          // TDxImageButton 构造（原文 466-489）
+        Assert.Equal(20, b.Height);
+        Assert.Equal(TDxAlignment.taCenter, b.Alignment);
+    }
+
+    [Fact]
+    public void ImageButtonEx_DisposeImageButtonEx_NullsLineList()
+    {
+        using var _ = new Scope();
+        var b = new TDxImageButtonEx();
+        b.DisposeImageButtonEx();
+        Assert.Null(b.LineList);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_PlainText_BuildsOneLineAndSetsCaption()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("abcd");
+
+        Assert.Equal(1, b.LineList.Count);
+        Assert.Equal(1, b.LineList[0].Count);
+        Assert.Equal("abcd", b.Caption);
+        Assert.Equal("abcd", DxControlHooks.GetRawText(b));   // 原文 789 → SetCaptionA 会写 FRawText
+        Assert.Equal(24, b.LineList.Width);                   // RecalSize 已跑
+        Assert.Equal(12, b.LineList.Height);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_SplitsOnCrLf_AndJoinsWithCrLf()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab\r\ncd");
+
+        Assert.Equal(2, b.LineList.Count);
+        Assert.Equal("ab\r\ncd", b.Caption);                  // 处理后的文本按 sLineBreak 重连
+        Assert.Equal(26, b.LineList.Height);                  // 12 + (12+2)
+    }
+
+    [Fact]
+    public void SetCaptionAV2_SplitsOnLoneLfAndLoneCr()
+    {
+        using var scope = new Scope();
+
+        var b1 = MakeButton(scope);
+        b1.SetCaptionAV2("ab\ncd");
+        Assert.Equal(2, b1.LineList.Count);
+
+        var b2 = MakeButton(scope);
+        b2.SetCaptionAV2("ab\rcd");
+        Assert.Equal(2, b2.LineList.Count);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_BackslashIsNotASeparator_Differential()
+    {
+        // 原文 773 `SL.Delimiter := '\'` 对 `SL.Text` 无作用（见源文件头第 8 条）
+        // → `\` 只是普通字符，**不**断行。差异断言：若按 '\' 断行则为 2 行。
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab\\cd");
+
+        Assert.Equal(1, b.LineList.Count);
+        Assert.Equal("ab\\cd", b.Caption);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_TrailingLineBreak_NoExtraEmptyLine()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab\r\n");
+
+        Assert.Equal(1, b.LineList.Count);                    // TStringList.SetTextStr 语义
+        Assert.Equal("ab", b.Caption);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_ClearsPreviousLines()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab\r\ncd");
+        b.SetCaptionAV2("xy");
+
+        Assert.Equal(1, b.LineList.Count);
+        Assert.Equal("xy", b.Caption);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_SameValueTwice_DoesNotAccumulateLines()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab");
+        b.SetCaptionAV2("ab");
+
+        Assert.Equal(1, b.LineList.Count);                    // Clear 在前，不会翻倍
+        Assert.Equal("ab", b.Caption);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_EmptyString_NoLinesAndEmptyCaption()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("");
+
+        Assert.Equal(0, b.LineList.Count);
+        Assert.Equal("", b.Caption);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_ColorMarkup_UsesProcessedCaption()
+    {
+        using var scope = new Scope();
+        DxImageButtonExEnv.GetRGB = n => n;
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("a{x|7}b");
+
+        Assert.Equal("axb", b.Caption);                       // 花括号消失、文字保留
+        Assert.Equal(3, b.LineList[0].Count);
+        Assert.Equal(7, ((TTokenText)b.LineList[0][1]).FontColor);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_ImageMarkup_TokenizesAndStripsTag()
+    {
+        using var scope = new Scope();
+        DxImageButtonExEnv.EffectImageList = new TDxImageListStub().Add(new CachedLib().Add(5, 5));
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("ab<Img:0:0:5:6>cd");
+
+        Assert.Equal("abcd", b.Caption);
+        Assert.Equal(3, b.LineList[0].Count);
+        Assert.IsType<TTokenText>(b.LineList[0][0]);
+        Assert.IsType<TTokenImage>(b.LineList[0][1]);
+        Assert.IsType<TTokenText>(b.LineList[0][2]);
+    }
+
+    [Fact]
+    public void SetCaptionAV2_UsesCaptionColorUpFont()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.CaptionColor.Up.Name = "特殊字体";
+        b.CaptionColor.Up.Size = 15;
+
+        b.SetCaptionAV2("ab");
+
+        var t = (TTokenText)b.LineList[0][0];
+        Assert.Equal("特殊字体", t.FontName);
+        Assert.Equal(15, t.FontSize);
+    }
+
+    [Fact]
+    public void SetCaptionVV2_OnlyChangesText_KeepsLineList_Differential()
+    {
+        // 原文 800-820 整段被注释掉（HZQ 20230628）→ 只更新文本、不重建行表
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab");
+        var lineBefore = b.LineList[0];
+
+        b.SetCaptionVV2("zz");
+
+        Assert.Equal("zz", b.Caption);
+        Assert.Same(lineBefore, b.LineList[0]);               // 行表**未**重建
+        Assert.Equal("ab", ((TTokenText)b.LineList[0][0]).Caption);
+        Assert.Equal("ab", DxControlHooks.GetRawText(b));     // SetCaptionV 不动 FRawText
+    }
+
+    [Fact]
+    public void SetCaptionVV2_SameValue_NoOp()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab");
+
+        b.SetCaptionVV2("ab");
+
+        Assert.Equal("ab", b.Caption);
+        Assert.Equal(1, b.LineList.Count);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_EmptyCaption_DrawsNothing()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("");
+        b.DoDrawCaptionV2();
+
+        Assert.Empty(scope.Painter.Ops);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_TagOnlyCaption_PaintsNothing_Differential()
+    {
+        // 原文缺陷（可验证）：纯图片标签的标题经 SetCaptionA 处理成 ''，
+        // 而 DoDrawCaption（834）第一句就是 `if Caption = '' then Exit`
+        // → **图片 token 永远不会被绘制**（构造期建了 token，但绘制入口直接返回）。
+        using var scope = new Scope();
+        DxImageButtonExEnv.EffectImageList = new TDxImageListStub().Add(new CachedLib().Add(5, 5));
+        var b = MakeButton(scope);
+
+        b.SetCaptionAV2("<Img:0:0>");
+        Assert.Equal(1, b.LineList[0].Count);                 // token 确实建好了
+        Assert.Equal("", b.Caption);                          // 但 Caption 是空串
+
+        b.DoDrawCaptionV2();
+
+        Assert.Empty(scope.Painter.Ops);                      // 一条都没画
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_TextToken_Centered()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("abcd");                              // 24x12，控件 200x40
+
+        b.DoDrawCaptionV2();
+
+        // R = (0+(200-24)/2, 0+(40-12)/2) = (88,14)；行宽 == 行内文本宽 → 行内不额外偏移
+        Assert.Equal($"TextRect(88,14,(88,14,112,26),n=1,{CaptionColorOf(b)},2,255,0)",
+            Assert.Single(scope.Painter.Ops));
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_RespectsVirtualRectOrigin()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope, left: 10, top: 5);
+
+        b.SetCaptionAV2("abcd");
+        b.DoDrawCaptionV2();
+
+        // vtRect = (10,5,210,45) → (10+(200-24)/2, 5+(40-12)/2) = (98,19)
+        Assert.Equal($"TextRect(98,19,(98,19,122,31),n=1,{CaptionColorOf(b)},2,255,0)",
+            Assert.Single(scope.Painter.Ops));
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_AppliesCaptionOffsets()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("abcd");
+        b.CaptionOffsetX = 3;
+        b.CaptionOffsetY = 4;
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal($"TextRect(91,18,(91,18,115,30),n=1,{CaptionColorOf(b)},2,255,0)",
+            Assert.Single(scope.Painter.Ops));
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_MouseDowned_AddsDownOffsets()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("abcd");
+        b.CaptionOffsetX = 3;
+        b.CaptionOffsetY = 4;
+        b.CaptionDownOffsetX = 1;
+        b.CaptionDownOffsetY = 1;
+        b.MouseDowned = true;
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal($"TextRect(92,19,(92,19,116,31),n=1,{CaptionColorOf(b)},2,255,0)",
+            Assert.Single(scope.Painter.Ops));
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_Disabled_OffsetsBecomeZero()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("abcd");
+        b.CaptionOffsetX = 30;
+        b.CaptionOffsetY = 30;
+        b.Enabled = false;
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal($"TextRect(88,14,(88,14,112,26),n=1,{CaptionColorOf(b)},2,255,0)",
+            Assert.Single(scope.Painter.Ops));
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_MultiLine_SecondLineTopAddsHeightPlusTwo()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab\r\ncd");                          // 行表 12x26
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal(2, scope.Painter.Ops.Count);
+        // R = (94, 7)；第二行 Top = 7 + 12 + 2 = 21
+        Assert.Equal($"TextRect(94,7,(94,7,106,19),n=1,{CaptionColorOf(b)},2,255,0)", scope.Painter.Ops[0]);
+        Assert.Equal($"TextRect(94,21,(94,21,106,33),n=1,{CaptionColorOf(b)},2,255,0)", scope.Painter.Ops[1]);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_MultipleTextTokens_AdvancePtXByTokenWidth()
+    {
+        using var scope = new Scope();
+        DxImageButtonExEnv.GetRGB = n => n;
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("a{b|5}c");                           // 3 个文本 token，各 6 宽 → 行宽 18
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal(3, scope.Painter.Ops.Count);
+        // R = (91,14)；Pt.X 依次 91 → 97 → 103
+        Assert.Equal($"TextRect(91,14,(91,14,97,26),n=1,{CaptionColorOf(b)},2,255,0)", scope.Painter.Ops[0]);
+        Assert.Equal("TextRect(97,14,(97,14,103,26),n=1,000005,2,255,0)", scope.Painter.Ops[1]);
+        Assert.Equal($"TextRect(103,14,(103,14,109,26),n=1,{CaptionColorOf(b)},2,255,0)", scope.Painter.Ops[2]);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_ImageToken_DrawnAtVirtualRectOriginNotCentered_Differential()
+    {
+        // 原文 855-867：非文本 token 一律 `Token.Paint(vtRect.Left, vtRect.Top)`，
+        // **不参与居中**（只靠自身 OffsetX/OffsetY）—— 与文本 token 的居中形成差异断言。
+        using var scope = new Scope();
+        DxImageButtonExEnv.EffectImageList = new TDxImageListStub().Add(new CachedLib().Add(8, 9));
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab<Img:0:0:5:6>");                   // 文本 12 宽；图片 8x9
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal(2, scope.Painter.Ops.Count);
+        Assert.Equal("Draw(5,6,tex8x9,2)", scope.Painter.Ops[0]);     // vtRect 原点 + 自身偏移
+        // 文本：行表宽 12（图片不计入）→ R = (94,14)
+        Assert.Equal($"TextRect(94,14,(94,14,106,26),n=1,{CaptionColorOf(b)},2,255,0)", scope.Painter.Ops[1]);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_ImageTokenDrawnBeforeText_RegardlessOfTokenOrder()
+    {
+        using var scope = new Scope();
+        DxImageButtonExEnv.EffectImageList = new TDxImageListStub().Add(new CachedLib().Add(8, 9));
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab<Img:0:0:0:0>cd");                 // 图片夹在两段文本中间
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal(3, scope.Painter.Ops.Count);
+        Assert.StartsWith("Draw(", scope.Painter.Ops[0]);     // 第一轮先画图片
+        Assert.StartsWith("TextRect(", scope.Painter.Ops[1]); // 第二轮再画文本
+        Assert.StartsWith("TextRect(", scope.Painter.Ops[2]);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_StrokeText_DrawsFiveRectsPerToken()
+    {
+        // TDxCaptionColor 默认 Up.Bold = true → FFontStroke = true → 4 次描边 + 1 次正文，
+        // 且 Initialize 后尺寸各 +2（原文 203-205）
+        using var scope = new Scope();
+        var b = new TDxImageButtonEx();                       // 不覆盖 Bold → 用默认 true
+        b.AutoSize = false;
+        b.ClientRect = TDxRect.Bounds(0, 0, 200, 40);
+        b.Painter = scope.Painter;
+        DxImageButtonExEnv.Painter = scope.Painter;
+
+        b.SetCaptionAV2("a");
+        Assert.True(((TTokenText)b.LineList[0][0]).FontStroke);
+        Assert.Equal(8, b.LineList[0][0].Width);              // 6 + 2
+        Assert.Equal(14, b.LineList[0][0].Height);            // 12 + 2
+
+        b.DoDrawCaptionV2();
+
+        Assert.Equal(5, scope.Painter.Ops.Count);
+        Assert.All(scope.Painter.Ops.Take(4), op => Assert.Contains(",000000,", op));   // clBlack 描边
+        Assert.Contains($",{CaptionColorOf(b)},", scope.Painter.Ops[4]);
+    }
+
+    [Fact]
+    public void DoDrawCaptionV2_CalledTwice_DoesNotRebuildTokens()
+    {
+        using var scope = new Scope();
+        var b = MakeButton(scope);
+        b.SetCaptionAV2("ab");
+        var line = b.LineList[0];
+
+        b.DoDrawCaptionV2();
+        b.DoDrawCaptionV2();
+
+        Assert.Same(line, b.LineList[0]);
+        Assert.Equal(2, scope.Painter.Ops.Count);
     }
 }

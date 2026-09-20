@@ -855,7 +855,7 @@ public class TDxImageButton : TDxControl
     }
 
     /// <summary>原文 531-602 TDxImageButton.DoDrawCaption 的**几何与字体选择**部分，1:1。</summary>
-    public void DoDrawCaptionV2()
+    public virtual void DoDrawCaptionV2()
     {
         if (Caption == "") return;
 

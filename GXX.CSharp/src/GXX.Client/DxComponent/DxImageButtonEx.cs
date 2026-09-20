@@ -27,10 +27,6 @@ namespace GXX.Client.DxComponent;
 //
 // DFM: 无同名 .dfm（TDxImageButtonEx 继承 TDxImageButton 的设计期外观）。
 //
-// ⚠ 切片说明：本文件当前已落地 **24-140 的 6 个 token/容器类型 + 160-741 的 ProcessButtonText
-//   与全部接缝**；`TDxImageButtonEx` 本身（142-156 / 743-887）在**下一次提交**落地。
-//   该行在 TDxImageButtonEx 落地后删除。
-//
 // -------------------------------------------------------------------------------------
 // 托管侧接缝与偏差（逐条登记）：
 //
@@ -1047,6 +1043,193 @@ public class TLineList
 
             Height = Height + line.Height + addHeight;
             addHeight = DxImageButtonExUnit.ExpandLineHeight;
+        }
+    }
+}
+
+// -------------------------------------------------------------------------------------
+// DxImageButtonEx.pas 142-156 / 743-887：TDxImageButtonEx
+// -------------------------------------------------------------------------------------
+
+/// <summary>
+/// DxImageButtonEx.pas 142-156 / 743-887 <c>TDxImageButtonEx : TDxImageButton</c>
+/// —— 带 token 化标题（多行 + 内嵌图片/播放图 + 自定义颜色）的按钮。
+///
+/// 原文的三个覆写点在托管侧的落点见文件头第 1 条：
+///   * `DoDrawCaption` → <see cref="DoDrawCaptionV2"/>（**真 override**；基类
+///     `TDxImageButton.DoDrawCaptionV2` 已改为 `virtual`）；
+///   * `SetCaptionA` / `SetCaptionV` → <see cref="SetCaptionAV2"/> / <see cref="SetCaptionVV2"/>
+///     （基类无虚方法可覆写，故以公开方法承接原文的覆写位置，调用方显式调用）。
+/// </summary>
+public class TDxImageButtonEx : TDxImageButton
+{
+    /// <summary>原文 144 FLineList（token 化的标题行表）。</summary>
+    public TLineList LineList;
+
+    /// <summary>
+    /// 原文 747-755 构造：`inherited Create(AOwner); FLineList := TLineList.Create;`
+    /// （AOwner 在托管侧由 WinForms 的父子关系承接，故构造函数无参 —— 与
+    /// `TDxImageButton()` 一致。）
+    /// </summary>
+    public TDxImageButtonEx()
+    {
+        LineList = new TLineList();
+    }
+
+    /// <summary>
+    /// 原文 757-761 <c>Destroy</c>：`FLineList.Free; inherited Destroy;`
+    /// （托管侧 GC 负责释放，此处显式丢弃引用，与 `DisposeButton` 同一约定。）
+    /// </summary>
+    public void DisposeImageButtonEx()
+    {
+        LineList = null;
+    }
+
+    /// <summary>
+    /// 原文 763-790 <c>SetCaptionA</c>（覆写基类）：
+    /// 清空行表 → 按 `TStringList.Text` 断行（**只按 CR/LF**，见文件头第 8 条）→
+    /// 每行 `ProcessButtonText` 建 token → `FLineList.RecalSize` →
+    /// 用**处理后的文本**调 `inherited SetCaptionA`。
+    ///
+    /// 原文 773 的 `SL.Delimiter := '\';` 对 `SL.Text` 没有任何作用
+    /// （Delphi `TStrings.SetTextStr` 只按 CR/LF 断行，`Delimiter` 仅影响 `DelimitedText`），
+    /// 故托管侧用既有 `TDxFontEnv.SplitTextLines`（其注释明确写着
+    /// "结尾换行不产生额外空行（TStringList.SetTextStr 语义）"）承接并**忽略**该赋值。
+    /// </summary>
+    public void SetCaptionAV2(string value)
+    {
+        LineList.Clear();
+
+        var lines = TDxFontEnv.SplitTextLines(value);
+        string processed = "";
+        string sNewLine = "";
+        for (int i = 0; i < lines.Count; i++)
+        {
+            var tokenLine = LineList.AddLine();
+            // 'aaa{自自定颜色|100}bbbb'（原文 780 注释）
+            processed = processed + sNewLine
+                + DxImageButtonExUnit.ProcessButtonText(lines[i], tokenLine, CaptionColor.Up);
+            sNewLine = "\r\n";                       // Delphi sLineBreak
+        }
+
+        LineList.RecalSize();
+
+        DxControlOps.SetCaptionA(this, processed);   // 原文 789 `inherited SetCaptionA(Value)`
+    }
+
+    /// <summary>
+    /// 原文 792-822 <c>SetCaptionV</c>（覆写基类）：**整段重建逻辑被注释掉**
+    /// （原文 799 注释：HZQ 20230628 —— SetCaptionV 改变了已设置好的数据图像数据，
+    /// 所以只更新文本），只剩 `inherited SetCaptionV(Value)`。
+    /// 托管侧照抄留档，不做任何行表重建。
+    /// </summary>
+    public void SetCaptionVV2(string value)
+    {
+        // 原文 800-820（被注释掉的整段）照抄留档：
+        //   (*
+        //   FLineList.Clear;
+        //   SL := TStringList.Create;
+        //   try
+        //     SL.Delimiter := '\';
+        //     SL.Text := Value;
+        //     Value := '';
+        //     sNewLine := '';
+        //     for I := 0 to SL.Count - 1 do begin
+        //       TokenLine := FLineList.AddLine;
+        //       // 'aaa{自自定颜色|100}bbbb'
+        //       Value := Value + sNewLine + ProcessButtonText(SL.Strings[I], TokenLine, CaptionColor.Up);
+        //       sNewLine := sLineBreak;
+        //     end;
+        //     FLineList.RecalSize;
+        //   finally
+        //     SL.Free;
+        //   end;
+        //   *)
+        DxControlOps.SetCaptionV(this, value);       // 原文 821 `inherited SetCaptionV(Value)`
+    }
+
+    /// <summary>
+    /// 原文 824-887 <c>DoDrawCaption</c>（覆写基类）—— 两轮绘制：
+    ///
+    /// **第一轮**（855-867）：逐行逐 token，**只画非 `TTokenText` 的 token**（图片/播放图），
+    /// 且一律画在 `vtRect` 的**左上原点**（`Token.Paint(vtRect.Left, vtRect.Top)`）——
+    /// 即图片 token **不参与居中**，只靠自身 OffsetX/OffsetY 定位（原文怪癖）。
+    ///
+    /// **第二轮**（869-886）：逐行处理文本 token。行矩形 `RLine` 的两端按
+    /// `R.Left + (R 宽 - 行宽) div 2` 居中，起点 `Pt := RLine.TopLeft`，
+    /// 每个文本 token 画在 `(Pt.X + X, Pt.Y + Y)` 后 `Pt.X += Token.Width`；
+    /// 行末 `RLine.Top += Line.Height + ExpandLineHeight`（**末行之后也会加**，但不影响输出）。
+    ///
+    /// `X`/`Y` 取 `CaptionOffsetX/Y`（按下时再叠加 `CaptionDownOffsetX/Y`），
+    /// 而 `Enabled = False` 时保持 0（原文 839-848）。
+    /// </summary>
+    public override void DoDrawCaptionV2()
+    {
+        if (Caption == "") return;
+
+        var vtRect = VirtualRect;
+        int x = 0;
+        int y = 0;
+        if (Enabled)
+        {
+            if (MouseDowned)                              // 原文 `if MouseDowned {or Checked} then`
+            {
+                x = CaptionOffsetX + CaptionDownOffsetX;
+                y = CaptionOffsetY + CaptionDownOffsetY;
+            }
+            else
+            {
+                x = CaptionOffsetX;
+                y = CaptionOffsetY;
+            }
+        }
+
+        var r = TDxRect.Empty;
+        r.Left = vtRect.Left + (Width - LineList.Width) / 2;
+        r.Top = vtRect.Top + (Height - LineList.Height) / 2;
+        r.Right = r.Left + LineList.Width;
+        r.Bottom = r.Top + LineList.Height;
+
+        // ---- 第一轮：非文本 token（原文 855-867）----
+        for (int i = 0; i < LineList.Count; i++)
+        {
+            var line = LineList[i];
+            for (int ii = 0; ii < line.Count; ii++)
+            {
+                var token = line[ii];
+                // 原文 859-861（被注释掉的调试输出）：
+                //   //if Token is TTokenImage then begin
+                //   //    OutputDebugString('Hello');
+                //   //end;
+                if (!(token is TTokenText))
+                {
+                    token.Paint(vtRect.Left, vtRect.Top);
+                }
+            }
+        }
+
+        // ---- 第二轮：文本 token，逐行居中（原文 869-886）----
+        var rLine = r;
+        for (int i = 0; i < LineList.Count; i++)
+        {
+            var line = LineList[i];
+
+            rLine.Left = r.Left + (r.Right - r.Left - line.Width) / 2;
+            rLine.Right = rLine.Left + line.Width;
+
+            int ptX = rLine.Left;
+            int ptY = rLine.Top;
+            for (int ii = 0; ii < line.Count; ii++)
+            {
+                var token = line[ii];
+                if (token is TTokenText)
+                {
+                    token.Paint(ptX + x, ptY + y);
+                    ptX = ptX + token.Width;
+                }
+            }
+
+            rLine.Top = rLine.Top + line.Height + DxImageButtonExUnit.ExpandLineHeight;
         }
     }
 }
