@@ -3,6 +3,9 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
+// 别名：与 Delphi TEncoding 逐字对照（FastIniFile.pas:1762-1773 的 Encoding 变量）
+using TEncoding = System.Text.Encoding;
+
 namespace GXX.Core.Util;
 
 /// <summary>
@@ -22,13 +25,43 @@ public class TFastIniFile : IDisposable
 
     public string FileName => _fileName;
 
+    /// <summary>
+    /// 读取并解析 INI 文件（原文 <c>FastIniFile.pas</c> 的 <c>TIniItems.LoadFromFile</c> /
+    /// <c>LoadFromStream</c>；<c>:1762-1773</c> 的 <c>COMPILER12_UP</c> 分支）。
+    ///
+    /// <para>
+    /// 修正记录（车道 p8-m2-itemprop-misc 请求 #4）：旧实现固定
+    /// <c>File.ReadAllLines(fileName, GBK)</c> ⇒ **无 BOM 的 UTF-8 文件被当 GBK 读**（乱码）。
+    /// 原文的 <c>TIniItems.LoadFromStream</c> 走的是
+    /// <c>Size := TEncoding.GetBufferEncoding(Buffer, Encoding)</c> +
+    /// <c>SetTextStr(Encoding.GetString(Buffer, Size, Length(Buffer) - Size))</c>，
+    /// 现按此接线（本工程编译配置为 Unicode Delphi ⇒ <c>COMPILER12_UP</c> 分支生效）。
+    /// </para>
+    /// <para>
+    /// 行切分沿用原文的 <c>SetTextStr</c> 语义（<c>#13</c>/<c>#10</c>/<c>#13#10</c>），
+    /// 与 <see cref="GXX.Core.Util.TStringList.SetTextStr"/> 同一实现。
+    /// </para>
+    /// <para>
+    /// ★ 不对称（登记 D-P8-15，本次范围外）：<c>Save</c> 仍固定写 GBK；Delphi 的 TIniItems 会把
+    /// 读入时的 Encoding 用于回写。即"从 UTF-8 文件载入的 INI 再落盘会变回 GBK"。
+    /// </para>
+    /// </summary>
     private void Load()
     {
         _sections.Clear();
         _sectionOrder.Clear();
         if (!File.Exists(_fileName)) return;
+
+        byte[] buffer = File.ReadAllBytes(_fileName);
+        TEncoding? encoding = null;
+        int skip = GXX.Core.EncodingHelper.TEncodingHelper.GetBufferEncoding(buffer, ref encoding, EncodingInit.GBK);
+        string text = encoding!.GetString(buffer, skip, buffer.Length - skip);
+
+        var lines = new TStringList();
+        lines.SetTextStr(text);
+
         string current = "";
-        foreach (string raw in File.ReadAllLines(_fileName, EncodingInit.GBK))
+        foreach (string raw in lines.AsEnumerable())
         {
             string line = raw.Trim();
             if (line.Length == 0 || line.StartsWith(';') || line.StartsWith('#')) continue;

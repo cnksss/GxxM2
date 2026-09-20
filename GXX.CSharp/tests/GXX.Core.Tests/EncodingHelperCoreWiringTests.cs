@@ -558,4 +558,98 @@ public sealed class EncodingHelperCoreWiringTests : IDisposable
         Assert.Equal(3, b.Count);
         Assert.Equal("", b[1]);
     }
+
+    // ==================================================================
+    // 请求 #4：TFastIniFile.Load 的编码嗅探（原文 FastIniFile.pas:1762-1773）
+    // ==================================================================
+
+    private string WriteIni(string name, byte[] bytes) => WriteBytes(name, bytes);
+
+    private static byte[] IniText(string encoding)
+    {
+        // 注意用「测试」（GBK = B2 E2 CA D4；B2 不是合法 UTF-8 首字节 → 不会被误判为 UTF-8）。
+        // 换成「值」（GBK = D6 B5，恰好是合法 UTF-8 两字节序列）会触发下面的原文缺陷用例。
+        string text = "[Setup]\r\nKey=测试\r\n";
+        return encoding switch
+        {
+            "gbk" => EncodingInit.GBK.GetBytes(text),
+            "u8" => TEncoding.UTF8.GetBytes(text),
+            "u8bom" => TEncoding.UTF8.GetPreamble().Concat(TEncoding.UTF8.GetBytes(text)).ToArray(),
+            _ => TEncoding.Unicode.GetPreamble().Concat(TEncoding.Unicode.GetBytes(text)).ToArray(),
+        };
+    }
+
+    [Theory]
+    [InlineData("gbk")]
+    [InlineData("u8")]
+    [InlineData("u8bom")]
+    [InlineData("u16")]
+    public void FastIniFile_Load_SniffsEncodingSoAllFourEncodingsParseIdentically(string kind)
+    {
+        // ★ 差异断言：同一份 INI 的 4 种落盘编码都必须解析出同样的键值
+        //   （旧实现固定 GBK ⇒ u8/u8bom/u16 会乱码、甚至读不到节名）
+        string path = WriteIni($"ini_{kind}.ini", IniText(kind));
+        var ini = new TFastIniFile(path);
+        Assert.True(ini.SectionExists("Setup"));
+        Assert.Equal("测试", ini.ReadString("Setup", "Key", ""));
+    }
+
+    [Fact]
+    public void FastIniFile_Load_Utf8NoBom_IsNotMojibake()
+    {
+        string path = WriteIni("ini_u8_only.ini", IniText("u8"));
+        var ini = new TFastIniFile(path);
+        Assert.NotEqual("?", ini.ReadString("Setup", "Key", "?"));
+        Assert.Equal("测试", ini.ReadString("Setup", "Key", ""));
+    }
+
+    [Fact]
+    public void FastIniFile_Load_GbkFileWhoseBytesLookLikeUtf8_IsMisdetected_OriginalFlaw()
+    {
+        // ★★ 原文缺陷（**不是**本车道移植引入的）：调用链
+        //    FastIniFile.pas:2432-2445 TFastIniFile.LoadValues
+        //      → :1743-1753 TIniItems.LoadFromFile(FileName, FEncoding)   （Create(AFileName) ⇒ FEncoding = nil）
+        //      → :1757-1760 LoadFromStream(Stream) → LoadFromStream(Stream, nil)
+        //      → :1762-1773 TEncoding.GetBufferEncoding(Buffer, Encoding)
+        //      → EncodingHelper.pas:167-179：BOM 三条不中 → **IsBufferUTF8 为真即判为 NoBomUTF8**。
+        //    「值」的 GBK 字节 = D6 B5，恰好是合法的 UTF-8 两字节序列（$C0..$DF + $80..$BF），
+        //    其后又全是 ASCII ⇒ 整份 GBK INI 被当 UTF-8 解码 ⇒ 乱码。
+        byte[] gbkValue = EncodingInit.GBK.GetBytes("值");
+        Assert.True(GXX.Core.EncodingHelper.TEncodingHelper.IsBufferUTF8(gbkValue));   // 缺陷成因
+        Assert.Equal(new byte[] { 0xD6, 0xB5 }, gbkValue);
+
+        string path = WriteIni("landmine.ini", EncodingInit.GBK.GetBytes("[Setup]\r\nKey=值\r\n"));
+        var ini = new TFastIniFile(path);
+        Assert.True(ini.SectionExists("Setup"));                 // 节名（纯 ASCII）仍可读到
+        Assert.NotEqual("值", ini.ReadString("Setup", "Key", "")); // 值乱码 —— **忠实复刻原文行为**
+    }
+
+    [Fact]
+    public void FastIniFile_Load_GbkFileWithUnsafeLeadByte_DecodesAsGbk()
+    {
+        // 对照组：「测试」= B2 E2 CA D4，B2 不是合法 UTF-8 首字节 ⇒ 按默认编码（GBK）正确解码
+        byte[] gbk = EncodingInit.GBK.GetBytes("测试");
+        Assert.False(GXX.Core.EncodingHelper.TEncodingHelper.IsBufferUTF8(gbk));
+        var ini = new TFastIniFile(WriteIni("safe.ini", IniText("gbk")));
+        Assert.Equal("测试", ini.ReadString("Setup", "Key", ""));
+    }
+
+    [Fact]
+    public void FastIniFile_Load_MissingFile_YieldsEmptyIni()
+    {
+        var ini = new TFastIniFile(Path.Combine(_dir, "absent.ini"));
+        Assert.False(ini.SectionExists("Setup"));
+        Assert.Equal(0, ini.ReadInteger("Setup", "Key", 0));
+    }
+
+    [Fact]
+    public void FastIniFile_Load_GbkAsciiFileParsesAsBefore()
+    {
+        // 回归：纯 ASCII/GBK 路径（绝大多数既有配置）行为不变
+        string path = Path.Combine(_dir, "reg.ini");
+        File.WriteAllText(path, "[Setup]\r\ncount=3\r\nname=Mir2\r\n", EncodingInit.GBK);
+        var ini = new TFastIniFile(path);
+        Assert.Equal(3, ini.ReadInteger("Setup", "count", -1));
+        Assert.Equal("Mir2", ini.ReadString("Setup", "name", ""));
+    }
 }
