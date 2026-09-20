@@ -528,8 +528,10 @@ public interface IMySqlStatement
     /// <summary><c>OrderBindParamDateTime</c>。</summary>
     void OrderBindParamDateTime(DateTime value);
 
-    /// <summary><c>OrderBindDouble</c>（MySqlM2DataDB 用到）。</summary>
-    void OrderBindDouble(double value);
+    /// <summary><c>OrderBindParamDouble</c>（MySqlM2DataDB.pas:1204 绑 <c>ItemFrom.DateTime</c> 用）。
+    /// ★ 与 SQLite 侧的 <c>OrderBindDouble</c> **名字确实不同** —— 原文两个方言的驱动 API 各叫各的
+    /// （SqliteM2DataDB.pas:1530 是 <c>OrderBindDouble</c>），故两个接缝各保留原文名，不强行统一。</summary>
+    void OrderBindParamDouble(double value);
 
     /// <summary><c>Query</c>：执行并准备结果集；无结果集语句返回 false。</summary>
     bool Query();

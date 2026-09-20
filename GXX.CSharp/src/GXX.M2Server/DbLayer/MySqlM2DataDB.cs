@@ -27,8 +27,8 @@
 //     单行是 `if X.Query and X.Fetch`（973、252）；
 //   * 无结果集语句直接 `Step`（Boolean，1208、1227 …）；
 //   * 探针语句 `sm.Reset`（256）+ finally（258）；语句结束一律 `Reset`（810/1023 …），**从不 Finalize**；
-//   * 绑定 OrderBindParamInt/Bool/Text（757/1188/1183 …）与 OrderBindParamDouble（1204，
-//     接缝 DbSeam.cs 把该方法命名为 OrderBindDouble，本文件不可改接缝，见 1204 处注释）；
+//   * 绑定 OrderBindParamInt/Bool/Text（757/1188/1183 …）与 OrderBindParamDouble（1204）
+//     —— 接缝 IMySqlStatement 的成员名与原文逐字一致；
 //     读列 OrderGetColumnValueInt/Bool/Text/Double（765/773/768/789 …）；
 //   * 时间列 ItemFromDate 两方言都用 Double（1204/998 与 SQLite 1302/873 一致），不是 DateTime；
 //   * 版本分支是**精确相等 =**（261/269/276/282/287），版本号集合（20180615/20190314/20190606/
@@ -1023,9 +1023,8 @@ public sealed class TMySqlM2DataDB : IM2DataDb
             _fStatementInsertItems.OrderBindParamText(userItem.ItemFrom.MapName);      // 1201
             _fStatementInsertItems.OrderBindParamText(userItem.ItemFrom.MonName);      // 1202
             _fStatementInsertItems.OrderBindParamText(userItem.ItemFrom.MakerName);    // 1203
-            // 1204：原文是 OrderBindParamDouble；接缝 DbSeam.cs 把该方法命名为 OrderBindDouble
-            //       （DbSeam.cs:519，本文件不可改接缝），语义相同（TDateTime 双精度直接绑）。
-            _fStatementInsertItems.OrderBindDouble(userItem.ItemFrom.DateTime);
+            // 1204：原文就是 OrderBindParamDouble（与 SQLite 侧的 OrderBindDouble 名字不同，两个接缝各保留原文名）。
+            _fStatementInsertItems.OrderBindParamDouble(userItem.ItemFrom.DateTime);
             _fStatementInsertItems.OrderBindParamInt(userItem.wInsuranceCount);        // 1205
             _fStatementInsertItems.OrderBindParamInt(userItem.wNewExpand3);            // 1206
             _fStatementInsertItems.OrderBindParamInt(userItem.wNewExpand4);            // 1207
