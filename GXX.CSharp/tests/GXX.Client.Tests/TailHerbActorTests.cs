@@ -604,8 +604,13 @@ public sealed class TailHerbActorTests
             Assert.True(u.Status.StartsWith("已落地") || u.Status.StartsWith("部分") || u.Status.Contains("未落地"),
                 $"{u.ClassName} 的状态未标注落地程度：{u.Status}");
         }
-        // 必须显式登记"基类虚方法受阻"这一条
-        Assert.Contains(units, u => u.Status.Contains("未落地") && u.Status.Contains("Scenes"));
+        // ★ 车道 p7-client-actor-family 第二轮：原先本行要求"**存在**一条 Status 含
+        //   `未落地` + `Scenes` 的登记"（即显式登记"基类虚方法受阻"）。
+        //   该受阻已解除（Actor.pas 5480-7095 的 4 个本体落于 Scenes/ActorFamilyBase.cs，
+        //   HerbActor.pas 7 个子类 override 落于 Scenes/ActorFamilyHerb*.cs），
+        //   故按工程惯例**反向更正**为：**不再有**处于未落地状态的条目。
+        //   依据：Actor.pas 5480-7095 + HerbActor.pas 157-1341。
+        Assert.DoesNotContain(units, u => u.Status.Contains("未落地"));
         // 未覆盖区间登记非空
         Assert.NotEmpty(HerbActorCoverage.UncoveredRanges);
     }
@@ -618,7 +623,18 @@ public sealed class TailHerbActorTests
             .Where(r => r.From <= r.To)      // 忽略占位行
             .OrderBy(r => r.From)
             .ToArray();
-        Assert.NotEmpty(ranges);
+
+        // ★ 车道 p7-client-actor-family 第二轮：HerbActor.pas 已**无未覆盖区间**
+        //   （19-29 常量/枚举、157-1341 全部方法体均已 1:1 落地）。
+        //   故本断言由"必须非空"更正为"为空即须由 AllRangesCovered 显式声明"。
+        //   依据：Actor.pas 5480-7095 + HerbActor.pas 157-1341 的落地登记见表 Units。
+        if (ranges.Length == 0)
+        {
+            Assert.True(HerbActorCoverage.AllRangesCovered,
+                "未覆盖区间为空时必须由 AllRangesCovered 显式声明（不得静默为空）");
+            return;
+        }
+
         foreach (var r in ranges)
         {
             Assert.InRange(r.From, 1, 1341);
