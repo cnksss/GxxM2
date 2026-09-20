@@ -28,7 +28,12 @@ namespace GXX.Client.DxComponent;
 //   5735-5754  TDIB.DrawAntialias
 //   5756-5786  TDIB.FilterLine
 //   5788-5846  TDIB.FilterRect
+//   5848-5858  TDIB.InitLight（256x256 FLUTDist LUT）
+//   5860-5915  TDIB.DrawLights
 //   5917-5934  TDIB.DrawOn（DrawTo 的落点，故随切片 A 落地）
+//   5938-5966  TDIB.Darkness
+//   5940-5945  IntToByte（单元级）—— **不在此处**：已在 DIB.cs:494 落地；TDIB 的同名方法在 DIB.Effects.cs:2818
+//   5968-5973  TrimInt（单元级）—— **不在此处**：已在 DIB.cs:502 落地；TDIB 的同名方法在 DIB.Effects.cs:2803
 //
 // 语义前提（**全部为原文 Delphi 7 语义，不是 C# 默认语义**）：
 //   1. 整型提升：Delphi 7 的 `+ - * div mod shl shr` 在操作数小于 Integer 时**提升到 Integer**
@@ -1240,6 +1245,98 @@ public partial class TDIB
     }
 
     // =========================================================================================
+    // DIB.pas 5848-5858 —— InitLight（256x256 FLUTDist LUT）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 5848-5858 1:1。
+    /// 建 256x256 的 FLUTDist LUT：`Round(Sqrt(Sqr(I*10) + Sqr(j*10)))`。
+    /// Sqr 是**整数**乘法（最大 2550^2 = 6,502,500；两项和 ≤ 13,005,000，不溢出 Int32）；
+    /// Sqrt 后 Round —— 整数开方不可能是 .5，故银行家舍入在此不可观察。
+    /// 两个计数直接在 TDIB 上落地（LG_COUNT / LG_DETAIL，DIB.pas 131-132）。
+    /// </summary>
+    public void InitLight(int Count, int Detail)
+    {
+        LG_COUNT = Count;
+        LG_DETAIL = Detail;
+
+        for (int I = 0; I <= 255; I++) // Build Lightning LUT
+            for (int j = 0; j <= 255; j++)
+                FLUTDist[I, j] = DibFusionSupport.Round(Math.Sqrt(
+                    unchecked(DibFusionSupport.Sqr(I * 10) + DibFusionSupport.Sqr(j * 10))));
+    }
+
+    // =========================================================================================
+    // DIB.pas 5860-5915 —— DrawLights
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 5860-5915 1:1（`{$IFNDEF DelphiX_Delphi3}` 的那一支）。
+    /// 逐 (LG_DETAIL+1)x(LG_DETAIL+1) 的格子推进：格中心先按各光源"距离 LUT"提亮，
+    /// 再把整格的 B/G/R 三通道分别乘 R/G/B 系数（`shr 8`，写回 Byte **会回绕**，故显式截断）。
+    /// 原文行/列方向的不对称：
+    ///   * 行用 `Self.ScanLine[(LG_DETAIL+1)*I - o]` —— 该下标**会**被 GetScanLine 的范围检查拦下
+    ///     （`Height mod (LG_DETAIL+1) = 0` 时 I 的最大值恰好把行号顶到 Height，抛 SScanline）；
+    ///   * 列用 `P[o][n]`（裸字节指针）—— 完全**无**边界检查，`Width mod (LG_DETAIL+1) = 0` 时
+    ///     会越过行尾（原文如此，DIB.pas:5901-5907）。
+    /// **有意偏离（已登记）**：原文 `SetLength(P, LG_DETAIL)` 只给 LG_DETAIL 个元素，
+    /// 而紧接着 `for o := 0 to LG_DETAIL` 要写 LG_DETAIL+1 个（DelphiX_Delphi3 分支的静态数组
+    /// `array[0..4096]` 就是 4097 个）—— 原文是**越界写**。托管侧按 LG_DETAIL+1 分配，
+    /// 保持可观察行为相同而不破坏托管堆（否则必抛 IndexOutOfRangeException）。
+    /// 其它原文缺陷：`LG_COUNT &gt; FLight.Length` 会越界读光源数组（Delphi 无检查，C# 抛
+    /// IndexOutOfRangeException）；`FLight[l].Size1/Size2 = 0` 抛除零。
+    /// </summary>
+    public unsafe void DrawLights(TLightSource[] FLight, int AmbientLight)
+    {
+        // 原文 `SetLength(P, LG_DETAIL)`（越界写）；托管侧 +1（见方法注释）
+        byte*[] P = new byte*[LG_DETAIL + 1];
+
+        int AR = DibFusionSupport.GetRValue(AmbientLight);
+        int AG = DibFusionSupport.GetGValue(AmbientLight);
+        int AB = DibFusionSupport.GetBValue(AmbientLight);
+
+        for (int I = this.Height / (LG_DETAIL + 1); I >= 1; I--)
+        {
+            for (int o = 0; o <= LG_DETAIL; o++)
+                P[o] = (byte*)ScanLine((LG_DETAIL + 1) * I - o);
+
+            for (int j = this.Width / (LG_DETAIL + 1); j >= 1; j--)
+            {
+                int R = AR;
+                int G = AG;
+                int B = AB;
+
+                for (int l = LG_COUNT - 1; l >= 0; l--) // Check the lightsources
+                {
+                    int D1 = Math.Abs(j * (LG_DETAIL + 1) - FLight[l].X) / FLight[l].Size1;
+                    int D2 = Math.Abs(I * (LG_DETAIL + 1) - FLight[l].Y) / FLight[l].Size2;
+                    if (D1 > 255) D1 = 255;
+                    if (D2 > 255) D2 = 255;
+
+                    int m = 255 - FLUTDist[D1, D2];
+                    if (m < 0) m = 0;
+
+                    R += DIB.PosValue(DibFusionSupport.GetRValue(FLight[l].Color) - R) * m >> 8;
+                    G += DIB.PosValue(DibFusionSupport.GetGValue(FLight[l].Color) - G) * m >> 8;
+                    B += DIB.PosValue(DibFusionSupport.GetBValue(FLight[l].Color) - B) * m >> 8;
+                }
+
+                for (int q = LG_DETAIL; q >= 0; q--)
+                {
+                    int n = 3 * (j * (LG_DETAIL + 1) - q);
+
+                    for (int o = LG_DETAIL; o >= 0; o--)
+                    {
+                        P[o][n] = unchecked((byte)((P[o][n] * B) >> 8));
+                        P[o][n + 1] = unchecked((byte)((P[o][n + 1] * G) >> 8));
+                        P[o][n + 2] = unchecked((byte)((P[o][n + 2] * R) >> 8));
+                    }
+                }
+            }
+        }
+    }
+
+    // =========================================================================================
     // DIB.pas 5917-5934 —— DrawOn（DrawTo 的落点）
     // =========================================================================================
 
@@ -1275,6 +1372,49 @@ public partial class TDIB
 
         DibFusionCanvas.Seam.BitBlt(DestCanvas.Handle, Dest.Left, Dest.Top, Dest.Right, Dest.Bottom,
             SrcCanvas.Handle, Xsrc, Ysrc, DibFusionCanvas.SRCCOPY);
+    }
+
+    // ---- 供测试与其它分片读取私有状态（与 DIB.Core.cs 的 `SharedImage` 访问器同一做法） ----
+
+    /// <summary>DIB.pas 130 —— `FLUTDist[I, j]`（InitLight 建立的 256x256 光照距离 LUT）。</summary>
+    public int FLUTDistValue(int I, int j) => FLUTDist[I, j];
+
+    /// <summary>DIB.pas 131 —— LG_COUNT。</summary>
+    public int LightCount => LG_COUNT;
+
+    /// <summary>DIB.pas 132 —— LG_DETAIL。</summary>
+    public int LightDetail => LG_DETAIL;
+
+    // =========================================================================================
+    // DIB.pas 5938-5966 —— Darkness（"added effect for DIB"）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 5949-5966 1:1（原文 `{standalone routine}`）。
+    /// **只处理 24bpp**（其它位深直接 Exit）。
+    /// 原文的 `R/G/B` 局部变量其实取的是内存序 B/G/R（`p0[X*3]` 是 B），
+    /// 故三条赋值虽然写着 R/G/B，实际是"同一公式分别作用在三个字节上"—— 原文如此（DIB.pas:5958-5963）。
+    /// 公式 `Byte - (Byte * Amount) div 255`（**整数除**），再经 IntToByte 夹到 0..255。
+    /// 这里的裸 `IntToByte(...)` 在原文解析为 **TDIB 的同名方法**（DIB.pas:159 声明 / 4910-4918 实现），
+    /// 而非单元级函数（DIB.pas:5940-5945）；两者实现等价（DIB.cs:494 / DIB.Effects.cs:2818）。
+    /// 调用点：`TDIB.DoDarkness`（DIB.pas:6364）、`TDIB.DoSpotLight`（DIB.pas:6925）。
+    /// </summary>
+    public unsafe void Darkness(int Amount)
+    {
+        if (this.BitCount != 24) return;
+        for (int Y = 0; Y <= this.Height - 1; Y++)
+        {
+            byte* p0 = (byte*)ScanLine(Y);
+            for (int X = 0; X <= this.Width - 1; X++)
+            {
+                int R = p0[X * 3];
+                int G = p0[X * 3 + 1];
+                int B = p0[X * 3 + 2];
+                p0[X * 3] = IntToByte(R - (R * Amount) / 255);
+                p0[X * 3 + 1] = IntToByte(G - (G * Amount) / 255);
+                p0[X * 3 + 2] = IntToByte(B - (B * Amount) / 255);
+            }
+        }
     }
 
     // =========================================================================================

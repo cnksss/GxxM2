@@ -1294,6 +1294,239 @@ public class DxCtlDibFusionTests
     }
 
     // =========================================================================================
+    // DIB.pas 5848-5858 —— InitLight
+    // =========================================================================================
+
+    [Fact]
+    public void InitLight_建立256x256距离LUT()
+    {
+        var d = Mk24(1, 1);
+        d.InitLight(0, 1);
+
+        Assert.Equal(0, d.LightCount);
+        Assert.Equal(1, d.LightDetail);
+
+        Assert.Equal(0, d.FLUTDistValue(0, 0));     // Round(Sqrt(0))
+        Assert.Equal(10, d.FLUTDistValue(1, 0));    // Round(Sqrt(100))
+        Assert.Equal(10, d.FLUTDistValue(0, 1));
+        Assert.Equal(50, d.FLUTDistValue(3, 4));    // Round(Sqrt(900+1600)) = 50
+        Assert.Equal(3606, d.FLUTDistValue(255, 255)); // Round(Sqrt(2*2550^2)) = Round(3606.24)
+    }
+
+    [Fact]
+    public void InitLight_只写LUT不触碰像素()
+    {
+        var d = Mk24(2, 1);
+        Fill(d, 11, 22, 33);
+        d.InitLight(3, 2);
+        AssertPx(d, 0, 0, 11, 22, 33, "InitLight 不动像素");
+        Assert.Equal(3, d.LightCount);
+        Assert.Equal(2, d.LightDetail);
+    }
+
+    [Fact]
+    public void InitLight_重复调用覆盖计数()
+    {
+        var d = Mk24(1, 1);
+        d.InitLight(5, 3);
+        d.InitLight(1, 0);
+        Assert.Equal(1, d.LightCount);
+        Assert.Equal(0, d.LightDetail);
+        // LUT 每次都重算（与计数无关）
+        Assert.Equal(50, d.FLUTDistValue(3, 4));
+    }
+
+    // =========================================================================================
+    // DIB.pas 5860-5915 —— DrawLights
+    // =========================================================================================
+
+    /// <summary>5x5 全 100 灰、无环境光、一盏点光源（X=4,Y=4,Size=1,红）。</summary>
+    private static TDIB LightsFixture(out TLightSource[] lights)
+    {
+        var d = Mk24(5, 5);
+        Fill(d, 100, 100, 100);
+        lights = new[]
+        {
+            new TLightSource { X = 4, Y = 4, Size1 = 1, Size2 = 1, Color = Col(255, 0, 0) }
+        };
+        return d;
+    }
+
+    [Fact]
+    public void DrawLights_逐格提亮且行列均从1起_第0行列不被直接写()
+    {
+        var d = LightsFixture(out var lights);
+        d.InitLight(1, 1);
+        d.DrawLights(lights, Col(0, 0, 0));
+
+        // 5 div 2 = 2 → I=2,1；行号 = 2I-o → {4,3} 与 {2,1}；行 0 从不作为"行 Y"
+        // 5 div 2 = 2 → j=2,1；列号 = j*2-q → {4,3} 与 {2,1}；列 0 从不被直写
+        // I=2,j=2 → D1=0,D2=0 → FLUTDist=0 → m=255 → R=254 → (100*254)>>8 = 99
+        AssertPx(d, 3, 4, 99, 0, 0, "I=2,j=2：q=1 → 像素 3");
+        AssertPx(d, 4, 4, 99, 0, 0, "I=2,j=2：q=0 → 像素 4");
+        // I=2,j=1 → D1=2,D2=0 → FLUTDist=20 → m=235 → R=234 → 91
+        AssertPx(d, 1, 4, 91, 0, 0, "I=2,j=1");
+        AssertPx(d, 2, 4, 91, 0, 0, "...");
+        // I=1,j=2 → D1=0,D2=2 → FLUTDist=20 → m=235 → 91
+        AssertPx(d, 3, 2, 91, 0, 0, "I=1,j=2");
+        AssertPx(d, 4, 1, 91, 0, 0, "I=1 的第二行（o=1）是行 1");
+        // I=1,j=1 → FLUTDist[2,2]=28 → m=227 → R=226 → (100*226)>>8 = 88
+        AssertPx(d, 1, 2, 88, 0, 0, "I=1,j=1");
+        AssertPx(d, 2, 1, 88, 0, 0, "...");
+        // 行 0 与列 0 不被直接写
+        AssertPx(d, 0, 4, 100, 100, 100, "列 0（n 从 3 起）");
+        AssertPx(d, 3, 0, 100, 100, 100, "行 0（行号 2I-o ≥ 1）");
+    }
+
+    [Fact]
+    public void DrawLights_无光源时只剩环境光系数()
+    {
+        var d = Mk24(5, 5);
+        Fill(d, 100, 100, 100);
+        d.InitLight(0, 1);
+        d.DrawLights(Array.Empty<TLightSource>(), Col(128, 64, 32));
+
+        // R=AR=128,G=64,B=32 → 字节序 (B,G,R) = ((100*32)>>8, (100*64)>>8, (100*128)>>8) = (12,25,50)
+        AssertPx(d, 3, 4, 50, 25, 12, "环境光作为三通道乘系数");
+        AssertPx(d, 1, 2, 50, 25, 12, "...");
+        AssertPx(d, 0, 0, 100, 100, 100, "行列 0 保持原样");
+    }
+
+    [Fact]
+    public void DrawLights_行号超出图像高度时抛SScanline()
+    {
+        // Height=4 是 (LG_DETAIL+1)=2 的整数倍 → I 的最大值 2 把行号顶到 4
+        var d = Mk24(5, 4);
+        Fill(d, 100, 100, 100);
+        d.InitLight(1, 1);
+        var lights = new[]
+        {
+            new TLightSource { X = 4, Y = 4, Size1 = 1, Size2 = 1, Color = Col(255, 0, 0) }
+        };
+        Assert.Throws<EInvalidGraphicOperation>(() => d.DrawLights(lights, 0));
+    }
+
+    [Fact]
+    public void DrawLights_光源Size为0抛除零()
+    {
+        var d = LightsFixture(out var lights);
+        lights[0].Size1 = 0;
+        d.InitLight(1, 1);
+        Assert.Throws<DivideByZeroException>(() => d.DrawLights(lights, 0));
+    }
+
+    [Fact]
+    public void DrawLights_LG_COUNT大于光源数组长度时越界读()
+    {
+        var d = LightsFixture(out var lights);
+        d.InitLight(5, 1);   // 只有 1 个光源
+        Assert.Throws<IndexOutOfRangeException>(() => d.DrawLights(lights, 0));
+    }
+
+    [Fact]
+    public void DrawLights_宽度为步长整数倍时行尾越界写入上一行()
+    {
+        // Width=4 是 (LG_DETAIL+1)=2 的整数倍 → j=2,q=0 → n = 3*4 = 12 = 行宽
+        // 4px@24bpp 行宽 12 → 行 Y 的字节 12..14 正是**上一行**的像素 0
+        var d = Mk24(4, 5);
+        Fill(d, 100, 100, 100);
+        d.InitLight(1, 1);
+        var lights = new[]
+        {
+            new TLightSource { X = 4, Y = 4, Size1 = 1, Size2 = 1, Color = Col(255, 0, 0) }
+        };
+
+        d.DrawLights(lights, Col(0, 0, 0));   // 原文无列边界检查 → 不应抛
+
+        AssertPx(d, 1, 4, 91, 0, 0, "j=1 → 像素 1");
+        AssertPx(d, 3, 4, 99, 0, 0, "j=2,q=1 → 像素 3");
+        AssertPx(d, 0, 4, 100, 100, 100, "行 4 的像素 0 不被直写（行 5 不存在）");
+        // 行 1 的越界写落到行 0 的像素 0；I=1,j=2 时 R=234 → (100*234)>>8 = 91
+        AssertPx(d, 0, 0, 91, 0, 0, "行尾越界写进上一行的像素 0（DIB.pas:5901-5907）");
+    }
+
+    // =========================================================================================
+    // DIB.pas 5938-5966 —— Darkness
+    // =========================================================================================
+
+    [Fact]
+    public void Darkness_非24bpp直接退出()
+    {
+        foreach (int bc in new[] { 1, 4, 8, 16, 32 })
+        {
+            var d = new TDIB();
+            if (bc == 16) d.PixelFormat = DIB.MakeDIBPixelFormat(5, 6, 5);
+            d.SetSize(2, 1, bc);
+            d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+            uint before = d.GetPixel(0, 0);
+
+            d.Darkness(255);
+
+            // 位深校验通过且非 24bpp → 直接 Exit（DIB.pas:5954），像素与内容不变
+            Assert.Equal(before, d.GetPixel(0, 0));
+            Assert.Equal(bc, d.BitCount);
+        }
+    }
+
+    [Fact]
+    public void Darkness_公式为字节减字节乘Amount除255()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+
+        d.Darkness(51);
+        // 100 - (100*51) div 255 = 100 - 20 = 80
+        AssertPx(d, 0, 0, 80, 80, 80, "DIB.pas:5961-5963");
+
+        var d2 = Mk24(1, 1);
+        Fill(d2, 100, 100, 100);
+        d2.Darkness(255);
+        AssertPx(d2, 0, 0, 0, 0, 0, "255 → 全黑");
+
+        var d3 = Mk24(1, 1);
+        Fill(d3, 100, 100, 100);
+        d3.Darkness(0);
+        AssertPx(d3, 0, 0, 100, 100, 100, "0 → 不变");
+    }
+
+    [Fact]
+    public void Darkness_三个通道各自独立()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 50, 10)));
+        d.Darkness(51);
+        // R: 200 - (200*51)div255 = 200-40 = 160
+        // G:  50 - (50*51)div255  =  50-10 =  40
+        // B:  10 - (10*51)div255  =  10- 2 =   8
+        AssertPx(d, 0, 0, 160, 40, 8, "Amount 对三通道同式作用");
+    }
+
+    [Fact]
+    public void Darkness_负数Amount反而提亮_超界被夹()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+        d.Darkness(-255);   // 100 - (100*-255)div255 = 100+100 = 200
+        AssertPx(d, 0, 0, 200, 200, 200, "负 Amount 提亮（DIB.pas:5961）");
+
+        var d2 = Mk24(1, 1);
+        Fill(d2, 100, 100, 100);
+        d2.Darkness(1000);  // 100 - 392 = -292 → IntToByte 夹到 0
+        AssertPx(d2, 0, 0, 0, 0, 0, "IntToByte 下界夹取");
+    }
+
+    [Fact]
+    public void Darkness_多像素逐行处理()
+    {
+        var d = Mk24(2, 2);
+        Fill(d, 255, 0, 128);
+        d.Darkness(51);
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 2; x++)
+                AssertPx(d, x, y, 204, 0, 103, "(255-51=204；128-(128*51 div 255)=128-25=103)");
+    }
+
+    // =========================================================================================
     // DIB.pas 4940-4955 —— TCustomDXDIB
     // =========================================================================================
 
