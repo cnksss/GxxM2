@@ -767,13 +767,18 @@ public class ParadoxDataSetCursorTests
         finally { Marshal.FreeHGlobal(buf); }
     }
 
-    [Fact] // 原文 :1045 边界之外：空表（NumRecords=0）下 First 直接 Eof；
+    [Fact] // 原文 :1045 边界之外：空表（NumRecords=0）下 First 直接 Eof。
             // 差异断言（原文缺陷 D19）：原文 :1005 的 GetMem 不清零，而 :947-949 的 grEOF
-            // 分支**不写 RecordIndex** ⇒ 原 RecNo 读到未初始化内存（不确定值）。
-            // 托管侧在 AllocRecordBuffer 显式清零 ⇒ RecNo 恒为 0（可重复）。
+            // 分支**不写 RecordIndex** ⇒ 原 RecNo 读到**本次刚分配、尚未写过**的内存
+            // （实测随分配器复用而变：166957392 / -35615349 / 0x656C6F74；约 1/6 概率）。
+            // 托管侧在 AllocRecordBuffer 分配即清零 ⇒ RecNo 与整块头部都确定。
+            //
+            // 不变量：**新分配的记录缓冲在返回时整块都已定义**（不只是 RecordIndex）。
+            // 之所以断言整块而不只断 RecNo：BookmarkFlag(+4..+5) 与 InternalSetToRecord(:1030)
+            // 读的是同一个头部，只兜底 RecNo 会漏掉它们。
     public void EmptyTable_First_IsEof_NoRecords()
     {
-        // 连做 3 次以捕捉"未初始化内存"类抖动（本车道曾在约 1/6 概率下拿到 166957392）
+        // 连做 3 次：分别验证"首次分配"、"同进程连续分配"两种情况
         for (int round = 0; round < 3; round++)
         {
             using var db = new PxSyntheticDb("empty" + round);
@@ -782,9 +787,46 @@ public class ParadoxDataSetCursorTests
             var ds = PxOpen.OpenAndFirst(db);
             Assert.Equal(0, ds.RecordCount);
             Assert.True(ds.Eof);
+
+            // 整块头部必须已定义：前 4 字节 = RecordIndex = 0，后 2 字节 = bfEOF（原文 :994 写入）
+            var header = PxBuffer.ToArray(ds.ActiveBuffer, PxRecordHeaderOps.Size);
+            Assert.Equal(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x02, 0x00 }, header);
+            Assert.Equal(0, BitConverter.ToInt32(header, 0));
+            Assert.Equal((ushort)TBookmarkFlag.bfEOF, BitConverter.ToUInt16(header, 4));
+
             Assert.Equal(0, ds.RecNo);                              // D19：必须确定性地为 0
-            Assert.Equal(TBookmarkFlag.bfEOF, ReadBookmark(ds));     // 原文 :994 的 GJK 写入
+            Assert.Equal(TBookmarkFlag.bfEOF, ReadBookmark(ds));
         }
+    }
+
+    [Fact] // 差异断言（D19 的**独立**证据，不依赖 RecNo）：连续分配的两块记录缓冲必须互不干扰。
+            // 若 AllocRecordBuffer 不清零，块 2 会复用块 1 释放后的堆内存并把残留当 RecordIndex。
+    public void AllocRecordBuffer_FreshBufferIsFullyDefined_NotRecycledGarbage()
+    {
+        // 块 1：带一条**含可打印文本**的记录，让堆里出现 ASCII 残留（复现"文本状垃圾值"的来源）
+        using (var db1 = new PxSyntheticDb("recycle1"))
+        {
+            db1.RecordSize = 4;
+            db1.Field(PxFieldType.pxfAlpha, 4).Name("MagName")
+               .Record(new byte[] { (byte)'t', (byte)'o', (byte)'l', (byte)'e' })
+               .Write();
+            var ds1 = PxOpen.OpenAndFirst(db1);
+            Assert.Equal("tole", ds1.FieldByName("MagName").AsString);
+        }   // 释放：记录缓冲 + .DB 流 + 分配器里的托管数组都回到堆
+
+        // 块 2：空表（0 条记录）⇒ 走 grEOF，不写 RecordIndex
+        using var db2 = new PxSyntheticDb("recycle2");
+        db2.RecordSize = 4;
+        db2.Field(PxFieldType.pxfAlpha, 4).Name("MagName").Write();
+        var ds2 = PxOpen.OpenAndFirst(db2);
+
+        Assert.True(ds2.Eof);
+        // 若不清零，这里很可能读到上一步 't','o','l','e' 的残留（0x656C6F74）；
+        // 清零后必须是 0。**这是对"残留复用"这一根因机制的直接断言。**
+        Assert.Equal(0, ds2.RecNo);
+        Assert.NotEqual(0x656C6F74, ds2.RecNo);
+        var header = PxBuffer.ToArray(ds2.ActiveBuffer, PxRecordHeaderOps.Size);
+        Assert.Equal(new byte[] { 0x00, 0x00, 0x00, 0x00, 0x02, 0x00 }, header);
     }
 
     [Fact] // 原文 :1043-1048 SetRecNo：1 <= Value < RecordCount+1 才生效

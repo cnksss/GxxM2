@@ -73,16 +73,36 @@
 //      直接把 Result 设成 grBOF/grEOF —— **连 RecordIndex 都不写**就返回（只有 :992-994
 //      的 else 分支清零了用户记录区，不含头部 6 字节）。于是 :1052 的
 //      `GetRecNo := PPxRecordHeader(ActiveBuffer)^.RecordIndex` 会读到**刚分配的未初始化内存**。
-//      实测：空表 `First` 后 RecNo 在 0 与随机值（如 166957392）之间抖动（约 1/6 概率）。
-//      Delphi 下 `GetMem` 同样不清零 ⇒ 原文行为同样是**不确定的**；托管侧为可重复，
-//      在 AllocRecordBuffer 里显式清零（见该方法的注释），并加回归测试。
+//      Delphi 下 `GetMem` 同样不清零 ⇒ **原文在该路径下本就没有确定值**（未定义行为），
+//      不是"某个固定垃圾值"。托管侧在 AllocRecordBuffer 里显式清零，把它固定为 0。
+//
+//      ★ 根因的最终定位（供复核者，2026-09 集成方复核后回填）：
+//      根因**不是** use-after-free，也**不是**"ActiveBuffer 指向陈旧/已释放内存"。
+//      实测链路（三段互证）：
+//        (a) `Next()` 先 `if (FActiveBuffer == IntPtr.Zero) FActiveBuffer = AllocRecordBuffer();`
+//            —— 每个实例各自分配，且 `TDataSet.Close()` 会把 FActiveBuffer 置回 Zero；
+//            空表用例从头到尾只分配一次，**全生命周期内没有第二个指针源**；
+//        (b) 在 grEOF 路径现场打印 `ActiveBuffer` 的原始 6 字节，得到
+//            `00-00-00-00-02-00`（RecordIndex=0、BookmarkFlagRaw=bfEOF=2）—— 布局与写入都正确；
+//        (c) **因果实验**：仅把 `AllocRecordBuffer` 里的 `FillChar` 注释掉，连跑 2 次即复现
+//            `Expected: 0, Actual: -35615349`；恢复 FillChar 后连跑 27+ 次恒绿。
+//      ⇒ 结论：读到的就是**本次 `AllocHGlobal` 返回的、尚未被任何代码写过的内存**。
+//        它之所以像"文本残留"，是因为**同一进程内的分配器复用**：`AllocHGlobal`/`FreeHGlobal`
+//        背后是进程堆，别的测试（含 `PxSyntheticDb` 里大量 `byte[]`、GBK 字段名如 `MagName`）
+//        刚释放过含可打印字符的块，常数级复用后那 4 字节恰好可读成 ASCII。
+//        这与并行度相关（并行跑时堆活动更杂、复用模式更随机），也解释了"值每次不同"。
+//      ⇒ 这正是一个 **use-of-uninitialized-memory**，而非 stale pointer；处置方式（分配即清零）
+//        也是该缺陷的标准修法。
 //  D20 :1052 `GetRecNo` 在 ActiveBuffer 未分配（nil）时**解引用空指针**。
 //      原文从不查询"打开但未 First"状态下的 RecNo，故未触发；托管侧同样不额外保护。
 // ============================================================================
 //
-// 对 D19 的处理（**有意偏离原文，已登记**）：原文依赖未初始化内存，这在托管侧表现为
+// 对 D19 的处理（**有意偏离原文，已登记**）：原文依赖未初始化内存，在托管侧表现为
 // 不确定测试结果。托管侧在 `AllocRecordBuffer` 里清零整个缓冲，使 grBOF/grEOF 路径下
 // `RecordIndex = 0`（= Delphi 下"恰好拿到清零内存"时的取值），**可重复且不缩小行为面**。
+// 为什么不改 `GetRecNo` 去"兜底返回 0"：那只是掩盖症状——缓冲里 `RecordIndex` 之外的
+// 5 字节（BookmarkFlag）同样未被定义，且 `InternalSetToRecord`(:1030) 也解引用同一头部；
+// 正确的最小修法是**让"新分配的记录缓冲"这个对象本身有确定内容**。
 // ============================================================================
 
 using System;
@@ -583,11 +603,16 @@ public sealed partial class TParadoxDataSet : TDataSet
     /// <summary>
     /// 原文 :686/:1003 AllocRecordBuffer（<c>GetMem(Result, SizeOf(TPxRecordHeader) + RecordSize)</c>）。
     ///
-    /// ⚠ 与原文的**唯一有意偏离**（缺陷 D19）：`GetMem` 不清零，而原文 :937-957 在
-    /// <c>FCursor &lt;= 1</c>（grBOF）/ <c>FCursor &gt;= RecordCount</c>（grEOF）分支里**不写
-    /// RecordIndex** 就直接返回，于是 :1052 的 GetRecNo 读到未初始化内存。
-    /// 托管侧显式清零整个缓冲，使该路径下 RecordIndex = 0，行为**可重复**；
-    /// 这不改变任何"会写入"的路径，只是把原文的不确定值固定为 0。
+    /// ⚠ 与原文的**有意偏离**（缺陷 D19，根因见文件头）：
+    /// <c>GetMem</c> 不清零，而原文 :937-957 在 <c>FCursor &lt;= 1</c>（grBOF）/
+    /// <c>FCursor &gt;= RecordCount</c>（grEOF）分支里**不写 RecordIndex** 就直接返回，
+    /// 于是 :1052 的 GetRecNo 读到**本次刚分配、尚未写过**的非托管内存
+    /// （实测值随分配器复用而变，如 166957392 / -35615349 / 0x656C6F74）。
+    ///
+    /// 这不是 stale pointer / use-after-free：空表路径下 `FActiveBuffer` 全生命周期
+    /// 只有这一次分配（见文件头 (a)(b)(c) 三段证据）。托管侧因此选择**分配即清零**，
+    /// 让"新记录缓冲"这一对象自带确定内容 —— 这同时覆盖了 BookmarkFlag（+4..+5）
+    /// 与 `InternalSetToRecord`(:1030) 读同一头部的路径，比在 GetRecNo 里兜底更彻底。
     /// </summary>
     protected override IntPtr AllocRecordBuffer()
     {
