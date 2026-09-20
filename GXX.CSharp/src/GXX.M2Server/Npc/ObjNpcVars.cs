@@ -510,6 +510,19 @@ public partial class TNormNpc
     }
 
     /// <summary>
+    /// 原文 `procedure Click(PlayObject: TPlayObject); virtual;`（ObjNpc.pas:4431-4442）。
+    /// <para>本车道只落"虚方法外壳"：本体（把 `PlayObject` 的 6 个脚本标签字段归零后 `GotoLable(Player,'@main',False)`）
+    /// 未覆盖 —— 那 6 个字段（`m_nScriptGotoCount`/`m_sScriptGoBackLable`/`m_sScriptCurrLable`/`m_sRandomString`/
+    /// `m_sInputData`/`m_sNpcSelectItemName`）在托管侧 `TPlayObject` 上**一个都没有**，属 `ObjPlayer.pas` 面（见报告 §8.6）。</para>
+    /// <para>做成虚方法的理由：`TMerchant.Click`(3228-3232)、`TGuildOfficial.Click`(10049-10053)、
+    /// `TCastleOfficial.Click`(1107-1116) 三个覆写都用 `inherited`。</para>
+    /// </summary>
+    public virtual void Click(TPlayObject PlayObject)
+    {
+        NpcSeams.Click(this, PlayObject);
+    }
+
+    /// <summary>
     /// 原文 `function GetLineVariableText(PlayObject: TPlayObject; sMsg: string;
     /// var IsBreakParseVar: Boolean): string;`（ObjNpc.pas:5981-6009）。
     /// <para><b>照抄的原文细节</b>：`nStartPos := 1`（**1-based**）；`GetVariableText` 返回 False 时
