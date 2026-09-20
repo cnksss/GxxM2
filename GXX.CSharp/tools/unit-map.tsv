@@ -76,12 +76,15 @@ StringListHelper	par/p3-m2-sweep
 ClientPickItemsCfg	par/p3-m2-sweep
 ConfigMonGen	par/p3-m2-sweep
 # ---- DxComponent tree, owned wholesale by one lane ----
-DxMagicBall	par/p2-dxcontrols-rest
+# DONE (landed on main, now detected by E1/E2 -- rows removed):
+#   DxMagicBall, AsphyreTimer, StreamClipbrd, DxControlClpbrd
 DxImageButtonEx	par/p2-dxcontrols-rest
+# BLOCKED on the deferred DxComponent<->LoadDx dedup batch (see ledger 14.4/16.2):
 DxSwitchButton	par/p2-dxcontrols-rest
-DxControlClpbrd	par/p2-dxcontrols-rest
 DxGroupAttackProgress	par/p2-dxcontrols-rest
-AsphyreTimer	par/p2-dxcontrols-rest
+# PENDING integrator decision (lane judged "not worth porting"; NOT yet accepted):
 LoginDlg	par/p2-dxcontrols-rest
-StreamClipbrd	par/p2-dxcontrols-rest
 GuiManage	par/p2-dxcontrols-rest
+# ---- P5 wave ----
+MirReturnConfigDlg	par/p5-client-mirreturn
+uFrmCustomMagic	par/p5-m2-custommagic
