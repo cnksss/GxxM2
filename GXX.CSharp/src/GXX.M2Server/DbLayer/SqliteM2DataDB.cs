@@ -109,15 +109,16 @@ public sealed class TSqliteM2DataDB : IM2DataDb
     }
 
     /// <summary>SqliteM2DataDB.pas:118-121 <c>GetAuctionDBClass</c> → <c>TSqliteAuctionDB</c>。</summary>
-    /// <remarks>★ 临时代码：<c>TSqliteAuctionDB</c> 尚未落地，先返回 <c>object</c> 以保持整树可编译；
-    /// 落地后必须改回 <c>typeof(TSqliteAuctionDB)</c>（本车道自用，见报告）。</remarks>
-    protected Type GetAuctionDBClass() => typeof(object);
+    protected Type GetAuctionDBClass() => typeof(TSqliteAuctionDB);
 
     /// <summary>SqliteM2DataDB.pas:123-126 <c>GetStorageDBClass</c> → <c>TSqliteStorageDB</c>（未移植，见报告 §8）。</summary>
     protected Type GetStorageDBClass() => typeof(object);
 
     /// <summary>SqliteM2DataDB.pas:128-131 <c>GetUserShopDBClass</c> → <c>TSqliteUserShopDB</c>。</summary>
     protected Type GetUserShopDBClass() => typeof(TSqliteUserShopDB);
+
+    /// <summary>M2DataCommon.pas:480 <c>property Owner: TM2DataDB read FOwner;</c>。</summary>
+    public IDbLayerHost Owner => _owner;
 
     /// <summary>SqliteM2DataDB.pas:1703-1706 <c>GetDataBase: TObject</c>。</summary>
     public object? DataBase => _fdb;
@@ -306,7 +307,8 @@ public sealed class TSqliteM2DataDB : IM2DataDb
         _fStatementGetItemProperty.Sql = SqliteM2DataDbStatements.SelectItemProperty;
         _fStatementGetItemProperty.Prepare();
 
-        IsInitOK = true;
+        // ★ 原文 SqliteM2DataDB.pas:133-336 的 DoInit **不设** FIsInitOK；
+        //   FIsInitOK 由 TM2DataDB.Init（M2DataCommon.pas:1638）设置，见本文件 Init()。
     }
 
     // ------------------------------------------------------------------
@@ -811,21 +813,46 @@ public sealed class TSqliteM2DataDB : IM2DataDb
         if (_fStatementGetItemProperty != null) { _fStatementGetItemProperty.StatementFinalize(); _fStatementGetItemProperty = null; }
     }
 
-    /// <summary>M2DataCommon.pas:494 <c>LoadItemsFromDB</c>（DoLoadItemsFromDB 的行集）。</summary>
+    /// <summary>M2DataCommon.pas:1677-1687 <c>TM2DataDB.LoadItemsFromDB</c>（外层 try/except + MainOutMessage，**不加锁**）。</summary>
     public void LoadItemsFromDB(int parentId, int itemType, bool isSort, List<TUserItem> list)
-        => DoLoadItemsFromDB(parentId, itemType, isSort, list);
-
-    /// <summary>M2DataCommon.pas:495 <c>LoadItemFromDB</c>。</summary>
-    public void LoadItemFromDB(TUserItem userItem, int parentId, int itemType, int itemIndex)
     {
-        var item = userItem;
-        DoLoadItemFromDB(ref item, parentId, itemType, itemIndex);
-        _owner.LoadItemFromDB(item, parentId, itemType, itemIndex);
+        try
+        {
+            DoLoadItemsFromDB(parentId, itemType, isSort, list);
+        }
+        catch (Exception e)
+        {
+            DbLayerGlobals.MainOutMessage("[Exception] TM2DataDB:LoadItemsFromDB;" + e.Message);
+        }
     }
 
-    /// <summary>M2DataCommon.pas:496 <c>SaveItemToDB</c>。</summary>
+    /// <summary>M2DataCommon.pas:1653-1663 <c>TM2DataDB.LoadItemFromDB</c>。
+    /// ★ 原文传 <c>PTUserItem</c>（指针，<c>@ShopItem.UserItem</c>），故托管侧用 <c>ref</c> 表达，
+    /// 否则读到的物品会随栈拷贝被丢弃。</summary>
+    public void LoadItemFromDB(ref TUserItem userItem, int parentId, int itemType, int itemIndex)
+    {
+        try
+        {
+            DoLoadItemFromDB(ref userItem, parentId, itemType, itemIndex);
+        }
+        catch (Exception e)
+        {
+            DbLayerGlobals.MainOutMessage("[Exception] TM2DataDB:LoadItemFromDB;" + e.Message);
+        }
+    }
+
+    /// <summary>M2DataCommon.pas:1665-1675 <c>TM2DataDB.SaveItemToDB</c>（外层 try/except + MainOutMessage）。</summary>
     public void SaveItemToDB(TUserItem userItem, int parentId, int itemType, int itemIndex)
-        => DoSaveItemToDB(userItem, parentId, itemType, itemIndex);
+    {
+        try
+        {
+            DoSaveItemToDB(userItem, parentId, itemType, itemIndex);
+        }
+        catch (Exception e)
+        {
+            DbLayerGlobals.MainOutMessage("[Exception] TM2DataDB:SaveItemToDB;" + e.Message);
+        }
+    }
 
     // 接缝：DoLoadItemsFromDB / DoLoadItemFromDB 的输出形态。
     //   原文签名是 `List: TList` + `UserItem: PTUserItem`（增加引用计数的指针）；
@@ -1516,11 +1543,27 @@ public sealed class TSqliteM2DataDB : IM2DataDb
         }
     }
 
-    /// <summary>M2DataCommon.pas <c>TM2DataDB.Init</c>。</summary>
-    public void Init() => DoInit();
+    /// <summary>M2DataCommon.pas:1634-1643 <c>TM2DataDB.Init</c>：
+    /// <c>DoInit; FIsInitOK := True; FAuctionDB.DoInit; FUserShopDB.DoInit; FStorageDB.DoInit;</c>。
+    /// ★ 原文 <c>IsInitOK</c> 是 <b>Init</b> 设的，不是 <c>DoInit</c> 设的（本移植照此）。</summary>
+    public void Init()
+    {
+        DoInit();
+        IsInitOK = true;
+        AuctionDB?.Init();
+        UserShopDB?.Init();
+        // FStorageDB.DoInit —— StorageDB 未移植（见报告 §接缝清单）。
+    }
 
-    /// <summary>M2DataCommon.pas <c>TM2DataDB.Final</c>。</summary>
-    public void Final() => DoFinal();
+    /// <summary>M2DataCommon.pas:1645-1651 <c>TM2DataDB.Final</c>：
+    /// <c>DoFinal; FAuctionDB.DoFinal; FUserShopDB.DoFinal; FStorageDB.DoFinal;</c>（不改 IsInitOK）。</summary>
+    public void Final()
+    {
+        DoFinal();
+        AuctionDB?.Final();
+        UserShopDB?.Final();
+        // FStorageDB.DoFinal —— StorageDB 未移植。
+    }
 
     /// <summary>M2DataCommon.pas <c>TM2DataDB.Run</c>（本单元无 DoRun 覆写，原文如此）。</summary>
     public void Run()

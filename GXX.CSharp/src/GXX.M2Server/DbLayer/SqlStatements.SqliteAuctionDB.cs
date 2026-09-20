@@ -9,13 +9,13 @@ namespace GXX.M2Server.DbLayer;
 public static class SqliteAuctionDbStatements
 {
     /// <summary>SqliteAuctionDB.pas:206-207 — field FStatementUpdateAuctionItemFail，label 'Auction_UpdateAuctionItemFail'。</summary>
-    public const string Auction_UpdateAuctionItemFail = "update AuctionData set TradingStatus = 1 where (length(ifnull(LastBidder, '''')) = 0) and (ifnull(TradingStatus, 0) = 0) and ((AddDateTime + AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0);";
+    public const string Auction_UpdateAuctionItemFail = "update AuctionData set TradingStatus = 1 where (length(ifnull(LastBidder, '')) = 0) and (ifnull(TradingStatus, 0) = 0) and ((AddDateTime + AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0);";
 
     /// <summary>SqliteAuctionDB.pas:210-210 — field FStatementUpdateAuctionItemSuccess，label 'Auction_UpdateAuctionItemSuccess'。</summary>
     public const string Auction_UpdateAuctionItemSuccess = "update AuctionData set TradingStatus = 2 where AuctionID = ?;";
 
     /// <summary>SqliteAuctionDB.pas:213-216 — field FStatementQueryAuctionItemSuccess，label 'Auction_QueryAuctionItemSuccess'。</summary>
-    public const string Auction_QueryAuctionItemSuccess = "select A.AuctionID, A.HumanName, A.CurrencyType, A.StartingPrice, A.SellingPrice, A.LastBidder, A.LastBidPrice, B.DBIndex, B.MakeIndex from AuctionData A, Items B  where (A.AuctionID = B.ParentID) and (B.ItemType = 5) and  (length(ifnull(A.LastBidder, '''')) > 0) and (ifnull(A.TradingStatus, 0) = 0) and ((A.AddDateTime + A.AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0);";
+    public const string Auction_QueryAuctionItemSuccess = "select A.AuctionID, A.HumanName, A.CurrencyType, A.StartingPrice, A.SellingPrice, A.LastBidder, A.LastBidPrice, B.DBIndex, B.MakeIndex from AuctionData A, Items B  where (A.AuctionID = B.ParentID) and (B.ItemType = 5) and  (length(ifnull(A.LastBidder, '')) > 0) and (ifnull(A.TradingStatus, 0) = 0) and ((A.AddDateTime + A.AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0);";
 
     /// <summary>SqliteAuctionDB.pas:221-224 — field FStatementQueryMyItems，label 'Auction_QueryAuctionItems'。</summary>
     public const string Auction_QueryAuctionItems = "select AuctionID, HumanName, AddDateTime, AuctionTime, ((AddDateTime + AuctionTime * 3600) - strftime(\"%s\", \"now\")) as TimeLeft, StartingPrice, SellingPrice, CurrencyType, LastBidPrice, LastBidder, TradingStatus, IsItemGive from AuctionData where HumanName = ? order by auctionid desc limit ? offset ?;";
@@ -36,7 +36,7 @@ public static class SqliteAuctionDbStatements
     public const string Auction_GetMyAuctioningItemsCount = "select Count(*) from AuctionData where HumanName = ? and (ifnull(TradingStatus, 0) = 0) and ((AddDateTime + AuctionTime * 3600) - (strftime(\"%s\", \"now\")) > 0);";
 
     /// <summary>SqliteAuctionDB.pas:254-255 — field FStatementGetMySellFailItemsCount，label 'Auction_GetMySellFailItemsCount'。</summary>
-    public const string Auction_GetMySellFailItemsCount = "select Count(*) from AuctionData where HumanName = ? and IsItemGive = 0 and (((length(ifnull(LastBidder, '''')) = 0) and (ifnull(TradingStatus, 0) = 0) and ((AddDateTime + AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0)) or (ifnull(TradingStatus, 0) = 1))";
+    public const string Auction_GetMySellFailItemsCount = "select Count(*) from AuctionData where HumanName = ? and IsItemGive = 0 and (((length(ifnull(LastBidder, '')) = 0) and (ifnull(TradingStatus, 0) = 0) and ((AddDateTime + AuctionTime * 3600) - (strftime(\"%s\", \"now\")) <= 0)) or (ifnull(TradingStatus, 0) = 1))";
 
     /// <summary>SqliteAuctionDB.pas:259-260 — field FStatementGetMyBuyOKItemsCount，label 'Auction_GetMyBuyOKItemsCount'。</summary>
     public const string Auction_GetMyBuyOKItemsCount = "select Count(*) from AuctionData where (ifnull(TradingStatus, 0) = 2) and IsItemGive = 0 and LastBidder = ?";

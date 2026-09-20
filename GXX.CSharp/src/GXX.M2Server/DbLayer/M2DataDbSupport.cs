@@ -234,6 +234,14 @@ public interface IAuctionStdItem
 
     /// <summary>Grobal2.pas <c>TStdItem.DBName</c>。</summary>
     string DBName { get; }
+
+    /// <summary>Grobal2.pas <c>TStdItem.Name</c>（显示名；SqliteAuctionDB.pas:1462 / MySqlAuctionDB.pas:1435
+    /// 的 <c>StdItem.Name</c> 用）。</summary>
+    string Name { get; }
+
+    /// <summary>Grobal2.pas <c>TStdItem.NeedIdentify: Byte</c>（SqliteAuctionDB.pas:1470 /
+    /// MySqlAuctionDB.pas:1443 的 <c>StdItem.NeedIdentify = 1</c> 判据用）。</summary>
+    int NeedIdentify { get; }
 }
 
 /// <summary>

@@ -748,7 +748,7 @@ public sealed class TSqliteUserShopDB : TUserShopDB
                         shopItem.sShopName = sm.OrderGetColumnValueText;
                         shopItem.sMasterName = sm.OrderGetColumnValueText;
 
-                        Owner.LoadItemFromDB(shopItem.UserItem, shopId, DataItemTypes.UserShopItemType, shopItem.ItemID);
+                        Owner.LoadItemFromDB(ref shopItem.UserItem, shopId, DataItemTypes.UserShopItemType, shopItem.ItemID);
 
                         itemList.Add(shopItem);
 
@@ -871,7 +871,7 @@ public sealed class TSqliteUserShopDB : TUserShopDB
                     shopItem.sShopName = sm.OrderGetColumnValueText;
                     shopItem.sMasterName = sm.OrderGetColumnValueText;
 
-                    Owner.LoadItemFromDB(shopItem.UserItem, shopId, DataItemTypes.UserShopItemType, shopItem.ItemID);
+                    Owner.LoadItemFromDB(ref shopItem.UserItem, shopId, DataItemTypes.UserShopItemType, shopItem.ItemID);
 
                     itemList.Add(shopItem);
 

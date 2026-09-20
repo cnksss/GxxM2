@@ -12,6 +12,6 @@ public static class MySqlM2DataDbScripts
     public const string UpdaeDB_5_L198_S = "drop table IF EXISTS `ItemAddDataByte`;\r\nCREATE TABLE `ItemAddDataByte` (\r\n`ParentID`  INTEGER NOT NULL,\r\n`ItemType`  INTEGER NOT NULL,\r\n`ItemIndex`  INTEGER NOT NULL,\r\n`ValueIndex`  INTEGER NOT NULL,\r\n`Value`  INTEGER,\r\nPRIMARY KEY (`ParentID`, `ItemType`, `ItemIndex`, `ValueIndex`)\r\n);\r\ndrop table IF EXISTS `ItemAddDataInt`;\r\nCREATE TABLE `ItemAddDataInt` (\r\n`ParentID`  INTEGER NOT NULL,\r\n`ItemType`  INTEGER NOT NULL,\r\n`ItemIndex`  INTEGER NOT NULL,\r\n`ValueIndex`  INTEGER NOT NULL,\r\n`Value`  INTEGER,\r\nPRIMARY KEY (`ParentID`, `ItemType`, `ItemIndex`, `ValueIndex`)\r\n);\r\ndrop table IF EXISTS `ItemAddDataText`;\r\nCREATE TABLE `ItemAddDataText` (\r\n`ParentID`  INTEGER NOT NULL,\r\n`ItemType`  INTEGER NOT NULL,\r\n`ItemIndex`  INTEGER NOT NULL,\r\n`ValueIndex`  INTEGER NOT NULL,\r\n`Value`  VARCHAR(30),\r\nPRIMARY KEY (`ParentID`, `ItemType`, `ItemIndex`, `ValueIndex`)\r\n);\r\n";
 
     /// <summary>MySqlM2DataDB.pas:250-250 — TMySqlM2DataDB.DoInit <c>sm.Sql</c>。</summary>
-    public const string DoInit_L250_sm_Sql = "select ConstValue from db_constant where ConstName = ''m2data_version'';";
+    public const string DoInit_L250_sm_Sql = "select ConstValue from db_constant where ConstName = 'm2data_version';";
 
 }

@@ -9,13 +9,13 @@ namespace GXX.M2Server.DbLayer;
 public static class MySqlAuctionDbStatements
 {
     /// <summary>MySqlAuctionDB.pas:181-182 — field FStatementUpdateAuctionItemFail，label 'Auction_UpdateAuctionItemFail'。</summary>
-    public const string Auction_UpdateAuctionItemFail = "update AuctionData set TradingStatus = 1 where (length(ifnull(LastBidder, '''')) = 0) and (ifnull(TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour)) <= 0);";
+    public const string Auction_UpdateAuctionItemFail = "update AuctionData set TradingStatus = 1 where (length(ifnull(LastBidder, '')) = 0) and (ifnull(TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour)) <= 0);";
 
     /// <summary>MySqlAuctionDB.pas:185-185 — field FStatementUpdateAuctionItemSuccess，label 'Auction_UpdateAuctionItemSuccess'。</summary>
     public const string Auction_UpdateAuctionItemSuccess = "update AuctionData set TradingStatus = 2 where AuctionID = ?;";
 
     /// <summary>MySqlAuctionDB.pas:188-191 — field FStatementQueryAuctionItemSuccess，label 'Auction_QueryAuctionItemSuccess'。</summary>
-    public const string Auction_QueryAuctionItemSuccess = "select A.AuctionID, A.HumanName, A.CurrencyType, A.StartingPrice, A.SellingPrice, A.LastBidder, A.LastBidPrice, B.DBIndex, B.MakeIndex from AuctionData A, Items B  where (A.AuctionID = B.ParentID) and (B.ItemType = 5) and  (length(ifnull(A.LastBidder, '''')) > 0) and (ifnull(A.TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(A.AddDateTime, interval A.AuctionTime hour)) <= 0);";
+    public const string Auction_QueryAuctionItemSuccess = "select A.AuctionID, A.HumanName, A.CurrencyType, A.StartingPrice, A.SellingPrice, A.LastBidder, A.LastBidPrice, B.DBIndex, B.MakeIndex from AuctionData A, Items B  where (A.AuctionID = B.ParentID) and (B.ItemType = 5) and  (length(ifnull(A.LastBidder, '')) > 0) and (ifnull(A.TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(A.AddDateTime, interval A.AuctionTime hour)) <= 0);";
 
     /// <summary>MySqlAuctionDB.pas:195-198 — field FStatementQueryMyItems，label 'Auction_QueryAuctionItems'。</summary>
     public const string Auction_QueryAuctionItems = "select AuctionID, HumanName, AddDateTime, AuctionTime, (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour))) as TimeLeft, StartingPrice, SellingPrice, CurrencyType, LastBidPrice, LastBidder, TradingStatus, IsItemGive from AuctionData where HumanName = ? order by auctionid desc limit ? offset ?;";
@@ -36,7 +36,7 @@ public static class MySqlAuctionDbStatements
     public const string Auction_GetMyAuctioningItemsCount = "select Count(*) from AuctionData where HumanName = ? and (ifnull(TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour)) > 0);";
 
     /// <summary>MySqlAuctionDB.pas:227-228 — field FStatementGetMySellFailItemsCount，label 'Auction_GetMySellFailItemsCount'。</summary>
-    public const string Auction_GetMySellFailItemsCount = "select Count(*) from AuctionData where HumanName = ? and IsItemGive = 0 and ((length(ifnull(LastBidder, '''')) = 0) and (ifnull(TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour)) <= 0) or (ifnull(TradingStatus, 0) = 1))";
+    public const string Auction_GetMySellFailItemsCount = "select Count(*) from AuctionData where HumanName = ? and IsItemGive = 0 and ((length(ifnull(LastBidder, '')) = 0) and (ifnull(TradingStatus, 0) = 0) and (TIMESTAMPDIFF(SECOND, CURRENT_TIMESTAMP, date_add(AddDateTime, interval AuctionTime hour)) <= 0) or (ifnull(TradingStatus, 0) = 1))";
 
     /// <summary>MySqlAuctionDB.pas:232-233 — field FStatementGetMyBuyOKItemsCount，label 'Auction_GetMyBuyOKItemsCount'。</summary>
     public const string Auction_GetMyBuyOKItemsCount = "select Count(*) from AuctionData where (ifnull(TradingStatus, 0) = 2) and IsItemGive = 0 and LastBidder = ?";
