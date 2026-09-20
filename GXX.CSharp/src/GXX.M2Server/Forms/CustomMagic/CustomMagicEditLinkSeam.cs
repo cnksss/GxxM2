@@ -184,7 +184,7 @@ public abstract class TVtEditLinkSeamBase : IVTEditLinkSeam
     /// 原文 <c>EditKeyDown</c>（:942-975 / :1296-1329）：纯判定在 TVtEditLinkKeys，
     /// 这里执行副作用（Key 置 0 / EndEditNode / PostMessage）。
     /// </summary>
-    public TVtEditKeyAction HandleEditKeyDown(bool shiftEmpty, ref int key)
+    public TVtEditKeyAction EditKeyDown(bool shiftEmpty, ref int key)
     {
         var kind = FEdit switch
         {
@@ -215,7 +215,7 @@ public abstract class TVtEditLinkSeamBase : IVTEditLinkSeam
     }
 
     /// <summary>原文 <c>EditKeyUp</c>（:977-986 / :1331-1340）。</summary>
-    public TVtEditKeyAction HandleEditKeyUp(ref int key)
+    public TVtEditKeyAction EditKeyUp(ref int key)
     {
         var action = TVtEditLinkKeys.EditKeyUp(key);
         if (action == TVtEditKeyAction.CancelEditNodeThenSwallowKey)

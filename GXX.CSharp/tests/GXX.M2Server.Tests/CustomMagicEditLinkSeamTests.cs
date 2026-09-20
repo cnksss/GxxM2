@@ -241,7 +241,7 @@ public sealed class CustomMagicEditLinkSeamTests : CustomMagicTestBase
         link.PrepareEdit(host, node, 1);
 
         int key = TVtKeys.VK_RETURN;
-        var action = link.HandleEditKeyDown(true, ref key);
+        var action = link.EditKeyDown(true, ref key);
 
         Assert.Equal(TVtEditKeyAction.SwallowKeyThenEndEditNode, action);
         Assert.Equal(0, key);
@@ -257,7 +257,7 @@ public sealed class CustomMagicEditLinkSeamTests : CustomMagicTestBase
         link.PrepareEdit(host, node, 1);
 
         int key = TVtKeys.VK_ESCAPE;
-        Assert.Equal(TVtEditKeyAction.CancelEditNodeThenSwallowKey, link.HandleEditKeyUp(ref key));
+        Assert.Equal(TVtEditKeyAction.CancelEditNodeThenSwallowKey, link.EditKeyUp(ref key));
         Assert.Equal(0, key);
         Assert.Equal(1, host.CancelEditNodeCalls);
     }
@@ -271,7 +271,7 @@ public sealed class CustomMagicEditLinkSeamTests : CustomMagicTestBase
         link.PrepareEdit(host, node, 1);
 
         int key = TVtKeys.VK_DOWN;
-        var action = link.HandleEditKeyDown(true, ref key);
+        var action = link.EditKeyDown(true, ref key);
 
         Assert.Equal(TVtEditKeyAction.PostKeyDownThenSwallowKey, action);
         Assert.Equal(0, key);
@@ -289,7 +289,7 @@ public sealed class CustomMagicEditLinkSeamTests : CustomMagicTestBase
         link.PrepareEdit(host, node, 1);
 
         int key = TVtKeys.VK_ESCAPE;
-        Assert.Equal(TVtEditKeyAction.SwallowKey, link.HandleEditKeyDown(true, ref key));
+        Assert.Equal(TVtEditKeyAction.SwallowKey, link.EditKeyDown(true, ref key));
         Assert.Equal(0, key);
         Assert.Equal(0, host.EndEditNodeCalls);
         Assert.Equal(0, host.CancelEditNodeCalls);
