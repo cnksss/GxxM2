@@ -313,6 +313,36 @@ public static class NpcSeams
     /// </summary>
     public static Func<int, int> Random { get; set; } = _DelphiRandom;
 
+    // -----------------------------------------------------------------------
+    // TMerchant 价格族（1446-1511 / 1630-1681 / 2052-2086 / 3160-3178 / 3272-3365）
+    // 需要的宿主面。
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// 原文 `UserEngine.GetStdItem(wIndex): pTStdItem`（UsrEngn.pas）。
+    /// ObjNpc.pas:1481 / 1665 / 3284 处调用。`TStdItem` 在托管侧是值类型结构 → 用 `Nullable` 表达 nil。
+    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// </summary>
+    public static Func<int, TStdItem?> GetStdItem { get; set; } = _ => null;
+
+    /// <summary>
+    /// 原文 `FrmDB.SaveGoodPriceRecord(Self, m_sScript + '-' + m_sMapName)`（LocalDB.pas 全局 FrmDB；
+    /// ObjNpc.pas:1454 调用）。接缝：待 LocalDB.pas 移植后接入。
+    /// </summary>
+    public static Action<TMerchant, string> SaveGoodPriceRecord { get; set; } = (_, _) => { };
+
+    /// <summary>
+    /// 原文 `TBaseObject.m_Castle`（ObjBase/ObjGame 基类字段，托管侧 Engine.TCreature 尚未声明）。
+    /// ObjNpc.pas:2068-2079 的城堡价分支使用。返回 null 表示 `m_Castle = nil`。
+    /// </summary>
+    public static Func<TNormNpc, object?> GetNpcCastle { get; set; } = _ => null;
+
+    /// <summary>
+    /// 原文 `TUserCastle(m_Castle).IsMasterGuild(TGUild(PlayObject.m_MyGuild))`
+    /// （Castle.pas；ObjNpc.pas:2071 调用）。接缝：待 Castle.pas 的 TUserCastle 接入。
+    /// </summary>
+    public static Func<object, TPlayObject, bool> IsMasterGuild { get; set; } = (_, _) => false;
+
     private static readonly System.Random _Rnd = new();
 
     private static int _DelphiRandom(int range)
@@ -354,5 +384,9 @@ public static class NpcSeams
         GetBoxItemValue = (_, _) => (false, "");
         SetBoxItemValue = (_, _, _, _) => false;
         Random = _DelphiRandom;
+        GetStdItem = _ => null;
+        SaveGoodPriceRecord = (_, _) => { };
+        GetNpcCastle = _ => null;
+        IsMasterGuild = (_, _) => false;
     }
 }
