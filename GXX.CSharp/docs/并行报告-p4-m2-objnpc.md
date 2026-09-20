@@ -1099,3 +1099,116 @@ Select-String -Path (all src/tests *.cs) -Pattern 'm_ItemList' | ? { 非注释�
   （`ClientBuyItem`/`UpgradeWapon` 外层体/`UserSelect` 的 `@buy`/`@sell` 分片）。
 - **本轮未做的其它项**（诚实登记）：裁定第 4 条的"`GetAccessory.Apply` 调用处按需现造视图" ——
   该步与第②步是同一批改动（视图现造点就在 `BagItems`/`SendAddItem`/`SendDelItem` 内部），故一并延后。
+---
+
+# 13. 第七轮（切片 22）：方案 A **第②步完成** + `Anicount`/`AniCount` 确定性结论 ★ 本节优先于 §12
+
+## 13.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 22 | `8564552a` | 方案 A 第②步：`m_ItemList` 上移 `TCreature`；`BagItems` 接单一容器；删 `m_BagItems` + 4 个只读委托；7 个公开成员签名收敛为 `TUserItem?`；`PlayerSurfaceItemsTests` 约 40 处适配 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **8,209 passed / 0 failed**。
+越区检查为空（仅动 2 个已授权 Engine 文件 + 已授权测试文件）。
+
+## 13.2 第②步的**全部改动点**（依裁定要求列出）
+
+### `src/GXX.M2Server/Engine/ObjBase.cs`
+| 改动 | 说明 |
+|---|---|
+| `m_ItemList` **从 `TPlayObject` 上移到 `TCreature`** | **裁定外的一处必要补充**：`BagItems`/`AddItemToBag`/`IsEnoughBag`/`CheckItems` 都在 `TCreature` 上，而 `m_ItemList` 原声明在 `TPlayObject` → `TCreature.BagItems` 根本**够不到**它（这正是双容器产生的根因）。原文 `ObjBase.pas:322 m_ItemList: TList` 在 **`TBaseObject`** 上 → 落到 `TCreature` 才符合原文归属 |
+| 类型 `List<TUserItemView>` → **`List<TUserItem?>`** | 方案 A：`TUserItem` 为唯一存储与权威；可空保留 `pTUserItem` 的空槽语义（你已采纳） |
+| 字段注释重写 | 记录裁定、可空理由、**别名 vs 值复制**的代价、以及"改零调用方字段的类型 ≠ 接上容器"的自省条（防重犯） |
+
+### `src/GXX.M2Server/Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs`
+| 成员 | 旧 | 新 |
+|---|---|---|
+| `BagItems` | `List<TUserItemView> => m_BagItems` | **`List<TUserItem?> => m_ItemList`** |
+| `m_BagItems` | `readonly List<TUserItemView>` | **已删除** |
+| `Bag` | `IReadOnlyList<TUserItemView>` | `IReadOnlyList<TUserItem?>` |
+| `AddToBag` | `(TUserItemView)` | `(TUserItem?)` |
+| `AddItemToBag` | `virtual bool (TUserItemView)` | `virtual bool (TUserItem?)`（**仍 `virtual`**，原文 :708） |
+| `CheckItems` | `int (string, out TUserItemView?)` | `int (string, out TUserItem?)` |
+| `CheckItemsIndex` | `int (string, out TUserItemView?)` | `int (string, out TUserItem?)` |
+| `SendAddItem` | `(TUserItemView)` | `(TUserItem)` |
+| `SendDelItem` | `(TUserItemView)` | `(TUserItem)` |
+| **删除** | `PlayerSurfaceItemSeams.ItemMakeIndex` / `ItemName` / `ItemDura` / `ItemDuraMax`（4 个 `Func<TUserItemView, ...>`）+ `ResetDefaults` 里对应 4 行 | 改为**直读 `TUserItem` 字段**（`MakeIndex` / `NameStr` / `Dura` / `DuraMax`） |
+| **新增** | —— | `internal static TUserItemView ToItemView(TUserItem)` —— 方案 A 的**视图现造点**（`SendAddItem` 的 `UserItemToClientItem` 调用处用）。⚠ 有损：`TUserItem.btValue` 是 `int[14]` 而视图 `BtValue` 是 `byte[14]` → `(byte)` 窄化（与 `GetAccessory` 读 byte 的口径一致） |
+| `GetAccessory.Apply` 入参 | `TUserItemView` **不变**（裁定第 3 条） | `RecalcChain`/`m_UseItems` **一行未改** — 见 `RecalcChain.cs:47-55` |
+
+### `tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs`（约 40 处）
+| 类别 | 处数 | 处理 |
+|---|---|---|
+| `Item(...)` 工厂 | 1 | 返回类型 `TUserItemView` → **`TUserItem`**，`MakeIndex`/`NameStr`/`Dura`/`DuraMax` 改为**直接赋值** |
+| `SeamMakeIndex`/`SeamName`/`SeamDura`/`SeamDuraMax` 四个字典 + `WireItemFieldSeams()` | 1 定义 + 6 调用 | **全部删除**（4 个委托已不存在） |
+| `AddItemToBag(Item(...))` | 17 | 隐式转换 `TUserItem` → `TUserItem?`，**无改动**（仅工厂返回类型变了） |
+| `CheckItems`/`CheckItemsIndex` 的 `out TUserItemView?` | 7 | → `out TUserItem?` |
+| `SendAddItem`/`SendDelItem` 实参 | 14 | 工厂返回类型变了即自动适配 |
+| `it.BtValue[13] = x` | 3 | → `it.SetBtValue(13, x)`（`TUserItem` 的 `btValue` 是 `fixed int[14]`） |
+| `p.Bag[0].wIndex` | 3 | → `p.Bag[0]!.Value.wIndex`（可空值类型） |
+
+## 13.3 ★ 断言语义**变更**的 3 处（依裁定要求单列，未静默改弱）
+
+| 用例 | 原断言 | 现断言 | 性质 |
+|---|---|---|---|
+| `AddItemToBag_KeepsReferenceSemantics_LikeOriginalPointerList` | `it.wIndex = 999;` 后 `p.Bag[0].wIndex == 999`（**别名共享**） | `it.wIndex = 999;` 后 `p.Bag[0]!.Value.wIndex == 5`（**值复制**：本地副本不影响背包） | **真语义变更** —— 方案 A 的固有代价。注释已说明"写回槽位才生效"是调用方契约 |
+| `CheckItems_FindsByName_ReturnsIndexAndItem` | `Assert.Same(b, found)`（引用相等） | `Assert.Equal(b.wIndex, found!.Value.wIndex)` + `Assert.Equal(b.MakeIndex, found!.Value.MakeIndex)`（内容相等） | 断言方式变更，**断言语义（"按名命中并返回该件"）保持** |
+| `CheckItems_FirstMatchWins_WhenDuplicates` | `Assert.Same(a, found)` | `Assert.Equal(11, found!.Value.MakeIndex)` + `Assert.NotEqual(b.MakeIndex, ...)`（用 `MakeIndex` 区分 a/b） | 断言方式变更，**"第一个命中者胜出"的语义仍被锁死**（原文 41681 的 `Break`） |
+
+**语义不变的改动**（仅类型/签名适配，已核对）：`SendAddItem_*Bead*` 4 例（`SeamDura[it]=9` → `it.Dura=9`）、
+`SendAddItem_FunctionNpcBranch_*`（原靠 `ItemMakeIndex` 委托注入 777 → 改为 `Item(1, 777)` 直设字段）、
+`SendDelItem_*` 3 例（`BtValue[13]` → `SetBtValue(13, ...)`）—— 期望值与分支覆盖**均未改**。
+
+## 13.4 ★★ `TStdItemView.Anicount` / `AniCount`：**确定性结论**
+
+### 声明处（`src/GXX.M2Server/Engine/AddAbility.cs`，`class TStdItemView`）
+```
+:41    public ushort Anicount;      // 小写 c
+:60    public ushort AniCount;      // 大写 C
+```
+
+### **全部**读写点（`src` **与** `tests`，已按台账 §28.3 两处都搜）
+| 字段 | 读 | 写 |
+|---|---|---|
+| **`Anicount`**（:41） | **`Engine/RecalcChain.cs:55`**：`self.ApplySpecialItemCode(std.Anicount);` —— **特戒代码开关**（原文 `AddAbilitysByCode` 的 `IsShape` 双路之一，`i != U_SHIELD`） | （无生产写点） |
+| **`AniCount`**（:60） | **`Engine/GroupItems.cs:476`**：`if (stdItem.AniCount == 0 && activeFengHao != i)` —— **封号令**判定 | `tests/.../FormJ57Tests.cs:384/438/439`：`new TStdItemView { Name = "封号令", AniCount = 1 }`（对象初始化器写入） |
+
+另有**同名但不同物**的其它类型（勿混淆）：`GXX.Core.Protocol.TStdItem.AniCount`（`Grobal2.Types2.cs:33`，**权威侧**）、
+`MapCellCore.cs:458`、`EIMapRenderSchedule.cs:92`、`SceneComposer.cs:52`（客户端渲染用）。
+
+### 结论
+1. **两个都在用，且用途不同** —— 不是"一活一死"，而是**同一 Delphi 字段被拆成两个托管字段、各被一侧消费**：
+   `Anicount` 服务**特戒代码**，`AniCount` 服务**封号令**。
+2. **这是真缺陷**：原文只有**一个** `AniCount`（`M2Share/Grobal2` 的 `TStdItem`）。
+   任何 `TStdItem` → `TStdItemView` 的构造若只填其中之一，**另一侧就读到默认 0** ——
+   典型的"沉默中性值"故障（与 §13.2 删掉的那 4 个委托同型）。当前 `RecalcChain.cs:47` 的
+   `StdItemResolver` 由谁提供、是否同时填两个字段，**未经验证**（属 p6 车道）。
+3. **建议的最小修法（一行）**：把 `:60` 的字段改成**转发属性**，让两处消费共享同一份数据 ——
+   ```csharp
+   // AddAbility.cs:60 —— 原文只有一个 AniCount，此处是历史重复定义；改为别名
+   public ushort AniCount { get => Anicount; set => Anicount = value; }
+   ```
+   风险：`FormJ57Tests` 用的是**对象初始化器**（`new TStdItemView { AniCount = 1 }`）→ 属性初始化器同样合法，
+   **测试无需改**；`GroupItems.cs:476` 的读取语义变为读 `Anicount`（正是想要的统一）。
+   若担心反射列字段（`GetFields`）的调用方，则退而求其次：保留字段、在 `RecalcChain` 侧改读 `AniCount`——
+   但那只是把不一致挪个位置，**不推荐**。
+4. **本次未改**（`Engine/AddAbility.cs` 不在我分区）—— 结论交你决定由谁落。
+
+## 13.5 方案 A 的**固有代价**（必须长期知晓，已写进 `BagItems` 的代码注释）
+
+元素是**可空值类型** → `BagItems.Add(x)` **复制值**，与原文"加入指针、与调用方共享同一对象"的**别名语义不同**：
+1. 调用方改物品后**必须写回槽位**：`var t = BagItems[i]!.Value; ...改 t...; BagItems[i] = t;`
+   （`BagItems[i]!.Value.Dura = x` **不可编译** —— 值属性不可变）；
+2. `GetUserItemPrice(ref TUserItem, ...)` 这类"按引用就地改写"的调用**不能**直接传 `BagItems[i]`
+   （`List<T>` 索引器不可 `ref`），同样要先取出、改完写回；
+3. 若要恢复别名语义，唯一途径是回到**方案 B**（包装类持有 `TUserItem` 引用）。
+> **当前缺口**：`IReadOnlyList<TUserItem?> Bag` 是只读视图，**没有公开的写回入口**
+> （`AddToBag` 只能追加）。后续 `ClientBuyItem`/`UpgradeWapon`/`UserSelect` 分片若需要"就地改背包里那件"，
+> 需要补一个最小写入口（如 `bool SetBagItem(int index, TUserItem? item)`）。**本轮未加**（不在裁定范围），已登记为待办。
+
+## 13.6 下一轮
+
+按裁定顺序：`ClientBuyItem`(323) → `UpgradeWapon` 外层体 → `UserSelect` 的 `@buy`/`@sell`/`@repair` 分片。
+**新增前置**：§13.5 的"背包写回入口"（若 `ClientBuyItem`/`UpgradeWapon` 需要就地改背包物品）——
+到时我会先只申请这一个成员，再动手。
