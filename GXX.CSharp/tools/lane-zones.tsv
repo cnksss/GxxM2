@@ -46,3 +46,4 @@ p7-client-virtual	!GXX.CSharp/src/GXX.Client/Scenes/ActorCore.cs;!GXX.CSharp/src
 p7-dx-dibfusion	!GXX.CSharp/src/GXX.Client/DxComponent/Dib*.cs;GXX.CSharp/tests/GXX.Client.Tests/DxCtlDibFusion*;!GXX.CSharp/docs/并行报告-p7-dx-dibfusion.md
 # Ports the original actor subclasses now that the base virtuals exist (ledger 28.4).
 p7-client-actor-family	!GXX.CSharp/src/GXX.Client/Scenes/ActorCore.cs;!GXX.CSharp/src/GXX.Client/Scenes/ActorMotion.cs;!GXX.CSharp/src/GXX.Client/Tail/HerbActor.cs;GXX.CSharp/src/GXX.Client/Scenes/ActorFamily*.cs;GXX.CSharp/tests/GXX.Client.Tests/ActorFamily*;GXX.CSharp/docs/并行报告-p7-client-actor-family.md
+p7-db-selectclient	GXX.CSharp/src/GXX.DBServer/SelectClient*.cs;GXX.CSharp/tests/GXX.DBServer.Tests/SelectClient*;GXX.CSharp/docs/并行报告-p7-db-selectclient.md
