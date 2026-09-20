@@ -251,7 +251,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT))
                             {
-                                BaseObject = NpcSeams.GetMyHero((TPlayObject)BaseObject);
+                                BaseObject = ((TPlayObject)BaseObject).m_MyHero;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -281,7 +281,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetCurrTarget(BaseObject);
+                                BaseObject = BaseObject.m_CurrTarget;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -296,7 +296,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetPoseCreate(BaseObject);
+                                BaseObject = BaseObject.GetPoseCreate();
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -337,7 +337,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetLastHiter(BaseObject);
+                                BaseObject = BaseObject.m_LastHiter;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -353,9 +353,9 @@ public static class ObjNpcUnitFuncs
                             if (NpcSeams.g_nKey_HeroExt == 1)
                             {
                                 if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT)
-                                    && (NpcSeams.GetMyHero((TPlayObject)BaseObject) != null))
+                                    && (((TPlayObject)BaseObject).m_MyHero != null))
                                 {
-                                    BaseObject = NpcSeams.GetCurrTarget(NpcSeams.GetMyHero((TPlayObject)BaseObject));
+                                    BaseObject = ((TPlayObject)BaseObject).m_MyHero.m_CurrTarget;
                                     if (BaseObject == null)
                                         boBreak = true;
                                 }
@@ -372,9 +372,9 @@ public static class ObjNpcUnitFuncs
                             if (NpcSeams.g_nKey_HeroExt == 1)
                             {
                                 if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT)
-                                    && (NpcSeams.GetMyHero((TPlayObject)BaseObject) != null))
+                                    && (((TPlayObject)BaseObject).m_MyHero != null))
                                 {
-                                    BaseObject = NpcSeams.GetLastHiter(NpcSeams.GetMyHero((TPlayObject)BaseObject));
+                                    BaseObject = ((TPlayObject)BaseObject).m_MyHero.m_LastHiter;
                                     if (BaseObject == null)
                                         boBreak = true;
                                 }
@@ -453,7 +453,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT))
                             {
-                                BaseObject = NpcSeams.GetMyHero((TPlayObject)BaseObject);
+                                BaseObject = ((TPlayObject)BaseObject).m_MyHero;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -483,7 +483,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetCurrTarget(BaseObject);
+                                BaseObject = BaseObject.m_CurrTarget;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -498,7 +498,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetPoseCreate(BaseObject);
+                                BaseObject = BaseObject.GetPoseCreate();
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -540,7 +540,7 @@ public static class ObjNpcUnitFuncs
                         {
                             if (BaseObject != null)
                             {
-                                BaseObject = NpcSeams.GetLastHiter(BaseObject);
+                                BaseObject = BaseObject.m_LastHiter;
                                 if (BaseObject == null)
                                     boBreak = true;
                             }
@@ -556,9 +556,9 @@ public static class ObjNpcUnitFuncs
                             if (NpcSeams.g_nKey_HeroExt == 1)
                             {
                                 if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT)
-                                    && (NpcSeams.GetMyHero((TPlayObject)BaseObject) != null))
+                                    && (((TPlayObject)BaseObject).m_MyHero != null))
                                 {
-                                    BaseObject = NpcSeams.GetCurrTarget(NpcSeams.GetMyHero((TPlayObject)BaseObject));
+                                    BaseObject = ((TPlayObject)BaseObject).m_MyHero.m_CurrTarget;
                                     if (BaseObject == null)
                                         boBreak = true;
                                 }
@@ -575,9 +575,9 @@ public static class ObjNpcUnitFuncs
                             if (NpcSeams.g_nKey_HeroExt == 1)
                             {
                                 if ((BaseObject != null) && (BaseObject.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT)
-                                    && (NpcSeams.GetMyHero((TPlayObject)BaseObject) != null))
+                                    && (((TPlayObject)BaseObject).m_MyHero != null))
                                 {
-                                    BaseObject = NpcSeams.GetLastHiter(NpcSeams.GetMyHero((TPlayObject)BaseObject));
+                                    BaseObject = ((TPlayObject)BaseObject).m_MyHero.m_LastHiter;
                                     if (BaseObject == null)
                                         boBreak = true;
                                 }

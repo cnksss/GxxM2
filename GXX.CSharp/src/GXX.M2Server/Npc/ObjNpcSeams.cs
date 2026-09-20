@@ -180,30 +180,17 @@ public static class NpcSeams
     /// </summary>
     public static Func<string, TPlayObject?> GetPlayObject { get; set; } = _ => null;
 
-    /// <summary>
-    /// 原文 `TPlayObject.m_MyHero`（ObjPlayer.pas 字段，托管侧 Engine.TPlayObject 尚未声明）。
-    /// ObjNpc.pas:708/805/807/822/824/987/989/1004/1006 处读取。
-    /// 接缝：待 ObjPlayer.pas 的 m_MyHero 落地后接入。
-    /// </summary>
-    public static Func<TPlayObject, TCreature?> GetMyHero { get; set; } = _ => null;
-
-    /// <summary>
-    /// 原文 `TBaseObject.m_CurrTarget`（ObjBase.pas:94 类字段，托管侧 Engine.TCreature 尚未声明）。
-    /// ObjNpc.pas:736/807/916/989 处读取。
-    /// </summary>
-    public static Func<TCreature, TCreature?> GetCurrTarget { get; set; } = _ => null;
-
-    /// <summary>
-    /// 原文 `TBaseObject.m_LastHiter`（ObjBase.pas:94 类字段）。
-    /// ObjNpc.pas:791/824/973/1006 处读取。
-    /// </summary>
-    public static Func<TCreature, TCreature?> GetLastHiter { get; set; } = _ => null;
-
-    /// <summary>
-    /// 原文 `TBaseObject.GetPoseCreate: TBaseObject`（ObjBase.pas）。
-    /// ObjNpc.pas:750/930 处调用。
-    /// </summary>
-    public static Func<TCreature, TCreature?> GetPoseCreate { get; set; } = _ => null;
+    // -----------------------------------------------------------------------
+    // ★ 已去接缝（2026 第三轮）：原文四个基类/玩家成员已在 `Engine/PlayerSurface/**` 落地
+    //   （车道 `p6-m2-playersurface`），本文件原先的
+    //     GetMyHero / GetCurrTarget / GetLastHiter / GetPoseCreate
+    //   四个委托**已删除**，调用点改为直接读成员：
+    //     `TPlayObject.m_MyHero`（PlayerSurface.Hero.cs:31）
+    //     `TCreature.m_CurrTarget` / `m_LastHiter`（PlayerSurface.Base.cs:202/199）
+    //     `TCreature.GetPoseCreate()`（PlayerSurface.Base.cs:362）
+    //   这样做同时消除了"接缝臆造"风险 —— 原先四个委托的默认实现恒返回 null，
+    //   会把"字段语义错"伪装成"分支没命中"。
+    // -----------------------------------------------------------------------
 
     /// <summary>
     /// 原文 `TCopyMon`（ObjMon2.pas，`CMD_RACE_11` 的 `TempObject is TCopyMon` 判定，ObjNpc.pas:1062）。
@@ -241,21 +228,12 @@ public static class NpcSeams
         (_, _, sMsg, _, _) => (false, sMsg, false);
 
     // -----------------------------------------------------------------------
-    // 以下为 `TNormNpc.GetValNameValue`(5690-5877) 需要、但托管侧**尚无对应存储**的
-    // 宿主面。全部是接缝，待 ObjPlayer.pas / M2Share.pas 移植后接入。
+    // ★ 已去接缝（2026 第三轮）：原文的 4 类**玩家变量容器**已在
+    //   `Engine/PlayerSurface/TPlayObject.PlayerSurface.Vars.cs` 落地，本文件原先的
+    //     GetPlayerPVal / GetPlayerSString / GetPlayerTVal / GetPlayerArrayListValue
+    //   四个委托**已删除**，`GetValNameValue` 改为直接读：
+    //     `m_nVal[1000]`(:52) / `m_sString[1000]`(:68) / `m_TVal[500]`(:60) / `m_ArrayList`(:76)
     // -----------------------------------------------------------------------
-
-    /// <summary>原文 `TPlayObject.m_nVal[n01]`（ObjPlayer.pas，P 变量 0..999）。接缝。</summary>
-    public static Func<TPlayObject, int, int> GetPlayerPVal { get; set; } = (_, _) => 0;
-
-    /// <summary>原文 `TPlayObject.m_sString[n01 - 7000]`（ObjPlayer.pas，S 变量 0..999）。接缝。</summary>
-    public static Func<TPlayObject, int, string> GetPlayerSString { get; set; } = (_, _) => "";
-
-    /// <summary>原文 `TPlayObject.m_TVal[n01 - 8500]`（ObjPlayer.pas，T 私有字符串变量 0..499）。接缝。</summary>
-    public static Func<TPlayObject, int, string> GetPlayerTVal { get; set; } = (_, _) => "";
-
-    /// <summary>原文 `TPlayObject.m_ArrayList.GetIndex/ Strings`（ObjPlayer.pas，L$ 数组变量）。接缝。</summary>
-    public static Func<TPlayObject, string, string> GetPlayerArrayListValue { get; set; } = (_, _) => "";
 
     /// <summary>原文 `g_Config.GlobaDyMval[n01 - 4000]`（M2Share.pas，I 全局数字变量 0..999）。接缝。</summary>
     public static Func<int, int> GetGlobaDyMval { get; set; } = _ => 0;
@@ -326,11 +304,17 @@ public static class NpcSeams
     // -----------------------------------------------------------------------
 
     /// <summary>
-    /// 原文 `UserEngine.GetStdItem(wIndex): pTStdItem`（UsrEngn.pas）。
+    /// 原文 `UserEngine.GetStdItem(wIndex): pTStdItem`（UsrEngn.pas / ObjPlayer.pas:3369/12648）。
     /// ObjNpc.pas:1481 / 1665 / 3284 处调用。`TStdItem` 在托管侧是值类型结构 → 用 `Nullable` 表达 nil。
-    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// <para><b>★ 去重（2026 第三轮）</b>：本属性已改为**转发**到 Engine 侧的唯一存储
+    /// `Engine.PlayerSurfaceMsgSeams.GetStdItem`（`TPlayObject.PlayerSurface.Gold.cs:63`；
+    /// `PlayerSurfaceItemSeams.GetStdItem` 也转发到同一处）—— 三个名字**一个后备存储**，不再是三份独立接缝。</para>
     /// </summary>
-    public static Func<int, TStdItem?> GetStdItem { get; set; } = _ => null;
+    public static Func<int, TStdItem?> GetStdItem
+    {
+        get => PlayerSurfaceMsgSeams.GetStdItem;
+        set => PlayerSurfaceMsgSeams.GetStdItem = value;
+    }
 
     /// <summary>
     /// 原文 `FrmDB.SaveGoodPriceRecord(Self, m_sScript + '-' + m_sMapName)`（LocalDB.pas 全局 FrmDB；
@@ -399,11 +383,16 @@ public static class NpcSeams
     public static string sNpcIcons { get; set; } = @"NpcIcons\";
 
     /// <summary>
-    /// 原文 `UserEngine.GetStdItemName(wIndex): string`（UsrEngn.pas）。
+    /// 原文 `UserEngine.GetStdItemName(wIndex): string`（ObjBase.pas:41678）。
     /// ObjNpc.pas:1712（升级材料名比较）与 3259（`$USERWEAPON`）调用。
-    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// <para><b>★ 去重（2026 第三轮）</b>：转发到 Engine 唯一存储
+    /// `Engine.PlayerSurfaceMsgSeams.GetStdItemName`（`TPlayObject.PlayerSurface.Gold.cs:60`）。</para>
     /// </summary>
-    public static Func<int, string> GetStdItemName { get; set; } = _ => "";
+    public static Func<int, string> GetStdItemName
+    {
+        get => PlayerSurfaceMsgSeams.GetStdItemName;
+        set => PlayerSurfaceMsgSeams.GetStdItemName = value;
+    }
 
     /// <summary>
     /// 原文 `TPlayObject.m_UseItems[U_WEAPON]`（ObjPlayer.pas 装备格数组）。
@@ -464,11 +453,16 @@ public static class NpcSeams
 
     /// <summary>
     /// 原文 `User.SendMsg(Self, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)`
-    /// （`TBaseObject.SendMsg`，ObjNpc.pas:1719/1794/1825 等处的**网络下发**版，
-    /// 与托管侧 `Engine.TCreature.SendMsg`（入消息队列版，签名无 sender）**不是同一个方法**）。
-    /// <para>接缝签名：(sender, target, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)。</para>
+    /// （`TBaseObject.SendMsg`，`ObjBase.pas:30339`；ObjNpc.pas:1719/1794/1825/10226/10228/10254/10402 等处的
+    /// **网络下发**版）。
+    /// <para><b>★ 命名裁定（调度方 2026 第三轮）</b>：本方法与托管侧既有
+    /// `Engine.TCreature.SendMsg(ushort, long, long, long, long, string)`（`Engine/ObjBase.cs:48`，
+    /// **入本地消息队列**版）**同名不同义**。为避免 `override`/`new` 掩盖语义，裁定**新成员用新名**，
+    /// 故此处不叫 `SendMsg`/`SendMsgToClient`，而统一叫 <b>`SendTo`</b> ——
+    /// 阅读顺序与原文一致：`User.SendTo(Self, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)`。
+    /// 托管侧以扩展方法 <see cref="ObjNpcSendToExtensions.SendTo"/> 暴露（不污染 Engine 类型）。</para>
     /// </summary>
-    public static Action<TCreature, TCreature, ushort, long, long, long, long, string> SendMsgToClient { get; set; } =
+    public static Action<TCreature, TCreature, ushort, long, long, long, long, string> SendTo { get; set; } =
         (_, _, _, _, _, _, _, _) => { };
 
     // -----------------------------------------------------------------------
@@ -506,9 +500,13 @@ public static class NpcSeams
     /// <summary>
     /// 原文 `g_CastleManager.GetCastleNameList(List: TStringList)`（Castle.pas；
     /// ObjNpc.pas:10071 用 `&lt;$REQUESTCASTLELIST&gt;` 生成攻城列表）。
-    /// 接缝：`GXX.M2Server.Engine.TCastleManager` 已存在但无此方法，待其补上后接入。
+    /// <para><b>★ 已接入真实现（2026 第三轮）</b>：默认实现直接转调
+    /// `Engine.CastleState.g_CastleManager.GetCastleNameList`（`CastleState.cs:9` 单例 +
+    /// `Castle.cs:424` 的 `partial class TCastleManager` 新方法）。
+    /// 保留本属性只是为了让单测能注入假列表，**不再是空实现**。</para>
     /// </summary>
-    public static Action<TStringList> GetCastleNameList { get; set; } = _ => { };
+    public static Action<TStringList> GetCastleNameList { get; set; } =
+        list => CastleState.g_CastleManager.GetCastleNameList(list);
 
     /// <summary>
     /// 原文 `g_Config.boSubkMasterSendMsg`（M2Share.pas；ObjNpc.pas:10393 的"城主喊话"开关）。
@@ -539,19 +537,14 @@ public static class NpcSeams
     {
         g_nKey_HeroExt = 0;
         GetPlayObject = _ => null;
-        GetMyHero = _ => null;
-        GetCurrTarget = _ => null;
-        GetLastHiter = _ => null;
-        GetPoseCreate = _ => null;
+        // ★ 2026 第三轮：GetMyHero / GetCurrTarget / GetLastHiter / GetPoseCreate
+        //   与 GetPlayerPVal / GetPlayerSString / GetPlayerTVal / GetPlayerArrayListValue
+        //   八个委托已删除（改为直读 Engine 成员），故此处不再复位。
         IsCopyMon = _ => false;
         IsFunctionOrMissionNpc = _ => false;
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);
-        GetPlayerPVal = (_, _) => 0;
-        GetPlayerSString = (_, _) => "";
-        GetPlayerTVal = (_, _) => "";
-        GetPlayerArrayListValue = (_, _) => "";
         GetGlobaDyMval = _ => 0;
         GetGlobalVal = _ => 0;
         GetGlobalAVal = i => InterServerState.GlobalAVal[i];
@@ -589,15 +582,35 @@ public static class NpcSeams
             TStdItem? StdItem = GetStdItem(nIndex);
             return StdItem.Value.StdMode is 19 or 20 or 21 or 22 or 23 or 24 or 26;
         };
-        SendMsgToClient = (_, _, _, _, _, _, _, _) => { };
+        SendTo = (_, _, _, _, _, _, _, _) => { };
         Click = (_, _) => { };
         SysMsg = (_, _, _, _) => { };
         GetPlayerPermission = _ => 0;
         GetSendMsgFlag = _ => false;
         ClearSendMsgFlag = _ => { };
         SendBroadCastMsg = (_, _) => { };
-        GetCastleNameList = _ => { };
+        GetCastleNameList = list => CastleState.g_CastleManager.GetCastleNameList(list);
         boSubkMasterSendMsg = false;
         g_sSubkMasterMsgCanNotUseNowMsg = "当前无法使用城主喊话功能";
     }
+}
+
+/// <summary>
+/// ★ 2026 第三轮命名裁定：原文 `TBaseObject.SendMsg(RecvObject, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)`
+/// （`ObjBase.pas:30339`，**网络下发**版）在托管侧**不能**沿用 `SendMsg` 这个名字 ——
+/// `Engine.TCreature` 上已有一个同名但语义完全不同的 `SendMsg`（`Engine/ObjBase.cs:48`，把消息压进本地队列）。
+/// 若用 `new`/`override` 覆盖，多态路径会静默走错版本。
+/// <para>故以**扩展方法** `SendTo` 暴露：调用点写法与原文阅读顺序一致 ——
+/// `User.SendTo(Self, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)`，映射到原文 `User.SendMsg(Self, ...)`。
+/// 扩展方法不污染 Engine 类型，也无需改 `Engine/**`。</para>
+/// </summary>
+public static class ObjNpcSendToExtensions
+{
+    /// <summary>
+    /// 原文 `User.SendMsg(Self, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)` 的托管入口。
+    /// 实际下发由 <see cref="NpcSeams.SendTo"/> 承接（接入时转调 `PlayerSurfaceMsgSeams.SendDefMessage` 之类）。
+    /// </summary>
+    public static void SendTo(this TCreature target, TCreature sender, ushort wIdent, long wParam,
+        long nParam1, long nParam2, long nParam3, string sMsg)
+        => NpcSeams.SendTo(sender, target, wIdent, wParam, nParam1, nParam2, nParam3, sMsg);
 }

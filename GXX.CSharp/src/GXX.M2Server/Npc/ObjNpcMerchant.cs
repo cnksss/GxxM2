@@ -461,7 +461,9 @@ public partial class TMerchant
         btSc = (byte)(nScMin / 5 + nScMax / 3);
         btMc = (byte)(nMcMin / 5 + nMcMax / 3);
         if (DelItems != "")
-            NpcSeams.SendMsgToClient(this, User, Grobal2Const.RM_SENDDELITEMLIST, 0, nDelCount, 0, 0, DelItems);
+            // 原文 1825：`User.SendMsg(Self, RM_SENDDELITEMLIST, 0, nDelCount, 0, 0, DelItems);`
+            // 托管侧按命名裁定用 `SendTo`（不能叫 SendMsg，见 ObjNpcSendToExtensions 注释）。
+            User.SendTo(this, Grobal2Const.RM_SENDDELITEMLIST, 0, nDelCount, 0, 0, DelItems);
         // 原文 1826-1827：`if DuraList <> nil then DuraList.Free;`
     }
 
