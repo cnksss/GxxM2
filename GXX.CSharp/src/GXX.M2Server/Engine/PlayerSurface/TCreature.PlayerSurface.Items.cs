@@ -153,35 +153,70 @@ public abstract partial class TCreature
     /// 这些方法在原文里属于 `TBaseObject`，托管侧提到 `TCreature` 这一层才符合原文归属。
     /// </summary>
     /// <remarks>
-    /// ★★ 集成方裁定（台账 §26，**方案 A**）：
+    /// ★★ 集成方裁定（台账 §26，**方案 A**）：`GXX.Core.Protocol.TUserItem` 为**唯一存储与权威**，
+    /// `TUserItemView` 退化为"能力聚合用的轻量视图"。
     /// <list type="number">
-    ///   <item><description>**已做**：`Engine/ObjBase.cs:170` 的 `m_ItemList` 已由 `List&lt;TUserItemView&gt;`
-    ///     改为 **`List&lt;TUserItem?&gt;`** —— `GXX.Core.Protocol.TUserItem` 为唯一存储与权威，
-    ///     可空是为了保留原文 `pTUserItem` 的"空槽"语义（原文多处 `if UserItem = nil then Continue`）。</description></item>
-    ///   <item><description>**未做（阻塞）**：把本行改成 `protected virtual List&lt;TUserItem?&gt; BagItems => m_ItemList;`
-    ///     并删除私有后备字段 `m_BagItems`、删除下面 4 个只读委托
-    ///     （`PlayerSurfaceItemSeams.ItemMakeIndex/ItemName/ItemDura/ItemDuraMax`，本文件 :85/:88/:91/:94）
-    ///     —— **这一步会连带改变本文件 6 个公开成员的签名**
-    ///     （`Bag` / `AddToBag` / `AddItemToBag` / `CheckItems` / `CheckItemsIndex` / `SendAddItem` / `SendDelItem`），
-    ///     而 `tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs`（归属车道 `p6-m2-playersurface`，
-    ///     **不在 p4-m2-objnpc 的分区表内**）有约 **40 处**调用点依赖现有 `TUserItemView` 签名
-    ///     （其中含 `ItemMakeIndex/ItemName/ItemDura/ItemDuraMax` 四个委托的直接赋值）。
-    ///     按「绝不改他人文件」纪律，本车道**未执行**该步 —— 否则提交即构建红。
-    ///     **需要集成方二选一**：① 把该测试文件加入本车道分区（或另派车道）；
-    ///     ② 由 `p6-m2-playersurface` 自行适配其测试后再落这一步。</description></item>
+    ///   <item><description>**已完成**：`m_ItemList` 已改为 **`List&lt;TUserItem?&gt;`**（可空是为了保留原文
+    ///     `pTUserItem` 的"空槽"语义 —— 原文多处 `if UserItem = nil then Continue`），
+    ///     且**已从 `TPlayObject` 上移到 `TCreature`**（原文 `ObjBase.pas:322` 在 `TBaseObject` 上；
+    ///     上移前 `TCreature.BagItems` 根本够不到它 —— 这正是**双容器产生的根因**）。
+    ///     本行即 `BagItems => m_ItemList`，私有后备字段 `m_BagItems` **已删除**。</description></item>
+    ///   <item><description>4 个只读委托 `ItemMakeIndex/ItemName/ItemDura/ItemDuraMax` **已删除**，
+    ///     改为直读 `TUserItem` 字段；受影响的 7 个公开成员签名已收敛，
+    ///     `PlayerSurfaceItemsTests.cs` 的约 40 处调用点已同步适配（该文件已获调度方加入本车道分区）。</description></item>
+    /// </list>
+    /// </remarks>
+    /// <remarks>
+    /// ⚠⚠ **正式偏差 D35：值语义 vs 指针语义**（已在交付报告登记为偏差条目，
+    /// **不是**实现细节，**请勿当 bug 去"修"**）：
+    /// <list type="bullet">
+    ///   <item><description><b>偏离点</b>：元素是可空**值类型** `TUserItem?`，`BagItems.Add(x)` / `SetBagItem` 都是
+    ///     **值复制**。</description></item>
+    ///   <item><description><b>原文行为</b>：`m_ItemList` 存 `pTUserItem` **指针** ——
+    ///     `BagItems.Items[I]^.X := v` 与"调用方手上那件"是**同一对象**，改一处两处都变（**别名共享**）。</description></item>
+    ///   <item><description><b>托管行为</b>：改本地副本**不影响**背包。</description></item>
+    ///   <item><description><b>为什么必须偏离</b>：`TUserItem` 是 `struct`（`Grobal2.Types6.cs:13`，
+    ///     1:1 的 wire/DB 权威布局），值类型无法表达"共享同一实例"。</description></item>
+    ///   <item><description><b>调用方契约（强制）</b>：**改动物品后必须写回槽位** ——
+    ///     `var t = BagItems[i]!.Value; ...改 t...; SetBagItem(i, t);`
+    ///     （原地 `BagItems[i]!.Value.Dura = x` 在 C# 中**不可编译**，值属性不可变）；
+    ///     `GetUserItemPrice(ref TUserItem, ...)` 这类"按引用就地改写"的调用**不能**直接传 `BagItems[i]`
+    ///     （`List&lt;T&gt;` 索引器不可 `ref`），同样要先取出、改完写回。</description></item>
+    ///   <item><description><b>若将来要恢复别名语义</b>：唯一途径是回到**方案 B** —— 让
+    ///     `TUserItemView` **持有 `TUserItem` 的引用**，使 `BagItems` 的元素变成引用类型。</description></item>
+    ///   <item><description><b>为什么必须登记而不是只写注释</b>：这类差别**编译过、多数单测过**，
+    ///     只在"改了一处、另一处没变"时暴露 —— 与台账 §25.2/§26.2/§29 那些"假完成/沉默中性值"同族。</description></item>
     /// </list>
     /// </remarks>
     protected virtual List<TUserItem?> BagItems => m_ItemList;
 
     /// <summary>
     /// 背包容器的**只读视图**（供跨程序集/NPC 车道读取，不暴露可变接口）。
+    /// <para>写入路径见 <see cref="SetBagItem"/>（单向只读视图 + 单点写入，避免暴露整个可变 `List`）。</para>
     /// </summary>
     public IReadOnlyList<TUserItem?> Bag => m_ItemList;
 
     /// <summary>
+    /// **方案 A 的必要补充入口**（已获调度方批准）：按下标**写回**背包里的一件。
+    /// <para><b>原文依据</b>：Delphi `TList.Items[Index]` 是**可写属性**
+    /// （`property Items[Index: Integer]: Pointer read Get write Put`），故原文完全允许
+    /// `BagItems.Items[I] := UserItem;`；托管侧 `Bag` 是 `IReadOnlyList` 只读、`AddToBag` 只能追加，
+    /// 因此**必须**补一个等价写入口，否则"取出 → 改 → 写回"这条原文模式无法表达
+    /// （见偏差 **D35** 的调用方契约）。</para>
+    /// <para>返回 `false` 表示下标越界（不做静默忽略，便于调用方发现真 bug）。</para>
+    /// </summary>
+    public bool SetBagItem(int index, TUserItem? item)
+    {
+        if (index < 0 || index >= m_ItemList.Count)
+            return false;
+        m_ItemList[index] = item;
+        return true;
+    }
+
+    /// <summary>
     /// 向背包追加一件（等价原文 `m_ItemList.Add(UserItem)`；ObjNpc 侧 `ClientBuyItem` 等可直接用）。
     /// <para>⚠ 元素是**可空值类型**（对应原文 `pTUserItem`）：`Add(SomeItem)` 会把**值复制**进背包，
-    /// 与原文"加入指针、共享同一对象"的**别名语义不同** —— 详见 <see cref="BagItems"/> 的裁定说明。</para>
+    /// 与原文"加入指针、共享同一对象"的**别名语义不同** —— 即正式偏差 **D35**，详见 <see cref="BagItems"/>。</para>
     /// </summary>
     public void AddToBag(TUserItem? item) => m_ItemList.Add(item);
 

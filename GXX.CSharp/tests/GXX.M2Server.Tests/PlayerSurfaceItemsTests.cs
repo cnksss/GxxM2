@@ -296,6 +296,62 @@ public class PlayerSurfaceItemsTests : IDisposable
     }
 
     // ---------------------------------------------------------------
+    // SetBagItem（方案 A 的必要补充入口；D35 的调用方契约）
+    // 原文依据：Delphi `TList.Items[Index]` 是**可写属性**（property Items[...] read Get write Put），
+    //           故 `BagItems.Items[I] := UserItem;` 在原文合法；托管 `Bag` 只读、`AddToBag` 只能追加，
+    //           必须补一个等价写入口才能表达"取出 → 改 → 写回"。
+    // ---------------------------------------------------------------
+
+    [Fact]
+    public void SetBagItem_ExistingIndex_WritesBackAndTakesEffect()
+    {
+        PlayerSurfaceBaseSeams.GetMaxBagCount = _ => 10;
+        var p = new TPlayObject();
+        p.AddItemToBag(Item(5, 1));
+
+        var t = p.Bag[0]!.Value;      // ★ D35 调用方契约：先取出
+        t.wIndex = 77;                //    改本地副本
+        Assert.True(p.SetBagItem(0, t));   //    写回槽位
+        Assert.Equal((ushort)77, p.Bag[0]!.Value.wIndex);
+    }
+
+    [Fact]
+    public void SetBagItem_NegativeIndex_ReturnsFalseAndDoesNotThrow()
+    {
+        var p = new TPlayObject();
+        p.AddItemToBag(Item(5));
+        Assert.False(p.SetBagItem(-1, Item(9)));
+        Assert.Equal((ushort)5, p.Bag[0]!.Value.wIndex);   // 未被改动
+    }
+
+    [Fact]
+    public void SetBagItem_IndexAtOrBeyondCount_ReturnsFalse()
+    {
+        var p = new TPlayObject();
+        p.AddItemToBag(Item(5));
+        Assert.False(p.SetBagItem(1, Item(9)));            // 恰好越界（Count = 1）
+        Assert.False(p.SetBagItem(99, Item(9)));
+        Assert.Single(p.Bag);
+    }
+
+    [Fact]
+    public void SetBagItem_EmptyBag_AnyIndexFails()
+    {
+        var p = new TPlayObject();
+        Assert.False(p.SetBagItem(0, Item(1)));
+    }
+
+    [Fact]
+    public void SetBagItem_CanClearSlotWithNull_LikeOriginalPointerSlot()
+    {
+        // 原文槽位是 `pTUserItem`，允许为 nil（空槽）→ 写 null 应被接受
+        var p = new TPlayObject();
+        p.AddItemToBag(Item(5));
+        Assert.True(p.SetBagItem(0, null));
+        Assert.Null(p.Bag[0]);
+    }
+
+    // ---------------------------------------------------------------
     // CheckItems（原文 41668-41684）
     // ---------------------------------------------------------------
 

@@ -44,9 +44,21 @@ public abstract partial class TCreature
     //   "能力聚合用的轻量视图"，由调用处按需现造（`ToItemView`）。
     // 元素类型取 `TUserItem?`（可空）而非 `TUserItem`：原文槽位是 `pTUserItem` **指针、允许 nil**
     //   （`ObjNpc.pas:1710/4254` 等处都有 `if UserItem = nil then Continue`）；值类型无法表达空槽。
-    //   ⚠ 代价：`Add` 是**值复制**，原文是**别名共享**（详见 `BagItems` 的说明）。
-    // ⚠ 历史记录（以防重犯）：曾把本字段类型从 `List<TUserItem>` 改成 `List<TUserItemView>`，
-    //   而它当时**零调用方** —— 改类型并没有接上容器，双容器依旧存在（台账 §26 自省条）。
+    //
+    // ★★ 正式偏差 **D35**（已在交付报告登记，**不是**普通实现细节，请勿当 bug 去"修"）：
+    //   偏离点：**值语义 vs 指针语义**。
+    //   原文行为：`m_ItemList` 存 `pTUserItem` **指针** → `BagItems.Items[I]^.X := v` 与
+    //             "调用方手上的那件"是**同一对象**，改一处两处都变（别名共享）。
+    //   托管行为：元素是**可空值类型** → `Add` 是**值复制**，改本地副本**不影响**背包。
+    //   为什么必须偏离：`TUserItem` 是 `struct`（`Grobal2.Types6.cs:13`，1:1 的权威 wire/DB 布局），
+    //             值类型无法表达"共享同一实例"；要恢复别名只能改为**包装类**
+    //             （让 `TUserItemView` 持有 `TUserItem` 的引用，即方案 B）。
+    //   调用方契约（**强制**）：**改动物品后必须写回槽位** ——
+    //             `var t = BagItems[i]!.Value; ...改 t...; SetBagItem(i, t);`
+    //             （原地 `BagItems[i]!.Value.Dura = x` 在 C# 中**不可编译**）。
+    //   同类风险：`GetUserItemPrice(ref TUserItem, ...)` 这类"按引用就地改写"的调用**不能**直接传
+    //             `BagItems[i]`（`List<T>` 索引器不可 `ref`），同样要先取出、改完写回。
+    //   这一族的危险在于**编译过、多数单测过**，只在"改了一处、另一处没变"时暴露。
     public List<TUserItem?> m_ItemList = new();
 
     // ---- 属性（TAbility）----
