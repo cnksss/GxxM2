@@ -26,8 +26,7 @@
 //  D1  :809-816 / :837-844 的 repeat/until 只在 B<>0 时写入 ⇒ 文件截断时**死循环**
 //      （Delphi 下 FFileStream.Read(B,1) 读不到不改 B）。
 //  D2  :797 先把 P 加上"字段信息区之后"的尺寸，:800-803 又加上 TableName 区尺寸（261/79），
-//      然后 :805 用**已经加过 TableName 区尺寸的 P** 去读字段名 —— 即字段名被读到了
-//      TableName 区**之后**（该位置按 Paradox 布局本该是表名）。原文如此，照抄。
+//      然后 :805 用**已经加过 TableName 区尺寸的 P** 去读字段名 —— 见下方 D17（这是同一处）。
 //  D2b :826-835 之后又用 `P := FFileHeader.NumFields * 2` **覆盖** P，:835 以 soFromCurrent
 //      相对定位读 SortOrderID —— 落点与"字段名区之后"无关，只与当前位置差 N*2 有关。
 //  D3  :866 `not (FileType in [0, 2])` ⇒ **FileType=1（.PX 主索引）也会被拒**；
@@ -57,6 +56,18 @@
 //      即 InternalLast (:1025) 造的 FCursor 无法经 SetRecNo 复现。
 //  D16 :666/:1072 GetLanguage/SetLanguage 的 `PxLangTable[I].Name = Value` 是**大小写敏感**
 //      的短串比较（Delphi `=`），与 :1066 的 1..118 边界检查不对称（Set 只扫 1..118 无 else 报错）。
+//  D17 :797-805 **字段名被读到了 TableName 区之后**：:797 先把 P 加上"字段信息区之后"的尺寸，
+//      :800-803 又加上 TableName 区尺寸（261/79），:805 拿这个 P 当**字段名区起点**去 Seek。
+//      按 Paradox 布局，P0（不含 TableName 尺寸）才是字段名区起点 ⇒ 读到的名字整体后移
+//      261（v7）或 79（v3.5）字节。实测：合成表必须把名字放在 P0+261 处才能被读出来。
+//      这解释了 :799 的注释 `// TableName size` —— 该 +261/+79 是给**表名**用的，
+//      却被复用到字段名 Seek 上。
+//  D18 :1281-1286 `Loc := Blob.FileLoc and $FFFFFF00` 与 `Idx := Blob.FileLoc and $FF`
+//      共用同一 32 位字段：一旦 FileLoc 最高位被置位（文件偏移 ≥ $80000000），
+//      `and $FFFFFF00` 得到**负数**（int.MinValue 量级），随后 Seek(Loc+9) 被喂入负偏移。
+//      原文无防护；托管侧照抄（.NET FileStream 抛 IOException）。
+//      另：低 8 位被 Idx 占用 ⇒ **.mb 偏移必须是 256 的倍数**，否则偏移被索引覆盖
+//      （本轮实测踩到：偏移 $80 ⇒ FileLoc=$000000FF ⇒ Loc=0，静默读到文件头）。
 // ============================================================================
 
 using System;
