@@ -363,13 +363,19 @@ public interface IM2DataDb
     /// <summary>M2DataCommon.pas:488 <c>property UserShopDB: TUserShopDB</c>。</summary>
     IUserShopDb? UserShopDB { get; }
 
-    /// <summary>M2DataCommon.pas:494 <c>LoadItemsFromDB</c>。</summary>
+    /// <summary>M2DataCommon.pas:494-502 <c>LoadItemsFromDB</c>
+    /// （原文体：<c>try DoLoadItemsFromDB(...) except on E: Exception do MainOutMessage('[Exception] TM2DataDB:LoadItemsFromDB;' + E.Message) end;</c>）。</summary>
     void LoadItemsFromDB(int parentId, int itemType, bool isSort, System.Collections.Generic.List<TUserItem> list);
 
-    /// <summary>M2DataCommon.pas:495 <c>LoadItemFromDB</c>。</summary>
-    void LoadItemFromDB(TUserItem userItem, int parentId, int itemType, int itemIndex);
+    /// <summary>
+    /// M2DataCommon.pas:495 <c>procedure LoadItemFromDB(UserItem: PTUserItem; ...)</c>。
+    /// ★ 原文传的是 <c>PTUserItem</c>（**指针**，<c>@ShopItem.UserItem</c>），读取结果写回调用方记录；
+    /// 托管侧 <c>TUserItem</c> 是 struct，故必须以 <c>ref</c> 表达（按值传参会让读到的物品被丢弃）。
+    /// </summary>
+    void LoadItemFromDB(ref TUserItem userItem, int parentId, int itemType, int itemIndex);
 
-    /// <summary>M2DataCommon.pas:496 <c>SaveItemToDB</c>。</summary>
+    /// <summary>M2DataCommon.pas:496 <c>procedure SaveItemToDB(UserItem: PTUserItem; ...)</c>。
+    /// 原文指针只为避免大记录拷贝，<c>DoSaveItemToDB</c> 只读不改，故按值传参与原文语义等价（已在报告说明）。</summary>
     void SaveItemToDB(TUserItem userItem, int parentId, int itemType, int itemIndex);
 
     void Init();
@@ -578,6 +584,15 @@ public interface IMySqlDatabase
     /// <summary><c>Init</c>（MySqlM2DataDB 用到）。</summary>
     void Init();
 
+    /// <summary>
+    /// <c>FDB.Statements.Clear</c>（MySqlM2DataDB.pas:258 在 DoInit 的 <c>finally</c> 里清掉
+    /// <c>get_db_constant_value</c> 探针语句，使语句表恰好剩 20 条物品语句）。
+    /// 接缝：<c>TMySqlStatements</c> 的 <c>Clear</c>（外部单元）。语义 = 清空"本次登记的语句清单"，
+    /// 但**已返回的语句实例仍然有效**（原文 Clear 只清 TList，不释放 TSQLStatement）。
+    /// 与 DBServer 车道同一先例（<c>MySqlRoleDB.Seam.cs</c> 的 <c>ClearStatements()</c>）。
+    /// </summary>
+    void ClearStatements();
+
     /// <summary><c>CharacterSetName</c>（原文赋 'utf8'）。</summary>
     string CharacterSetName { get; set; }
 
@@ -631,6 +646,7 @@ public sealed class UnavailableMySqlDatabase : IMySqlDatabase
     public void ClearResult() => throw Fail();
     public void Connect(string server, string user, string password, string database, ushort port, uint flags) => throw Fail();
     public void Init() => throw Fail();
+    public void ClearStatements() => throw Fail();
     public string CharacterSetName { get => ""; set => throw Fail(); }
     public object? MySql => null;
     public event Action? OnRequest { add { } remove { } }

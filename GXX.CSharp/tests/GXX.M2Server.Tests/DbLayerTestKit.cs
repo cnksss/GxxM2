@@ -313,6 +313,19 @@ public sealed class FakeMySqlDatabase : IMySqlDatabase
     public void Init() => InitCalled = true;
     public event Action? OnRequest;
     public void RaiseOnRequest() => OnRequest?.Invoke();
+
+    /// <summary>
+    /// 对应原文 <c>FDB.Statements.Clear</c>（MySqlM2DataDB.pas:258）：
+    /// 清空"本次登记的语句清单"（<c>AddedNames</c> / <c>Created</c>），
+    /// 但**按名索引保留** —— 原文 Clear 只清 TList，已返回的 TSQLStatement 实例仍然有效，
+    /// 后续 <c>For(label)</c> 的断言与 <c>AddSQLStatement</c> 的同名复用不受影响。
+    /// </summary>
+    public void ClearStatements()
+    {
+        AddedNames.Clear();
+        Created.Clear();
+        // _byName / _byLabel 刻意保留（见上）。
+    }
 }
 
 /// <summary>IDbLayerHost 的内存实现。</summary>
