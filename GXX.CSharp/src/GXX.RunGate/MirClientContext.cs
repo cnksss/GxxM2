@@ -286,16 +286,18 @@ public partial class TMirClientContext : TIocpClientContext
     public ushort ClientResponseFileIndex => FClientResponseFileIndex;
     public ushort ClientResponseFileCount => FClientResponseFileCount;
 
-    // 内部探针（供测试读取私有状态；生产语义不变）
-    internal byte[] ServerMsgStrProbe => FServerMsgStr;
-    internal TBaseAction LastActionProbe => FLastAction;
-    internal uint DelayTickProbe => FDelayTick;
-    internal uint LastSendMyHeartbeatTickProbe => FLastSendMyHeartbeatTick;
-    internal TSafeMemoryStream ScreenshotStreamProbe => FScreenshotStream;
-    internal TSafeMemoryStream ClientResponseFileStreamProbe => FClientResponseFileStream;
-    internal string LogPacketFileNameProbe => FLogPakcetFileName;   // 原文拼写 Pakcet（:62）
-    internal TSafeList ClientMsgListProbe => FClientMsgList;
-    internal TIocpCriticalSection ServerMsgLockerProbe => FServerMsgLocker;
+    // 内部探针（**public**：测试工程是独立程序集，internal 不可见；
+    // 与 uBuffer*.cs 的 `*Internal` 探针同一约定，生产语义不变）
+    public byte[] ServerMsgStrProbe => FServerMsgStr;
+    public TBaseAction LastActionProbe => FLastAction;
+    public uint DelayTickProbe => FDelayTick;
+    public uint LastSendMyHeartbeatTickProbe => FLastSendMyHeartbeatTick;
+    public TSafeMemoryStream ScreenshotStreamProbe => FScreenshotStream;
+    public TSafeMemoryStream ClientResponseFileStreamProbe => FClientResponseFileStream;
+    public string LogPacketFileNameProbe => FLogPakcetFileName;   // 原文拼写 Pakcet（:62）
+    public TSafeList ClientMsgListProbe => FClientMsgList;
+    public TIocpCriticalSection ServerMsgLockerProbe => FServerMsgLocker;
+    public string ClientResponseFileNameProbe => FClientResponseFileName;
 
     // =================================================================================
     // 原文 :416-443  constructor TMirClientContext.Create(AIocpCore: TIocpCore; ASocket: TSocket = 0)
@@ -1020,8 +1022,9 @@ public partial class TMirClientContext : TIocpClientContext
             dwSayMsgTick = CurTick;                          // :3330
 
             // { 发言长度 }                                   // :3332
-            if (g_dwSayMaxLen > 0 && (uint)AnsiLen(sMsg) > g_dwSayMaxLen)   // :3333
-                sMsg = Copy(sMsg, 1, (int)g_dwSayMaxLen);                    // :3334
+            // 原文 :3333-3334 —— 判据与截断都是 **AnsiString 字节**口径（GBK 下 != 字符数）
+            if (g_dwSayMaxLen > 0 && (uint)AnsiLen(sMsg) > g_dwSayMaxLen)
+                sMsg = AnsiCopyPrefix(sMsg, (int)g_dwSayMaxLen);              // :3334 Copy(sMsg, 1, g_dwSayMaxLen)
         }
 
         // { 发言文字过滤 }                                    // :3337
@@ -1227,11 +1230,10 @@ public partial class TMirClientContext : TIocpClientContext
             return null;                                     // :9752
     }
 
-    /// <summary>
-    /// 原文各处重复的取用模式（:715-719 / :2005-2009 / :3153-3158 / …）：
+    /// <summary>原文各处重复的取用模式（:715-719 / :2005-2009 / :3153-3158 / …）：
     /// <c>if (RunGateObj &lt;&gt; nil) and (RunGateObj is TRunGate) then RunGate := TRunGate(RunGateObj);</c>
     /// </summary>
-    internal TRunGate GetRunGateAsTRunGate() => GetRunGate() as TRunGate;
+    public TRunGate GetRunGateAsTRunGate() => GetRunGate() as TRunGate;
 
     // =================================================================================
     // 原文 :9755-9800  procedure AddServerMsg(DefMsg: PTDefaultMessage; DataAdd; DataAddLen);

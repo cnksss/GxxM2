@@ -141,6 +141,25 @@ public class TSafeStringList
     public void Clear() { lock (_locker) _items.Clear(); }
     public int IndexOf(string s) { lock (_locker) return _items.IndexOf(s ?? ""); }
     public string[] Strings { get { lock (_locker) return _items.ToArray(); } }
+
+    /// <summary>
+    /// 原文 <c>TStringList.Text</c>（读写皆可）：
+    /// get = 各行以 <c>sLineBreak</c> 连接；set = 按 CR/LF 拆行并**整体替换**内容。
+    /// </summary>
+    public string Text
+    {
+        get { lock (_locker) return string.Join("\r\n", _items); }
+        set
+        {
+            lock (_locker)
+            {
+                _items.Clear();
+                if (string.IsNullOrEmpty(value)) return;
+                foreach (string line in value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
+                    _items.Add(line);
+            }
+        }
+    }
 }
 
 // -------------------------------------------------------------------------------------
@@ -195,6 +214,9 @@ public sealed class TSafeMemoryStream : MemoryStream
 
     public void Lock() => System.Threading.Monitor.Enter(_locker);
     public void UnLock() => System.Threading.Monitor.Exit(_locker);
+
+    /// <summary>原文 <c>TMemoryStream.Size</c>（LongInt）。</summary>
+    public long Size => Length;
 
     /// <summary>原文 <c>Clear</c>（TMemoryStream.Clear：Size := 0、Position := 0）。</summary>
     public void Clear()
@@ -472,6 +494,25 @@ public class TRunGate
 // -------------------------------------------------------------------------------------
 public delegate void TRunGatePlugRecvPacketFunc(int contextId, in TDefaultMessage defMsg, byte[] data, int len, bool isSendToM2);
 
+public delegate void TRunGatePlugContextFunc(int contextId);
+
+// -------------------------------------------------------------------------------------
+// uFrmMain.pas 接缝：MirClientContext.pas 用到的两处主窗体回调
+//   * FrmMain.RefreshContextProcessList(Self, IsProcessList)  （:2352 / :2380）
+//   * FrmMain.RefreshContextStatusText(Text)                  （:2433 / :2519 / :2536 / :2598）
+// -------------------------------------------------------------------------------------
+public interface IFrmMainSeam
+{
+    void RefreshContextProcessList(TMirClientContext context, bool isProcessList);
+    void RefreshContextStatusText(string text);
+}
+
+public static class FrmMainSeam
+{
+    /// <summary>原文单元级变量 <c>FrmMain</c>（uFrmMain.pas 的主窗体单例）。null = 未创建。</summary>
+    public static IFrmMainSeam FrmMain;
+}
+
 // -------------------------------------------------------------------------------------
 // GateShare.pas 接缝：MirClientContext.pas 用到、而 uFrmGameSpeedLogic.cs 里**没有**的全局量/函数。
 //
@@ -501,11 +542,40 @@ public static class GateShareSeam
     public static Func<int, int> RandomSink = range => range <= 0 ? 0 : System.Random.Shared.Next(range);
     public static int Random(int range) => range <= 0 ? 0 : RandomSink(range);
 
+    /// <summary>
+    /// 原文 MD5Util.pas:29/346 <c>function MD5Match(D1, D2: MD5Digest): Boolean;</c>
+    /// （MD5Digest = array[0..15] of Byte，逐字节相等）。传递 null 视为全 0 摘要。
+    /// </summary>
+    public static bool MD5Match(byte[] d1, byte[] d2)
+    {
+        if (d1 == null || d2 == null) return d1 == d2;
+        if (d1.Length != d2.Length) return false;
+        for (int i = 0; i < d1.Length; i++)
+            if (d1[i] != d2[i]) return false;
+        return true;
+    }
+
     /// <summary>原文 <c>Low(TAntiPlugActionMode)</c> = amHit（GateShare.pas:242）。</summary>
     public const TAntiPlugActionMode LowAntiPlugActionMode = TAntiPlugActionMode.amHit;
 
     /// <summary>原文 <c>High(TAntiPlugActionMode)</c> = amMoveConcurrent（GateShare.pas:253）。</summary>
     public const TAntiPlugActionMode HighAntiPlugActionMode = TAntiPlugActionMode.amMoveConcurrent;
+
+    // ---- 其余原文裸用的常量（原产地见注释）----
+    /// <summary>Grobal2_Ex.pas:35 —— <c>DEFBLOCKSIZE = 22</c>（6-bit 编码后的 TDefaultMessage 长度）。</summary>
+    public const int DEFBLOCKSIZE = 22;
+
+    /// <summary>GateShare.pas:1338-1344 —— CPT_* 日志类型掩码（与 RunGateConst.Cpt* 同值）。</summary>
+    public const int CPT_MOVE = 1;
+    public const int CPT_HIT = 2;
+    public const int CPT_SPELL = 4;
+    public const int CPT_QUERY = 8;
+    public const int CPT_TEAM = 16;
+    public const int CPT_GUILD = 32;
+    public const int CPT_SHOP = 64;
+
+    /// <summary>GateShare.pas —— <c>g_ScreenshotPath</c>（截图/客户端文件落盘根目录）。</summary>
+    public static string g_ScreenshotPath = "";
 
     // ---- 字符串/字节编码助手（AnsiString 的托管表示，见偏差 D3）----
     public static readonly Encoding Gbk = EncodingInit.GBK;
@@ -552,6 +622,57 @@ public static class GateShareSeam
         return r;
     }
 
+    // ---- ZlibEx.pas 接缝（原文 uses ZLibEx）----
+    /// <summary>原文 <c>zLibDecodeString(S: AnsiString): AnsiString</c>（接收方向）。</summary>
+    public static string zLibDecodeString(string s) =>
+        EDcode.DecodeStringText(EDcode.zLibDecodeString(GbkBytes(s)));
+
+    /// <summary>原文 <c>zLibDecompressBuffer(p, len): string</c>。</summary>
+    public static byte[] zLibDecompressBuffer(byte[] p, int len) =>
+        EDcode.zLibDecompressBuffer(Slice(p, len), len);
+
+    /// <summary>原文 <c>zLibCompressBuffer(p, len): string</c>。</summary>
+    public static byte[] zLibCompressBuffer(byte[] p, int len) =>
+        EDcode.zLibCompressBuffer(Slice(p, len), len);
+
+    /// <summary>原文 <c>ZDecompressStream(Src, Dst)</c>（ZlibEx 流解压）。</summary>
+    public static byte[] ZDecompressStream(byte[] src) => EDcode.zLibDecompressBuffer(src, src == null ? 0 : src.Length);
+
+    // ---- SysUtils/IO 接缝 ----
+    /// <summary>原文 <c>ExtractFilePath(ParamStr(0))</c>：宿主 exe 所在目录（含尾部分隔符）。</summary>
+    public static string HostExeDirectory =
+        System.IO.Path.GetDirectoryName(Environment.ProcessPath ?? AppContext.BaseDirectory) + System.IO.Path.DirectorySeparatorChar;
+
+    /// <summary>原文 <c>ParamStr(0)</c>。</summary>
+    public static string ParamStr0 => Environment.ProcessPath ?? AppContext.BaseDirectory;
+
+    public static bool FileExists(string fileName) => System.IO.File.Exists(fileName);
+    public static bool DirectoryExists(string path) => System.IO.Directory.Exists(path);
+
+    /// <summary>原文 <c>SysUtils.ForceDirectories</c>。</summary>
+    public static void ForceDirectories(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return;
+        try { System.IO.Directory.CreateDirectory(path); } catch { }
+    }
+
+    /// <summary>原文 <c>ExtractFilePath(FileName)</c>。</summary>
+    public static string ExtractFilePath(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName)) return "";
+        string dir = System.IO.Path.GetDirectoryName(fileName);
+        if (string.IsNullOrEmpty(dir)) return "";
+        return dir + System.IO.Path.DirectorySeparatorChar;
+    }
+
+    /// <summary>原文 <c>sLineBreak</c>（Delphi 7 Windows 版 = #13#10）。</summary>
+    public const string sLineBreak = "\r\n";
+
+    /// <summary>原文 <c>AddMainLogMsg</c> / 日志落盘的回写接缝（写文本行）。</summary>
+    public static Action<string, string> AppendTextLineSink = (fileName, line) => { };
+
+    public static void AppendTextLine(string fileName, string line) => AppendTextLineSink(fileName, line);
+
     // ---- GateShare.pas:628 起的全局量（uFrmGameSpeedLogic.cs 里没有的那些）----
     public static readonly TSafeHashStringListEx g_LockUserList = new TSafeHashStringListEx();       // :628
     public static readonly TSafeHashStringListEx g_VerifyFailUserList = new TSafeHashStringListEx(); // :630
@@ -579,6 +700,7 @@ public static class GateShareSeam
     public static readonly TSafeHashStringListEx g_LoginMACPlayerList = new TSafeHashStringListEx();  // :1182
 
     public static int g_nClientCloseDelay = 0;                   // :1185
+    public static int g_nClientLogoutDelay = 0;                  // :1184（GateShare.pas 小退延时秒数）
     public static bool g_boDelayCloseDisableMove = false;        // :1187
     public static bool g_boDelayCloseDisableSpell = false;       // :1188
     public static bool g_boDelayCloseDisableAttack = false;      // :1189
@@ -612,6 +734,8 @@ public static class GateShareSeam
     public static bool g_boAntiplugAllLog = false;
     public static int g_RunGatePlugDllHandle = 0;                    // :615
     public static TRunGatePlugRecvPacketFunc g_rgpRecvPacket = null; // :620
+    public static TRunGatePlugContextFunc g_rgpStartContext = null;  // :616
+    public static TRunGatePlugContextFunc g_rgpEndContext = null;    // :618
     public static readonly object g_CSRunGatePlug = new object();    // :613
 
     // ---- 日志 / 屏蔽 / 插件宿主接缝 ----
@@ -661,6 +785,7 @@ public static class GateShareSeam
         g_boOneMACLimitePlayer = false;
         g_nOneMACLimitePlayerCount = 3;
         g_nClientCloseDelay = 0;
+        g_nClientLogoutDelay = 0;
         g_boDelayCloseDisableMove = false;
         g_boDelayCloseDisableSpell = false;
         g_boDelayCloseDisableAttack = false;
@@ -700,11 +825,16 @@ public static class GateShareSeam
 //   **真实现**（非接缝），此处只补 MirClientContext.pas 用到的 `Find(MagicID)`（已存在）。
 //   ⚠ 差异：uFrmGameSpeedLogic 的 Find 返回 null 表示未找到，与原文 `PMagicInterval` 的 nil 语义一致。
 // -------------------------------------------------------------------------------------
-public static class MagicIntervalUtilsSeam
-{
-    /// <summary>原文 MagicIntervalUtils.pas 的 `Find`（`g_MagicCDList.Find(MagicId)`）。</summary>
-    public static TMagicInterval Find(TMagicIntervalList list, int magicId) => list.Find(magicId);
-}
+// =====================================================================================
+// MagicIntervalUtils.pas —— **不使用接缝**：
+//   `TMagicInterval` / `TMagicIntervalList` 是 p2-rungate-impl 车道已并入 main 的
+//   **真实现**（`uFrmGameSpeedLogic.cs:944/951`，后续版本落到 `GateShareMagicIntervalUtils.cs`），
+//   MirClientContext.pas 直接调用其 `Find`。按台账 §12.8「正式归属落地后立即去掉接缝」，
+//   本车道**不**再包一层 MagicIntervalUtilsSeam。
+//   ⚠ 两版实现的 `Find` 形参不同：`Find(int)` 与 `Find(ushort MagicID)`；
+//     调用点统一写 `Find(unchecked((ushort)MagicID))`，两版均可编译且语义一致
+//     （原文 `function Find(MagicID: Word): PMagicInterval` 本就是 Word）。
+// =====================================================================================
 
 // =====================================================================================
 // IocpTcpServer.pas:119 TIocpTcpServer（接缝）—— 只保留 MirClientContext.pas:9749-9752 用到的
@@ -753,6 +883,20 @@ public static class AnsiStrSeam
     /// <summary>原文 <c>FormatDateTime('yyyy-mm-dd', Now)</c> / <c>TimeToStr(Now)</c> 的托管对应。</summary>
     public static string FormatDateTime(string fmt, DateTime dt) =>
         dt.ToString(fmt, System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>
+    /// 原文 <c>Copy(AnsiString, 1, N)</c> —— **按字节**取前缀（N 是字节数，不是字符数）。
+    /// 用于 MirClientContext.pas:3334：判据用 <c>Length(sMsg) &gt; g_dwSayMaxLen</c>（字节），
+    /// 截断也必须按字节，否则 GBK 下"4 字节上限"会被当成"4 个汉字上限"。
+    /// 截断点落在双字节字符中间时，GBK 解码会产生替换字符 —— 与 Delphi 截断出半个汉字等价。
+    /// </summary>
+    public static string AnsiCopyPrefix(string s, int byteCount)
+    {
+        if (string.IsNullOrEmpty(s) || byteCount <= 0) return "";
+        byte[] bytes = GateShareSeam.Gbk.GetBytes(s);
+        if (bytes.Length <= byteCount) return s;
+        return GateShareSeam.Gbk.GetString(bytes, 0, byteCount);
+    }
 }
 
 
