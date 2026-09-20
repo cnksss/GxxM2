@@ -1673,9 +1673,11 @@ public class TCustomActor : TActor
         set => FConfig = value;
     }
 
+    /// <summary>类名（原 6 行桩上的 ActorClass；PlaySceneNewActor 分派与测试依赖）。</summary>
+    public override string ActorClass => "TCustomActor";
+
     /// <summary>FClientAction 的托管视图（-1 → null）。</summary>
-    public TMonsterClientActionType? ClientAction
-        => FClientActionIndex < 0 ? null : (TMonsterClientActionType)FClientActionIndex;
+    public TMonsterClientActionType? ClientAction        => FClientActionIndex < 0 ? null : (TMonsterClientActionType)FClientActionIndex;
 
     private CustomActorCalcInput CalcInput()
         => new(m_nChangeAppr, m_btRace, m_nCurrentAction, m_btDir, m_btStep,
