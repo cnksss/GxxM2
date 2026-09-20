@@ -24,6 +24,7 @@ using System;
 using System.Collections.Generic;
 using GXX.Core.Protocol;
 using GXX.Core.Rtl;
+using GXX.Core.Util;
 using GXX.M2Server.Engine;
 
 namespace GXX.M2Server.Npc;
@@ -308,5 +309,240 @@ public partial class TMerchant
     public int GetSellItemPrice(int nPrice)
     {
         return EnvirWalkDoorCore.DelphiRound(nPrice / 2.0);
+    }
+
+    /// <summary>
+    /// 原文 `function AddItemToGoodsList(UserItem: pTUserItem): Boolean;`（ObjNpc.pas:3869-3892）。
+    /// <para><b>照抄的原文细节</b>：`Dura &lt;= 0` 时**只放行"可叠加物品"或 `StdMode ∈ {0,1,3}`**；
+    /// 组不存在则新建组并**追加**到 `m_GoodsList` 末尾，但物品总是 `Insert(0, ...)` 插到组首。
+    /// `CheckOverLapItem` 复用 `VisibleItemLifecycleCore.CheckOverLapItem`（原文 M2Share.pas:11028-11032）。</para>
+    /// </summary>
+    public bool AddItemToGoodsList(TUserItem UserItem)
+    {
+        bool Result = false;
+        if (UserItem.Dura <= 0)
+        {
+            TStdItem? StdItem = NpcSeams.GetStdItem(UserItem.wIndex);
+            if (StdItem == null)
+                return Result;
+            // 叠加物品 dura=0不用管，药dura=0也不用管
+            if ((!VisibleItemLifecycleCore.CheckOverLapItem(
+                     StdItem.Value.OverLap, StdItem.Value.StdMode, StdItem.Value.DuraMax))
+                && (!(StdItem.Value.StdMode is 0 or 1 or 3)))
+                return Result;
+        }
+        List<object> ItemList = GetRefillList(UserItem.wIndex);
+        if (ItemList == null)
+        {
+            ItemList = new List<object>();
+            m_GoodsList.Add(ItemList);
+        }
+        ItemList.Insert(0, UserItem);
+        Result = true;
+        return Result;
+    }
+
+    /// <summary>
+    /// 原文 `function GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string;
+    /// var IsBreakParseVar: Boolean; nPos: Integer): Boolean; // 0049FD04`（ObjNpc.pas:3234-3270）。
+    /// <para>先把 `Result := inherited GetVariableText(...)`（= <see cref="TNormNpc.GetVariableText"/> 接缝）；
+    /// **仅当基类返回 False** 时才置 `Result := True` 并处理三个商人变量
+    /// （`$PRICERATE` / `$UPGRADEWEAPONFEE` / `$USERWEAPON`）。
+    /// 三个变量都用 `Exit` 提前返回，故落到函数尾时 `Result` 已被改回 `False`（原文 3268）。</para>
+    /// <para>`sub_49ADB8` 复用 `GXX.Core.Util.HUtil32.sub_49ADB8`（已 1:1 移植，未复制）。</para>
+    /// </summary>
+    public override bool GetVariableText(TPlayObject PlayObject, ref string sMsg, string sVariable,
+        ref bool IsBreakParseVar, int nPos)
+    {
+        bool Result = base.GetVariableText(PlayObject, ref sMsg, sVariable, ref IsBreakParseVar, nPos);
+        if (!Result)
+        {
+            Result = true;
+            sVariable = DelphiRTL.UpperCase(sVariable);
+            if (sVariable == "$PRICERATE")
+            {
+                string sText = DelphiRTL.IntToStr(m_nPriceRate);
+                sMsg = HUtil32.sub_49ADB8(nPos, sMsg, "<$PRICERATE>", sText);
+                return Result;
+            }
+            if (sVariable == "$UPGRADEWEAPONFEE")
+            {
+                string sText = DelphiRTL.IntToStr(M2Config.nUpgradeWeaponPrice);
+                sMsg = HUtil32.sub_49ADB8(nPos, sMsg, "<$UPGRADEWEAPONFEE>", sText);
+                return Result;
+            }
+            if (sVariable == "$USERWEAPON")
+            {
+                TUserItem weapon = NpcSeams.GetUseItemsWeapon(PlayObject);
+                string sText;
+                if (weapon.wIndex != 0)
+                {
+                    sText = NpcSeams.GetStdItemName(weapon.wIndex);
+                }
+                else
+                {
+                    sText = "无";
+                }
+                sMsg = HUtil32.sub_49ADB8(nPos, sMsg, "<$USERWEAPON>", sText);
+                return Result;
+            }
+            Result = false;
+        }
+        return Result;
+    }
+
+    /// <summary>
+    /// 原文 `procedure ClearScript; override;`（ObjNpc.pas:4164-4194）。
+    /// 27 个商店能力开关全部置 False，随后 `inherited`（= <see cref="TNormNpc.ClearScript"/>，
+    /// 已 1:1 实现）。<b>顺序照抄</b>：`m_boGetSellGold` 在 `m_boCreateHeroName` 之后，
+    /// 与字段声明顺序（368-373）**不一致**，是原文如此。</summary>
+    public override void ClearScript()
+    {
+        m_boBuy = false;
+        m_boSell = false;
+        m_boMakeDrug = false;
+        m_boPrices = false;
+        m_boStorage = false;
+        m_boGetback = false;
+        m_boBigStorage = false;
+        m_boBigGetBack = false;
+        m_boGetNextPage = false;
+        m_boGetPreviousPage = false;
+        m_boUpgradenow = false;
+        m_boGetBackupgnow = false;
+        m_boRepair = false;
+        m_boS_repair = false;
+        m_boGetMarry = false;
+        m_boGetMaster = false;
+        m_boUseItemName = false;
+        m_boCreateHeroName = false;
+        m_boGetSellGold = false;
+        m_boSellOff = false;
+        m_boBuyOff = false;
+        m_boofflinemsg = false;
+        m_boDealGold = false;
+        m_boPleaseDrink = false;
+        m_boMakeWine = false;
+        m_boBuHero = false;
+        m_boReclaimItem = false;
+        base.ClearScript();
+    }
+
+    /// <summary>
+    /// 原文 `procedure SendCustemMsg(PlayObject: TPlayObject; sMsg: string); override;`（ObjNpc.pas:4235-4238）——
+    /// 函数体只有 `inherited;`。
+    /// </summary>
+    public override void SendCustemMsg(TPlayObject PlayObject, string sMsg)
+    {
+        base.SendCustemMsg(PlayObject, sMsg);
+    }
+
+    /// <summary>
+    /// 原文 `procedure LoadNPCData;`（ObjNpc.pas:3052-3060）。
+    /// 三次落盘读入（商品 / 价目 / 升级武器），`sFile` 统一为 `m_sScript + '-' + m_sMapName`。
+    /// </summary>
+    public void LoadNPCData()
+    {
+        string sFile = m_sScript + '-' + m_sMapName;
+        NpcSeams.LoadGoodRecord(this, sFile);
+        NpcSeams.LoadGoodPriceRecord(this, sFile);
+        LoadUpgradeList();
+    }
+
+    /// <summary>
+    /// 原文 `procedure SaveNPCData;`（ObjNpc.pas:3062-3069）。两次落盘写出。
+    /// </summary>
+    public void SaveNPCData()
+    {
+        string sFile = m_sScript + '-' + m_sMapName;
+        NpcSeams.SaveGoodRecord(this, sFile);
+        NpcSeams.SaveGoodPriceRecord(this, sFile);
+    }
+
+    /// <summary>
+    /// 原文 `procedure LoadUpgradeList;`（ObjNpc.pas:4196-4211）。
+    /// <para><b>照抄的原文细节</b>：先逐条 `Dispose` 旧记录再 `Clear`；读盘包在 `try/except` 里，
+    /// 异常时只 `MainOutMessage('Failure in loading upgradinglist - ' + m_sCharName)`（**不重抛**）。
+    /// 原文 4206 的旧签名调用整行注释保留。</para>
+    /// <para>原文 4213-4234 是整段被 `(* *)` 注释掉的 `GetMarry` / `GetMaster` 两个过程 —— 原文如此，保留。</para>
+    /// </summary>
+    public void LoadUpgradeList()
+    {
+        for (int I = 0; I <= m_UpgradeWeaponList.Count - 1; I++)
+        {
+            // 原文 4202：Dispose(pTUpgradeInfo(m_UpgradeWeaponList.Items[I])) —— 托管侧由 GC 负责
+        }
+        m_UpgradeWeaponList.Clear();
+        try
+        {
+            // 原文 4206：`// FrmDB.LoadUpgradeWeaponRecord(m_sCharName,m_UpgradeWeaponList);` 注释保留
+            NpcSeams.LoadUpgradeWeaponRecord(m_sScript + '-' + m_sMapName, m_UpgradeWeaponList);
+        }
+        catch (Exception)
+        {
+            NpcSeams.MainOutMessage("Failure in loading upgradinglist - " + m_sCharName);
+        }
+    }
+
+    /// <summary>
+    /// 原文 `procedure SaveUpgradingList();`（ObjNpc.pas:1674-1682）。
+    /// 同样 `try/except` 吞异常 + `MainOutMessage`。原文 1677 的旧签名调用整行注释保留。
+    /// </summary>
+    public void SaveUpgradingList()
+    {
+        try
+        {
+            // 原文 1677：`// FrmDB.SaveUpgradeWeaponRecord(m_sCharName,m_UpgradeWeaponList);` 注释保留
+            NpcSeams.SaveUpgradeWeaponRecord(m_sScript + '-' + m_sMapName, m_UpgradeWeaponList);
+        }
+        catch (Exception)
+        {
+            NpcSeams.MainOutMessage("Failure in saving upgradinglist - " + m_sCharName);
+        }
+    }
+
+    /// <summary>
+    /// 原文 `procedure ClearData;`（ObjNpc.pas:4241-4280）。
+    /// <para>清空 `m_GoodsList`（逐组逐条 `Dispose` 后 `Free`）与 `m_ItemPriceList`，最后 `SaveNPCData()`。
+    /// 整段包在 `try/except on E: Exception` 里，异常时输出**两条**信息
+    /// （`resourcestring sExceptionMsg = '[Exception] TMerchant.ClearData'` 与 `E.Message`）。
+    /// `m_GoodsList` 里 `nil` 组被 `Continue` 跳过（原文 4254-4255）。</para>
+    /// </summary>
+    public void ClearData()
+    {
+        const string sExceptionMsg = "[Exception] TMerchant.ClearData";
+        try
+        {
+            for (int I = 0; I <= m_GoodsList.Count - 1; I++)
+            {
+                List<object> ItemList = (List<object>)m_GoodsList[I];
+                if (ItemList == null)
+                    continue;
+                for (int II = 0; II <= ItemList.Count - 1; II++)
+                {
+                    // 原文 4258-4260：`UserItem := ItemList.Items[II]; if UserItem <> nil then Dispose(UserItem);`
+                    // 托管侧由 GC 负责（仅保留 nil 判定语义，不做动作）。
+                    _ = ItemList[II];
+                }
+                // 原文 4262：ItemList.Free
+            }
+            m_GoodsList.Clear();
+            for (int I = 0; I <= m_ItemPriceList.Count - 1; I++)
+            {
+                TItemPrice ItemPrice = (TItemPrice)m_ItemPriceList[I];
+                if (ItemPrice != null)
+                {
+                    // 原文 4269：Dispose(ItemPrice)
+                    _ = ItemPrice;
+                }
+            }
+            m_ItemPriceList.Clear();
+            SaveNPCData();
+        }
+        catch (Exception E)
+        {
+            NpcSeams.MainOutMessage(sExceptionMsg);
+            NpcSeams.MainOutMessage(E.Message);
+        }
     }
 }

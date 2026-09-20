@@ -49,10 +49,10 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（报告 §2）：Covered 34 / Seam 4 / Missing 74 = 112。
-        Assert.Equal(34, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(4, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
-        Assert.Equal(74, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
+        // 落地口径（切片 7 之后）：Covered 50 / Seam 5 / Missing 57 = 112。
+        Assert.Equal(50, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(5, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        Assert.Equal(57, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
     [Fact]
@@ -76,11 +76,30 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10406, "CheckStrIsVar", "Covered")]
     [InlineData(3272, "GetUserItemPrice", "Covered")]
     [InlineData(6011, "GetVariableText", "Seam")]
+    [InlineData(9837, "SendCustemMsg", "Seam")]
+    [InlineData(3052, "LoadNPCData", "Covered")]
+    [InlineData(3062, "SaveNPCData", "Covered")]
+    [InlineData(3180, "LoadNpcScript", "Covered")]
+    [InlineData(3234, "GetVariableText", "Covered")]
+    [InlineData(3869, "AddItemToGoodsList", "Covered")]
+    [InlineData(4164, "ClearScript", "Covered")]
+    [InlineData(4196, "LoadUpgradeList", "Covered")]
+    [InlineData(4241, "ClearData", "Covered")]
+    [InlineData(1674, "SaveUpgradingList", "Covered")]
+    [InlineData(9575, "LoadNpcScript", "Covered")]
+    [InlineData(9593, "LoadNpcIconFile", "Covered")]
+    [InlineData(10510, "TBoxMonster.Create", "Covered")]
+    [InlineData(10527, "TBoxMonster.Operate", "Covered")]
+    [InlineData(10534, "TBoxMonster.Run", "Covered")]
+    [InlineData(10521, "TBoxMonster.Initialize", "Missing")]
     [InlineData(5326, "GetBoxItemValue", "Seam")]
     [InlineData(4645, "SetBoxItemValue", "Seam")]
     [InlineData(4935, "SetValNameValue", "Seam")]
     [InlineData(9263, "GotoLable", "Missing")]
-    [InlineData(9575, "LoadNpcScript", "Missing")]
+    [InlineData(2087, "UserSelect", "Missing")]
+    [InlineData(3367, "ClientBuyItem", "Missing")]
+    [InlineData(1684, "UpgradeWapon", "Missing")]
+    [InlineData(10516, "TBoxMonster.Destroy", "Missing")]
     public void Registry_KnownEntries(int startLine, string nameFragment, string status)
     {
         var e = ObjNpcRoutineRegistry.All.Single(x => x.StartLine == startLine);

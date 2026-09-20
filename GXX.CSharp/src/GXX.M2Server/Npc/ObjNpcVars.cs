@@ -477,13 +477,46 @@ public partial class TNormNpc
     }
 
     /// <summary>
+    /// 原文 `function GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string;
+    /// var IsBreakParseVar: Boolean; nPos: Integer = 0): Boolean; virtual;`（ObjNpc.pas:6011-9262）。
+    /// <para><b>本车道只落"虚方法外壳"</b>：3,252 行的巨型 `case` 表未移植（见报告 §2.2），
+    /// 本体经 <see cref="NpcSeams.GetVariableText"/> 转发。</para>
+    /// <para>之所以必须做成**真虚方法**而非纯委托：原文 `TMerchant.GetVariableText`(3234-3270)、
+    /// `TCastleOfficial.GetVariableText`(1118-1185)、`TGuildOfficial.GetVariableText`(10055-10090)
+    /// 三个覆写都用 `inherited GetVariableText(...)`，且 `GetLineVariableText`(5981-6009) 对它是**虚调用**
+    /// —— 用委托就破坏了这条虚分派链。</para>
+    /// </summary>
+    public virtual bool GetVariableText(TPlayObject PlayObject, ref string sMsg, string sVariable,
+        ref bool IsBreakParseVar, int nPos)
+    {
+        var r = NpcSeams.GetVariableText(this, PlayObject, sMsg, sVariable, nPos);
+        // sMsg / IsBreakParseVar 是 var 出参 —— 无论返回 True/False 都可能被改写，故无条件回写。
+        sMsg = r.SMsg;
+        IsBreakParseVar = r.IsBreakParseVar;
+        return r.Result;
+    }
+
+    /// <summary>
+    /// 原文 `procedure SendCustemMsg(PlayObject: TPlayObject; sMsg: string); virtual;`（ObjNpc.pas:9837-9862）。
+    /// <para>本车道只落"虚方法外壳"：本体（含 `g_Config.boSendCustemMsg` 门与 `g_FilterTexts.Filter` 敏感词过滤）
+    /// 未覆盖，经 <see cref="NpcSeams.SendCustemMsg"/> 转发。</para>
+    /// <para>做成虚方法的理由同 <see cref="GetVariableText"/>：`TMerchant.SendCustemMsg`(4235-4238)、
+    /// `TGuildOfficial.SendCustemMsg`(10386-10390)、`TCastleOfficial.SendCustemMsg`(10391-10405)
+    /// 三个覆写都是 `inherited;`。</para>
+    /// </summary>
+    public virtual void SendCustemMsg(TPlayObject PlayObject, string sMsg)
+    {
+        NpcSeams.SendCustemMsg(this, PlayObject, sMsg);
+    }
+
+    /// <summary>
     /// 原文 `function GetLineVariableText(PlayObject: TPlayObject; sMsg: string;
     /// var IsBreakParseVar: Boolean): string;`（ObjNpc.pas:5981-6009）。
     /// <para><b>照抄的原文细节</b>：`nStartPos := 1`（**1-based**）；`GetVariableText` 返回 False 时
     /// `nStartPos := nPos + 2`（跳过本次 `&lt;$`）；成功时不推进 startPos（由 `GetVariableText` 自行改写 `sMsg`）；
     /// 无论成败 `Inc(nC)`，`nC &gt;= 1001` 强制退出（防死循环）；`IsBreakParseVar` 是**按引用贯穿整轮**的。</para>
-    /// <para>接缝：真正的替换逻辑在 `TNormNpc.GetVariableText`（6011-9262，本车道未覆盖），
-    /// 经 <see cref="NpcSeams.GetVariableText"/> 转发。</para>
+    /// <para>真正的替换逻辑在 <see cref="GetVariableText"/>（6011-9262 未覆盖，接缝转发）；
+    /// 本处是**虚调用**，故 `TMerchant`/`TCastleOfficial`/`TGuildOfficial` 的覆写会生效 —— 与原文一致。</para>
     /// </summary>
     public string GetLineVariableText(TPlayObject PlayObject, string sMsg, ref bool IsBreakParseVar)
     {
@@ -500,12 +533,8 @@ public partial class TNormNpc
             if (s10 == "")
                 break;
 
-            var r = NpcSeams.GetVariableText(this, PlayObject, sMsg, s10, nPos);
             // 原文 6000：`if not GetVariableText(PlayObject, sMsg, s10, IsBreakParseVar, nPos) then nStartPos := nPos + 2;`
-            // `sMsg` / `IsBreakParseVar` 都是 var 出参 —— **无论返回 True/False 都可能被改写**，故无条件回写。
-            sMsg = r.SMsg;
-            IsBreakParseVar = r.IsBreakParseVar;
-            if (!r.Result)
+            if (!GetVariableText(PlayObject, ref sMsg, s10, ref IsBreakParseVar, nPos))
             {
                 nStartPos = nPos + 2;
             }
