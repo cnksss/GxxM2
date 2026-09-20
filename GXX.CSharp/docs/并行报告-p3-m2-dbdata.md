@@ -18,7 +18,7 @@
 | 5 | `0afb497a` | 清理 `_recon` 派生中间产物（2.17MB→67KB，仅留 `.mjs` 流水线）+ 报告收尾 |
 | 6 | `642d930c` | **跨车道修复**：UserShop SQL 的 Delphi `''` 引号缺陷（**已合入 main 的活性缺陷**） |
 | 7 | `534945b3` | P2 核实 `TStorageDB` 真实状态（报告登记）+ P3 `IMySqlStatement.OrderBindParamDouble` 按原文名 |
-| 8 | 见 git log 末条 | P4：`TMySqlAuctionDB` 逐方法行为测试 + `TSqliteAuctionDB` 两处边角用例 |
+| 8 | `209a4e4c` | P4：`TMySqlAuctionDB` 行为测试 261 例 + 双方言对账 + **修掉 6 个动态 SQL 拼接缺陷** + 逐字尾部守卫 |
 
 > 说明：`0afb497a`（切片5）已被调度方并入 `main`；此后 main 的 tip 为 `0e68afe7`。
 > 本分支在 `par/p3-m2-dbdata` 上继续叠加切片 6-8。
@@ -95,6 +95,47 @@ J195/J196 的 37 条测试在本分支**全绿**，未改动。
 （`DbSeam.cs` + `ScriptedMySqlStatement` + `MySqlM2DataDB.cs` 调用点与注释），
 **`ISqliteStatement.OrderBindDouble` 保持原文名不动** —— 强行统一反而偏离原文，
 这正是本车道一贯的"方言差异不抹平"原则。未留别名。
+
+### 0.5.4 P4 发现的 **6 个动态 SQL 拼接缺陷**（已全部修复 + 补守卫测试，`209a4e4c`）
+
+**根因（值得写进台账的机制性教训）**：`p3-gen` 把 `sm.Sql := sm.Sql + '...'` 渲染成
+**累积快照**常量 —— `_L<行>_sm_Sql_P<n>` 的字面段**既含本步新增的文本，也含上一状态尾部的文本**
+（例如基串尾的 `") "`、或上一子句的收尾 `")"`）。因此"追加式"实现必须去掉**与上一状态重叠的那一段**；
+直接用 `Substring(1)` 也可能错（重叠长度是 2 时要 `Substring(2)`）。
+
+| # | 位置 | 现象 | 原文证据 | 影响面 |
+|---|---|---|---|---|
+| **D1** | `MySqlAuctionDB.cs:832`（MySQL 独有） | itemGroup 分支把**拼接点占位常量** `"@@IntToStr(ItemGroup)@@"` 当字面量拼进 SQL | `MySqlAuctionDB.pas:765` 是 `IntToStr(Integer(ItemGroup))` | itemGroup ≠ igAll 时 SQL **非法** |
+| **D2** | `Sqlite/MySqlAuctionDB.cs` itemColors 分支 | 用 `_P4`（以 `)` 开头）未去重叠 ⇒ **多一个右括号** | `SqliteAuctionDB.pas:802` / `MySql:802` 只追加 `' and ItemColor in ('` | 两方言 |
+| **D3** | 同上 moneyType 分支 | 用 `_P6`（以 `)` 开头）⇒ 多一个右括号 | `:808` 只追加 `' and A.CurrencyType = '` | 两方言 |
+| **D4** | `DoGetAllItemsPageCount` moneyType 分支 | 用 `_P4`（以 `)` 开头）⇒ 多一个右括号 | `Sqlite:1130` / `MySql:1130` 只追加 `' and CurrencyType = '` | 两方言 |
+| **D5** | `MySqlAuctionDB.cs:1190`（MySQL 独有，父 agent 追加发现） | itemGroup 分支直接拼**整条基串快照** `L1087_sm_Sql_P0` ⇒ **select 基串被拼两次** | `MySqlAuctionDB.pas:1087` 只追加 `' and ItemGroup = '` | itemGroup ≠ igAll 时 SQL 非法 |
+| **D6** | `SqliteAuctionDB.cs:1137` | 同处**手写**了 SQL 字面量（违反"禁止手工转录 SQL"） | 同上 | 改为从快照去重叠段取 |
+
+**修法统一**：`P<n>.Substring(<上一状态尾部常量的长度>)`，并在每处注释里写明重叠来源。
+D1 的第一次修复曾用 `Substring(1)`，但 itemGroup 站点的重叠是**基串尾 `") "`（2 字符）**，
+`Substring(1)` 会多留一个空格 —— 已在第二轮修正为 `Substring(L775_sm_Sql_P2.Length)`。
+
+**新增守卫测试**（此前只做 `Contains` 弱断言，**多一个 `)` 照样通过** —— 这是本车道补的最后一课）：
+
+1. 4 条**手写期望串**测试：两方言 ×（`DoQueryAllItems` / `DoGetAllItemsPageCount`）在全过滤条件下，
+   断言"基串之后的整段尾部"**逐字相等（含空格数量）**；期望串字面量直接抄自原文 `.pas` 各行
+   （`SqliteAuctionDB.pas:781/785/802/808/813/818/843`、`MySqlAuctionDB.pas:754/765/802/808/813/818/823`）。
+2. 1 条兜底守卫：动态拼出的 SQL 不得含 `@@`，也不得含 `") )"`。
+3. 1 条 itemGroup-only 用例：四种组合下**基串只出现一次**、子句只追加一次。
+4. 修正 1 条**锁定了错误文本**的旧断言（`") and ItemColor in ("` → `")  and ItemColor in ("`）。
+5. 恢复子 agent 因缺陷停用的 5 条用例，并新增 D5 的回归位。
+
+### 0.5.5 P4 其余结论
+
+- **`High(LongWord)` 钳位分支两方言都不可达**（有价值的"死代码"证明）：
+  `nValue = (long)m_n* + Prices`，两侧都是 `Integer`，最大 `2 × 2147483647 = 4294967294`，
+  恰好比 `High(LongWord) = 4294967295` **小 1** ⇒ 钳位永不命中；真正发生的是 `Int64 → Integer` 截断
+  （结果 `-2`）。已用 SQLite/MySQL 各 1 例锁死。
+- **`DoQueryMyAttentionItems` 多行交错**：Fake 没有跨语句的全局调用日志，故用
+  「计数 + `Reads` 列号序列 + `LastBinds`」三者联合锁死"内层 `Reset` 在每次外层 `Step` 之前"的顺序。
+- **双方言对账测试组**（14 例）：同一输入分别驱动两方言，断言 13/13 记录字段、绑定序列
+  （`Kind[]`/`Text[]`）、错误路径返回值与日志前缀一致；`AddDateTime` 单列断言"来源不同、结果相等"。
 
 ---
 
@@ -389,34 +430,39 @@ dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
 | 基线（任务书）：`GXX.M2Server.Tests` | **5591 全绿** |
 | 本车道改完后，**排除**本车道新增的 `DbLayerAuctionBehaviorSqliteTests` 跑全量 | **Passed: 5678 / Failed: 0**（1m03s） |
 | 差值 | 5678 − 5591 = **87** = 本车道新增的 `DbLayerM2DataSqlFidelityTests`(26) + `DbLayerM2DataBehaviorTests`(30) + `DbLayerAuctionSqlFidelityTests`(31) |
-| 新增 `DbLayerAuctionBehaviorSqliteTests` | **227 例**（22 个 public 方法 × ≥3 例，见 §8） |
-| 全量合计 | **5905 例** |
+| 新增 `DbLayerAuctionBehaviorSqliteTests` | **229 例**（22 个 public 方法 ≥3 例 + 2 条边角，见 §8） |
+| 新增 `DbLayerAuctionBehaviorMySqlTests` | **261 例**（22 个 public 方法 ≥4 例 + 14 例双方言对账） |
+| 全量合计（最终） | **6179 例**（`Failed: 0`） |
 
 > **无基线漂移、无基线回归**：`5678 − 87 = 5591`，与任务书给的基线**逐例相符**。
 > 特别地，p2b 车道的 41 条 `DbLayer*UserShop*` 用例在 `LoadItemFromDB` ref 化之后**仍然全绿**（已在 §4.3 说明）。
 
-### 7.3 本车道各测试文件用例数
+### 7.3 本车道各测试文件用例数（最终）
 
 | 测试文件 | 用例数 |
 |---|---|
 | `DbLayerM2DataSqlFidelityTests` | 26 |
 | `DbLayerM2DataBehaviorTests` | 30 |
-| `DbLayerAuctionSqlFidelityTests` | 31 |
-| `DbLayerAuctionBehaviorSqliteTests` | 227 |
+| `DbLayerAuctionSqlFidelityTests` | 35（含 §0.5.4 的逐字尾部守卫） |
+| `DbLayerAuctionBehaviorSqliteTests` | 229（227 + §0.5.5 的 2 条边角） |
+| `DbLayerAuctionBehaviorMySqlTests` | **261**（22/22 public 方法 ≥4 例，含 14 例双方言对账） |
+| 本车道合计 | **581** |
+
+> p2b 车道的 `DbLayer*UserShop*` 用例（本车道修了引号缺陷）也在 `DbLayer` 过滤器内，一并全绿。
 
 ---
 
 ## 8. 实测记录（最终）
 
 ```
-dotnet build src\GXX.M2Server\GXX.M2Server.csproj -c Debug --nologo
-  → Build succeeded.  0 Warning(s)(本车道文件)  0 Error(s)
-
-dotnet build tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
-  → 0 error CS
+dotnet build GXX.slnx -c Debug --nologo
+  → Build succeeded.  0 Error(s)
 
 dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
-  → Passed!  - Failed: 0, Passed: 5905, Skipped: 0, Total: 5905
+  → Passed!  - Failed: 0, Passed: 6179, Skipped: 0, Total: 6179     (43 s)
+
+dotnet test ... --filter "FullyQualifiedName~DbLayer"
+  → Passed!  - Failed: 0, Passed: 623, Skipped: 0, Total: 623
 ```
 
 > 环境备注：本轮 4 条 agent 并发跑 `dotnet build/test`，偶发 `MSB4166`/obj 文件锁；按台账 §12.9 单独复跑即全绿（本车道实测未出现 MSB4166）。
@@ -457,3 +503,11 @@ dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
    否则"用脚本重生成"会把别的车道依赖的模板占位（如 `@@SGetShopItemQueryField@@`）打进去。
 3. **"原文如此"要连方言 API 名一起照抄**：`OrderBindDouble`(SQLite) vs `OrderBindParamDouble`(MySQL)
    是原文驱动 API 的真实差异，强行统一反而偏离 1:1（§0.5.3）。
+4. **★ 动态 SQL（`X := X + '...'`）的"累积快照常量"是陷阱**：生成器的 `_L<行>_P<n>` 字面段含
+   **上一状态尾部**，追加时必须按**重叠长度**裁剪，不能一律 `Substring(1)`；
+   更不能用含 `@@` 的占位分片、也不能用含整条基串的 `_P0` 快照（§0.5.4 的 D1/D5）。
+   **守卫方式**：对"基串之后的整段尾部"做**逐字**断言（含空格数），而不是 `Contains`。
+5. **不可达分支要证明它不可达**，而不是"构造不出就不测"：`2 × int.MaxValue = 4294967294 < 4294967295`
+   ⇒ `> High(LongWord)` 钳位分支数学上不可达，真正发生的是 `Int64 → Integer` 截断（§0.5.5）。
+6. **弱断言（`Contains`）会与错误实现"共谋"**：本车道的 `QueryAllItems` 旧断言在 SQL 多一个 `)` 时
+   依然通过；一旦改成"逐字尾部对账"就立刻抓出 6 个缺陷。
