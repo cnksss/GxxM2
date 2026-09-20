@@ -1397,8 +1397,9 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                         {
                             player.m_nScriptGotoCount = 0;
 
+                            // 原文 1484 / 1517：Player.m_sAuctionItemName := StdItem.Name（显示名，不是 DBName）
                             if (stdItem != null)
-                                player.m_sAuctionItemName = stdItem.DBName;
+                                player.m_sAuctionItemName = stdItem.Name;
                             else
                                 player.m_sAuctionItemName = "";
 
@@ -1430,8 +1431,9 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                         {
                             player.m_nScriptGotoCount = 0;
 
+                            // 原文 1484 / 1517：Player.m_sAuctionItemName := StdItem.Name（显示名，不是 DBName）
                             if (stdItem != null)
-                                player.m_sAuctionItemName = stdItem.DBName;
+                                player.m_sAuctionItemName = stdItem.Name;
                             else
                                 player.m_sAuctionItemName = "";
 
