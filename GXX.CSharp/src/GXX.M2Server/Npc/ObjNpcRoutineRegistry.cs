@@ -4,7 +4,7 @@
 // 数据来源：脚本从原文逐行抽取 `^(function|procedure|constructor|destructor)` 顶层例程，
 //           行号区间 = [本例程起始行, 下一例程起始行 - 1]（末条止于 10544；原文 `end.` 在 10545）。
 // 状态：
-//   Covered - 已在本车道 Npc/ 内 1:1 实现（含虚方法外壳 + 接缝转发的，另标 Seam）
+//   Covered - 已在本车道 Npc/ 内 1:1 实现
 //   Seam    - 已声明最小接缝或虚方法外壳，未逐行移植；或例程**部分**落地（Home 里注明范围）
 //   Missing - 未覆盖（原文在本车道未落地）
 // 注：嵌套过程（如 UpgradeWapon 内的 sub_4A0218）不单独成条 —— 原文里它们不是顶层例程。
@@ -112,10 +112,10 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 9627, EndLine = 9744, Signature = "procedure TNormNpc.Run;", Status = "Missing", Home = "" },
         new() { StartLine = 9745, EndLine = 9766, Signature = "procedure TNormNpc.ScriptActionError(BaseObject: TBaseObject; sErrMsg: string; QuestActionInfo: pTQuestActionInfo);", Status = "Covered", Home = "ObjNpcLabels.cs" },
         new() { StartLine = 9767, EndLine = 9788, Signature = "procedure TNormNpc.ScriptConditionError(BaseObject: TBaseObject; QuestConditionInfo: pTQuestConditionInfo);", Status = "Covered", Home = "ObjNpcLabels.cs" },
-        new() { StartLine = 9789, EndLine = 9799, Signature = "procedure TNormNpc.SendMsgToUser(PlayObject: TPlayObject; sMsg: string; boShowNPCName: Boolean); // 0049AD14", Status = "Missing", Home = "" },
-        new() { StartLine = 9800, EndLine = 9806, Signature = "procedure TNormNpc.MessageBox(PlayObject: TPlayObject; sMsg: string);", Status = "Missing", Home = "" },
+        new() { StartLine = 9789, EndLine = 9799, Signature = "procedure TNormNpc.SendMsgToUser(PlayObject: TPlayObject; sMsg: string; boShowNPCName: Boolean); // 0049AD14", Status = "Covered", Home = "ObjNpcConversation.cs" },
+        new() { StartLine = 9800, EndLine = 9806, Signature = "procedure TNormNpc.MessageBox(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 9807, EndLine = 9836, Signature = "procedure TNormNpc.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
-        new() { StartLine = 9837, EndLine = 9863, Signature = "procedure TNormNpc.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Seam", Home = "NpcSeams.SendCustemMsg + ObjNpcVars.cs 虚方法外壳" },
+        new() { StartLine = 9837, EndLine = 9863, Signature = "procedure TNormNpc.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 9864, EndLine = 9876, Signature = "procedure TNormNpc.Initialize;", Status = "Missing", Home = "" },
         new() { StartLine = 9877, EndLine = 9899, Signature = "function TNormNpc.GetDynamicVarList(PlayObject: TPlayObject; sType: string; var sName: string): TList;", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 9900, EndLine = 9925, Signature = "procedure TNormNpc.LoadAddData;", Status = "Missing", Home = "" },
@@ -135,14 +135,14 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 10328, EndLine = 10363, Signature = "procedure TCastleOfficial.RepairWallNow(nWallIndex: Integer; PlayObject: TPlayObject); // 004A4074", Status = "Missing", Home = "" },
         new() { StartLine = 10364, EndLine = 10368, Signature = "constructor TCastleOfficial.Create;", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10369, EndLine = 10373, Signature = "destructor TCastleOfficial.Destroy;", Status = "Missing", Home = "" },
-        new() { StartLine = 10374, EndLine = 10380, Signature = "constructor TGuildOfficial.Create;", Status = "Missing", Home = "" },
+        new() { StartLine = 10374, EndLine = 10380, Signature = "constructor TGuildOfficial.Create;", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 10381, EndLine = 10385, Signature = "destructor TGuildOfficial.Destroy;", Status = "Missing", Home = "" },
         new() { StartLine = 10386, EndLine = 10390, Signature = "procedure TGuildOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10391, EndLine = 10405, Signature = "procedure TCastleOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10406, EndLine = 10509, Signature = "function CheckStrIsVar(sText: string): Boolean;", Status = "Covered", Home = "ObjNpcUnitFuncs.cs" },
         new() { StartLine = 10510, EndLine = 10515, Signature = "constructor TBoxMonster.Create;", Status = "Covered", Home = "ObjNpcBoxMonster.cs" },
         new() { StartLine = 10516, EndLine = 10520, Signature = "destructor TBoxMonster.Destroy;", Status = "Missing", Home = "" },
-        new() { StartLine = 10521, EndLine = 10526, Signature = "procedure TBoxMonster.Initialize;", Status = "Missing", Home = "" },
+        new() { StartLine = 10521, EndLine = 10526, Signature = "procedure TBoxMonster.Initialize;", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 10527, EndLine = 10533, Signature = "function TBoxMonster.Operate(ProcessMsg: pTProcessMessage): Boolean;", Status = "Covered", Home = "ObjNpcBoxMonster.cs" },
         new() { StartLine = 10534, EndLine = 10544, Signature = "procedure TBoxMonster.Run;", Status = "Covered", Home = "ObjNpcBoxMonster.cs" },
     };

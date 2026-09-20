@@ -269,15 +269,17 @@ public sealed class NpcObjNpcMerchant2Tests : IDisposable
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void SendCustemMsg_ForwardsToBaseSeam()
+    public void SendCustemMsg_ForwardsToBaseImplementation()
     {
+        // 原文 4235-4238 只有 `inherited;` → 落到 TNormNpc.SendCustemMsg 的真实现（切片 15 起）。
         var m = NewMerchant();
-        TNormNpc seen = null;
-        string seenMsg = null;
-        NpcSeams.SendCustemMsg = (npc, player, msg) => { seen = npc; seenMsg = msg; };
+        NpcSeams.boSendCustemMsg = false;
+        NpcSeams.g_sSendCustMsgCanNotUseNowMsg = "关";
+        var sys = new System.Collections.Generic.List<string>();
+        NpcSeams.SysMsg = (t, msg, color, type) => sys.Add($"{msg}/{color}/{type}");
         m.SendCustemMsg(new TPlayObject(), "HELLO");
-        Assert.Same(m, seen);
-        Assert.Equal("HELLO", seenMsg);
+        Assert.Single(sys);
+        Assert.StartsWith("关/", sys[0]);
     }
 
     // -----------------------------------------------------------------------
