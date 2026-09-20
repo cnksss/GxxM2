@@ -847,17 +847,26 @@ public class TSafeHashStringList
     public int Add(string s) { _items.Add(s ?? ""); return _items.Count - 1; }
     public void Delete(int index) { if (index >= 0 && index < _items.Count) _items.RemoveAt(index); }
 
-    /// <summary>Delphi `TList.Remove(Item)` 语义：按**对象/值**删除首个匹配项（原文 `g_TempIPList.Delete(sIPaddr)`）。
+    /// <summary>Delphi `TStrings.Delete/Remove` 语义：按**值**删除首个匹配项。
     /// 返回是否删除成功。</summary>
     public bool DeleteItem(string s)
     {
-        int i = _items.IndexOf(s ?? "");
+        int i = IndexOf(s);
         if (i < 0) return false;
         _items.RemoveAt(i);
         return true;
     }
 
-    public int IndexOf(string s) => _items.IndexOf(s ?? "");
+    /// <summary>原文类型是 `THashedStringList`（继承 `TStringList`，`CaseSensitive` 默认 **False**）
+    /// → `IndexOf` 必须**大小写不敏感**。原接缝用的是 `List&lt;string&gt;.IndexOf`（Ordinal），
+    /// 会让 `LoadNoVerifyChrList` / `AddBlockMac` 一类的去重语义偏离原文（本轮对齐修正）。</summary>
+    public int IndexOf(string s)
+    {
+        string needle = s ?? "";
+        for (int i = 0; i < _items.Count; i++)
+            if (string.Equals(_items[i], needle, StringComparison.OrdinalIgnoreCase)) return i;
+        return -1;
+    }
 
     /// <summary>`TStrings.Text`：读 = CRLF 连接；写 = 清空后按行拆分（Delphi SetText 语义，保留末尾空行规则）。</summary>
     public string Text
