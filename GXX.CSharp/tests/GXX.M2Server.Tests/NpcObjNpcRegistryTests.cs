@@ -49,10 +49,10 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 7 之后）：Covered 50 / Seam 5 / Missing 57 = 112。
-        Assert.Equal(50, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(5, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
-        Assert.Equal(57, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
+        // 落地口径（切片 10 之后）：Covered 57 / Seam 7 / Missing 48 = 112。
+        Assert.Equal(57, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(7, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        Assert.Equal(48, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
     [Fact]
@@ -92,13 +92,23 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10527, "TBoxMonster.Operate", "Covered")]
     [InlineData(10534, "TBoxMonster.Run", "Covered")]
     [InlineData(10521, "TBoxMonster.Initialize", "Missing")]
+    [InlineData(4431, "Click", "Seam")]
+    [InlineData(1107, "TCastleOfficial.Click", "Covered")]
+    [InlineData(3228, "TMerchant.Click", "Covered")]
+    [InlineData(10049, "TGuildOfficial.Click", "Covered")]
+    [InlineData(10055, "TGuildOfficial.GetVariableText", "Covered")]
+    [InlineData(10364, "TCastleOfficial.Create", "Covered")]
+    [InlineData(10386, "TGuildOfficial.SendCustemMsg", "Covered")]
+    [InlineData(10391, "TCastleOfficial.SendCustemMsg", "Covered")]
+    [InlineData(10374, "TGuildOfficial.Create", "Missing")]
+    [InlineData(10091, "TGuildOfficial.Run", "Missing")]
     [InlineData(5326, "GetBoxItemValue", "Seam")]
     [InlineData(4645, "SetBoxItemValue", "Seam")]
     [InlineData(4935, "SetValNameValue", "Seam")]
     [InlineData(9263, "GotoLable", "Missing")]
     [InlineData(2087, "UserSelect", "Missing")]
     [InlineData(3367, "ClientBuyItem", "Missing")]
-    [InlineData(1684, "UpgradeWapon", "Missing")]
+    [InlineData(1684, "UpgradeWapon", "Seam")]
     [InlineData(10516, "TBoxMonster.Destroy", "Missing")]
     public void Registry_KnownEntries(int startLine, string nameFragment, string status)
     {

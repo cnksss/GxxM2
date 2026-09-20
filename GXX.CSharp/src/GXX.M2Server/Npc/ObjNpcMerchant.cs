@@ -303,6 +303,169 @@ public partial class TMerchant
     }
 
     /// <summary>
+    /// 原文 `TMerchant.UpgradeWapon` 内的**嵌套过程** `sub_4A0218`（ObjNpc.pas:1686-1828）。
+    /// <para><b>托管侧签名偏差（必需）</b>：原文是 `UpgradeWapon` 的嵌套过程，闭包捕获外层参数 `User`；
+    /// 托管侧落为独立方法，`User` 显式作首参。4 个 `var Byte` 出参 → `out byte`。</para>
+    /// <para><b>逻辑</b>：倒序遍历 `ItemList`，把"升级材料"从背包里剔掉并累计属性 ——</para>
+    /// <list type="number">
+    /// <item>名字等于 `g_Config.sBlackStone`（黑铁矿）：把 `Round(Dura / 1.0E3)` 计入 `DuraList`，
+    ///   拼接 `名称/MakeIndex/` 到 `DelItems`；`NeedIdentify = 1` 时写物品消失日志。</item>
+    /// <item>`IsUseItem(wIndex)`（StdMode ∈ {19..24,26}）：取 `StdItem^` 的**副本**做
+    ///   `GetItemAddValue` 加成，然后按 `StdMode` 三档取 DC/SC/MC 之和，滚动维护
+    ///   **最大值 `nXxMin` 与次大值 `nXxMax`**（注意原文命名反直觉：`Min` 存的是最大值）。</item>
+    /// <item>`btValue[13] = 1` 且 `Name &lt;&gt; ''` 时日志名用物品自定义名，否则用 `StdItem.Name`。</item>
+    /// </list>
+    /// <para><b>照抄的原文细节</b>：`DuraList` 在原文是存 `Pointer` 的 `TList`（装箱整数），
+    /// 托管侧用 `List&lt;object&gt;` 装箱 `int`；排序是**最坏 O(n²) 的冒泡**（1803-1812），
+    /// 且外层 `for I := 0 to Count - 1` 里的 `if DuraList.Count &lt;= 0 then Break` 永不为真（冗余守卫，保留）；
+    /// 只用**前 5 个**耐久（1817-1818）后按 1820-1823 的公式出四个属性。</para>
+    /// <para><b>原文缺陷（照抄）</b>：`nItemCount = 0`（没剔到任何材料）时 1820 的
+    /// `nDura / nItemCount` 是实数除法 → Delphi 抛 `EZeroDivide`；托管侧得 `NaN`，
+    /// `Round(NaN)` 抛 `OverflowException` —— 两侧都是"崩溃"，已单测锁死。</para>
+    /// </summary>
+    public void sub_4A0218(TPlayObject User, List<object> ItemList, out byte btDc, out byte btSc, out byte btMc,
+        out byte btDura)
+    {
+        int nDcMin = 0;
+        int nDcMax = 0;
+        int nScMin = 0;
+        int nScMax = 0;
+        int nMcMin = 0;
+        int nMcMax = 0;
+        int nDura = 0;
+        int nItemCount = 0;
+        string DelItems = "";
+        int nDelCount = 0;
+        List<object> DuraList = new();
+        for (int I = ItemList.Count - 1; I >= 0; I += -1)
+        {
+            if (ItemList[I] == null)
+                continue;
+            TUserItem ui = (TUserItem)ItemList[I];
+            if (NpcSeams.GetStdItemName(ui.wIndex) == NpcSeams.sBlackStone)
+            {
+                DuraList.Add(EnvirWalkDoorCore.DelphiRound(ui.Dura / 1.0E3));
+                DelItems = DelItems + DelphiRTL.Format("%s/%d/", NpcSeams.sBlackStone, ui.MakeIndex);
+                TStdItem? StdItemB = NpcSeams.GetStdItem(ui.wIndex);
+                if ((StdItemB != null) && (StdItemB.Value.NeedIdentify == 1))
+                {
+                    NpcSeams.AddGameDataLog(ObjNpcConst.LOG_ItemDisappear, ObjNpcConst.LOG_ActionNone, User,
+                        StdItemB.Value.NameStr, ui.MakeIndex, m_sCharName, 0, 0, "使用升级材料");
+                }
+                ItemList.RemoveAt(I);
+                // 原文 1722：Dispose(UserItem) —— 托管侧由 GC 负责
+                nDelCount++;
+            }
+            else
+            {
+                if (NpcSeams.IsUseItem(ui.wIndex))
+                {
+                    TStdItem? StdItem = NpcSeams.GetStdItem(ui.wIndex);
+                    if (StdItem != null)
+                    {
+                        TStdItem StdItem80 = StdItem.Value;
+                        TUserItem uiRef = ui;
+                        NpcSeams.GetItemAddValue(ref uiRef, ref StdItem80);
+                        int nDc = 0;
+                        int nSc = 0;
+                        int nMc = 0;
+                        if (StdItem80.StdMode is 19 or 20 or 21)
+                        {
+                            // 004A0421
+                            nDc = StdItem80.DC2 + StdItem80.DC1;
+                            nSc = StdItem80.SC2 + StdItem80.SC1;
+                            nMc = StdItem80.MC2 + StdItem80.MC1;
+                        }
+                        else if (StdItem80.StdMode is 22 or 23)
+                        {
+                            // 004A046E
+                            nDc = StdItem80.DC2 + StdItem80.DC1;
+                            nSc = StdItem80.SC2 + StdItem80.SC1;
+                            nMc = StdItem80.MC2 + StdItem80.MC1;
+                        }
+                        else if (StdItem80.StdMode is 24 or 26)
+                        {
+                            nDc = StdItem80.DC2 + StdItem80.DC1 + 1;
+                            nSc = StdItem80.SC2 + StdItem80.SC1 + 1;
+                            nMc = StdItem80.MC2 + StdItem80.MC1 + 1;
+                        }
+                        if (nDcMin < nDc)
+                        {
+                            nDcMax = nDcMin;
+                            nDcMin = nDc;
+                        }
+                        else
+                        {
+                            if (nDcMax < nDc)
+                                nDcMax = nDc;
+                        }
+                        if (nScMin < nSc)
+                        {
+                            nScMax = nScMin;
+                            nScMin = nSc;
+                        }
+                        else
+                        {
+                            if (nScMax < nSc)
+                                nScMax = nSc;
+                        }
+                        if (nMcMin < nMc)
+                        {
+                            nMcMax = nMcMin;
+                            nMcMin = nMc;
+                        }
+                        else
+                        {
+                            if (nMcMax < nMc)
+                                nMcMax = nMc;
+                        }
+                        if ((ui.GetBtValue(13) == 1) && (ui.NameStr != ""))
+                            DelItems = DelItems + DelphiRTL.Format("%s/%d/", ui.NameStr, ui.MakeIndex);
+                        else
+                            DelItems = DelItems + DelphiRTL.Format("%s/%d/", StdItem.Value.NameStr, ui.MakeIndex);
+                        // 004A06DB
+                        if (StdItem.Value.NeedIdentify == 1)
+                        {
+                            NpcSeams.AddGameDataLog(ObjNpcConst.LOG_ItemDisappear, ObjNpcConst.LOG_ActionNone, User,
+                                StdItem.Value.NameStr, ui.MakeIndex, m_sCharName, 0, 0, "使用升级材料");
+                        }
+                        ItemList.RemoveAt(I);
+                        // 原文 1797：Dispose(UserItem)
+                        nDelCount++;
+                    }
+                }
+            }
+        }
+        for (int I = 0; I <= DuraList.Count - 1; I++)
+        {
+            if (DuraList.Count <= 0)
+                break;
+            for (int II = DuraList.Count - 1; II >= I + 1; II += -1)
+            {
+                if (Convert.ToInt32(DuraList[II]) > Convert.ToInt32(DuraList[II - 1]))
+                {
+                    (DuraList[II], DuraList[II - 1]) = (DuraList[II - 1], DuraList[II]);
+                }
+            }
+        }
+        for (int I = 0; I <= DuraList.Count - 1; I++)
+        {
+            nDura = nDura + Convert.ToInt32(DuraList[I]);
+            nItemCount++;
+            if (nItemCount >= 5)
+                break;
+        }
+        btDura = (byte)EnvirWalkDoorCore.DelphiRound(
+            Math.Min(5, nItemCount) + Math.Min(5, nItemCount) * ((nDura / (double)nItemCount) / 5.0));
+        btDc = (byte)(nDcMin / 5 + nDcMax / 3);
+        btSc = (byte)(nScMin / 5 + nScMax / 3);
+        btMc = (byte)(nMcMin / 5 + nMcMax / 3);
+        if (DelItems != "")
+            NpcSeams.SendMsgToClient(this, User, Grobal2Const.RM_SENDDELITEMLIST, 0, nDelCount, 0, 0, DelItems);
+        // 原文 1826-1827：`if DuraList <> nil then DuraList.Free;`
+    }
+
+    /// <summary>
     /// 原文 `function GetSellItemPrice(nPrice: Integer): Integer;`（ObjNpc.pas:3793-3796）。
     /// 半价（`Round` 银行家舍入）。
     /// </summary>

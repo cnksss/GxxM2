@@ -1,9 +1,12 @@
 // ============================================================================
 // 源单元：Source\M2Engine\ObjNpc.pas（实测 10,546 LF，GBK）
-// 本文件：**未覆盖例程登记表**（1:1 审计用，非可执行逻辑）。
+// 本文件：**例程覆盖登记表**（1:1 审计用，非可执行逻辑）。
 // 数据来源：脚本从原文逐行抽取 `^(function|procedure|constructor|destructor)` 顶层例程，
 //           行号区间 = [本例程起始行, 下一例程起始行 - 1]（末条止于 10544；原文 `end.` 在 10545）。
-// 状态：Covered = 已 1:1 实现；Seam = 已声明最小接缝（未逐行移植）；Missing = 未覆盖。
+// 状态：
+//   Covered - 已在本车道 Npc/ 内 1:1 实现（含虚方法外壳 + 接缝转发的，另标 Seam）
+//   Seam    - 已声明最小接缝或虚方法外壳，未逐行移植；或例程**部分**落地（Home 里注明范围）
+//   Missing - 未覆盖（原文在本车道未落地）
 // 注：嵌套过程（如 UpgradeWapon 内的 sub_4A0218）不单独成条 —— 原文里它们不是顶层例程。
 // ============================================================================
 
@@ -35,7 +38,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 596, EndLine = 681, Signature = "function LoadLevelScriptCondition(QuestConditionInfo: pTQuestConditionInfo; sCmd: string): string;", Status = "Covered", Home = "ObjNpcUnitFuncs.cs" },
         new() { StartLine = 682, EndLine = 856, Signature = "function GetLevelBaseObjectCondition(Npc: TNormNpc; PlayObject: TPlayObject; QuestConditionInfo: pTQuestConditionInfo): TBaseObject;", Status = "Covered", Home = "ObjNpcUnitFuncs.cs" },
         new() { StartLine = 857, EndLine = 1106, Signature = "function GetLevelBaseObjectAction(Npc: TNormNpc; PlayObject: TPlayObject; QuestActionInfo: pTQuestActionInfo): TBaseObject;", Status = "Covered", Home = "ObjNpcUnitFuncs.cs" },
-        new() { StartLine = 1107, EndLine = 1117, Signature = "procedure TCastleOfficial.Click(PlayObject: TPlayObject);", Status = "Missing", Home = "" },
+        new() { StartLine = 1107, EndLine = 1117, Signature = "procedure TCastleOfficial.Click(PlayObject: TPlayObject);", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 1118, EndLine = 1185, Signature = "function TCastleOfficial.GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string; var IsBreakParseVar: Boolean; nPos: Integer): Boolean;", Status = "Missing", Home = "" },
         new() { StartLine = 1186, EndLine = 1334, Signature = "procedure TCastleOfficial.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
         new() { StartLine = 1335, EndLine = 1389, Signature = "procedure TCastleOfficial.HireGuard(sIndex: string; PlayObject: TPlayObject);", Status = "Missing", Home = "" },
@@ -47,7 +50,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 1630, EndLine = 1644, Signature = "function TMerchant.CheckItemType(nStdMode: Integer): Boolean;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 1645, EndLine = 1673, Signature = "function TMerchant.GetItemPrice(nIndex: Integer): Integer;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 1674, EndLine = 1683, Signature = "procedure TMerchant.SaveUpgradingList();", Status = "Covered", Home = "ObjNpcMerchant.cs" },
-        new() { StartLine = 1684, EndLine = 1902, Signature = "procedure TMerchant.UpgradeWapon(User: TPlayObject); // 004A0920", Status = "Missing", Home = "" },
+        new() { StartLine = 1684, EndLine = 1902, Signature = "procedure TMerchant.UpgradeWapon(User: TPlayObject); // 004A0920", Status = "Seam", Home = "嵌套过程 sub_4A0218(1686-1828) 已 1:1 in ObjNpcMerchant.cs；外层体 1830-1901 阻塞未做" },
         new() { StartLine = 1903, EndLine = 2051, Signature = "procedure TMerchant.GetBackupgWeapon(User: TPlayObject); // 004A0CB8", Status = "Missing", Home = "" },
         new() { StartLine = 2052, EndLine = 2086, Signature = "function TMerchant.GetUserPrice(PlayObject: TPlayObject; nPrice: Integer): Integer; // 0049F6E0", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 2087, EndLine = 2900, Signature = "procedure TMerchant.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
@@ -60,7 +63,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 3160, EndLine = 3179, Signature = "procedure TMerchant.ClearExpreUpgradeListData; // 004A01A0", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 3180, EndLine = 3205, Signature = "procedure TMerchant.LoadNpcScript(IsAddMapName: Boolean = True);", Status = "Covered", Home = "ObjNpcPersistence.cs" },
         new() { StartLine = 3206, EndLine = 3227, Signature = "procedure TMerchant.LoadNpcIconFile(IsAddMapName: Boolean = True);", Status = "Covered", Home = "ObjNpcPersistence.cs" },
-        new() { StartLine = 3228, EndLine = 3233, Signature = "procedure TMerchant.Click(PlayObject: TPlayObject); // 0049FF24", Status = "Missing", Home = "" },
+        new() { StartLine = 3228, EndLine = 3233, Signature = "procedure TMerchant.Click(PlayObject: TPlayObject); // 0049FF24", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 3234, EndLine = 3271, Signature = "function TMerchant.GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string; var IsBreakParseVar: Boolean; nPos: Integer): Boolean; // 0049FD04", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 3272, EndLine = 3366, Signature = "function TMerchant.GetUserItemPrice(UserItem: pTUserItem; IsSellToNpc: Boolean): Integer;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 3367, EndLine = 3689, Signature = "procedure TMerchant.ClientBuyItem(PlayObject: TPlayObject; sItemName: string; nCount, nInt: Integer; IsFromTradingDlg: Boolean);", Status = "Missing", Home = "" },
@@ -82,7 +85,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 4348, EndLine = 4365, Signature = "function TTrainer.Operate(ProcessMsg: pTProcessMessage): Boolean; // 004A38C4", Status = "Missing", Home = "" },
         new() { StartLine = 4366, EndLine = 4382, Signature = "procedure TTrainer.Run;", Status = "Missing", Home = "" },
         new() { StartLine = 4383, EndLine = 4430, Signature = "procedure TNormNpc.ClearScript;", Status = "Covered", Home = "ObjNpcLabels.cs" },
-        new() { StartLine = 4431, EndLine = 4442, Signature = "procedure TNormNpc.Click(PlayObject: TPlayObject); // 0049EC18", Status = "Missing", Home = "" },
+        new() { StartLine = 4431, EndLine = 4442, Signature = "procedure TNormNpc.Click(PlayObject: TPlayObject); // 0049EC18", Status = "Seam", Home = "NpcSeams.Click + ObjNpcVars.cs 虚方法外壳" },
         new() { StartLine = 4443, EndLine = 4456, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var nValue: Integer);", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 4457, EndLine = 4466, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var sValue: string);", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 4467, EndLine = 4481, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var sValue: string; var nValue: Integer; var IsBreakParseVar: Boolean);", Status = "Covered", Home = "ObjNpcVars.cs" },
@@ -120,8 +123,8 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 9955, EndLine = 9995, Signature = "procedure TNormNpc.QuickSortRecordList(List: TList; L, R: Integer);", Status = "Covered", Home = "ObjNpcLabels.cs" },
         new() { StartLine = 9996, EndLine = 10018, Signature = "procedure TNormNpc.DoSort;", Status = "Covered", Home = "ObjNpcLabels.cs" },
         new() { StartLine = 10019, EndLine = 10048, Signature = "function TNormNpc.GetSayingRecordFromRecordList(List: TList; sLabel: string): pTSayingRecord;", Status = "Covered", Home = "ObjNpcLabels.cs" },
-        new() { StartLine = 10049, EndLine = 10054, Signature = "procedure TGuildOfficial.Click(PlayObject: TPlayObject); // 004A30F4", Status = "Missing", Home = "" },
-        new() { StartLine = 10055, EndLine = 10090, Signature = "function TGuildOfficial.GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string; var IsBreakParseVar: Boolean; nPos: Integer): Boolean;", Status = "Missing", Home = "" },
+        new() { StartLine = 10049, EndLine = 10054, Signature = "procedure TGuildOfficial.Click(PlayObject: TPlayObject); // 004A30F4", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
+        new() { StartLine = 10055, EndLine = 10090, Signature = "function TGuildOfficial.GetVariableText(PlayObject: TPlayObject; var sMsg: string; sVariable: string; var IsBreakParseVar: Boolean; nPos: Integer): Boolean;", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10091, EndLine = 10100, Signature = "procedure TGuildOfficial.Run; // 004A37F0", Status = "Missing", Home = "" },
         new() { StartLine = 10101, EndLine = 10152, Signature = "procedure TGuildOfficial.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
         new() { StartLine = 10153, EndLine = 10230, Signature = "function TGuildOfficial.ReQuestBuildGuild(PlayObject: TPlayObject; sGuildName: string): Integer; // 004A3124", Status = "Missing", Home = "" },
@@ -130,12 +133,12 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 10257, EndLine = 10291, Signature = "procedure TGuildOfficial.ReQuestCastleWar(PlayObject: TPlayObject; sIndex: string); // 004A3498", Status = "Missing", Home = "" },
         new() { StartLine = 10292, EndLine = 10327, Signature = "procedure TCastleOfficial.RepairDoor(PlayObject: TPlayObject); // 004A3FB8", Status = "Missing", Home = "" },
         new() { StartLine = 10328, EndLine = 10363, Signature = "procedure TCastleOfficial.RepairWallNow(nWallIndex: Integer; PlayObject: TPlayObject); // 004A4074", Status = "Missing", Home = "" },
-        new() { StartLine = 10364, EndLine = 10368, Signature = "constructor TCastleOfficial.Create;", Status = "Missing", Home = "" },
+        new() { StartLine = 10364, EndLine = 10368, Signature = "constructor TCastleOfficial.Create;", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10369, EndLine = 10373, Signature = "destructor TCastleOfficial.Destroy;", Status = "Missing", Home = "" },
         new() { StartLine = 10374, EndLine = 10380, Signature = "constructor TGuildOfficial.Create;", Status = "Missing", Home = "" },
         new() { StartLine = 10381, EndLine = 10385, Signature = "destructor TGuildOfficial.Destroy;", Status = "Missing", Home = "" },
-        new() { StartLine = 10386, EndLine = 10390, Signature = "procedure TGuildOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Missing", Home = "" },
-        new() { StartLine = 10391, EndLine = 10405, Signature = "procedure TCastleOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Missing", Home = "" },
+        new() { StartLine = 10386, EndLine = 10390, Signature = "procedure TGuildOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
+        new() { StartLine = 10391, EndLine = 10405, Signature = "procedure TCastleOfficial.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcGuildCastle.cs" },
         new() { StartLine = 10406, EndLine = 10509, Signature = "function CheckStrIsVar(sText: string): Boolean;", Status = "Covered", Home = "ObjNpcUnitFuncs.cs" },
         new() { StartLine = 10510, EndLine = 10515, Signature = "constructor TBoxMonster.Create;", Status = "Covered", Home = "ObjNpcBoxMonster.cs" },
         new() { StartLine = 10516, EndLine = 10520, Signature = "destructor TBoxMonster.Destroy;", Status = "Missing", Home = "" },

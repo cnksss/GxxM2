@@ -52,6 +52,13 @@ public static class ObjNpcConst
     public const int CMD_RACE_11 = 11;
     /// <summary>原文 `CMD_RACE_12 = 12;`（ObjNpc.pas:22）。</summary>
     public const int CMD_RACE_12 = 12;
+
+    /// <summary>接缝：原文 `LOG_ActionNone = 00`（M2Share.pas:87）。</summary>
+    public const byte LOG_ActionNone = 0;
+
+    /// <summary>接缝：原文 `LOG_ItemDisappear = 09`（M2Share.pas:96）。
+    /// 注：`GXX.LogDataServer.LogManage.cs:28` 有一份同值常量，但**跨工程**（M2Server 未引用 LogDataServer），故此处按原文值独立声明。</summary>
+    public const byte LOG_ItemDisappear = 9;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,6 +417,111 @@ public static class NpcSeams
     /// </summary>
     public static Action<TNormNpc, TPlayObject, string> SendCustemMsg { get; set; } = (_, _, _) => { };
 
+    // -----------------------------------------------------------------------
+    // TMerchant.UpgradeWapon 的嵌套过程 sub_4A0218（ObjNpc.pas:1686-1828）需要的最小宿主面。
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// 原文 `ItemUnit.GetItemAddValue(UserItem: pTUserItem; var StdItem: TStdItem)`
+    /// （ItemUnit.pas；ObjNpc.pas:1733 调用）。
+    /// <para>两参**都**按引用：`UserItem` 原文是指针（可就地改写），`StdItem` 原文是 `var`。
+    /// 接缝：`GXX.M2Server.Engine.AddAbility.cs:76` 已注明"随物品升级批次接入"，尚未落地。</para>
+    /// </summary>
+    public delegate void GetItemAddValueDelegate(ref TUserItem userItem, ref TStdItem stdItem);
+
+    /// <summary>原文 `ItemUnit.GetItemAddValue`（ObjNpc.pas:1733）。接缝（默认无操作）。</summary>
+    public static GetItemAddValueDelegate GetItemAddValue { get; set; } = (ref TUserItem _, ref TStdItem _) => { };
+
+    /// <summary>
+    /// 原文 `AddGameDataLog(LogAction1, LogAction2: Byte; LogActor: TBaseObject; ItemName: string;
+    /// ItemMakeIndex: Integer; TargetName: string; Data1: Integer; Data2: Integer; LogDesc: string)`
+    /// （M2Share.pas:11686-11687，ObjNpc.pas:1719/1794 调用）。接缝：待 M2Share 移植后接入。
+    /// </summary>
+    public static Action<byte, byte, TCreature, string, int, string, int, int, string> AddGameDataLog { get; set; } =
+        (_, _, _, _, _, _, _, _, _) => { };
+
+    /// <summary>
+    /// 原文 `g_Config.sBlackStone`（M2Share.pas:918 声明 / :4142 默认值 `'黑铁矿'`）。
+    /// ObjNpc.pas:1712/1715 用它识别升级材料。接缝：待 M2Share 的 g_Config 接入。
+    /// </summary>
+    public static string sBlackStone { get; set; } = "黑铁矿";
+
+    /// <summary>
+    /// 原文 `IsUseItem(nIndex): Boolean`（M2Share.pas:11660-11669）：
+    /// `StdItem.StdMode in [19,20,21,22,23,24,26]`。
+    /// <para><b>默认实现即原文 1:1 逻辑</b>（只依赖本类已有的 <see cref="GetStdItem"/>），
+    /// 故这里不是"另造一份"，而是把 M2Share 的 10 行判定挂在接缝上；
+    /// M2Share 移植后改为转调其正式实现即可。</para>
+    /// <para><b>原文缺陷（照抄）</b>：11664-11665 **没有 `StdItem &lt;&gt; nil` 检查** ——
+    /// `GetStdItem` 返回 nil 时原文读 `StdItem.StdMode` 会 AV；托管侧默认实现读 `Nullable.Value`
+    /// 抛 `InvalidOperationException`（等价"未定义行为即崩溃"）。</para>
+    /// </summary>
+    public static Func<int, bool> IsUseItem { get; set; } = nIndex =>
+    {
+        TStdItem? StdItem = GetStdItem(nIndex);
+        return StdItem.Value.StdMode is 19 or 20 or 21 or 22 or 23 or 24 or 26;
+    };
+
+    /// <summary>
+    /// 原文 `User.SendMsg(Self, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)`
+    /// （`TBaseObject.SendMsg`，ObjNpc.pas:1719/1794/1825 等处的**网络下发**版，
+    /// 与托管侧 `Engine.TCreature.SendMsg`（入消息队列版，签名无 sender）**不是同一个方法**）。
+    /// <para>接缝签名：(sender, target, wIdent, wParam, nParam1, nParam2, nParam3, sMsg)。</para>
+    /// </summary>
+    public static Action<TCreature, TCreature, ushort, long, long, long, long, string> SendMsgToClient { get; set; } =
+        (_, _, _, _, _, _, _, _) => { };
+
+    // -----------------------------------------------------------------------
+    // TGuildOfficial / TCastleOfficial（公会官员 / 攻城官员）需要的最小宿主面。
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// 原文 `TNormNpc.Click`（ObjNpc.pas:4431-4442，本车道未覆盖）—— 供
+    /// `TMerchant.Click`(3228-3232)、`TGuildOfficial.Click`(10049-10053)、
+    /// `TCastleOfficial.Click`(1115 的 `inherited`) 三处转发。默认无操作。
+    /// </summary>
+    public static Action<TNormNpc, TPlayObject> Click { get; set; } = (_, _) => { };
+
+    /// <summary>
+    /// 原文 `TPlayObject.SysMsg(sMsg, MsgColor, MsgType)`（ObjPlayer.pas；本单元多处调用）。
+    /// 接缝把 `c_Red` / `c_Green` 与 `t_Hint` / `t_Castle` 一起透传（用既有枚举）。
+    /// </summary>
+    public static Action<TCreature, string, TMsgColor, TMsgType> SysMsg { get; set; } = (_, _, _, _) => { };
+
+    /// <summary>原文 `TPlayObject.m_btPermission`（ObjPlayer.pas，权限等级；ObjNpc.pas:1114 判定 `&gt;= 3`）。接缝。</summary>
+    public static Func<TPlayObject, byte> GetPlayerPermission { get; set; } = _ => 0;
+
+    /// <summary>原文 `TPlayObject.m_boSendMsgFlag`（ObjPlayer.pas；ObjNpc.pas:9857/10399 读）。接缝。</summary>
+    public static Func<TPlayObject, bool> GetSendMsgFlag { get; set; } = _ => false;
+
+    /// <summary>原文 `TPlayObject.m_boSendMsgFlag := False`（ObjNpc.pas:9859/10401）。接缝。</summary>
+    public static Action<TPlayObject> ClearSendMsgFlag { get; set; } = _ => { };
+
+    /// <summary>
+    /// 原文 `UserEngine.SendBroadCastMsg(sMsg, MsgType)`（UsrEngn.pas；
+    /// ObjNpc.pas:9860 `t_Cust`、10402 `t_Castle`）。接缝：待 UsrEngn.pas 提供全服广播后接入。
+    /// </summary>
+    public static Action<string, TMsgType> SendBroadCastMsg { get; set; } = (_, _) => { };
+
+    /// <summary>
+    /// 原文 `g_CastleManager.GetCastleNameList(List: TStringList)`（Castle.pas；
+    /// ObjNpc.pas:10071 用 `&lt;$REQUESTCASTLELIST&gt;` 生成攻城列表）。
+    /// 接缝：`GXX.M2Server.Engine.TCastleManager` 已存在但无此方法，待其补上后接入。
+    /// </summary>
+    public static Action<TStringList> GetCastleNameList { get; set; } = _ => { };
+
+    /// <summary>
+    /// 原文 `g_Config.boSubkMasterSendMsg`（M2Share.pas；ObjNpc.pas:10393 的"城主喊话"开关）。
+    /// 接缝：待 M2Share 的 g_Config 接入（`M2Config` 暂无同名字段）。
+    /// </summary>
+    public static bool boSubkMasterSendMsg { get; set; }
+
+    /// <summary>
+    /// 原文 `g_sSubkMasterMsgCanNotUseNowMsg`（M2Share.pas；ObjNpc.pas:10395 的提示串）。
+    /// 接缝：待 M2Share 移植后接入（此处为语义占位，**非原文文案**，已在报告登记）。
+    /// </summary>
+    public static string g_sSubkMasterMsgCanNotUseNowMsg { get; set; } = "当前无法使用城主喊话功能";
+
     private static readonly System.Random _Rnd = new();
 
     private static int _DelphiRandom(int range)
@@ -469,5 +581,23 @@ public static class NpcSeams
         GetStdItemName = _ => "";
         GetUseItemsWeapon = _ => default;
         SendCustemMsg = (_, _, _) => { };
+        GetItemAddValue = (ref TUserItem _, ref TStdItem _) => { };
+        AddGameDataLog = (_, _, _, _, _, _, _, _, _) => { };
+        sBlackStone = "黑铁矿";
+        IsUseItem = nIndex =>
+        {
+            TStdItem? StdItem = GetStdItem(nIndex);
+            return StdItem.Value.StdMode is 19 or 20 or 21 or 22 or 23 or 24 or 26;
+        };
+        SendMsgToClient = (_, _, _, _, _, _, _, _) => { };
+        Click = (_, _) => { };
+        SysMsg = (_, _, _, _) => { };
+        GetPlayerPermission = _ => 0;
+        GetSendMsgFlag = _ => false;
+        ClearSendMsgFlag = _ => { };
+        SendBroadCastMsg = (_, _) => { };
+        GetCastleNameList = _ => { };
+        boSubkMasterSendMsg = false;
+        g_sSubkMasterMsgCanNotUseNowMsg = "当前无法使用城主喊话功能";
     }
 }
