@@ -125,13 +125,32 @@ public class DbLayerSqlFidelityTests
         Assert.Equal(10, differing.Count);
 
         // 3 条方言差异：Update/Buy 的 CreateDate 写法 + 超时判定。
-        // 注意 SQLite 侧原文用 strftime(''%s'', ''now'')（Delphi 里双写单引号 → 运行时 SQL 含）
-        Assert.Contains("strftime(''%s'', ''now'')", a["UserShop_UpdateShopItem"], StringComparison.Ordinal);
+        // ★ Delphi 的 `''` 是**一个**单引号的转义、编译期即折叠 ⇒ 运行期 SQL 是 `strftime('%s', 'now')`
+        //   与 `ifnull(BuyerName, '')`。（早期把源码形态当成运行期文本，多了一层引号、语义改变：
+        //   `ifnull(BuyerName, '''')` 在 SQL 里是"一个单字符的串"，`length` 恒为 1 ⇒ 判定恒假。
+        //   已按 _recon/delphi-sql-extract.mjs 修正解码并重新生成，见 docs/并行报告-p3-m2-dbdata.md §4.1。）
+        Assert.Contains("strftime('%s', 'now')", a["UserShop_UpdateShopItem"], StringComparison.Ordinal);
         Assert.Contains("CURRENT_TIMESTAMP", b["UserShop_UpdateShopItem"], StringComparison.Ordinal);
-        Assert.Contains("strftime(''%s'', ''now'')", a["UserShop_BuyShopItem"], StringComparison.Ordinal);
+        Assert.Contains("strftime('%s', 'now')", a["UserShop_BuyShopItem"], StringComparison.Ordinal);
         Assert.Contains("CURRENT_TIMESTAMP", b["UserShop_BuyShopItem"], StringComparison.Ordinal);
+        // 注意：GetTimeHasArrivedSellItems 的 SQLite 分支原文写的是**双引号**（不是单引号）——逐字保留。
         Assert.Contains("(strftime(\"%s\", \"now\")) - A.createdate > ?", a["UserShop_GetTimeHasArrivedSellItems"], StringComparison.Ordinal);
         Assert.Contains("TIMESTAMPDIFF(SECOND, A.createdate, CURRENT_TIMESTAMP) > ?", b["UserShop_GetTimeHasArrivedSellItems"], StringComparison.Ordinal);
+
+        // ★ 引号解码回归守卫：解码正确后，任何 SQL 里都不应再出现"4 个连续单引号"（即错误的源码形态）。
+        foreach (KeyValuePair<string, string> kv in a)
+        {
+            Assert.DoesNotContain("''''", kv.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain("''%s''", kv.Value, StringComparison.Ordinal);
+        }
+        foreach (KeyValuePair<string, string> kv in b)
+        {
+            Assert.DoesNotContain("''''", kv.Value, StringComparison.Ordinal);
+            Assert.DoesNotContain("''%s''", kv.Value, StringComparison.Ordinal);
+        }
+        // 正确形态必须真的出现（SQLite：strftime 单引号形式；两方言：空串条件）。
+        Assert.Contains("ifnull(BuyerName, '')", a["UserShop_UpdateShopItem"], StringComparison.Ordinal);
+        Assert.Contains("ifnull(BuyerName, '')", b["UserShop_UpdateShopItem"], StringComparison.Ordinal);
 
         // 9 条非方言差异：相关子查询 shopid = a.shopid（SQLite）vs ShopID = A.ShopID（MySQL）。
         Assert.Contains("shopid = a.shopid", a["UserShop_GetUserShopInfo"], StringComparison.Ordinal);

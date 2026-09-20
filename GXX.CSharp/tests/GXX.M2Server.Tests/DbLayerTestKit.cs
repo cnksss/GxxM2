@@ -177,7 +177,7 @@ public sealed class ScriptedMySqlStatement : ScriptedStatementBase, IMySqlStatem
 
     public void OrderBindParamDateTime(DateTime value) => Binds.Add(new BindCall { Kind = "datetime", Value = value });
 
-    public void OrderBindDouble(double value) => Binds.Add(new BindCall { Kind = "double", Value = value });
+    public void OrderBindParamDouble(double value) => Binds.Add(new BindCall { Kind = "double", Value = value });
 
     public bool Query()
     {

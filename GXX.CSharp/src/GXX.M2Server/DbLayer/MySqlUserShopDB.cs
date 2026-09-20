@@ -1,10 +1,11 @@
 // 源单元：Source/M2Engine/MySqlUserShopDB.pas（1-2190 行，1:1 移植）
 //   TMySqlUserShopDB = class(TUserShopDB)：DoInit / DoFinal / 20 个 Do* 覆写 + Create/Destroy。
 //
-// SQL 文本**逐字**保留。与 SqliteUserShopDB 的差异面（已用 _recon/diff-sql.mjs 全量对账：
+// SQL 文本**逐字**保留（Delphi 的 `''` 已按编译期语义折叠为一个 `'` —— 见 SqliteUserShopDB.cs:4 的说明）。
+// 与 SqliteUserShopDB 的差异面（已用 _recon/diff-sql.mjs 全量对账：
 // 44 条语句、32 条逐字相同、12 条不同）：
 //   1) FStatementUpdateUserShopItem / FStatementBuyUserShopItem：
-//        SQLite  CreateDate = (strftime(''%s'', ''now''))   MySQL  CreateDate = CURRENT_TIMESTAMP
+//        SQLite  CreateDate = (strftime('%s', 'now'))   MySQL  CreateDate = CURRENT_TIMESTAMP
 //   2) FStatementGetTimeHasArrivedSellItems：
 //        SQLite  ... and (strftime("%s", "now")) - A.createdate > ?
 //        MySQL   ... and TIMESTAMPDIFF(SECOND, A.createdate, CURRENT_TIMESTAMP) > ?
@@ -213,23 +214,23 @@ public sealed class TMySqlUserShopDB : TUserShopDB
 
         _fStatementUpdateUserShopItem = fdb.AddSQLStatement("UserShop_UpdateShopItem");
         _fStatementUpdateUserShopItem.Sql =
-            "update UserShopItem set CreateDate = CURRENT_TIMESTAMP, ItemType = ?, IsAllowSell = ?, MoneyType = ?, ItemPrice = ? where length(ifnull(BuyerName, '''')) = 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set CreateDate = CURRENT_TIMESTAMP, ItemType = ?, IsAllowSell = ?, MoneyType = ?, ItemPrice = ? where length(ifnull(BuyerName, '')) = 0 and ShopID = ? and ItemID = ?";
         _fStatementUpdateUserShopItem.Prepare();
 
         _fStatementBuyUserShopItem = fdb.AddSQLStatement("UserShop_BuyShopItem");
         _fStatementBuyUserShopItem.Sql =
-            "update UserShopItem set CreateDate = CURRENT_TIMESTAMP, BuyerName = ? where length(ifnull(BuyerName, '''')) = 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set CreateDate = CURRENT_TIMESTAMP, BuyerName = ? where length(ifnull(BuyerName, '')) = 0 and ShopID = ? and ItemID = ?";
         _fStatementBuyUserShopItem.Prepare();
 
         _fStatementGetMoneyShopItem = fdb.AddSQLStatement("UserShop_GetMoneyShopItem");
         _fStatementGetMoneyShopItem.Sql =
-            "update UserShopItem set IsGetMoney = 1 where length(ifnull(BuyerName, '''')) > 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set IsGetMoney = 1 where length(ifnull(BuyerName, '')) > 0 and ShopID = ? and ItemID = ?";
         _fStatementGetMoneyShopItem.Prepare();
 
         _fStatementGetSelledAndNoGetMoneyTotal = fdb.AddSQLStatement("UserShop_GetSelledAndNoGetMoneyTotal");
         _fStatementGetSelledAndNoGetMoneyTotal.Sql = "SELECT " + "B.HumanName, " + "A.MoneyType, " + "Sum(A.ItemPrice) SumPrice " +
             "FROM " + "UserShopItem A, " + "UserShop B " + "WHERE " +
-            "A.ShopID = B.ShopID and length(ifnull(A.BuyerName, '''')) > 0 and IsGetMoney = 0 " + "GROUP BY B.HumanName, A.MoneyType " +
+            "A.ShopID = B.ShopID and length(ifnull(A.BuyerName, '')) > 0 and IsGetMoney = 0 " + "GROUP BY B.HumanName, A.MoneyType " +
             "ORDER BY B.HumanName";
         _fStatementGetSelledAndNoGetMoneyTotal.Prepare();
 
@@ -239,7 +240,7 @@ public sealed class TMySqlUserShopDB : TUserShopDB
 
         _fStatementSetTimeHasArrivedSellItems = fdb.AddSQLStatement("UserShop_SetTimeHasArrivedSellItems");
         _fStatementSetTimeHasArrivedSellItems.Sql = "UPDATE UserShopItem set " + "IsAllowSell = 0 " +
-            "WHERE (IsAllowSell = 1) and length(ifnull(BuyerName, '''')) = 0 and TIMESTAMPDIFF(SECOND, CreateDate, CURRENT_TIMESTAMP) > ?";
+            "WHERE (IsAllowSell = 1) and length(ifnull(BuyerName, '')) = 0 and TIMESTAMPDIFF(SECOND, CreateDate, CURRENT_TIMESTAMP) > ?";
         _fStatementSetTimeHasArrivedSellItems.Prepare();
 
         _fStatementGetShopSellingItem_ASC = fdb.AddSQLStatement("UserShop_GetSellingItem_ASC");
@@ -449,11 +450,11 @@ public sealed class TMySqlUserShopDB : TUserShopDB
                 try
                 {
                     sm.Sql = "SELECT " + "A.ShopID," + "A.HumanName," + "A.ShopName," + "A.IsBusiness," + "A.CreateDate," + "A.CareValue," +
-                        "(select count(*) from UserShopItem where ShopID = A.ShopID and IsAllowSell = 1 and length(ifnull(BuyerName, '''')) = 0) as SellItemCount,"
+                        "(select count(*) from UserShopItem where ShopID = A.ShopID and IsAllowSell = 1 and length(ifnull(BuyerName, '')) = 0) as SellItemCount,"
                         +
-                        "(select count(*) from UserShopItem where ShopID = A.ShopID and length(ifnull(BuyerName, '''')) > 0) as SelledItemCount,"
+                        "(select count(*) from UserShopItem where ShopID = A.ShopID and length(ifnull(BuyerName, '')) > 0) as SelledItemCount,"
                         +
-                        "(select count(*) from UserShopItem where ShopID = A.ShopID and IsAllowSell = 0 and length(ifnull(BuyerName, '''')) = 0) as StorageItemCount "
+                        "(select count(*) from UserShopItem where ShopID = A.ShopID and IsAllowSell = 0 and length(ifnull(BuyerName, '')) = 0) as StorageItemCount "
                         + "FROM " + "UserShop A " + "WHERE 1 = 1 ";
 
                     if (keyword.Length > 0)
@@ -695,21 +696,21 @@ public sealed class TMySqlUserShopDB : TUserShopDB
                     if (shopItemType == TShopItemType.sitSelling)
                     {
                         if (isMyShop)
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell >= 1) and (A.IsAllowSell <= 2) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell >= 1) and (A.IsAllowSell <= 2) and length(ifnull(A.BuyerName, '')) = 0 ";
                         else
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitSelled)
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) > 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) > 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitStorage)
                     {
-                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
 
                     if (itemType >= 0)
@@ -931,21 +932,21 @@ public sealed class TMySqlUserShopDB : TUserShopDB
                     if (shopItemType == TShopItemType.sitSelling)
                     {
                         if (isMyShop)
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell in (1, 2)) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell in (1, 2)) and length(ifnull(A.BuyerName, '')) = 0 ";
                         else
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitSelled)
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) > 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) > 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitStorage)
                     {
-                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
 
                     if (itemType >= 0)

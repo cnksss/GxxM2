@@ -1,7 +1,12 @@
 // 源单元：Source/M2Engine/SqliteUserShopDB.pas（1-2161 行，1:1 移植）
 //   TSqliteUserShopDB = class(TUserShopDB)：DoInit / DoFinal / 20 个 Do* 覆写 + Create/Destroy。
 //
-// SQL 文本**逐字**保留（含 strftime(''%s'', ''now'') 的双引号转义、limit/offset 写法、空格）。
+// SQL 文本**逐字**保留（含 limit/offset 写法、空格、以及原文混用的 `strftime('%s', 'now')` /
+// `strftime("%s", "now")` 两种写法——后者原文就写成双引号，SQLite 会把它当字符串，逐字保留）。
+// ★ Delphi 字符串字面量里的 `''` 是**一个**单引号的转义、编译期即折叠，所以运行期 SQL 是
+//   `ifnull(BuyerName, '')`（空串）；早期版本把它当成"源码形态保留"，导致送给 driver 的 SQL 变成
+//   `ifnull(BuyerName, '''')`（SQL 里是**一个单字符的串**，`length` 恒为 1 ⇒ 整族判定失效）。
+//   已用 _recon/delphi-sql-extract.mjs 修正解码并重新生成（见 docs/并行报告-p3-m2-dbdata.md §4.1）。
 // 全部 42 条静态语句的 SQL 已由 _recon 从 GBK 原文机械抽取并写入 SqlStatements.SqliteUserShopDB.cs；
 // 其中 5 条方法级 const 见 SqlConsts.SqliteUserShopDB.cs（同样机械抽取）。
 //
@@ -203,23 +208,23 @@ public sealed class TSqliteUserShopDB : TUserShopDB
 
         _fStatementUpdateUserShopItem = fdb.AddSQLStatement("UserShop_UpdateShopItem");
         _fStatementUpdateUserShopItem.Sql =
-            "update UserShopItem set CreateDate = (strftime(''%s'', ''now'')), ItemType = ?, IsAllowSell = ?, MoneyType = ?, ItemPrice = ? where length(ifnull(BuyerName, '''')) = 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set CreateDate = (strftime('%s', 'now')), ItemType = ?, IsAllowSell = ?, MoneyType = ?, ItemPrice = ? where length(ifnull(BuyerName, '')) = 0 and ShopID = ? and ItemID = ?";
         _fStatementUpdateUserShopItem.Prepare();
 
         _fStatementBuyUserShopItem = fdb.AddSQLStatement("UserShop_BuyShopItem");
         _fStatementBuyUserShopItem.Sql =
-            "update UserShopItem set CreateDate = (strftime(''%s'', ''now'')), BuyerName = ? where length(ifnull(BuyerName, '''')) = 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set CreateDate = (strftime('%s', 'now')), BuyerName = ? where length(ifnull(BuyerName, '')) = 0 and ShopID = ? and ItemID = ?";
         _fStatementBuyUserShopItem.Prepare();
 
         _fStatementGetMoneyShopItem = fdb.AddSQLStatement("UserShop_GetMoneyShopItem");
         _fStatementGetMoneyShopItem.Sql =
-            "update UserShopItem set IsGetMoney = 1 where length(ifnull(BuyerName, '''')) > 0 and ShopID = ? and ItemID = ?";
+            "update UserShopItem set IsGetMoney = 1 where length(ifnull(BuyerName, '')) > 0 and ShopID = ? and ItemID = ?";
         _fStatementGetMoneyShopItem.Prepare();
 
         _fStatementGetSelledAndNoGetMoneyTotal = fdb.AddSQLStatement("UserShop_GetSelledAndNoGetMoneyTotal");
         _fStatementGetSelledAndNoGetMoneyTotal.Sql = "SELECT " + "B.HumanName, " + "A.MoneyType, " + "Sum(A.ItemPrice) SumPrice " +
             "FROM " + "UserShopItem A, " + "UserShop B " + "WHERE " +
-            "A.ShopID = B.ShopID and length(ifnull(A.BuyerName, '''')) > 0 and IsGetMoney = 0 " + "GROUP BY B.HumanName, A.MoneyType " +
+            "A.ShopID = B.ShopID and length(ifnull(A.BuyerName, '')) > 0 and IsGetMoney = 0 " + "GROUP BY B.HumanName, A.MoneyType " +
             "ORDER BY B.HumanName";
         _fStatementGetSelledAndNoGetMoneyTotal.Prepare();
 
@@ -430,11 +435,11 @@ public sealed class TSqliteUserShopDB : TUserShopDB
                 try
                 {
                     sm.Sql = "SELECT " + "A.ShopID," + "A.HumanName," + "A.ShopName," + "A.IsBusiness," + "A.CreateDate," + "A.CareValue," +
-                        "(select count(*) from UserShopItem where shopid = a.shopid and IsAllowSell = 1 and length(ifnull(BuyerName, '''')) = 0) as SellItemCount,"
+                        "(select count(*) from UserShopItem where shopid = a.shopid and IsAllowSell = 1 and length(ifnull(BuyerName, '')) = 0) as SellItemCount,"
                         +
-                        "(select count(*) from UserShopItem where shopid = a.shopid and length(ifnull(BuyerName, '''')) > 0) as SelledItemCount,"
+                        "(select count(*) from UserShopItem where shopid = a.shopid and length(ifnull(BuyerName, '')) > 0) as SelledItemCount,"
                         +
-                        "(select count(*) from UserShopItem where shopid = a.shopid and IsAllowSell = 0 and length(ifnull(BuyerName, '''')) = 0) as StorageItemCount "
+                        "(select count(*) from UserShopItem where shopid = a.shopid and IsAllowSell = 0 and length(ifnull(BuyerName, '')) = 0) as StorageItemCount "
                         + "FROM " + "UserShop A " + "WHERE 1 = 1 ";
 
                     if (keyword.Length > 0)
@@ -673,21 +678,21 @@ public sealed class TSqliteUserShopDB : TUserShopDB
                     if (shopItemType == TShopItemType.sitSelling)
                     {
                         if (isMyShop)
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell >= 1) and (A.IsAllowSell <= 2) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell >= 1) and (A.IsAllowSell <= 2) and length(ifnull(A.BuyerName, '')) = 0 ";
                         else
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitSelled)
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) > 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) > 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitStorage)
                     {
-                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
 
                     if (itemType >= 0)
@@ -907,21 +912,21 @@ public sealed class TSqliteUserShopDB : TUserShopDB
                     if (shopItemType == TShopItemType.sitSelling)
                     {
                         if (isMyShop)
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell in (1, 2)) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell in (1, 2)) and length(ifnull(A.BuyerName, '')) = 0 ";
                         else
-                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                            sm.Sql = sm.Sql + " and (A.IsAllowSell = 1) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitSelled)
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) > 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) > 0 ";
                     }
                     else if (shopItemType == TShopItemType.sitStorage)
                     {
-                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and (A.IsAllowSell = 0) and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
                     else
                     {
-                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '''')) = 0 ";
+                        sm.Sql = sm.Sql + " and length(ifnull(A.BuyerName, '')) = 0 ";
                     }
 
                     if (itemType >= 0)
