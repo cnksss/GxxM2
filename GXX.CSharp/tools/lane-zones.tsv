@@ -40,3 +40,5 @@ p6-test-isolation	GXX.CSharp/tests/GXX.M2Server.Tests/M2ConfigIsolation*.cs;!GXX
 # CustomActor: replaces a 6-line stub in PlaySceneNewActor.cs with the full 1130-line class.
 p6-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/CustomActor*.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;GXX.CSharp/tests/GXX.Client.Tests/CustomActor*;GXX.CSharp/docs/并行报告-p6-client-actor.md
 p6-core-hardinfo	GXX.CSharp/src/GXX.Core/Hardware/**;GXX.CSharp/tests/GXX.Core.Tests/Hardware*;GXX.CSharp/docs/并行报告-p6-core-hardinfo.md
+# Restores the virtual-dispatch chain for the client actor hierarchy (ledger 24.2/25.5).
+p7-client-virtual	!GXX.CSharp/src/GXX.Client/Scenes/ActorCore.cs;!GXX.CSharp/src/GXX.Client/Scenes/ActorMotion.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;!GXX.CSharp/src/GXX.Client/Scenes/CustomActor.cs;GXX.CSharp/tests/GXX.Client.Tests/VirtualDispatch*;GXX.CSharp/docs/并行报告-p7-client-virtual.md
