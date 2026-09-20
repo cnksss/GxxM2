@@ -57,7 +57,29 @@ public class TStdItemView
     public uint MP;
     public string DBName = "";
     public string Name = "";   // 物品名（套装组/物品规则匹配用）
-    public ushort AniCount;
+    /// <summary>
+    /// 原文 `TStdItem.AniCount`（动画数 / 特戒代码 / 封号令判定共用的那**一个**字段）。
+    /// <para><b>★ 2026 第七轮修复（台账 §29「沉默中性值」同族）</b>：本类原先把同一 Delphi 字段
+    /// **拆成两个托管字段** —— 本行的 `AniCount` 与 :41 的 `Anicount`（仅大小写不同），
+    /// 且**两者都在被使用、用途还不同**：</para>
+    /// <list type="bullet">
+    ///   <item><description>`Anicount`（:41）—— 被 <c>Engine/RecalcChain.cs:55</c>
+    ///     `self.ApplySpecialItemCode(std.Anicount)` 读作**特戒代码开关**；</description></item>
+    ///   <item><description>`AniCount`（本行）—— 被 <c>Engine/GroupItems.cs:476</c>
+    ///     `stdItem.AniCount == 0` 读作**封号令判定**，并被 <c>tests/FormJ57Tests.cs</c> 以对象初始化器写入。</description></item>
+    /// </list>
+    /// <para>后果：任何构造 `TStdItemView` 的地方（如 `RecalcChain.cs:47` 的 `StdItemResolver`）
+    /// **只填其中之一**时，另一侧就**静默读到 0** —— 正是本工程反复吃过的"沉默中性值"故障
+    /// （默认值看起来合法，于是错误被伪装成"分支没命中"）。</para>
+    /// <para>修法：本行由**字段**改为**转发属性**，令两处消费共享同一份数据（原文只有一个 `AniCount`）。
+    /// 已核实全仓**没有任何调用方依赖"字段"语义**（无 `ref`/`out`/`GetField`/`nameof` 用法），
+    /// 且 `tests/FormJ57Tests.cs` 用的是对象初始化器（属性初始化器同样合法）→ **测试无需改动**。</para>
+    /// </summary>
+    public ushort AniCount
+    {
+        get => Anicount;
+        set => Anicount = value;
+    }
 }
 
 /// <summary>TUserItem 视图（wIndex + CustomProperty 绑定属性子集）。</summary>
