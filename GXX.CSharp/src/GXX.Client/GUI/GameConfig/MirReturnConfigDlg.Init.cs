@@ -201,7 +201,11 @@ public partial class TMirReturnConfigDlg
         FScreenMode = ScreenMode;
         FClientVersion = ClientVersion;
         FWindowMode = WindowMode;
+        // 原文 3272：**控件树构建完成后**才置 FInitializeed := True ——
+        // 它是 RefConfig(1985)/RefUseItemConfig(1862) 的总门禁。
+        // 托管侧把"控件树构建"整体交给接缝，故在接缝调用**之后**置位（与原文顺序一致）。
         InitializeSeam(Handle, ScreenMode, ClientVersion, WindowMode);
+        FInitializeed = true;                                              // 3272
     }
 
     /// <summary>接缝：<c>Initialize</c> 的注入点（原文 2909-3274 的控件树构建段）。</summary>

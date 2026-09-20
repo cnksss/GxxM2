@@ -123,7 +123,6 @@ public sealed partial class MirReturnConfigDlgControlsStub
     public bool PlugCheckBoxUseSuperMedicaItemName8 { get; set; }
     public bool PlugCheckBoxVolume { get; set; }
     public bool PlugCheckDisableChartMemoSize { get; set; }
-    public int PlugComboBoxAutoMagic { get; set; }
     public int PlugComboBoxBagFullValue { get; set; }
     public int PlugComboBoxCheckHPValue { get; set; }
     public int PlugComboBoxCheckMPValue { get; set; }
@@ -307,7 +306,6 @@ public sealed partial class MirReturnConfigDlgControlsStub
     public int PlugMemoConfig8Line2 { get; set; }
     public int PlugMemoConfig8Page { get; set; }
     public int PlugMemoConfigBoss { get; set; }
-    public object PlugMemoConfigHelp { get; set; }
     public int PlugPageControlConfig { get; set; }
     public int PlugTabSheetConfig1 { get; set; }
     public int PlugTabSheetConfig2 { get; set; }
@@ -321,8 +319,4 @@ public sealed partial class MirReturnConfigDlgControlsStub
     public int PlugTabSheetConfig82 { get; set; }
     public int PlugTabSheetConfig83 { get; set; }
     public int PlugTabSheetConfig9 { get; set; }
-    public int TrackBarVolume { get; set; }
-    public int TrackBarVolumeMax { get; set; }
-    public int TrackBarVolumeMin { get; set; }
-    public int TrackBarVolumePosition { get; set; }
 }

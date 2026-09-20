@@ -102,8 +102,6 @@ public partial interface IMirReturnConfigDlgControlsExt : IMirReturnConfigDlgCon
     bool PlugCheckDisableChartMemoSize { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugEditExpFilter</c>.</summary>
     int PlugEditExpFilter { get; set; }
-    /// <summary>接缝: 原文 控件字段 <c>TrackBarVolume</c>.</summary>
-    int TrackBarVolume { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugTabSheetConfig2</c>.</summary>
     int PlugTabSheetConfig2 { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugBtnDiyAdd</c>.</summary>
@@ -426,8 +424,6 @@ public partial interface IMirReturnConfigDlgControlsExt : IMirReturnConfigDlgCon
     bool PlugCheckBoxSmartWalkLongHit { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugCheckBoxSmartWideHit</c>.</summary>
     bool PlugCheckBoxSmartWideHit { get; set; }
-    /// <summary>接缝: 原文 控件字段 <c>PlugComboBoxAutoMagic</c>.</summary>
-    int PlugComboBoxAutoMagic { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugEditAutoMagicTime</c>.</summary>
     int PlugEditAutoMagicTime { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugMemoConfig5Label19</c>.</summary>
@@ -646,14 +642,6 @@ public partial interface IMirReturnConfigDlgControlsExt : IMirReturnConfigDlgCon
     int PlugLineConfig83C { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugTabSheetConfig9</c>.</summary>
     int PlugTabSheetConfig9 { get; set; }
-    /// <summary>接缝: 原文 控件字段 <c>PlugMemoConfigHelp</c>.</summary>
-    object PlugMemoConfigHelp { get; set; }
     /// <summary>接缝: 原文 控件字段 <c>PlugMemoConfig6LabelKeyBoard</c>.</summary>
     string PlugMemoConfig6LabelKeyBoard { get; set; }
-    /// <summary>接缝: 原文 2037-2039 TrackBarVolume.Max.</summary>
-    int TrackBarVolumeMax { get; set; }
-    /// <summary>接缝: 原文 2037-2039 TrackBarVolume.Min.</summary>
-    int TrackBarVolumeMin { get; set; }
-    /// <summary>接缝: 原文 2037-2039 TrackBarVolume.Position.</summary>
-    int TrackBarVolumePosition { get; set; }
 }
