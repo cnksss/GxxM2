@@ -14,7 +14,87 @@
 | 1 | `0152c551` | 修 `p3-gen.mjs` 重复 `RuntimeValue` 常量（CS0102）+ 补 `SqliteCreateTableSql.cs` / 接缝，整树可编译 |
 | 2 | `2503ed86` | 四单元实现全部落地 + 4 张 SQL 指纹表 + 保真/行为测试（src 0 error） |
 | 3 | `e5cf302d` | 修 Delphi `''` 解码（SQL 逐字保真核心缺陷）+ `LoadItemFromDB` ref 化 + `AuctionAddDateTime` 崩溃修复 |
-| 4 | （见 git log 末条） | `DbLayerAuctionBehaviorSqliteTests.cs` 收尾 + 门禁全绿 |
+| 4 | `70fc83f2` | `DbLayerAuctionBehaviorSqliteTests.cs`（227 例）+ 报告，门禁全绿 |
+| 5 | `0afb497a` | 清理 `_recon` 派生中间产物（2.17MB→67KB，仅留 `.mjs` 流水线）+ 报告收尾 |
+| 6 | `642d930c` | **跨车道修复**：UserShop SQL 的 Delphi `''` 引号缺陷（**已合入 main 的活性缺陷**） |
+| 7 | `534945b3` | P2 核实 `TStorageDB` 真实状态（报告登记）+ P3 `IMySqlStatement.OrderBindParamDouble` 按原文名 |
+| 8 | 见 git log 末条 | P4：`TMySqlAuctionDB` 逐方法行为测试 + `TSqliteAuctionDB` 两处边角用例 |
+
+> 说明：`0afb497a`（切片5）已被调度方并入 `main`；此后 main 的 tip 为 `0e68afe7`。
+> 本分支在 `par/p3-m2-dbdata` 上继续叠加切片 6-8。
+
+---
+
+## 0.5 ★ 第二轮（调度方追加指令）的三项结论
+
+### 0.5.1 P1 跨车道修复：UserShop SQL 的引号缺陷（`642d930c`）
+
+**这是已合入 main 的活性缺陷，不只是形态问题**：Delphi 字符串字面量里的两个连续单引号是**一个**
+单引号的转义、编译期即折叠，运行期 SQL 是 `ifnull(BuyerName, '')`（空串，`length = 0`）；
+而托管常量保留了源码形态（四个连续单引号），SQL 解析成**一个单字符的串**，`length` 恒为 1
+⇒ 上架 / 购买 / 取货 / 上架超时**整族判定恒假**。
+
+**处置（全程脚本，零手工改字符串）**：
+
+1. **可复现性校验**：先用**未修改**的 `_recon/delphi-sql-extract.mjs` + `gen-statements.mjs` 重跑，
+   输出与已提交的 `SqlStatements.{Sqlite,MySql}UserShopDB.cs` **逐字节相同**
+   （22,636 / 23,151 字节，`-ceq` True）⇒ 证明"流水线可复现已提交产物"。
+2. 再把 `delphi-sql-extract.mjs` 的引号解码改为折叠成单个 `'`，重跑同一流水线。
+3. **机器验证"只改了引号层数"**：去掉所有单引号后，新旧常量 `==` True。
+4. 修正后：`ifnull(BuyerName, '')` 出现 27 / 28 次，`strftime('%s', 'now')` 2 次（仅 SQLite；
+   MySQL 用 `CURRENT_TIMESTAMP`，为 0 是正确的）。
+5. **额外发现并一并修掉**：`Sqlite/MySqlUserShopDB.cs` 里还有 **35 处手写内联 SQL**
+   （不是引用常量类），同样带错引号 —— 含 `UpdateShopItem` / `BuyShopItem` / `GetMoneyShopItem` /
+   `GetSelledAndNoGetMoneyTotal` / `GetUserShopInfo` 的子查询，以及 **20 处 `sm.Sql = sm.Sql + " and …"`
+   动态拼接片段**。同属"禁止手工转录 SQL"的问题，已机械订正。
+6. `DbLayerSqlFidelityTests.cs`：把锁定旧错文本的 3 处期望改为正确形态，并**新增回归守卫**：
+   任何语句都不得含四个连续单引号或 `''%s''`；正确形态 `ifnull(BuyerName, '')` 必须出现。
+7. **保留的原文差异**：`SqliteUserShopDB.pas:315` 原文写的是 `strftime("%s", "now")`（**双引号**，
+   不是单引号）—— 该断言本来就正确，**没有改**。
+
+> 另一条可复用的教训：**"某文件是从脚本生成的"不等于"用脚本重生成就一定安全"**。
+> 我第一次尝试用本车道的 `p3-sql.mjs` 重生成 UserShop，结果留下了
+> `@@SGetShopItemQueryField@@` / `@@SGetShopItemWhere@@` 模板占位（`p3-sql.mjs` 不展开方法级
+> `const`，而 p2b 的 `delphi-sql-extract.mjs` 会展开）。**跨车道重生成必须先把原流水线跑成
+> "与已提交产物逐字节相同"，再施加改动** —— 这就是第 1 步存在的理由。
+
+### 0.5.2 P2 `GetStorageDBClass()` **无法接通**（证据如下）
+
+调度方的指示是"`TStorageDB` 家族在 main 上、你的基线落后、吸收后接通"。实测**前提不成立**：
+
+| 核查项 | 命令 | 结果 |
+|---|---|---|
+| J195/J196 的产物是否在本分支 | `git cat-file -e HEAD:GXX.CSharp/src/GXX.M2Server/SqliteStorageDbCore.cs` | **True**（早就在） |
+| 是否来自 J195 | `git log HEAD -- .../SqliteStorageDbCore.cs` | `5c0b6c6e`（批次J195） |
+| 与 main 是否一致 | `git checkout main -- <4 文件>` 后 `git status` / `git diff HEAD main` | **干净 / 为空**（逐字节相同，无需吸收） |
+| 是不是 `TStorageDB` 派生类 | `git grep -E "class T\w*StorageDB"` | **0 命中** |
+| main 上有没有该类型 | `git grep -E "\bT(StorageDB\|SqliteStorageDB\|MySqlStorageDB)\b" main -- GXX.CSharp/src` | 只有 **7 处注释**文字 |
+
+J195/J196 的实际形状是 **`public static class SqliteStorageDbCore` / `MySqlStorageDbCore`**
+（namespace `GXX.M2Server`，**不在 `DbLayer/`**），即**静态辅助类**（`Lines` / `SaveStart` / `DiffLines`
+这类行号/差异常量 + 静态方法），**不是** `TStorageDB` 的单元类。
+`DbBases.cs` 里只有 `TUserShopDB` / `TAuctionDB` 两个基类，**没有 `TStorageDB`**。
+
+**结论**：`GetStorageDBClass(): Type` 的语义是 `TStorageDBClass = class of TStorageDB`（要能 `Create`
+出对象并调 `DoInit/DoFinal/DoLoadStorageItems/...`），当前**没有真实类型可接**；
+`FStorageDB.Init/Final` 也没有对象可调。按台账 §12.8「只有在正式归属文件缺失时才允许造接缝、
+且禁止造第二份」，**本车道没有自造 `TSqliteStorageDB`**，留给已登记的
+「`TM2DataDB` 基类 + `TStorageDB` 单元类」批次。
+J195/J196 的 37 条测试在本分支**全绿**，未改动。
+
+### 0.5.3 P3 命名统一：两个方言的名字**本来就不同**
+
+调度方指示"按原文名统一为 `OrderBindParamDouble`"。核原文后发现需要细分：
+
+| 方言 | 原文调用 | 出处 |
+|---|---|---|
+| MySQL | `OrderBindParamDouble` | `MySqlM2DataDB.pas:1204` |
+| SQLite | `OrderBindDouble` | `SqliteM2DataDB.pas:1530` |
+
+故只把 **`IMySqlStatement`** 的成员改名为 `OrderBindParamDouble`
+（`DbSeam.cs` + `ScriptedMySqlStatement` + `MySqlM2DataDB.cs` 调用点与注释），
+**`ISqliteStatement.OrderBindDouble` 保持原文名不动** —— 强行统一反而偏离原文，
+这正是本车道一贯的"方言差异不抹平"原则。未留别名。
 
 ---
 
@@ -345,11 +425,35 @@ dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
 
 ## 9. 未完成 / 剩余量（诚实）
 
-1. **`TStorageDB` 家族**（`SqliteStorageDB.pas` / `MySqlStorageDB.pas`）未移植：4 个 `GetStorageDBClass()` 无类可返回（`typeof(object)`），`Init`/`Final` 里的 `FStorageDB.Init/Final` 只有注释。**不在本车道四个目标单元内**。
-2. **`TM2DataDB` 基类未移植**，故 `AuctionDB`/`UserShopDB`/`StorageDB` 三个属性是"可赋值槽位"而非原文的"基类 Create 里 new"。语义差异已在上文与代码注释中标明。
-3. **`MySqlAuctionDB` 的行为测试**：本轮只写了 SQL 保真 + 方言差异面 + 公开包装层（`DbLayerAuctionSqlFidelityTests`）；`TSqliteAuctionDB` 有 2577 行的行为测试，`TMySqlAuctionDB` 的**逐方法行为测试未单独写**（其 `Do*` 逻辑与 SQLite 姊妹实现高度对称，差异面已被方言差异测试覆盖）。这是本车道最大的剩余量。
-4. **`TSqliteStorageDB` / `TMySqlStorageDB` 的 SQL 常量**未抽取。
+1. **`TStorageDB` 家族**（`SqliteStorageDB.pas` / `MySqlStorageDB.pas`）的**单元类**未移植：
+   4 个 `GetStorageDBClass()` 无类可返回（`typeof(object)`），`Init`/`Final` 里的 `FStorageDB.Init/Final`
+   只有注释。**不在本车道四个目标单元内**。
+   **状态 = 顺延（不是"未移植"）**：J195/J196 已把该子系统的**方法**以静态辅助类
+   (`SqliteStorageDbCore` / `MySqlStorageDbCore`) 落地（本分支含其全部 37 条测试，全绿），
+   缺的是 `TStorageDB` 单元类本身。调度方已裁定（§0.5.2）：**保持现状 + 登记**，
+   与「`TM2DataDB` 基类家族」合并为一个批次，**本车道不自造第二份**。
+2. **`TM2DataDB` 基类未移植**，故 `AuctionDB`/`UserShopDB`/`StorageDB` 三个属性是"可赋值槽位"而非原文的"基类 Create 里 new"。语义差异已在上文与代码注释中标明。调度方已登记为独立批次。
+3. **`TMySqlAuctionDB` 的逐方法行为测试**（本车道曾自认的最大剩余量）：已在切片 8 补齐
+   （`DbLayerAuctionBehaviorMySqlTests.cs`），并含**双方言双向对账**测试组 —— 见 §8 的最终计数。
+4. **`TSqliteStorageDB` / `TMySqlStorageDB` 的 SQL 常量**未抽取（随 §9.1 的批次一起做）。
 5. 抽取流水线脚本在 `_recon/`（`.git/info/exclude` 忽略，**未入库**）。按交接纪律已清理派生中间产物
    （`*.utf8.txt` / `p3-*.json` / `ref-*.json` 等，从 2.17 MB 降到 67 KB），**只保留可复用的 `.mjs` 流水线脚本**：
-   `gbk2utf8.mjs` → `p3-sql.mjs` → `p3-gen.mjs` / `p3-fingerprints.mjs` / `p3-regen-all.mjs`，以及 `p3-consts.mjs` + `p3-gen-createtable.mjs`。
-   中间产物全部可由 repo 内的 GBK 原文重新生成，故不影响可复核性；报告 §3 记录了每步的输入/输出。
+   `gbk2utf8.mjs` → `p3-sql.mjs` → `p3-gen.mjs` / `p3-fingerprints.mjs` / `p3-regen-all.mjs`，
+   以及 `p3-consts.mjs` + `p3-gen-createtable.mjs`，再加**第二轮新增的跨车道修复工具**
+   `delphi-sql-extract.mjs`（已修引号解码）+ `gen-statements.mjs` / `gen-fingerprints.mjs` + `labels.mjs`。
+   中间产物全部可由 repo 内的 GBK 原文重新生成，故不影响可复核性；报告 §3 与 §0.5.1 记录了每步的输入/输出。
+   注意：清理后为跨车道修复又临时重建了 `SqliteUserShopDB.utf8.txt` / `MySqlUserShopDB.utf8.txt` /
+   `MySqlM2DataDB.utf8.txt` / `SqliteM2DataDB.utf8.txt` 与对应的 `p3-*.json` / `ref-*.json`；
+   这些是**可再生成的中间产物**，会在最终清理时一并删除。
+
+---
+
+## 10. 建议推广的做法（调度方点名）
+
+1. **SQL 常量必须脚本抽取 + 双路径指纹对账**：指纹的 SHA-256 直接取自"原文抽取结果"，
+   **不经过 C# 常量生成步骤** ⇒ 抽取与实现是两条独立路径，任何一侧被手改都会红。
+   本车道用这条链抓出了 4 个真实缺陷（重复常量 / 引号解码 / 35 处手写内联 SQL / 方言差异面漂移）。
+2. **跨车道重生成前，先证明工具链能逐字节复现已提交产物**（§0.5.1 第 1 步）。
+   否则"用脚本重生成"会把别的车道依赖的模板占位（如 `@@SGetShopItemQueryField@@`）打进去。
+3. **"原文如此"要连方言 API 名一起照抄**：`OrderBindDouble`(SQLite) vs `OrderBindParamDouble`(MySQL)
+   是原文驱动 API 的真实差异，强行统一反而偏离 1:1（§0.5.3）。
