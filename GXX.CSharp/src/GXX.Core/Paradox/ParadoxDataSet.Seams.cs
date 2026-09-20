@@ -29,6 +29,20 @@
 // （dsInsert/dsEdit）、TDataSource/TDBGrid、Filter/Filtered/OnFilterRecord、书签全族、
 // TBlobStream、字段校验/Required/ReadOnly、TFieldDef.Attributes 等 ——
 // TParadoxDataSet 原文一行都没用到。
+//
+// ⚠ 跨车道类型重名复核（台账 §14/§17，本车道开工与收尾各跑一次
+//    `git grep -E "(class|struct|enum|interface|delegate) +(partial +)?<Name>\b" main -- 'GXX.CSharp/src/**/*.cs'`）：
+//   本文件引入的 Delphi 裸名类型里，**main 上只有 1 个**已存在同名声明：
+//     `TMemoryStream` → main:GXX.CSharp/src/GXX.Client/GUI/Share/FStateSeams.cs:173
+//                        （namespace GXX.Client.GUI.Share，一个只有 Buffer/Position/Size 的占位）
+//   **实测无冲突**：`namespace GXX.Core.Paradox` 是本车道新建（main 上零命中），
+//   且 main 上没有任何文件同时 `using GXX.Client.GUI.Share;` 与 `using GXX.Core.Paradox;`
+//   → 不会 CS0104。二者语义也不同（Client 那个是 LoadShareFromStream 的占位）。
+//   另一个"看起来重名"的是 `TEncodingKind` → main:GXX.CSharp/src/GXX.RunGate/ParadoxConv.cs:40：
+//   那是**有意为之**的接缝对应物（整数序一致，见 ParadoxConvSeam.cs），不是重复定义。
+//   其余接缝类型（TDataSet/TField/TFieldType/TGetResult/TGetMode/TBookmarkFlag/
+//   TBlobStreamMode/TFieldDefs/TFieldDef/TFileStream/EParadoxError/TDataBlock/TPxLang…）
+//   在 main 上**零命中**。
 // ============================================================================
 
 using System;

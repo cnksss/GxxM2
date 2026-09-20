@@ -767,16 +767,24 @@ public class ParadoxDataSetCursorTests
         finally { Marshal.FreeHGlobal(buf); }
     }
 
-    [Fact] // 原文 :1045 RecordSize=0 之外的边界：空表（NumRecords=0）下 First 直接 Eof
+    [Fact] // 原文 :1045 边界之外：空表（NumRecords=0）下 First 直接 Eof；
+            // 差异断言（原文缺陷 D19）：原文 :1005 的 GetMem 不清零，而 :947-949 的 grEOF
+            // 分支**不写 RecordIndex** ⇒ 原 RecNo 读到未初始化内存（不确定值）。
+            // 托管侧在 AllocRecordBuffer 显式清零 ⇒ RecNo 恒为 0（可重复）。
     public void EmptyTable_First_IsEof_NoRecords()
     {
-        using var db = new PxSyntheticDb("empty");
-        db.RecordSize = 3;
-        db.Field(PxFieldType.pxfAlpha, 3).Name("AAA").Write();   // 0 条记录
-        var ds = PxOpen.OpenAndFirst(db);
-        Assert.Equal(0, ds.RecordCount);
-        Assert.True(ds.Eof);
-        Assert.Equal(0, ds.RecNo);          // 游标停在 0（原文 :947-948 grEOF 分支不 Inc）
+        // 连做 3 次以捕捉"未初始化内存"类抖动（本车道曾在约 1/6 概率下拿到 166957392）
+        for (int round = 0; round < 3; round++)
+        {
+            using var db = new PxSyntheticDb("empty" + round);
+            db.RecordSize = 3;
+            db.Field(PxFieldType.pxfAlpha, 3).Name("AAA").Write();   // 0 条记录
+            var ds = PxOpen.OpenAndFirst(db);
+            Assert.Equal(0, ds.RecordCount);
+            Assert.True(ds.Eof);
+            Assert.Equal(0, ds.RecNo);                              // D19：必须确定性地为 0
+            Assert.Equal(TBookmarkFlag.bfEOF, ReadBookmark(ds));     // 原文 :994 的 GJK 写入
+        }
     }
 
     [Fact] // 原文 :1043-1048 SetRecNo：1 <= Value < RecordCount+1 才生效
@@ -1197,8 +1205,9 @@ public class ParadoxDataSetBlobTests
 
 public class ParadoxDataSetEncodingTests
 {
-    [Fact] // 原文 :1157-1160 OnEncode 优先，且**不经** FLanguageID 判定
-    public void EncodingField_OnEncodeTakesPriority()
+    [Fact] // 原文 :1157-1160 OnEncode 优先；原文 :1155 先 `Result := S`，OnEncode 返回 nil 时
+            // 也会**原样返回 nil**（不回落 S）—— 锁定该分支顺序
+    public void EncodingField_OnEncodeTakesPriority_AndNilResultIsNotFallenBack()
     {
         using var db = new PxSyntheticDb("onenc");
         db.RecordSize = 4;
@@ -1206,12 +1215,14 @@ public class ParadoxDataSetEncodingTests
         var ds = PxOpen.OpenAndFirst(db);
         string seenField = null;
         ds.OnEncode = (sender, field, s) => { seenField = field.FieldName; return "ENC:" + s; };
-        Assert.Same(ds, ds);                                  // 保持引用，下面用反射调用私有 EncodingField
         var m = typeof(TParadoxDataSet).GetMethod("EncodingField",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        var result = (string)m.Invoke(ds, new object[] { "abc", ds.FieldByName("S") });
-        Assert.Equal("ENC:abc", result);
+        Assert.Equal("ENC:abc", (string)m.Invoke(ds, new object[] { "abc", ds.FieldByName("S") }));
         Assert.Equal("S", seenField);
+
+        // 差异断言：OnEncode 回调返回 null 时原文不回落 Result := S
+        ds.OnEncode = (sender, field, s) => null;
+        Assert.Null((string)m.Invoke(ds, new object[] { "abc", ds.FieldByName("S") }));
     }
 
     [Fact] // 原文 :1162-1164 FLanguageID < 1 ⇒ 直接 Exit（返回入参 S）
@@ -1321,6 +1332,122 @@ public class ParadoxDataSetEncodingTests
         var m = typeof(TParadoxDataSet).GetMethod("EncodingString",
             System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
         Assert.Equal("abc", (string)m.Invoke(ds, new object[] { "abc" }));
+    }
+
+    [Fact] // 原文 :1292/:1312 `if EncodingMemo then S := EncodingField(S, Field)`：
+            // 单块 Memo 的 .mb 路径必须经 EncodingField；EncodingMemo=False 则绕开
+    public void CreateBlobStream_MbSingleBlockMemo_UsesEncodingFieldOnlyWhenEncodingMemo()
+    {
+        using var db = new PxSyntheticDb("benc");
+        const byte fieldSize = 20;
+        db.RecordSize = fieldSize;
+        const int loc = 0x100;
+        const int blobLen = 12;                                // > Field.Size-10 = 10 ⇒ .mb 分支
+        var rec = new byte[fieldSize];
+        int fileLoc = loc | 0xFF;                              // Idx = $FF（单块）
+        rec[10] = (byte)(fileLoc & 0xFF); rec[11] = (byte)((fileLoc >> 8) & 0xFF);
+        rec[12] = (byte)((fileLoc >> 16) & 0xFF); rec[13] = (byte)((fileLoc >> 24) & 0xFF);
+        rec[14] = (byte)blobLen; rec[15] = 0; rec[16] = 0; rec[17] = 0;
+        db.Field(PxFieldType.pxfMemoBLOB, fieldSize).Name("M").Record(rec).Write();
+        var mb = new byte[loc + 9 + blobLen + 8];
+        for (int i = 0; i < blobLen; i++) mb[loc + 9 + i] = (byte)('a' + i);
+        db.WriteMb(mb);
+
+        var ds = PxOpen.OpenAndFirst(db);
+        var seen = new List<string>();
+        ds.OnEncode = (sender, field, s) => { seen.Add(field.FieldName); return s; };
+
+        // EncodingMemo = True（原文 :1172 的默认值）⇒ 必经 OnEncode/EncodingField
+        ds.EncodingMemo = true;
+        var ms1 = ds.CreateBlobStream(ds.FieldByName("M"), TBlobStreamMode.bmRead);
+        Assert.Equal(1, seen.Count);
+        Assert.Equal("M", seen[0]);
+        Assert.Equal("abcdefghijkl", PxAnsi.FromBytes(ms1.ToArray(), (int)ms1.Size));
+
+        // EncodingMemo = False ⇒ 原文 :1292 整条被跳过，OnEncode 不再被调用
+        ds.EncodingMemo = false;
+        var ms2 = ds.CreateBlobStream(ds.FieldByName("M"), TBlobStreamMode.bmRead);
+        Assert.Equal(1, seen.Count);                           // 未增加
+        Assert.Equal("abcdefghijkl", PxAnsi.FromBytes(ms2.ToArray(), (int)ms2.Size));
+    }
+
+    [Fact] // 原文 :1292-1294 编码结果经 `MS.Write(S[1], Length(S))` 落地：
+            // 非恒等编码（长度变化）必须体现在流的长度上
+    public void CreateBlobStream_MbSingleBlockMemo_WritesEncodedLength()
+    {
+        using var db = new PxSyntheticDb("benc2");
+        const byte fieldSize = 20;
+        db.RecordSize = fieldSize;
+        // ⚠ .mb 偏移的标准编码：FileLoc = (文件偏移 & $FFFFFF00) | 块内索引。
+        //   偏移的低 8 位被索引占用 ⇒ 偏移必须是 256 的倍数，否则会被 Idx 覆盖
+        //   （本轮实测踩到：偏移 $80 会得到 FileLoc=$000000FF ⇒ Loc=0，读到文件头）。
+        const int loc = 0x100;
+        const int blobLen = 12;
+        var rec = new byte[fieldSize];
+        int fileLoc = loc | 0xFF;
+        rec[10] = (byte)(fileLoc & 0xFF); rec[11] = (byte)((fileLoc >> 8) & 0xFF);
+        rec[12] = (byte)((fileLoc >> 16) & 0xFF); rec[13] = (byte)((fileLoc >> 24) & 0xFF);
+        rec[14] = (byte)blobLen; rec[15] = 0; rec[16] = 0; rec[17] = 0;
+        db.Field(PxFieldType.pxfMemoBLOB, fieldSize).Name("M").Record(rec).Write();
+        var mb = new byte[loc + 9 + blobLen + 8];
+        for (int i = 0; i < blobLen; i++) mb[loc + 9 + i] = (byte)('a' + i);
+        db.WriteMb(mb);
+
+        var ds = PxOpen.OpenAndFirst(db);
+        ds.EncodingMemo = true;
+        string encSeen = "<not-called>";
+        ds.OnEncode = (sender, field, s) => { encSeen = "len=" + s.Length; return s + "ZZ"; };
+        var ms = ds.CreateBlobStream(ds.FieldByName("M"), TBlobStreamMode.bmRead);
+        Assert.Equal("len=12", encSeen);
+        Assert.Equal(14, ms.Size);                             // 原文 :1294 用编码后的 Length(S)
+        Assert.Equal("abcdefghijklZZ", PxAnsi.FromBytes(ms.ToArray(), (int)ms.Size));
+    }
+
+    [Fact] // 差异断言（原文缺陷 D18）：FileLoc 的"文件偏移"与"块内索引"共用 32 位，
+            // 而 `Loc := Blob.FileLoc and $FFFFFF00` 在 **最高位被置位**时把 Loc 变成负数
+            //   FileLoc = $800000FF ⇒ Idx = $FF、Loc = $80000000 = int.MinValue
+            // Delphi 的 Integer 有符号运算同样得到 int.MinValue，
+            // 随后 `FBlobStream.Seek(Loc + 9, soFromBeginning)` 被喂入负偏移。
+            // 原文没有任何防护，托管侧照抄（TFileStream.Seek 会由 FileStream 抛 ArgumentOutOfRange）。
+    public void CreateBlobStream_FileLocHighBitSet_YieldsNegativeLoc()
+    {
+        using var db = new PxSyntheticDb("bneg");
+        const byte fieldSize = 20;
+        db.RecordSize = fieldSize;
+        const int blobLen = 12;
+        var rec = new byte[fieldSize];
+        // FileLoc = 0x800000FF（最高位 + 单块索引）
+        rec[10] = 0xFF; rec[11] = 0x00; rec[12] = 0x00; rec[13] = 0x80;
+        rec[14] = (byte)blobLen; rec[15] = 0; rec[16] = 0; rec[17] = 0;
+        db.Field(PxFieldType.pxfMemoBLOB, fieldSize).Name("M").Record(rec).Write();
+        db.WriteMb(new byte[64]);                              // 有 .mb 才会走 Seek 分支
+
+        var ds = PxOpen.OpenAndFirst(db);
+        // 差异断言：不是"偏移 0x80000000"，而是溢出成负偏移 → Seek 抛异常
+        // （.NET FileStream 对负偏移抛 IOException；Delphi TFileStream.Seek 会把它
+        //  透传给 SetFilePointer，行为未定义 —— 两侧都**没有**防护，这正是原文缺陷）
+        Assert.Throws<System.IO.IOException>(
+            () => ds.CreateBlobStream(ds.FieldByName("M"), TBlobStreamMode.bmRead));
+    }
+
+    [Fact] // 差异断言（原文缺陷 D12）：FLanguageID = 0 时 EncodingString 访问
+            // PxLangTable[0]（Delphi 越界读 / 托管 null）。唯一防护在 EncodingField :1163，
+            // 但 EncodingMemo 路径**不经** FLanguageID 前置检查 —— 这里锁定该可达性。
+    public void EncodingString_LanguageIdZero_IsReachableAndThrows()
+    {
+        using var db = new PxSyntheticDb("langid0");
+        db.SortOrder = 200;                                    // DetectLang 无法命中 ⇒ FLanguageID = 0
+        db.RecordSize = 4;
+        db.Field(PxFieldType.pxfAlpha, 4).Name("S").Record(new byte[] { 1, 0, 0, 0 }).Write();
+        var ds = PxOpen.OpenAndFirst(db);
+        ds.Language = "";                                      // 命中 PxLangTable 里没有的名字 ⇒ 保持 0
+        Assert.Equal(0, ds.LanguageID);
+
+        var m = typeof(TParadoxDataSet).GetMethod("EncodingString",
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+        // 原文在 Delphi 下读的是数组下界之外的内存（未定义行为）；托管侧为 NullReferenceException。
+        // 这正是 D12：EncodingString 自身没有 0 号保护。
+        Assert.Throws<System.Reflection.TargetInvocationException>(() => m.Invoke(ds, new object[] { "abc" }));
     }
 
     [Fact] // 接缝：ParadoxConvSeam.GetCodepage 的默认实现与可注入性（原文 :1171）
