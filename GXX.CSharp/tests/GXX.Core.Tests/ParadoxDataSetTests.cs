@@ -767,16 +767,24 @@ public class ParadoxDataSetCursorTests
         finally { Marshal.FreeHGlobal(buf); }
     }
 
-    [Fact] // 原文 :1045 RecordSize=0 之外的边界：空表（NumRecords=0）下 First 直接 Eof
+    [Fact] // 原文 :1045 边界之外：空表（NumRecords=0）下 First 直接 Eof；
+            // 差异断言（原文缺陷 D19）：原文 :1005 的 GetMem 不清零，而 :947-949 的 grEOF
+            // 分支**不写 RecordIndex** ⇒ 原 RecNo 读到未初始化内存（不确定值）。
+            // 托管侧在 AllocRecordBuffer 显式清零 ⇒ RecNo 恒为 0（可重复）。
     public void EmptyTable_First_IsEof_NoRecords()
     {
-        using var db = new PxSyntheticDb("empty");
-        db.RecordSize = 3;
-        db.Field(PxFieldType.pxfAlpha, 3).Name("AAA").Write();   // 0 条记录
-        var ds = PxOpen.OpenAndFirst(db);
-        Assert.Equal(0, ds.RecordCount);
-        Assert.True(ds.Eof);
-        Assert.Equal(0, ds.RecNo);          // 游标停在 0（原文 :947-948 grEOF 分支不 Inc）
+        // 连做 3 次以捕捉"未初始化内存"类抖动（本车道曾在约 1/6 概率下拿到 166957392）
+        for (int round = 0; round < 3; round++)
+        {
+            using var db = new PxSyntheticDb("empty" + round);
+            db.RecordSize = 3;
+            db.Field(PxFieldType.pxfAlpha, 3).Name("AAA").Write();   // 0 条记录
+            var ds = PxOpen.OpenAndFirst(db);
+            Assert.Equal(0, ds.RecordCount);
+            Assert.True(ds.Eof);
+            Assert.Equal(0, ds.RecNo);                              // D19：必须确定性地为 0
+            Assert.Equal(TBookmarkFlag.bfEOF, ReadBookmark(ds));     // 原文 :994 的 GJK 写入
+        }
     }
 
     [Fact] // 原文 :1043-1048 SetRecNo：1 <= Value < RecordCount+1 才生效

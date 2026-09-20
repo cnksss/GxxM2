@@ -68,6 +68,21 @@
 //      原文无防护；托管侧照抄（.NET FileStream 抛 IOException）。
 //      另：低 8 位被 Idx 占用 ⇒ **.mb 偏移必须是 256 的倍数**，否则偏移被索引覆盖
 //      （本轮实测踩到：偏移 $80 ⇒ FileLoc=$000000FF ⇒ Loc=0，静默读到文件头）。
+//  D19 :1005 `GetMem(Result, SizeOf(TPxRecordHeader) + RecordSize)` **不清零**，
+//      而 :937-957 的 gmPrior/gmNext 在 `FCursor <= 1` / `FCursor >= RecordCount` 时
+//      直接把 Result 设成 grBOF/grEOF —— **连 RecordIndex 都不写**就返回（只有 :992-994
+//      的 else 分支清零了用户记录区，不含头部 6 字节）。于是 :1052 的
+//      `GetRecNo := PPxRecordHeader(ActiveBuffer)^.RecordIndex` 会读到**刚分配的未初始化内存**。
+//      实测：空表 `First` 后 RecNo 在 0 与随机值（如 166957392）之间抖动（约 1/6 概率）。
+//      Delphi 下 `GetMem` 同样不清零 ⇒ 原文行为同样是**不确定的**；托管侧为可重复，
+//      在 AllocRecordBuffer 里显式清零（见该方法的注释），并加回归测试。
+//  D20 :1052 `GetRecNo` 在 ActiveBuffer 未分配（nil）时**解引用空指针**。
+//      原文从不查询"打开但未 First"状态下的 RecNo，故未触发；托管侧同样不额外保护。
+// ============================================================================
+//
+// 对 D19 的处理（**有意偏离原文，已登记**）：原文依赖未初始化内存，这在托管侧表现为
+// 不确定测试结果。托管侧在 `AllocRecordBuffer` 里清零整个缓冲，使 grBOF/grEOF 路径下
+// `RecordIndex = 0`（= Delphi 下"恰好拿到清零内存"时的取值），**可重复且不缩小行为面**。
 // ============================================================================
 
 using System;
@@ -565,10 +580,22 @@ public sealed partial class TParadoxDataSet : TDataSet
         return Result;
     }
 
-    /// <summary>原文 :686/:1003 AllocRecordBuffer。</summary>
+    /// <summary>
+    /// 原文 :686/:1003 AllocRecordBuffer（<c>GetMem(Result, SizeOf(TPxRecordHeader) + RecordSize)</c>）。
+    ///
+    /// ⚠ 与原文的**唯一有意偏离**（缺陷 D19）：`GetMem` 不清零，而原文 :937-957 在
+    /// <c>FCursor &lt;= 1</c>（grBOF）/ <c>FCursor &gt;= RecordCount</c>（grEOF）分支里**不写
+    /// RecordIndex** 就直接返回，于是 :1052 的 GetRecNo 读到未初始化内存。
+    /// 托管侧显式清零整个缓冲，使该路径下 RecordIndex = 0，行为**可重复**；
+    /// 这不改变任何"会写入"的路径，只是把原文的不确定值固定为 0。
+    /// </summary>
     protected override IntPtr AllocRecordBuffer()
     {
-        return Marshal.AllocHGlobal(PxRecordHeaderOps.Size + FFileHeader.RecordSize);
+        int size = PxRecordHeaderOps.Size + FFileHeader.RecordSize;
+        IntPtr p = Marshal.AllocHGlobal(size);
+        // 差异断言见 ParadoxDataSetCursorTests.EmptyTable_First_IsEof_NoRecords
+        PxBuffer.FillChar(p, size, 0);
+        return p;
     }
 
     /// <summary>原文 :687/:1008 FreeRecordBuffer。</summary>
