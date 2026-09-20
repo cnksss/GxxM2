@@ -109,7 +109,9 @@ public sealed class TSqliteM2DataDB : IM2DataDb
     }
 
     /// <summary>SqliteM2DataDB.pas:118-121 <c>GetAuctionDBClass</c> → <c>TSqliteAuctionDB</c>。</summary>
-    protected Type GetAuctionDBClass() => typeof(TSqliteAuctionDB);
+    /// <remarks>★ 临时代码：<c>TSqliteAuctionDB</c> 尚未落地，先返回 <c>object</c> 以保持整树可编译；
+    /// 落地后必须改回 <c>typeof(TSqliteAuctionDB)</c>（本车道自用，见报告）。</remarks>
+    protected Type GetAuctionDBClass() => typeof(object);
 
     /// <summary>SqliteM2DataDB.pas:123-126 <c>GetStorageDBClass</c> → <c>TSqliteStorageDB</c>（未移植，见报告 §8）。</summary>
     protected Type GetStorageDBClass() => typeof(object);
@@ -745,33 +747,33 @@ public sealed class TSqliteM2DataDB : IM2DataDb
 
     /// <summary>SqliteM2DataDB.pas:507-547（DB_Version = 20170506）。</summary>
     private string MigrateScript_20170506()
-        => SqliteM2DataDbScripts.DoUpdate_L507_S_Prefix
+        => SqliteM2DataDbScripts.DoUpdate_L507_S_P0
            + IntToStr(DbLayerGlobals.Environment.nAuctionCurrencyType)
-           + SqliteM2DataDbScripts.DoUpdate_L507_S_Suffix;
+           + SqliteM2DataDbScripts.DoUpdate_L507_S_P2;
 
     /// <summary>SqliteM2DataDB.pas:569-607（DB_Version = 20170603）。</summary>
     private string MigrateScript_20170603()
-        => SqliteM2DataDbScripts.DoUpdate_L569_S_Prefix
+        => SqliteM2DataDbScripts.DoUpdate_L569_S_P0
            + IntToStr(DbLayerGlobals.Environment.nAuctionCurrencyType)
-           + SqliteM2DataDbScripts.DoUpdate_L569_S_Suffix;
+           + SqliteM2DataDbScripts.DoUpdate_L569_S_P2;
 
     /// <summary>SqliteM2DataDB.pas:630-651（DB_Version = 20170610）。</summary>
     private string MigrateScript_20170610()
-        => SqliteM2DataDbScripts.DoUpdate_L630_S_Prefix
+        => SqliteM2DataDbScripts.DoUpdate_L630_S_P0
            + IntToStr(DbLayerGlobals.Environment.nAuctionCurrencyType)
-           + SqliteM2DataDbScripts.DoUpdate_L630_S_Suffix;
+           + SqliteM2DataDbScripts.DoUpdate_L630_S_P2;
 
     /// <summary>SqliteM2DataDB.pas:674-694（DB_Version = 20170701）。</summary>
     private string MigrateScript_20170701()
-        => SqliteM2DataDbScripts.DoUpdate_L674_S_Prefix
+        => SqliteM2DataDbScripts.DoUpdate_L674_S_P0
            + IntToStr(DbLayerGlobals.Environment.nAuctionCurrencyType)
-           + SqliteM2DataDbScripts.DoUpdate_L674_S_Suffix;
+           + SqliteM2DataDbScripts.DoUpdate_L674_S_P2;
 
     /// <summary>SqliteM2DataDB.pas:719-735（DB_Version = 20180512）。</summary>
     private string MigrateScript_20180512()
-        => SqliteM2DataDbScripts.DoUpdate_L719_S_Prefix
+        => SqliteM2DataDbScripts.DoUpdate_L719_S_P0
            + IntToStr(DbLayerGlobals.Environment.nAuctionCurrencyType)
-           + SqliteM2DataDbScripts.DoUpdate_L719_S_Suffix;
+           + SqliteM2DataDbScripts.DoUpdate_L719_S_P2;
 
     /// <summary>SqliteM2DataDB.pas:761-768（DB_Version = 20180613）。</summary>
     private string MigrateScript_20180613() => SqliteM2DataDbScripts.DoUpdate_L761_S;

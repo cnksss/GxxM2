@@ -415,6 +415,9 @@ public interface ISqliteStatement
     /// <summary><c>OrderBindText</c>。</summary>
     void OrderBindText(string value);
 
+    /// <summary><c>OrderBindDouble</c>（SqliteM2DataDB.pas:1302 绑 <c>ItemFrom.DateTime</c> 用）。</summary>
+    void OrderBindDouble(double value);
+
     /// <summary><c>Step</c>：返回 <c>SQLITE_ROW</c>/<c>SQLITE_DONE</c>/错误码（见 <see cref="SqliteCodes"/>）。</summary>
     int Step();
 

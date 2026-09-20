@@ -83,33 +83,6 @@ public static class SqliteAuctionDbScripts
     /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
     public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
 
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>sWhere</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_sWhere = "@@sWhere@@";
-
-    /// <summary>拼接点运行时值：<c>IntToStr(AuctionID)</c>。</summary>
-    public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_IntToStr_AuctionID_ = "@@IntToStr(AuctionID)@@";
-
     /// <summary>拼接点运行时值：<c>IntToStr(AuctionID)</c>。</summary>
     public const string DoDeleteAuctionItem_L635_Sql_RuntimeValue_IntToStr_AuctionID_ = "@@IntToStr(AuctionID)@@";
 
@@ -404,9 +377,6 @@ public static class SqliteAuctionDbScripts
     /// <summary>拼接点运行时值：<c>ItemName</c>。</summary>
     public const string DoQueryAllItems_L843_sm_Sql_RuntimeValue_ItemName = "@@ItemName@@";
 
-    /// <summary>拼接点运行时值：<c>ItemName</c>。</summary>
-    public const string DoQueryAllItems_L843_sm_Sql_RuntimeValue_ItemName = "@@ItemName@@";
-
     /// <summary>SqliteAuctionDB.pas:869-869 — TSqliteAuctionDB.DoQueryAllItems <c>sOrderBy</c>。</summary>
     public const string DoQueryAllItems_L869_sOrderBy = " order by AuctionID desc";
 
@@ -628,9 +598,6 @@ public static class SqliteAuctionDbScripts
 
     /// <summary>拼接点运行时值：<c>IntToStr(MaxPrices)</c>。</summary>
     public const string DoGetAllItemsPageCount_L1166_sm_Sql_RuntimeValue_IntToStr_MaxPrices_ = "@@IntToStr(MaxPrices)@@";
-
-    /// <summary>拼接点运行时值：<c>ItemName</c>。</summary>
-    public const string DoGetAllItemsPageCount_L1166_sm_Sql_RuntimeValue_ItemName = "@@ItemName@@";
 
     /// <summary>拼接点运行时值：<c>ItemName</c>。</summary>
     public const string DoGetAllItemsPageCount_L1166_sm_Sql_RuntimeValue_ItemName = "@@ItemName@@";
