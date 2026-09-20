@@ -939,52 +939,12 @@ public class TProcessBlackList
     public void Delete(int index) { if (index >= 0 && index < FList.Count) FList.RemoveAt(index); }
 }
 
-/// <summary>接缝：待 MagicIntervalUtils.pas 移植后接入。
-/// `TMagicInterval = record MagicId: Word; Interval: LongWord; end;`。</summary>
-public class TMagicInterval
-{
-    public int MagicId;
-    public uint Interval;
-}
-
-/// <summary>GateShare.pas `TMagicIntervalList` 的最小保真移植（Find/Add/Clear/Count/SaveToFile/Lock）。</summary>
-public class TMagicIntervalList
-{
-    private readonly List<TMagicInterval> FList = new List<TMagicInterval>();
-
-    public int Count => FList.Count;
-    public TMagicInterval this[int index] => FList[index];
-
-    public void Lock() { }
-    public void UnLock() { }
-    public void Clear() => FList.Clear();
-
-    /// <summary>按 MagicId 查找（顺序无关）。</summary>
-    public TMagicInterval Find(int magicId)
-    {
-        foreach (var m in FList) if (m.MagicId == magicId) return m;
-        return null;
-    }
-
-    /// <summary>按 MagicId 添加；已存在返回 null（与原 `Add` 一致）。</summary>
-    public TMagicInterval Add(int magicId)
-    {
-        if (Find(magicId) != null) return null;
-        var m = new TMagicInterval { MagicId = magicId, Interval = 0 };
-        FList.Add(m);
-        return m;
-    }
-
-    /// <summary>原文 `SaveToFile`（INI 文本：[Interval] MagicId=Interval）。</summary>
-    public void SaveToFile(string fileName)
-    {
-        if (string.IsNullOrEmpty(fileName)) return;
-        var ini = new TIniFileEx(fileName);
-        foreach (var m in FList)
-            ini.WriteInteger("Interval", DelphiRTL.IntToStr(m.MagicId), (int)m.Interval);
-        ini.Dispose();
-    }
-}
+// ── 以下 `TMagicInterval` / `TMagicIntervalList` 已由 **MagicIntervalUtils.pas 的 1:1 移植**
+//    接管：见 `GateShareMagicIntervalUtils.cs`（同工程同命名空间）。
+//    接缝时期的两处臆造已在该文件按原文改正：
+//      * `SaveToFile` 不再是 `TIniFileEx` 的 `[Interval]` 节，而是明文 `MagicId=Interval`；
+//      * `Find` 不再是线性查找，而是原文 :108-132 的**二分**查找。
+//    `uFrmMagicCD.cs` 的 `Add(row.MagicID)` 按原文的隐式 `Word` 收窄加了显式转换。
 
 /// <summary>
 /// 接缝：待 ColorIndexEdit.pas 移植后接入。原文用颜色索引（0..255）而不是 TColor。
