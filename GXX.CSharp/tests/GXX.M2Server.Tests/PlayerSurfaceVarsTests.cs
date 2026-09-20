@@ -103,21 +103,20 @@ public class PlayerSurfaceVarsTests
     // ---------------------------------------------------------------
 
     [Fact]
-    public void ZVal_ManagedElementDefaultIsNull_DiffersFromDelphiEmptyString()
+    public void ZVal_ElementDefaultIsEmptyString_MatchingDelphi()
     {
-        // 原文 ObjPlayer.pas:125 是 string[100] → 元素默认 ''；
-        // 托管字段（CombatPower.cs:557）是 string[] → 元素默认 null。**两者不同**。
+        // 原文 ObjPlayer.pas:125 是 string[100] → 元素默认 ''；托管字段是 string[] → 元素默认 null。
+        // 本用例原为"差异锁定"（断言锁定 null 这一缺陷本身）。
+        // 集成方已在 `TPlayObject` 构造函数里调用
+        // `PlayerSurfaceVarDefaults.MigrateStringVarDefaults(this)`（车道无法自行补：`ObjBase.cs:169`
+        // 已有无参构造，它再声明一个会 CS0111），故此处改为断言**修正后的原文语义**。
         var p = new TPlayObject();
 
-        // ① 托管字段直读 = null（这是缺陷本身，锁死以防被无声"修掉"而掩盖事实）
-        Assert.Null(p.m_ZVal[0]);
-
-        // ② GetZVal 归一为原文值 ''
+        // 直读字段即空串，不再是 null
+        Assert.Equal("", p.m_ZVal[0]);
+        Assert.Equal(0, p.m_ZVal[0]!.Length);   // 与原文一致后可直接取 Length，不抛
+        // GetZVal 归一后同为 ''
         Assert.Equal("", p.GetZVal(0));
-
-        // ③ null 与 "" 在托管下行为不同：Length 会抛
-        Assert.Throws<NullReferenceException>(() => p.m_ZVal[0]!.Length);
-        Assert.Equal(0, p.GetZVal(0).Length);
     }
 
     [Fact]

@@ -402,8 +402,10 @@ public class TUserCastle
         => m_WarDate == DateTime.MinValue ? "" : m_WarDate.ToString("yyyy-MM-dd");
 }
 
-/// <summary>TCastleManager 1:1：城堡列表管理。</summary>
-public class TCastleManager
+/// <summary>TCastleManager 1:1：城堡列表管理。
+/// 声明为 <c>partial</c>：让后续车道能在**自己的新文件**里补成员，而无需再改本文件
+/// （见台账 §19.6 —— 这是本工程消除"两个写者"风险的既定手法）。</summary>
+public partial class TCastleManager
 {
     public List<TUserCastle> m_CastleList = new();
 
@@ -412,6 +414,18 @@ public class TCastleManager
     /// <summary>Delphi Lock/UnLock 临界区等效。</summary>
     public void Lock() => System.Threading.Monitor.Enter(_lock);
     public void UnLock() => System.Threading.Monitor.Exit(_lock);
+
+    /// <summary>
+    /// 原文 <c>Castle.pas</c> <c>TCastleManager.GetCastleNameList(List: TStringList)</c>：
+    /// 按 <c>m_CastleList</c> 顺序把每个城堡的 <c>m_sName</c> 追加进 <paramref name="list"/>。
+    /// 由集成方补齐（车道 `p4-m2-objnpc` 报为"最高投产比补齐点"：补上它，
+    /// <c>NpcSeams.GetCastleNameList</c> 就能从空实现改为转调真实现，攻城列表路径即真通）。
+    /// </summary>
+    public void GetCastleNameList(TStringList list)
+    {
+        for (int i = 0; i < m_CastleList.Count; i++)
+            list.Add(m_CastleList[i].m_sName);
+    }
 
     public void Add(TUserCastle castle) => m_CastleList.Add(castle);
 

@@ -163,12 +163,20 @@ public partial class TPlayObject : TCreature
     public long m_nSessionId;
 
     // 物品/魔法容器（对应 THumanUseItems/m_ItemList）
-    public List<TUserItem> m_ItemList = new();
+    // m_ItemList 原为 List<TUserItem> 且**全仓零调用方**；车道 p6-m2-playersurface 指出：
+    // 它的物品容器用 List<TUserItemView>（与既有 m_UseItems 元素类型一致），两者元素类型不同
+    // 因而**无法用 override 桥接**。此处按该建议改为 TUserItemView，使
+    // `BagItems => m_ItemList` 成为可能（否则 BagItems 只能另持一份后备字段，形成双容器）。
+    public List<TUserItemView> m_ItemList = new();
     public List<THumMagic> m_MagicList = new();
 
     public TPlayObject()
     {
         m_btRace = Grobal2Const.RC_PLAYOBJECT;
+        // 原文 m_TVal/m_ZVal/m_sString 的元素默认值是 ShortString 的 ''（空串），
+        // 而托管侧数组元素默认是 null。车道 p6-m2-playersurface 无法自行修正
+        // （本文件已有无参构造，它再声明一个会 CS0111），故由集成方在此调用其提供的迁移函数。
+        PlayerSurfaceVarDefaults.MigrateStringVarDefaults(this);
     }
 
     public override void Run()
