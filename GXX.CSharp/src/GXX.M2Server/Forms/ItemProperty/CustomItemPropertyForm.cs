@@ -518,7 +518,7 @@ public sealed class TFrmCustomItemProperty
 
         btnOK.Enabled = false;                                                              // :302
 
-        mmoVar.Text = CustomItemPropertyLogic.GetTextStr(CustomItemPropertyGlobals.g_CustomItemPropertyTextVarList);  // :304
+        mmoVar.Text = CustomItemPropertyGlobals.g_CustomItemPropertyTextVarList.Text;        // :304
         btnOK2.Enabled = false;                                                             // :305
     }
 
@@ -703,8 +703,7 @@ public sealed class TFrmCustomItemProperty
     /// </summary>
     public void btnOK2Click()
     {
-        CustomItemPropertyLogic.SetTextStr(
-            CustomItemPropertyGlobals.g_CustomItemPropertyTextVarList, mmoVar.Text);       // :472
+        CustomItemPropertyGlobals.g_CustomItemPropertyTextVarList.Text = mmoVar.Text;       // :472
 
         uint OldCrc = CustomItemPropertyGlobals.g_CustomItemPropertyTextVarListTextCRC;    // :474
 
