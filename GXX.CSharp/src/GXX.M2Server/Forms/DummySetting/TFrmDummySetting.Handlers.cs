@@ -235,6 +235,7 @@ public sealed partial class TFrmDummySetting
         Ct.EditDummyTaoistWalkTime.Value = ClampSpinValue(M2Config.dwDummyTaoistWalkTime, 10, 10000);
 
         // :285-296
+        // :285-296
         Ct.chkDisDummyRun.Checked = !M2Config.boDiableDummyRun;
         Ct.chkDummyRunHum.Checked = M2Config.boDummyRunHum;
         Ct.chkDummyRunMon.Checked = M2Config.boDummyRunMon;
