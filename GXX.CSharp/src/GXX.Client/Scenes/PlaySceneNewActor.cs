@@ -464,24 +464,24 @@ public static class FeatureReader
 
 /// <summary>
 /// TActor 默认实现（Actor.pas TActor 的 headless 承载类）。
-/// ★ 车道 p7-client-virtual：本轮在此**新增** 4 个虚成员（原文 TActor 的虚方法表成员，
-/// 此前托管侧基类**没有**这 4 个名字，故 TCustomActor 的同名实现被基类静态类型调用点整段旁路）。
-/// 原文各方法本体（几何 / 声音逻辑）尚未 headless 移植，此处只提供**虚分派槽位**，空实现，
-/// 供子类（TCustomActor 等）用 `override` 接入。
+///
+/// <para><b>车道 p7-client-virtual</b>：在此**新增** 4 个虚成员（原文 TActor 的虚方法表成员，
+/// 此前托管侧基类**没有**这 4 个名字，故 TCustomActor 的同名实现被基类静态类型调用点整段旁路）。</para>
+///
+/// <para><b>★ 车道 p7-client-actor-family</b>：那 4 个成员**当时是空实现**（只补了分派槽位）。
+/// 本车道把原文本体落进 <c>Scenes/ActorFamilyBase.cs</c>（<c>partial class TActor</c>，
+/// 与本类**同一个类**的两半），并据此做了两处机械改动：</para>
+/// <list type="number">
+/// <item>本类声明加 <c>partial</c>（与 <c>TCreature</c>/<c>TPlayObject</c> 一致 ——
+///   "用自有文件补成员"是本工程消除"两个写者"风险的既定手法）；</item>
+/// <item>删除原先那 4 个**空虚成员**（<c>LoadSurface()</c> / <c>DrawChr(int,int,bool,bool)</c> /
+///   <c>RunSound()</c> / <c>RunActSound(int)</c>），实体改由 <c>ActorFamilyBase.cs</c> 提供。</item>
+/// </list>
+/// <para>另：原文 `TActor.DrawStateEffSurface`（Actor.pas 5654-5702）与本类的
+/// <c>DrawChr</c> 同族，一并在 <c>ActorFamilyBase.cs</c> 落地。</para>
 /// </summary>
-public class TActor : TActorCore
+public partial class TActor : TActorCore
 {
-    /// <summary>对应原文 TActor 的虚方法 LoadSurface，供子类 override。**本轮新增**虚成员。</summary>
-    public virtual void LoadSurface() { }
-
-    /// <summary>对应原文 TActor 的虚方法 DrawChr，供子类 override。**本轮新增**虚成员。</summary>
-    public virtual void DrawChr(int dx, int dy, bool blend, bool boFlag) { }
-
-    /// <summary>对应原文 TActor 的虚方法 RunSound，供子类 override。**本轮新增**虚成员。</summary>
-    public virtual void RunSound() { }
-
-    /// <summary>对应原文 TActor 的虚方法 RunActSound，供子类 override。**本轮新增**虚成员。</summary>
-    public virtual void RunActSound(int frame) { }
 }
 
 /// <summary>THumActor（Actor.pas：人物绘制子类）。</summary>

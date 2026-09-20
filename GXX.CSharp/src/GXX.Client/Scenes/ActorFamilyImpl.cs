@@ -71,7 +71,7 @@ public static class ActorFamilyImpl
     /// <para><b>原文笔误/冗余（逐字保留）</b>：<c>m_BodySurface := nil</c> 在 5494 与 5498
     /// **相邻几行内写了两次**（第二次在自定义怪分支入口，冗余但保留）。</para>
     /// </summary>
-    public static void LoadSurface(TActorCore self, object? sender)
+    public static void LoadSurface(TActor self, object? sender)
     {
         ArgumentNullException.ThrowIfNull(self);
 
@@ -119,7 +119,7 @@ public static class ActorFamilyImpl
                     // 5546 / 5548
                     LibraryId = actionFileInRange ? ca.ActionFile : self.m_nChangeAppr - AppearanceBase,
                     ImageIndex = self.m_nCurrentFrame,                              // 5550：**不减** m_nStartFrame
-                    Color = self.ActorColorEffectEffective,
+                    Color = self.ActorColorEffect,
                     UseEffectImageList = actionFileInRange,
                 };
 
@@ -150,7 +150,7 @@ public static class ActorFamilyImpl
                 {
                     LibraryId = self.m_wAppearance,
                     ImageIndex = index,
-                    Color = self.ActorColorEffectEffective,
+                    Color = self.ActorColorEffect,
                 });
             }
         }
@@ -179,7 +179,7 @@ public static class ActorFamilyImpl
     /// 6086-6097 / 6117-6128）移植后接入</b> —— 原文被 <c>{$IF Enabled_PlugEngine = 1}</c>
     /// 条件编译包住，托管侧无对应物。</para>
     /// </summary>
-    public static void DrawChr(TActorCore self, int dx, int dy, bool blend, bool boFlag)
+    public static void DrawChr(TActor self, int dx, int dy, bool blend, bool boFlag)
     {
         ArgumentNullException.ThrowIfNull(self);
 
@@ -194,7 +194,7 @@ public static class ActorFamilyImpl
                 dx, dy, self.m_nPx, self.m_nPy, self.m_nShiftX, self.m_nShiftY);
 
             ActorFamilyEnv.DrawEffSurfaceOpFn(ActorDrawDispatch.DrawEffSurface(
-                self.m_nState, self.m_btBodyColor, self.ActorColorEffectEffective, blend, x, y));   // 6076-6081
+                self.m_nState, self.m_btBodyColor, self.ActorColorEffect, blend, x, y));   // 6076-6081
 
             DrawStateEffSurface(self, dx + self.m_nShiftX, dy + self.m_nShiftY);                    // 6083
         }
@@ -202,8 +202,7 @@ public static class ActorFamilyImpl
         // 6099-6115：施法特效层
         var eff = ActorDrawDispatch.SpellEffect(
             self.m_boUseMagic, self.m_CurMagicEffectNumber, self.m_nCurEffFrame, self.m_nSpellFrame,
-            self.m_CurMagicNewLevel, ActorFamilyEnv.ViewerDeadFn(),
-            dx, dy, self.m_nShiftX, self.m_nShiftY,
+            self.m_CurMagicNewLevel, self.ViewerDead, dx, dy, self.m_nShiftX, self.m_nShiftY,
             (e, i, lvl) => ActorFamilyEnv.GetEffectBaseFn(e, i, lvl));   // 6101
 
         if (eff != null)
@@ -221,7 +220,7 @@ public static class ActorFamilyImpl
     /// </list>
     /// <para>三层 y 都取 `ddy + pY`，**唯独蛛网多减 20**（5669）。</para>
     /// </summary>
-    public static void DrawStateEffSurface(TActorCore self, int ddx, int ddy)
+    public static void DrawStateEffSurface(TActor self, int ddx, int ddy)
     {
         ArgumentNullException.ThrowIfNull(self);
 
@@ -273,12 +272,12 @@ public static class ActorFamilyImpl
     /// `MagicConfigs[等级归一化].Sounds[cmstUseMagic]`，且**只有长度 &gt; 0 才播**；
     /// 无配置时播 `m_nMagicStartSound`。</para>
     /// </summary>
-    public static void RunSound(TActorCore self)
+    public static void RunSound(TActor self)
     {
         ArgumentNullException.ThrowIfNull(self);
 
         self.m_boRunSound = true;                        // 6794
-        SetSound(self);                                  // 6795（原文 1816 `procedure SetSound; virtual;`）
+        self.SetSound();                                 // 6795（原文 1816 `procedure SetSound; virtual;`）
 
         // 6796-6839：五标签 case、无 else
         var cues = ActorSoundDispatch.RunSound(
@@ -317,7 +316,7 @@ public static class ActorFamilyImpl
     /// </list>
     /// <para>为避免扩大外部改动面，7063-7072 与 7076-7092 两支在本体内**逐字落地**（不经派发层）。</para>
     /// </summary>
-    public static void RunActSound(TActorCore self, int frame)
+    public static void RunActSound(TActor self, int frame)
     {
         ArgumentNullException.ThrowIfNull(self);
 
@@ -328,7 +327,7 @@ public static class ActorFamilyImpl
         {
             // 6911-7043：武器音族（全族共同门 `frame = 2` 由派发层内部把关）
             var cues = ActorSoundDispatch.RunActSoundWar(
-                self.m_nCurrentAction, frame, self.m_btSex, self.m_nWeaponSound,
+                self.m_nCurrentAction, frame, self.ActorSex, self.m_nWeaponSound,
                 ActorFamilyEnv.SoundIdFn("s_yedo_man"), ActorFamilyEnv.SoundIdFn("s_yedo_woman"),
                 ActorFamilyEnv.SoundIdFn("s_longhit"), ActorFamilyEnv.SoundIdFn("s_widehit"),
                 ActorFamilyEnv.SoundIdFn("s_firehit"), ActorFamilyEnv.SoundIdFn("s_phz"),
@@ -345,59 +344,21 @@ public static class ActorFamilyImpl
         }
         else
         {
-            // 7045-7047：race 50 空实现
-            if (self.m_btRace == 50)
-                return;
+            // 7045-7092：非武器种族。★ 全支（含 7063-7072 与 7076-7092）**一律转调权威实现**
+            // ActorSoundDispatch.RunActSoundOther —— 本车道已把原先缺失的那两支补进该函数，
+            // 故此处**不再保留任何副本**（避免"两份同义但内容不同的派发实现"，台账 §25.2/§26.2/§31.4）。
+            var cues = ActorSoundDispatch.RunActSoundOther(
+                self.m_btRace, self.m_nCurrentAction, frame,
+                self.m_nNormalSound, self.m_nAttackSound, self.m_nWeaponSound,
+                () => ActorFamilyEnv.RandomFn(8),
+                self.m_wAppearance, self.m_nDie2Sound,
+                out bool closeOther);
 
-            // 7051-7062：两处**独立** if（可同时命中）
-            if (self.m_nCurrentAction == TActorCore.SM_TURN)              // 7051
-            {
-                if (frame == 1 && ActorFamilyEnv.RandomFn(8) == 1)       // 7052
-                {
-                    PlayCue(new SoundCue(self.m_nNormalSound, "NormalTurn")); // 7053
-                    self.m_boRunSound = false;                                // 7054
-                }
-            }
+            foreach (var cue in cues)
+                PlayCue(cue);
 
-            if (self.m_nCurrentAction == TActorCore.SM_HIT)              // 7057
-            {
-                if (frame == 3 && self.m_nAttackSound >= 0)              // 7058
-                {
-                    PlayCue(new SoundCue(self.m_nWeaponSound, "HitWeapon")); // 7059
-                    self.m_boRunSound = false;                               // 7060
-                }
-            }
-
-            // 7063-7072：appearance 80 专用死亡音（原文唯一的 appearance 分支）
-            if (self.m_wAppearance == 80
-                && self.m_nCurrentAction == TActorCore.SM_NOWDEATH
-                && frame == 2)
-            {
-                PlayCue(new SoundCue(self.m_nDie2Sound, "Die2"));        // 7067
-                self.m_boRunSound = false;                               // 7068
-            }
-
-            // 7076-7092：Mon36_X 族（race 202..209），三分支**都判 action 而不判 frame**
-            if (self.m_btRace is >= 202 and <= 209)
-            {
-                if (self.m_nCurrentAction == TActorCore.SM_TURN)          // 7080
-                {
-                    PlayCue(new SoundCue(542, "Mon36Turn"));            // 7081
-                    self.m_boRunSound = false;                           // 7082
-                }
-
-                if (self.m_nCurrentAction == TActorCore.SM_STRUCK)        // 7084
-                {
-                    PlayCue(new SoundCue(495, "Mon36Struck"));          // 7085
-                    self.m_boRunSound = false;                           // 7086
-                }
-
-                if (self.m_nCurrentAction == TActorCore.SM_NOWDEATH)      // 7088
-                {
-                    PlayCue(new SoundCue(496, "Mon36NowDeath"));        // 7089
-                    self.m_boRunSound = false;                           // 7090
-                }
-            }
+            if (closeOther)
+                self.m_boRunSound = false;
         }
     }
 
@@ -422,7 +383,7 @@ public static class ActorFamilyImpl
     /// <para><b>接缝：待 `TActor.SetSound`（Actor.pas:6454-6786）移植后接入</b>；
     /// 人类族的 `THumActor.SetSound` 覆写亦未移植（另一单元）。</para>
     /// </summary>
-    public static void SetSound(TActorCore self)
+    public static void SetSound(TActor self)
     {
         ArgumentNullException.ThrowIfNull(self);
 
@@ -465,7 +426,7 @@ public static class ActorFamilyImpl
     // ---- 私有：取图与取声 ----
 
     /// <summary>5556-5565 / 5571-5589 的取图（两路径共用同一接缝）。</summary>
-    private static void FetchBody(TActorCore self, ActorBodyImage image)
+    private static void FetchBody(TActor self, ActorBodyImage image)
     {
         var fetched = ActorFamilyEnv.FetchBodySurfaceFn(image, ActorBodyImageFetchKind(image.Color));
         if (fetched != null)
@@ -473,11 +434,11 @@ public static class ActorFamilyImpl
     }
 
     /// <summary>6818：`GetCustomMagicConfig(m_CurMagic.MagicSerial)`。</summary>
-    private static ActorFamilyEnv.CustomMagicSoundView? CustomMagicConfig(TActorCore self)
+    private static ActorFamilyEnv.CustomMagicSoundView? CustomMagicConfig(TActor self)
         => ActorFamilyEnv.CustomMagicConfigLookupFn?.Invoke(self.m_CurMagicMagicSerial);
 
     /// <summary>6832：仅当 `Sounds[cmstUseMagic]` **长度 &gt; 0** 才播（空串 = 未配置）。</summary>
-    private static IReadOnlyList<int>? CustomMagicUseMagicSounds(TActorCore self)
+    private static IReadOnlyList<int>? CustomMagicUseMagicSounds(TActor self)
     {
         var cfg = CustomMagicConfig(self);
         if (cfg == null || cfg.UseMagic.Length == 0)
@@ -487,7 +448,7 @@ public static class ActorFamilyImpl
     }
 
     /// <summary>6932-6943：`cmstManWarr` / `cmstWomanWarr` 男女分流，都为空则回退武器音。</summary>
-    private static int CustomMagicWarrSound(TActorCore self, int serial, int magicPlusLevel)
+    private static int CustomMagicWarrSound(TActor self, int serial, int magicPlusLevel)
     {
         var cfg = CustomMagicConfig(self);
         if (cfg == null)

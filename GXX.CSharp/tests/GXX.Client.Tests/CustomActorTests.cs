@@ -1761,8 +1761,14 @@ public sealed class CustomActorTests : IDisposable
     }
 
     [Fact]
-    public void ActorRunSound_BypassGateDoesNotPlayAnything()
+    public void ActorRunSound_BypassGateDelegatesToBaseRunSound()
     {
+        // ★ 车道 p7-client-actor-family：**期望值按原文更正**。
+        //   原文依据 CustomActor.pas:1112-1114 —— 门为真时 `inherited RunSound; Exit;`；
+        //   而继承到的 TActor.RunSound 开头就是 Actor.pas:6794 `m_boRunSound := True;`
+        //   （该语句在**基类里**位于门之后，但在**子类门**之后仍然会执行）。
+        //   本用例以前断言 `Assert.False(m_boRunSound)`，那是**基类尚为空实现**时的产物
+        //   —— 现在基类有本体，该断言与原文不符，故更正为 True 并补上"确实转调了基类"的证据。
         var cfg = MakeSoundCfg();
         var a = new TCustomActor(cfg)
         {
@@ -1774,10 +1780,23 @@ public sealed class CustomActorTests : IDisposable
         var played = new List<string>();
         CustomActorEnv.PlaySoundFn = s => played.Add(s);
 
-        a.RunSound();
+        var baseCues = new List<int>();
+        ActorFamilyEnv.PlaySoundByIdFn = id => baseCues.Add(id);
+        try
+        {
+            a.RunSound();
 
-        Assert.Empty(played);
-        Assert.False(a.m_boRunSound);   // 1117 在门**之后**，故不置真
+            // 子类分支不播（自定义怪的 RunSound 只对 SM_STRUCK / SM_DIGUP 取配置音）
+            Assert.Empty(played);
+
+            // 基类被真正转调了：6794 置真 + 6814-6815 的 SM_DIGUP appear 音（无 >= 0 判定）
+            Assert.True(a.m_boRunSound);
+            Assert.Equal(new[] { a.m_nAppearSound }, baseCues);
+        }
+        finally
+        {
+            ActorFamilyEnv.PlaySoundByIdFn = _ => { };
+        }
     }
 
     [Fact]

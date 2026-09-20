@@ -450,10 +450,12 @@ public sealed class ActorSoundDispatchTests
     public void Race50IsEmptyImplementation()
     {
         // 7046-7047：空 begin/end，既不播音也**不消费随机数**
+        // ★ 车道 p7-client-actor-family：本函数已按原文补齐 7063-7072 与 7076-7092 两支，
+        //   故新增两个入参（appearance / die2 音）；本用例覆盖 7051-7062 段，故取中性值 0/-1。
         int randCalls = 0;
         var cues = ActorSoundDispatch.RunActSoundOther(
             50, TActorCore.SM_TURN, frame: 1, 700, 701, 702,
-            () => { randCalls++; return 1; }, out bool closed);
+            () => { randCalls++; return 1; }, 0, -1, out bool closed);
 
         Assert.Empty(cues);
         Assert.False(closed);
@@ -464,9 +466,9 @@ public sealed class ActorSoundDispatchTests
     public void TurnPlaysNormalSoundOnlyWhenRandomHitsOne()
     {
         var hit = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_TURN, 1, 700, 701, 702, () => 1, out bool c1);
+            1, TActorCore.SM_TURN, 1, 700, 701, 702, () => 1, 0, -1, out bool c1);
         var miss = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_TURN, 1, 700, 701, 702, () => 2, out bool c2);
+            1, TActorCore.SM_TURN, 1, 700, 701, 702, () => 2, 0, -1, out bool c2);
 
         Assert.Single(hit);
         Assert.Equal(700, hit[0].SoundId);
@@ -480,7 +482,7 @@ public sealed class ActorSoundDispatchTests
     public void TurnRequiresFrameOne()
     {
         var cues = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_TURN, frame: 2, 700, 701, 702, () => 1, out _);
+            1, TActorCore.SM_TURN, frame: 2, 700, 701, 702, () => 1, 0, -1, out _);
 
         Assert.Empty(cues);
     }
@@ -489,9 +491,9 @@ public sealed class ActorSoundDispatchTests
     public void HitRequiresFrameThree()
     {
         var f3 = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_HIT, 3, 700, 701, 702, () => 0, out bool c3);
+            1, TActorCore.SM_HIT, 3, 700, 701, 702, () => 0, 0, -1, out bool c3);
         var f2 = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_HIT, 2, 700, 701, 702, () => 0, out bool c2);
+            1, TActorCore.SM_HIT, 2, 700, 701, 702, () => 0, 0, -1, out bool c2);
 
         Assert.Single(f3);
         Assert.Equal(702, f3[0].SoundId);
@@ -504,7 +506,7 @@ public sealed class ActorSoundDispatchTests
     public void HitRequiresNonNegativeAttackSound()
     {
         var cues = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_HIT, 3, 700, -1, 702, () => 0, out bool closed);
+            1, TActorCore.SM_HIT, 3, 700, -1, 702, () => 0, 0, -1, out bool closed);
 
         Assert.Empty(cues);
         Assert.False(closed);
@@ -514,8 +516,70 @@ public sealed class ActorSoundDispatchTests
     public void NonTurnNonHitPlaysNothing()
     {
         var cues = ActorSoundDispatch.RunActSoundOther(
-            1, TActorCore.SM_WALK, 1, 700, 701, 702, () => 1, out _);
+            1, TActorCore.SM_WALK, 1, 700, 701, 702, () => 1, 0, -1, out _);
 
         Assert.Empty(cues);
+    }
+
+    // ===================== ★ 车道 p7-client-actor-family 补齐的两支（原文 7063-7072 / 7076-7092）
+
+    [Fact]
+    public void Appearance80NowDeathPlaysDie2Sound()
+    {
+        // 7063-7072：`case m_wAppearance of 80:` —— 仅 SM_NOWDEATH 且 frame = 2
+        // ★ 原文回读依据：Actor.pas 7063-7072（补齐前本函数缺此支 ⇒ 音效静默丢失）
+        var cues = ActorSoundDispatch.RunActSoundOther(
+            1, TActorCore.SM_NOWDEATH, 2, 700, 701, 702, () => 0, 80, 12345, out bool closed);
+
+        Assert.Single(cues);
+        Assert.Equal(12345, cues[0].SoundId);
+        Assert.True(closed);
+    }
+
+    [Fact]
+    public void Appearance80BranchRequiresFrame2AndNowDeath()
+    {
+        // 差异断言：外观 80 但 frame ≠ 2 / 动作 ≠ NOWDEATH ⇒ 都不出声
+        var wrongFrame = ActorSoundDispatch.RunActSoundOther(
+            1, TActorCore.SM_NOWDEATH, 1, 700, 701, 702, () => 0, 80, 12345, out _);
+        var wrongAction = ActorSoundDispatch.RunActSoundOther(
+            1, TActorCore.SM_DEATH, 2, 700, 701, 702, () => 0, 80, 12345, out _);
+        var wrongAppearance = ActorSoundDispatch.RunActSoundOther(
+            1, TActorCore.SM_NOWDEATH, 2, 700, 701, 702, () => 0, 81, 12345, out _);
+
+        Assert.Empty(wrongFrame);
+        Assert.Empty(wrongAction);
+        Assert.Empty(wrongAppearance);
+    }
+
+    [Fact]
+    public void Mon36FamilyPlaysHardCodedSoundsWithoutFrameGate()
+    {
+        // 7076-7092：race 202..209 三动作 → 542 / 495 / 496，**都不判 frame**
+        // ★ 原文回读依据：Actor.pas 7076-7092（补齐前本函数缺此支）
+        var turn = ActorSoundDispatch.RunActSoundOther(
+            205, TActorCore.SM_TURN, 0, 700, 701, 702, () => 0, 0, -1, out bool c1);
+        var struck = ActorSoundDispatch.RunActSoundOther(
+            205, TActorCore.SM_STRUCK, 7, 700, 701, 702, () => 0, 0, -1, out bool c2);
+        var death = ActorSoundDispatch.RunActSoundOther(
+            205, TActorCore.SM_NOWDEATH, 99, 700, 701, 702, () => 0, 0, -1, out bool c3);
+
+        Assert.Equal(542, Assert.Single(turn).SoundId);
+        Assert.Equal(495, Assert.Single(struck).SoundId);
+        Assert.Equal(496, Assert.Single(death).SoundId);
+        Assert.True(c1 && c2 && c3);
+    }
+
+    [Fact]
+    public void Mon36FamilyBoundariesAre202To209()
+    {
+        static int Played(int race)
+            => ActorSoundDispatch.RunActSoundOther(
+                race, TActorCore.SM_TURN, 0, 700, 701, 702, () => 0, 0, -1, out _).Count;
+
+        Assert.Equal(0, Played(201));   // 下界外（SM_TURN 且 frame=0 ≠ 1 ⇒ 也不出 NormalTurn）
+        Assert.Equal(1, Played(202));   // 下界
+        Assert.Equal(1, Played(209));   // 上界
+        Assert.Equal(0, Played(210));   // 上界外
     }
 }

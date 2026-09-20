@@ -1612,36 +1612,23 @@ public class TCustomActor : TActor
     public int m_nOldChrLight;
 
     // ---- 基类未登记、但本单元需要的 TActor 成员（在本类补齐）----
+    // ★ 车道 p7-client-actor-family「继承字段消重」：
+    //   下列成员原文里都是 **TActor 的单个字段**，本类早期因基类尚未移植而自建了一份
+    //   同名字段（形成字段隐藏 CS0108）—— 那会让"同一份状态"变成**两份不同步的存储**，
+    //   一旦基类本体（ActorFamilyBase.cs）读写继承那一份，两处就再也对不上（台账 §25.2 的
+    //   静默缺陷形态）。基类现已持有这些字段，故**本类的重复声明一律删除**，一律使用继承字段：
+    //     m_nSpellFrame / m_nCurEffFrame / m_nEffectFrame / m_nEffectEnd /
+    //     m_nStruckWeaponSound / m_BodySurface / m_dwLoadSurfaceTime / m_boLoadSurface /
+    //     m_boRunSound / m_dwEffectFrameTime / m_dwEffectStartTime
+    //   `m_ColorEffect` 例外：它改为覆写虚属性 `ActorColorEffect`（见下方），因为基类的存储
+    //   历史上为避免字段隐藏而命名为 `m_BaseColorEffect`。
+
     /// <summary>m_boCreateEffect（原文 TActor 成员）。</summary>
     public bool m_boCreateEffect;
-    /// <summary>m_nSpellFrame（原文 TActor 成员）。</summary>
-    public int m_nSpellFrame;
-    /// <summary>m_nCurEffFrame（原文 TActor 成员）。</summary>
-    public int m_nCurEffFrame;
-    /// <summary>m_nEffectFrame（原文 TActor 成员；Run 809-820）。</summary>
-    public int m_nEffectFrame;
-    /// <summary>m_nEffectEnd（原文 TActor 成员；Run 813）。</summary>
-    public int m_nEffectEnd;
-    /// <summary>m_nStruckWeaponSound（原文 TActor 成员；RunSound 1122）。</summary>
-    public int m_nStruckWeaponSound = -1;
-    /// <summary>m_ColorEffect（原文 TActor 成员；LoadSurface 550-576 三段取图分派）。</summary>
-    public TColorEffect m_ColorEffect;
-    /// <summary>m_BodySurface（原文 TActor 成员）。</summary>
-    public object? m_BodySurface;
-    /// <summary>m_dwLoadSurfaceTime（原文 TActor 成员；LoadSurface 415）。</summary>
-    public uint m_dwLoadSurfaceTime;
-    /// <summary>m_boLoadSurface（原文 TActor 成员；LoadSurface 416）。</summary>
-    public bool m_boLoadSurface;
-    /// <summary>m_boRunSound（原文 TActor 成员；RunSound 1117 / RunActSound 1043）。</summary>
-    public bool m_boRunSound;
     /// <summary>m_nTargetRecog（原文 TActor 成员；Run 853/942）。</summary>
     public long m_nTargetRecog;
     /// <summary>m_Saying（原文 TActor 成员；Run 912-938 多目标广播）。</summary>
     public string m_Saying = "";
-    /// <summary>m_dwEffectFrameTime（原文 TActor 成员；Run 810）。</summary>
-    public uint m_dwEffectFrameTime;
-    /// <summary>m_dwEffectStartTime（原文 TActor 成员；Run 811-812）。</summary>
-    public uint m_dwEffectStartTime;
     /// <summary>m_CustomMagicStatusEffect.m_nStruck（原文 243；聚合基类未登记，先以标量承载）。</summary>
     public int m_CustomMagicStatusEffect_Struck;
     /// <summary>m_CurMagic.EffectNumber 接缝（651/832）。</summary>
@@ -1757,8 +1744,10 @@ public class TCustomActor : TActor
         // 409-412：前置门 → inherited
         if (plan == null)
         {
-            // 原文 `inherited;` —— 基类 TActor.LoadSurface 本轮已补为**空**虚成员；
-            // 空实现与"无副作用转调"等价，故此处仍不发出调用（行为不变）。
+            // 原文 `inherited;` —— ★ 车道 p7-client-actor-family：基类 TActor.LoadSurface(object?)
+            // 现已**有本体**（ActorFamilyBase.cs），故这里必须**真发调用**；
+            // 不再"只 return"（那会让前置门为真时什么都不发生 —— 台账 §24.2 的镜像形态）。
+            base.LoadSurface(null);
             return;
         }
 
@@ -1783,20 +1772,21 @@ public class TCustomActor : TActor
         }
 
         // 548-579：三段取图（真正取图走接缝，此处只传图号与取图种类）
+        // ★ 车道 p7-client-actor-family：`m_ColorEffect` 改读继承状态（见下方 ActorColorEffect 覆写）。
         if (plan.LoadBody)
             m_BodySurface = CustomActorEnv.FetchSurfaceFn(
                 plan.BodyFileIndex, plan.BodyOffset, m_nPx, m_nPy,
-                CustomActorSurface.SurfaceFetchKind(m_ColorEffect, m_boReverseFrame, false));
+                CustomActorSurface.SurfaceFetchKind(ActorColorEffect, m_boReverseFrame, false));
 
         if (plan.LoadEffect)
             m_BodyEffectSurface = CustomActorEnv.FetchSurfaceFn(
                 plan.EffectFileIndex, plan.EffectOffset, m_nEffectPx, m_nEffectPy,
-                CustomActorSurface.SurfaceFetchKind(m_ColorEffect, m_boReverseFrame, false));
+                CustomActorSurface.SurfaceFetchKind(ActorColorEffect, m_boReverseFrame, false));
 
         if (plan.LoadEffect2)
             m_BodyEffect2Surface = CustomActorEnv.FetchSurfaceFn(
                 plan.EffectFile2Index, plan.Effect2Offset, m_nEffect2Px, m_nEffect2Py,
-                CustomActorSurface.SurfaceFetchKind(m_ColorEffect, m_boReverseFrame, true));
+                CustomActorSurface.SurfaceFetchKind(ActorColorEffect, m_boReverseFrame, true));
 
         // 582
         ComputeActionChanged();
@@ -1839,8 +1829,9 @@ public class TCustomActor : TActor
         // 719-722
         if (seq == null)
         {
-            // 原文 `inherited DrawChr(dx, dy, blend, boFlag);` —— 基类 TActor.DrawChr 本轮已补为
-            // **空**虚成员；空实现与"无副作用转调"等价，故此处仍不发出调用（行为不变）。
+            // 原文 `inherited DrawChr(dx, dy, blend, boFlag);` —— ★ 车道 p7-client-actor-family：
+            // 基类 TActor.DrawChr 现有本体，必须真发调用（理由同上）。
+            base.DrawChr(dx, dy, blend, boFlag);
             return;
         }
 
@@ -1851,7 +1842,8 @@ public class TCustomActor : TActor
                 case "self": DrawSelfMagicEffect(dx, dy, true); break;    // 724
                 case "-self": DrawSelfMagicEffect(dx, dy, false); break;  // 785
                 case "body":
-                    // 726/758/783：inherited DrawChr —— 基类空虚成员，不发出调用（行为不变）。
+                    // 726/758/783：inherited DrawChr —— ★ 基类现有本体，真发调用。
+                    base.DrawChr(dx, dy, blend, boFlag);
                     break;
                 case "eff1":
                     CustomActorEnv.DrawSurfaceFn(
@@ -1982,9 +1974,14 @@ public class TCustomActor : TActor
     {
         var r = CustomActorSound.RunSound(CalcInput(), m_nStruckWeaponSound);
 
-        // 1112-1115：前置门 → inherited RunSound（基类空虚成员，不发出调用，行为不变）
+        // 1112-1115：前置门 → inherited RunSound
         if (r == null)
+        {
+            // ★ 车道 p7-client-actor-family：基类 TActor.RunSound 现有本体，必须真发调用
+            //（原先"只 return"会让前置门为真时不发任何声）。
+            base.RunSound();
             return;
+        }
 
         m_boRunSound = true;                            // 1117
         SetSound_();                                    // 1118
@@ -2001,9 +1998,14 @@ public class TCustomActor : TActor
     {
         var r = CustomActorSound.RunActSound(CalcInput(), m_boRunSound, frame);
 
-        // 1043 / 1045-1048：两条 Exit 均退回 inherited RunActSound（基类空虚成员，不发出调用，行为不变）
+        // 1043 / 1045-1048：两条 Exit 均退回 inherited RunActSound
+        // ★ 车道 p7-client-actor-family：基类 TActor.RunActSound 现有本体，必须真发调用
+        //（原先"只 return"会让前置门为真时不发任何声）。
         if (r == null)
+        {
+            base.RunActSound(frame);
             return;
+        }
 
         if (r.Value.CloseRunSound)
             m_boRunSound = false;                       // 1054/1060/…
@@ -2011,6 +2013,24 @@ public class TCustomActor : TActor
             CustomActorEnv.PlaySoundFn(r.Value.Sound);
     }
 
-    /// <summary>1118：SetSound（原文 TActor 成员；基类未登记，走接缝占位）。</summary>
-    private void SetSound_() { }
+    /// <summary>
+    /// `m_ColorEffect`（原文 TActor 的单个字段；LoadSurface 550-576 / DrawChr 647-650 的三分支依据）。
+    /// <para>★ 车道 p7-client-actor-family：本类**原先自建**了一份同名字段（字段隐藏 CS0108），
+    /// 那会造成"同一外观颜色状态两份存储"（台账 §25.2 的静默缺陷形态）。本车道删除了那份重复声明，
+    /// 改为**覆写基类虚属性**，直接读写**继承**的那一份。</para>
+    /// </summary>
+    public override TColorEffect ActorColorEffect
+    {
+        get => m_BaseColorEffect;
+        set => m_BaseColorEffect = value;
+    }
+
+    /// <summary>`m_btSex`（原文 TActor 成员；RunActSound 6932-6936/6950 的男女分流）。
+    /// 基类实现已读继承字段，此处无需覆写 —— 保留本注释仅作对照说明。</summary>
+
+    /// <summary>1118：SetSound（原文 TActor 成员）。
+    /// ★ 车道 p7-client-actor-family：基类已提供 <c>TActor.SetSound()</c>（对怪物族本就是
+    /// "什么都不做"的无副作用体，见 ActorFamilyBase.cs 的论证），此处**如实转调基类**
+    /// 而不留一个恒空的本地替身（后者会把"基类语义"伪装成"本类占位"）。</summary>
+    private void SetSound_() => base.SetSound();
 }
