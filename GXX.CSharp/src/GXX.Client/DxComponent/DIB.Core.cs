@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using GXX.Core.Rtl;
 
 namespace GXX.Client.DxComponent;
 
@@ -582,7 +583,10 @@ public partial class TDIB
     {
         Changing(true);
         if (Y < 0 || Y >= FHeight)
-            throw new EInvalidGraphicOperation(string.Format(DXConsts.SScanline, Y));
+            // 原文（DIB.pas:1943-1944）`CreateFmt(SScanline, [Y])`；SScanline 是 **Delphi** 格式串
+            // 'Index of the scanning line exceeded the range. (%d)'，必须走 DelphiFormat.Format。
+            // 上一轮误用 `string.Format`（`%d` 无法替换），属实现缺陷，已修正。
+            throw new EInvalidGraphicOperation(DelphiFormat.Format(DXConsts.SScanline, Y));
 
         if (!FImage.FMemoryImage) DibSeams.Gdi?.GdiFlush();
         return IntPtr.Add(FTopPBits, Y * FNextLine);
@@ -592,7 +596,8 @@ public partial class TDIB
     public IntPtr GetScanLineReadOnly(int Y)
     {
         if (Y < 0 || Y >= FHeight)
-            throw new EInvalidGraphicOperation(string.Format(DXConsts.SScanline, Y));
+            // 同上（DIB.pas:1953-1954）：SScanline 走 DelphiFormat.Format。
+            throw new EInvalidGraphicOperation(DelphiFormat.Format(DXConsts.SScanline, Y));
 
         if (!FImage.FMemoryImage) DibSeams.Gdi?.GdiFlush();
         return IntPtr.Add(FTopPBits, Y * FNextLine);

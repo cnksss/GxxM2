@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
 using GXX.Client.DxComponent;
+using GXX.Core.Rtl;
 using Xunit;
 
 // =============================================================================================
@@ -189,18 +190,29 @@ public class DxCtlDibCoreTests
         // 端点按公式 ((C*360)/511)*Pi/180 复算
         double expect = Math.Sin(((c * 360) / 511.0) * Math.PI / 180.0);
         Assert.Equal((float)expect, v, 6);
-        Assert.NotEqual(ignored, (double)v);   // 只是让 InlineData 的第二列有用途
+        // 原文如此（上一轮遗留）：该行用 InlineData 第二列做 `NotEqual`，但 c=0/511 时
+        // sin=0 与 ignored=0.0 **相等**，而 c=255 时 sin≈0.0061 与 1.0 不等 ——
+        // 三种 InlineData 无法用同一个断言同时成立。第二列本就无业务含义（注释自称"只是让
+        // InlineData 的第二列有用途"），故只在非零端点做差异断言。
+        if (c == 255) Assert.NotEqual(ignored, (double)v);
     }
 
     [Fact]
     public void DSin_DCos_四分之一周期()
     {
-        // 128 → 128*360/511 = 90.176 度
+        // 128 → 128*360/511 = 90.176 度（**浮点除法**，不是整数除法 90）
         double t = (128 * 360) / 511.0;
         Assert.Equal((float)Math.Sin(t * Math.PI / 180.0), DIB.DSin(128), 6);
         Assert.Equal((float)Math.Cos(t * Math.PI / 180.0), DIB.DCos(128), 6);
-        // 必须是**浮点除法**：若误写成整数除法 (128*360) div 511 = 90，sin(90°)=1.0
-        Assert.NotEqual(1.0f, DIB.DSin(128), 3);
+
+        // 原文（DIB.pas:507）确实是浮点除法，故 128 对应 90.176° 而非 90°：
+        //   sin(90.176°) = 0.999995291 → **在 3 位小数上等于 1.0**
+        // 上一轮本文件写成 `Assert.NotEqual(1.0f, DIB.DSin(128), 3)`，把"浮点除法"的证据
+        // 误设成"结果与 1.0 在 3 位小数内不同" —— 该推断不成立（测试期望写错，已改正）。
+        // 正确的差异断言：整数除法会得到**精确** 1.0f，浮点除法不会。
+        Assert.NotEqual(1.0f, DIB.DSin(128));
+        Assert.Equal(1.0f, DIB.DSin(128), 3);
+        Assert.True(DIB.DSin(128) < 1.0f);
     }
 
     [Fact]
@@ -702,6 +714,11 @@ public class DxCtlDibCoreTests
         var img = new TDIBSharedImage();
         var ex = Assert.Throws<EInvalidGraphicOperation>(() =>
             img.NewImage(1, 1, bc, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false));
+        // 原文（DIB.pas:840-841）：`raise EInvalidGraphicOperation.CreateFmt(SInvalidDIBBitCount, [ABitCount])`
+        // SInvalidDIBBitCount = 'Bitcount in invalid (%d)'（DXConsts.pas:46）—— 注意是 **Delphi** 格式串，
+        // 必须用 DelphiFormat.Format 才能替换 `%d`（string.Format 做不到）。
+        Assert.Equal(DelphiFormat.Format(DXConsts.SInvalidDIBBitCount, bc), ex.Message);
+        Assert.Equal($"Bitcount in invalid ({bc})", ex.Message);
         Assert.Contains("Bitcount in invalid", ex.Message);
         Assert.Contains(bc.ToString(), ex.Message);
     }
@@ -764,9 +781,16 @@ public class DxCtlDibCoreTests
         var src = new TDIBSharedImage();
         var dst = new TDIBSharedImage();
         dst.NewImage(2, 2, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false);
+        int sizeBefore = dst.ImgSize;
         dst.Duplicate(src, true);
-        Assert.Equal(0, dst.ImgSize);
+        // 原文如此（DIB.pas:936-941）：源 FSize=0 时 `Duplicate` 只走 `Create; FMemoryImage := MemoryImage;`
+        // —— **不重置** dst 已有的 FSize/FWidth/... （Create 自身也不重置这些字段，见 DIB.pas:802-809）。
+        // 因此 dst.ImgSize 保持 NewImage 时的值（2x2x8 → WidthBytes=4 → 8），不会变 0。
+        // 上一轮断言 `Assert.Equal(0, dst.ImgSize)` 属测试期望写错。
+        Assert.Equal(sizeBefore, dst.ImgSize);
         Assert.True(dst.MemoryImage);
+        // 真正被改变的是 FMemoryImage 与（经 Create）调色板/像素格式
+        Assert.Equal(DIB.MakeDIBPixelFormat(8, 8, 8).RBitMask, dst.ImgPixelFormat.RBitMask);
     }
 
     [Fact]
@@ -846,8 +870,13 @@ public class DxCtlDibCoreTests
     public void 重复Destroy不崩()
     {
         var img = MkShared(2, 2, 8);
+        int sizeBefore = img.ImgSize;
         img.Destroy();
-        Assert.Equal(0, img.ImgSize);
+        // 原文如此（DIB.pas:1491-1509）：`TDIBSharedImage.Destroy` **只**释放
+        // FHandle/FPBits/Palette/FDC/FBitmapInfo，**从不重置** FSize/FWidth/FHeight/FBitCount/
+        // FNextLine。因此 Destroy 后 `FSize` 仍是 NewImage 算出的尺寸（本用例 4x2=8），
+        // `ImgSize` 不会变成 0。上一轮本文件断言 `Assert.Equal(0, img.ImgSize)` 属测试期望写错。
+        Assert.Equal(sizeBefore, img.ImgSize);
         img.Destroy();
         Assert.Equal(IntPtr.Zero, img.BitsPtr);
     }
@@ -861,10 +890,16 @@ public class DxCtlDibCoreTests
     {
         var img = new TDIBSharedImage();
         img.NewImage(4, 4, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false);
+        int sizeBefore = img.ImgSize;   // 4x4x8 → WidthBytes=4 → 16
         using var s = new MemoryStream(Array.Empty<byte>());
         img.ReadData(s, true);
-        Assert.Equal(0, img.ImgSize);
-        Assert.Equal(0, img.ImgBitCount);
+        // 原文如此（DIB.pas:1352-1356）：`ReadData` 先 `Create;`，再 `if Stream.Size < 4 then Exit;`
+        // —— 空流直接返回。`Create`（DIB.pas:802-809）**不重置** FSize/FWidth/FHeight/FBitCount，
+        // 故 ImgSize 保持 NewImage 时的 16（不是 0，也不是"等价于 Create"）。
+        // 上一轮断言 `Assert.Equal(0, img.ImgSize)` 与 `Assert.Equal(0, img.ImgBitCount)` 属测试期望写错。
+        Assert.Equal(sizeBefore, img.ImgSize);
+        Assert.Equal(8, img.ImgBitCount);            // Create 不重置 FBitCount
+        Assert.Equal(4, img.ImgWidth);
         Assert.True(img.MemoryImage);
     }
 
@@ -1398,6 +1433,10 @@ public class DxCtlDibCoreTests
     {
         var d = MkImage(3, 2, 8);
         var ex = Assert.Throws<EInvalidGraphicOperation>(() => d.ScanLine(y));
+        // 原文（DIB.pas:1943-1944）：`raise EInvalidGraphicOperation.CreateFmt(SScanline, [Y])`
+        // SScanline = 'Index of the scanning line exceeded the range. (%d)'（DXConsts.pas:107）
+        // → Delphi 格式串，用 DelphiFormat.Format 替换 `%d`。
+        Assert.Equal(DelphiFormat.Format(DXConsts.SScanline, y), ex.Message);
         Assert.Contains(y.ToString(), ex.Message);
         Assert.Throws<EInvalidGraphicOperation>(() => d.ScanLineReadOnly(y));
     }
@@ -1465,11 +1504,19 @@ public class DxCtlDibCoreTests
     public void Pixels_24bpp_BGR字节序与DWord打包()
     {
         var d = MkImage(2, 1, 24);
-        d.SetPixel(0, 0, 0x123456);      // R=0x12 G=0x34 B=0x56
+        d.SetPixel(0, 0, 0x123456);      // R=0x12 G=0x34 B=0x56（Delphi TColor/DWord 的三通道序）
         var b = d.SharedImage.SnapshotBits(8);
-        Assert.Equal(0x56, b[0]);        // B
-        Assert.Equal(0x34, b[1]);        // G
-        Assert.Equal(0x12, b[2]);        // R
+        // 原文如此（DIB.pas:2028-2034）：24bpp 走 `with PArrayBGR(...)[X] do`
+        //   B := Byte(Value shr 16); G := Byte(Value shr 8); R := Byte(Value);
+        // TBGR 是 `packed record B, G, R: Byte`（DIB.pas:20-22），字段**顺序**是 B,G,R，
+        // 于是内存字节为 [B, G, R] = [0x56, 0x34, 0x12]。但 `with` 里的 `B/G/R` 是**字段名**，
+        // 赋值 `B := Value shr 16` 把 Value 的**最高**字节写进**第 0 个**字段 → 实际内存
+        // [0x12, 0x34, 0x56]；GetPixel 用 `p[2] | p[1]<<8 | p[0]<<16` 还原回 0x123456（自洽）。
+        // 上一轮本文件按"内存 = B,G,R 顺序"断言（期望 b[0]=0x56），与该字段赋值语义相反，
+        // 属测试期望写错（已实测 SnapshotBits 返回 12-34-56），已改正。
+        Assert.Equal(0x12, b[0]);
+        Assert.Equal(0x34, b[1]);
+        Assert.Equal(0x56, b[2]);
         Assert.Equal(0x123456u, d.GetPixel(0, 0));
     }
 

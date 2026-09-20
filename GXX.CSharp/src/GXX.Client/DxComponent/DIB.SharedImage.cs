@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using GXX.Core.Rtl;
 
 namespace GXX.Client.DxComponent;
 
@@ -230,7 +231,11 @@ public sealed class TDIBSharedImage
                     throw new EInvalidGraphicOperation(DXConsts.SInvalidDIBPixelFormat);
                 break;
             default:
-                throw new EInvalidGraphicOperation(string.Format(DXConsts.SInvalidDIBBitCount, ABitCount));
+                // 原文（DIB.pas:840-841）`EInvalidGraphicOperation.CreateFmt(SInvalidDIBBitCount, [ABitCount])`。
+                // SInvalidDIBBitCount 用的是 **Delphi** 格式串 'Bitcount in invalid (%d)'（DXConsts.pas:46），
+                // 必须走 DelphiFormat.Format —— 用 `string.Format` 无法替换 `%d`（会原样输出 "%d"）。
+                // 上一轮此处误用 `string.Format`，属实现缺陷，已修正（消息现为 "Bitcount in invalid (64)"）。
+                throw new EInvalidGraphicOperation(DelphiFormat.Format(DXConsts.SInvalidDIBBitCount, ABitCount));
         }
 
         FBitCount = ABitCount;
@@ -318,7 +323,7 @@ public sealed class TDIBSharedImage
                     FDC = DibSeams.Gdi.CreateCompatibleDC();
                     FHandle = DibSeams.Gdi.CreateDIBSection(FDC, FBitmapInfo, DIB.DIB_RGB_COLORS, out FPBits, IntPtr.Zero, 0);
                     if (FHandle == IntPtr.Zero)
-                        throw new EOutOfResources(string.Format(DXConsts.SCannotMade, "DIB"));
+                        throw new EOutOfResources(DelphiFormat.Format(DXConsts.SCannotMade, "DIB"));
                     FOldHandle = DibSeams.Gdi.SelectObject(FDC, FHandle);
                 }
                 else
