@@ -189,7 +189,7 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 | `dotnet build GXX.slnx -c Debug` | **Build succeeded / 0 Error(s)**（本车道文件零 warning） |
 | `dotnet test tests\GXX.Core.Tests` | **Passed! Failed: 0, Passed: 653, Skipped: 0, Total: 653**（修复 D19 后**连跑 10 次全绿**，见 §8.5） |
 | 车道前基线（同工作树实测） | **532 例**（不是派发词里的 550 —— 见下） |
-| 本车道新增 | **121 例**（`ParadoxDataSetTests.cs`），0 失败 |
+| 本车道新增 | **120 例**（`ParadoxDataSetTests.cs`：72 个 `[Fact]` + 48 行 `[Theory]` 数据），0 失败 |
 
 > **门禁可重复性**：修复 D19 后，`dotnet test GXX.Core.Tests` **连跑 10 次**全部
 > `Passed! Failed: 0, Passed: 653`；全解决方案 `dotnet build GXX.slnx` 亦复跑多次 0 error。
@@ -306,7 +306,7 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 
 * `TParadoxDataSet` **30 个方法 + 全属性 + 全部记录布局 + 118 项语言表**：1:1 移植完成，未覆盖行号仅
   3 处（`806-810` FPC 分支、`1327-1331` 原文注释代码块、`139-423` 注释文档），均为**不可执行或非 FPC 目标**。
-* 121 例新测试，**653/653 全绿**；全解决方案 **0 error**。
+* 120 例新测试，**653/653 全绿**（连跑 10 次）；全解决方案 **0 error**。
 * 大段常量脚本抽取 + 双向回读比对（118/118）。
 
 ### 8.2 未做（明确不做，理由充分）
