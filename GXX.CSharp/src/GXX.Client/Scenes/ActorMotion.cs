@@ -187,8 +187,9 @@ public partial class TActorCore
     /// GetDefaultFrame 1:1（6136-6215）：race 156 且 ChangeAppr ≥ 0 走自定义怪配置分支
     /// （死亡 / 石化复活 / 站立三态），否则走 GetRaceByPM 动作表分支。
     /// 副作用：非自定义怪分支写 m_nDefFrameCount = ActStand.frame。
+    /// ★ 车道 p7-client-virtual：原文 TActor.GetDefaultFrame 为虚方法（子类 override），此处补 `virtual`。
     /// </summary>
-    public int GetDefaultFrame(bool wmode)
+    public virtual int GetDefaultFrame(bool wmode)
     {
         if (m_btRace == 156 && m_nChangeAppr >= 0)
         {

@@ -24,13 +24,13 @@ p3-dx-big	GXX.CSharp/src/GXX.Client/DxComponent/Dib*.cs;GXX.CSharp/src/GXX.Clien
 p3-m2-sweep	GXX.CSharp/src/GXX.M2Server/Sweep/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep*;GXX.CSharp/docs/并行报告-p3-m2-sweep.md
 # ---- P4 wave (2026-09-20): the four unowned giants ----
 p4-rungate-mirclient	!GXX.CSharp/src/GXX.RunGate/MirClientContext*.cs;GXX.CSharp/tests/GXX.RunGate.Tests/MirClient*;!GXX.CSharp/docs/并行报告-p4-rungate-mirclient.md
-p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/Npc*;!GXX.CSharp/docs/并行报告-p4-m2-objnpc.md
+p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/Npc*;!GXX.CSharp/docs/并行报告-p4-m2-objnpc.md
 # ---- P5 wave: 最后一个无人认领的巨型单元 ----
 p5-client-mirreturn	GXX.CSharp/src/GXX.Client/GUI/GameConfig/MirReturn*.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirReturn*;GXX.CSharp/docs/并行报告-p5-client-mirreturn.md
 p5-m2-custommagic	GXX.CSharp/src/GXX.M2Server/Forms/CustomMagic/**;GXX.CSharp/tests/GXX.M2Server.Tests/CustomMagic*;GXX.CSharp/docs/并行报告-p5-m2-custommagic.md
 # ---- P6 wave: (a)-class units found by the 30-unit verification (see ledger 18) ----
 # ParadoxDataSet.pas exists byte-identical in RunGate and GameCenter -> ported ONCE into GXX.Core.
-p6-core-paradox	GXX.CSharp/src/GXX.Core/Paradox/**;GXX.CSharp/tests/GXX.Core.Tests/ParadoxDataSet*;GXX.CSharp/docs/并行报告-p6-core-paradox.md
+p6-core-paradox	!GXX.CSharp/src/GXX.Core/Paradox/**;!GXX.CSharp/tests/GXX.Core.Tests/ParadoxDataSet*;!GXX.CSharp/docs/并行报告-p6-core-paradox.md
 p6-m2-pets	!GXX.CSharp/src/GXX.M2Server/Forms/GamePets/**;!GXX.CSharp/tests/GXX.M2Server.Tests/GamePets*;!GXX.CSharp/docs/并行报告-p6-m2-pets.md
 # TCreature/TPlayObject are `partial`, so this lane adds members in its OWN new
 # files -- no write access to the session-A-owned Engine/*.cs is needed at all.
@@ -39,6 +39,6 @@ p6-m2-playersurface	GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/**;GXX.CSha
 p6-test-isolation	GXX.CSharp/tests/GXX.M2Server.Tests/M2ConfigIsolation*.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/TestConfig.cs;GXX.CSharp/docs/并行报告-p6-test-isolation.md
 # CustomActor: replaces a 6-line stub in PlaySceneNewActor.cs with the full 1130-line class.
 p6-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/CustomActor*.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;GXX.CSharp/tests/GXX.Client.Tests/CustomActor*;GXX.CSharp/docs/并行报告-p6-client-actor.md
-p6-core-hardinfo	GXX.CSharp/src/GXX.Core/Hardware/**;GXX.CSharp/tests/GXX.Core.Tests/Hardware*;GXX.CSharp/docs/并行报告-p6-core-hardinfo.md
+p6-core-hardinfo	!GXX.CSharp/src/GXX.Core/Hardware/**;!GXX.CSharp/tests/GXX.Core.Tests/Hardware*;!GXX.CSharp/docs/并行报告-p6-core-hardinfo.md
 # Restores the virtual-dispatch chain for the client actor hierarchy (ledger 24.2/25.5).
 p7-client-virtual	!GXX.CSharp/src/GXX.Client/Scenes/ActorCore.cs;!GXX.CSharp/src/GXX.Client/Scenes/ActorMotion.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;!GXX.CSharp/src/GXX.Client/Scenes/CustomActor.cs;!GXX.CSharp/tests/GXX.Client.Tests/CustomActorTests.cs;GXX.CSharp/tests/GXX.Client.Tests/VirtualDispatch*;GXX.CSharp/docs/并行报告-p7-client-virtual.md
