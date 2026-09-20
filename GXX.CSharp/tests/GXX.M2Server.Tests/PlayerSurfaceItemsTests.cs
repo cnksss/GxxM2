@@ -35,20 +35,18 @@ public class PlayerSurfaceItemsTests : IDisposable
         PlayerSurfaceMsgSeams.ResetDefaults();
     }
 
-    private static TUserItemView Item(ushort idx, int makeIndex = 0, string name = "")
+    /// <summary>
+    /// 物品工厂。★ 2026 第六轮（方案 A 第②步）：返回**权威记录 `TUserItem`**（不再是视图
+    /// `TUserItemView`）——`MakeIndex`/`NameStr`/`Dura`/`DuraMax` 现在是**真实字段**直接赋值；
+    /// 原先支撑它们的 4 个 `Seam*` 字典与 `WireItemFieldSeams()` 因此**全部删除**
+    /// （那 4 个"默认静默返回 0/空串"的委托容易把字段语义错伪装成分支没命中）。
+    /// </summary>
+    private static TUserItem Item(ushort idx, int makeIndex = 0, string name = "")
     {
-        var it = new TUserItemView { wIndex = idx };
-        SeamMakeIndex[it] = makeIndex;
-        SeamName[it] = name;
-        SeamDura[it] = 0;
-        SeamDuraMax[it] = 0;
+        var it = new TUserItem { wIndex = idx, MakeIndex = makeIndex, Dura = 0, DuraMax = 0 };
+        if (name != "") it.NameStr = name;
         return it;
     }
-
-    private static readonly System.Collections.Generic.Dictionary<TUserItemView, int> SeamMakeIndex = new();
-    private static readonly System.Collections.Generic.Dictionary<TUserItemView, string> SeamName = new();
-    private static readonly System.Collections.Generic.Dictionary<TUserItemView, ushort> SeamDura = new();
-    private static readonly System.Collections.Generic.Dictionary<TUserItemView, ushort> SeamDuraMax = new();
 
     private static TStdItem Std(byte stdMode = 0, string name = "")
     {
@@ -57,14 +55,8 @@ public class PlayerSurfaceItemsTests : IDisposable
         return s;
     }
 
-    /// <summary>把四个 `TUserItemView` 取字段接缝接到本测试的字典上。</summary>
-    private static void WireItemFieldSeams()
-    {
-        PlayerSurfaceItemSeams.ItemMakeIndex = it => SeamMakeIndex.TryGetValue(it, out var v) ? v : 0;
-        PlayerSurfaceItemSeams.ItemName = it => SeamName.TryGetValue(it, out var v) ? v : "";
-        PlayerSurfaceItemSeams.ItemDura = it => SeamDura.TryGetValue(it, out var v) ? v : (ushort)0;
-        PlayerSurfaceItemSeams.ItemDuraMax = it => SeamDuraMax.TryGetValue(it, out var v) ? v : (ushort)0;
-    }
+    // ★ `WireItemFieldSeams()` 已删除：4 个 `ItemMakeIndex/ItemName/ItemDura/ItemDuraMax` 委托随之删除，
+    //   物品字段改为直读 `TUserItem`（方案 A 第②步）。
 
     // ---------------------------------------------------------------
     // m_UseItems 复用既有字段（★ 防重复声明）
@@ -229,7 +221,7 @@ public class PlayerSurfaceItemsTests : IDisposable
         var p = new TPlayObject();
         Assert.True(p.AddItemToBag(Item(100, 7)));
         Assert.Single(p.Bag);
-        Assert.Equal((ushort)100, p.Bag[0].wIndex);
+        Assert.Equal((ushort)100, p.Bag[0]!.Value.wIndex);
     }
 
     [Fact]
@@ -240,7 +232,7 @@ public class PlayerSurfaceItemsTests : IDisposable
         Assert.True(p.AddItemToBag(Item(1)));
         Assert.False(p.AddItemToBag(Item(2)));
         Assert.Single(p.Bag);
-        Assert.Equal((ushort)1, p.Bag[0].wIndex);
+        Assert.Equal((ushort)1, p.Bag[0]!.Value.wIndex);
     }
 
     [Fact]
@@ -290,14 +282,17 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void AddItemToBag_KeepsReferenceSemantics_LikeOriginalPointerList()
     {
-        // ★ 与原文 TList (pTUserItem) 一致：加入的是**引用**，之后改对象字段能反映到背包
+        // ★★ 语义变更（方案 A 的固有代价，2026 第六轮）：元素是**可空值类型** `TUserItem?`，
+        //    与原文 `TList` + `pTUserItem` 的**别名语义不同** —— `AddItemToBag(it)` 之后 `it.wIndex = 999`
+        //    **不会**反映到背包（值被复制）。原文此处反映得到。本用例因此改为断言**新语义**，
+        //    并把"必须写回槽位"的做法一并演示（这是调用方契约的一部分）。
         PlayerSurfaceBaseSeams.GetMaxBagCount = _ => 10;
         var p = new TPlayObject();
         var it = Item(5, 1);
         p.AddItemToBag(it);
 
-        it.wIndex = 999;
-        Assert.Equal((ushort)999, p.Bag[0].wIndex);
+        it.wIndex = 999;                              // 只改**本地副本**
+        Assert.Equal((ushort)5, p.Bag[0]!.Value.wIndex);   // ★ 背包里仍是复制进去的旧值（别名语义已失）
     }
 
     // ---------------------------------------------------------------
@@ -308,7 +303,7 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void CheckItems_EmptyBag_ReturnsMinusOne()
     {
         var p = new TPlayObject();
-        Assert.Equal(-1, p.CheckItems("黑铁矿", out TUserItemView? found));
+        Assert.Equal(-1, p.CheckItems("黑铁矿", out TUserItem? found));
         Assert.Null(found);
     }
 
@@ -325,8 +320,10 @@ public class PlayerSurfaceItemsTests : IDisposable
 
         int i = p.CheckItems("黑铁矿", out var found);
         Assert.Equal(1, i);
-        Assert.Same(b, found);
-        Assert.Equal((ushort)100, found!.wIndex);
+        // ★ 方案 A：元素是**值类型** `TUserItem?` → 不能再用 `Assert.Same`（引用相等），改为断言内容。
+        Assert.Equal(b.wIndex, found!.Value.wIndex);
+        Assert.Equal(b.MakeIndex, found!.Value.MakeIndex);
+        Assert.Equal((ushort)100, found!.Value.wIndex);
     }
 
     [Fact]
@@ -339,9 +336,9 @@ public class PlayerSurfaceItemsTests : IDisposable
         var p = new TPlayObject();
         p.AddItemToBag(Item(1));
 
-        Assert.Equal(0, p.CheckItems("blackiron", out TUserItemView? _));
-        Assert.Equal(0, p.CheckItems("BLACKIRON", out TUserItemView? _));
-        Assert.Equal(-1, p.CheckItems("blackironx", out TUserItemView? _));
+        Assert.Equal(0, p.CheckItems("blackiron", out TUserItem? _));
+        Assert.Equal(0, p.CheckItems("BLACKIRON", out TUserItem? _));
+        Assert.Equal(-1, p.CheckItems("blackironx", out TUserItem? _));
     }
 
     [Fact]
@@ -358,7 +355,11 @@ public class PlayerSurfaceItemsTests : IDisposable
         p.AddItemToBag(b);
 
         Assert.Equal(0, p.CheckItems("same", out var found));
-        Assert.Same(a, found);
+        // ★ 方案 A：元素是值类型 → `Assert.Same`（引用相等）不再适用；用 `MakeIndex` 区分
+        //   "取到的是 a 而不是 b"，**仍然锁死"第一个命中者胜出"这一语义**（原文 41681 的 Break）。
+        Assert.Equal(11, found!.Value.MakeIndex);
+        Assert.Equal(a.MakeIndex, found!.Value.MakeIndex);
+        Assert.NotEqual(b.MakeIndex, found!.Value.MakeIndex);
     }
 
     [Fact]
@@ -368,7 +369,7 @@ public class PlayerSurfaceItemsTests : IDisposable
         PlayerSurfaceItemSeams.GetStdItemName = _ => "x";
         var p = new TPlayObject();
         p.AddItemToBag(Item(1));
-        Assert.Equal(0, p.CheckItemsIndex("x", out TUserItemView? _));
+        Assert.Equal(0, p.CheckItemsIndex("x", out TUserItem? _));
     }
 
     // ---------------------------------------------------------------
@@ -431,7 +432,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendAddItem_Offline_DoesNothing()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject { m_boOffLine = true };
         int sendDef = 0;
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, _) => sendDef++;
@@ -445,7 +445,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendAddItem_DummyObject_DoesNothing()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject { m_boDummyObject = true };
         int sendDef = 0;
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, _) => sendDef++;
@@ -460,7 +459,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendAddItem_UnknownStdItem_DoesNothing()
     {
         // 原文 3370-3371：StdItem = nil then Exit
-        WireItemFieldSeams();
         var p = new TPlayObject();
         int sendDef = 0;
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, _) => sendDef++;
@@ -474,7 +472,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendAddItem_KnownItem_SendsSmAddItem()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject();
         ushort ident = 0;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(1);
@@ -489,15 +486,14 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendAddItem_PerfectDuraBead_DoesNotConsumeRecordBeadExp()
     {
         // 原文 3388：三个条件都要满足；Dura == DuraMax（不是 `<`）→ 不结算
-        WireItemFieldSeams();
         var p = new TPlayObject { m_dwRecordBeadExp = 500 };
         uint incBead = 0;
         PlayerSurfaceItemSeams.IncBeadExp = (_, v) => incBead = v;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(49);
 
         var it = Item(1);
-        SeamDura[it] = 10;
-        SeamDuraMax[it] = 10;
+        it.Dura = 10;
+        it.DuraMax = 10;
         p.SendAddItem(it);
 
         Assert.Equal(0u, incBead);
@@ -508,15 +504,14 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendAddItem_BeadItemWithDuraLessThanMax_ConsumesRecordBeadExp()
     {
         // 原文 3388-3392：StdMode = 49 且 Dura < DuraMax → 清零并把**旧值**交给 IncBeadExp
-        WireItemFieldSeams();
         var p = new TPlayObject { m_dwRecordBeadExp = 500 };
         uint incBead = 0;
         PlayerSurfaceItemSeams.IncBeadExp = (_, v) => incBead = v;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(49);
 
         var it = Item(1);
-        SeamDura[it] = 9;
-        SeamDuraMax[it] = 10;
+        it.Dura = 9;
+        it.DuraMax = 10;
         p.SendAddItem(it);
 
         Assert.Equal(500u, incBead);
@@ -526,15 +521,14 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendAddItem_NonBeadStdMode_DoesNotConsumeEvenWithLowDura()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject { m_dwRecordBeadExp = 500 };
         uint incBead = 0;
         PlayerSurfaceItemSeams.IncBeadExp = (_, v) => incBead = v;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(48);
 
         var it = Item(1);
-        SeamDura[it] = 1;
-        SeamDuraMax[it] = 10;
+        it.Dura = 1;
+        it.DuraMax = 10;
         p.SendAddItem(it);
 
         Assert.Equal(0u, incBead);
@@ -544,15 +538,14 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendAddItem_ZeroRecordBeadExp_DoesNotConsume()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject { m_dwRecordBeadExp = 0 };
         int incCalls = 0;
         PlayerSurfaceItemSeams.IncBeadExp = (_, _) => incCalls++;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(49);
 
         var it = Item(1);
-        SeamDura[it] = 1;
-        SeamDuraMax[it] = 10;
+        it.Dura = 1;
+        it.DuraMax = 10;
         p.SendAddItem(it);
 
         Assert.Equal(0, incCalls);
@@ -562,12 +555,11 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendAddItem_FunctionNpcBranch_SetsAndResetsCurrentItemFields()
     {
         // 原文 3374-3381：夹在置位/复位之间调用 GotoLable('@AddBag')
-        WireItemFieldSeams();
         var p = new TPlayObject { m_btRaceServer = Grobal2Const.RC_PLAYOBJECT };
         var fn = new object();
         PlayerSurfaceItemSeams.FunctionNPC = fn;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(1, "大刀");
-        PlayerSurfaceItemSeams.ItemMakeIndex = it => 777;
+        // 原文 3376：`m_nCurrentItemMakeIndex := UserItem.MakeIndex` —— MakeIndex 现在是 TUserItem 的真实字段
 
         string? label = null;
         int makeIndexDuringCall = -1;
@@ -580,7 +572,8 @@ public class PlayerSurfaceItemsTests : IDisposable
             nameDuringCall = p.m_sCurrentItemName;
         };
 
-        p.SendAddItem(Item(1));
+        // ★ 方案 A：`MakeIndex` 现在是 `TUserItem` 的真实字段（原先靠 `ItemMakeIndex` 委托注入 777）
+        p.SendAddItem(Item(1, 777));
 
         Assert.Equal("@AddBag", label);
         Assert.Equal(777, makeIndexDuringCall);      // 置位已生效
@@ -593,14 +586,13 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendDelItem_UsesCustomName_WhenBtValue13IsOneAndNameNonEmpty()
     {
         // 原文 12651-12654
-        WireItemFieldSeams();
         var p = new TPlayObject();
         string msg = "";
         PlayerSurfaceItemSeams.GetStdItem = _ => Std();
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, s) => msg = s;
 
         var it = Item(1, 5, "自定义名");
-        it.BtValue[13] = 1;
+        it.SetBtValue(13, 1);
         p.SendDelItem(it);
 
         Assert.Equal("自定义名", msg);
@@ -609,14 +601,13 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendDelItem_FallsBackToStdName_WhenBtValue13NotOne()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject();
         string msg = "";
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(0, "标准名");
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, s) => msg = s;
 
         var it = Item(1, 5, "自定义名");
-        it.BtValue[13] = 0;
+        it.SetBtValue(13, 0);
         p.SendDelItem(it);
 
         Assert.Equal("标准名", msg);
@@ -626,14 +617,13 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void SendDelItem_FallsBackToStdName_WhenBtValue13IsOneButNameEmpty()
     {
         // ★ 差异断言：`btValue[13] = 1` **且** `Name <> ''` 两个条件都要满足
-        WireItemFieldSeams();
         var p = new TPlayObject();
         string msg = "";
         PlayerSurfaceItemSeams.GetStdItem = _ => Std(0, "标准名");
         PlayerSurfaceMsgSeams.SendDefMessage = (_, _, _, _, _, _, s) => msg = s;
 
         var it = Item(1, 5, "");
-        it.BtValue[13] = 1;
+        it.SetBtValue(13, 1);
         p.SendDelItem(it);
 
         Assert.Equal("标准名", msg);
@@ -642,7 +632,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendDelItem_UnknownStdItem_DoesNotSend()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject();
         int calls = 0;
         PlayerSurfaceItemSeams.GetStdItem = _ => null;
@@ -656,7 +645,6 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void SendDelItem_Offline_DoesNothing()
     {
-        WireItemFieldSeams();
         var p = new TPlayObject { m_boOffLine = true };
         int calls = 0;
         PlayerSurfaceItemSeams.GetStdItem = _ => Std();

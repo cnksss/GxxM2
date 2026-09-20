@@ -30,6 +30,25 @@ public abstract partial class TCreature
     public bool m_boAddToMaped;
     public uint m_dwGhostTick;
 
+    // ---- 物品（背包）容器 ----
+    //
+    // 原文 `ObjBase.pas:322 m_ItemList: TList; // 0x40C 人物背包(Dword)数量`
+    // —— 在 **`TBaseObject`** 上，故托管侧落在 `TCreature` 这一层（与
+    // `BagItems`/`AddItemToBag`/`IsEnoughBag`/`CheckItems` 的归属一致，
+    // 见 `PlayerSurface/TCreature.PlayerSurface.Items.cs`）。
+    // ⚠ 2026 第六轮之前它挂在 `TPlayObject` 上，导致 `TCreature.BagItems` **够不到**它
+    //   （只能另持 `m_BagItems` 后备字段 → 双容器）。现按原文归属上移。
+    //
+    // ★ 方案 A（台账 §26）：`GXX.Core.Protocol.TUserItem`（`Grobal2.Types6.cs:13`）是
+    //   **唯一存储与权威**；`Engine.TUserItemView`（`AddAbility.cs:64`）退化为
+    //   "能力聚合用的轻量视图"，由调用处按需现造（`ToItemView`）。
+    // 元素类型取 `TUserItem?`（可空）而非 `TUserItem`：原文槽位是 `pTUserItem` **指针、允许 nil**
+    //   （`ObjNpc.pas:1710/4254` 等处都有 `if UserItem = nil then Continue`）；值类型无法表达空槽。
+    //   ⚠ 代价：`Add` 是**值复制**，原文是**别名共享**（详见 `BagItems` 的说明）。
+    // ⚠ 历史记录（以防重犯）：曾把本字段类型从 `List<TUserItem>` 改成 `List<TUserItemView>`，
+    //   而它当时**零调用方** —— 改类型并没有接上容器，双容器依旧存在（台账 §26 自省条）。
+    public List<TUserItem?> m_ItemList = new();
+
     // ---- 属性（TAbility）----
     public TAbility m_wAbil;
 
@@ -162,24 +181,7 @@ public partial class TPlayObject : TCreature
     public bool m_boReadyRun;
     public long m_nSessionId;
 
-    // 物品/魔法容器（对应 ObjBase.pas:322 `m_ItemList: TList`（人物背包）/ THumanUseItems）
-    //
-    // ★ 2026 第三轮裁定（方案 A，台账 §26）：
-    //   `GXX.Core.Protocol.TUserItem`（Grobal2.Types6.cs:13）是**唯一存储与权威**；
-    //   `Engine.TUserItemView`（AddAbility.cs:64）退化为"能力聚合用的轻量视图"，
-    //   由 `GetAccessory.Apply` 的调用处按需从 `TUserItem` 现造。
-    //
-    // 元素类型取 `TUserItem?`（可空）而非 `TUserItem`：原文是 `TList`，槽位是 `pTUserItem`
-    // **指针**、**允许为 nil**（ObjNpc.pas:1710/4254 等处都有 `if UserItem = nil then Continue`）。
-    // 值类型元素无法表达"空槽"，故按 `PTUserItem` 语义用可空值类型 —— 与 p6 车道对
-    // `m_UseItems`（`TUserItemView?[]`，RecalcChain.cs:101）的既有做法一致。
-    //
-    // ⚠ 历史记录（并入本节以免后人重犯）：本字段在把类型改成 `List<TUserItemView>` 时
-    //   **依旧零调用方**，即"改一个零调用方字段的类型"**并没有接上容器** ——
-    //   `BagItems` 当时仍指向自己的后备字段 `m_BagItems`，双容器依旧存在（见台账 §26 的自省条）。
-    //   本次不再重复该错误：类型与权威表示先对齐，`BagItems => m_ItemList` 的接线见
-    //   `PlayerSurface/TCreature.PlayerSurface.Items.cs` 的注释（接线需同步改 p6 车道的测试文件）。
-    public List<TUserItem?> m_ItemList = new();
+    // 物品/魔法容器（对应 ObjBase.pas:322 `m_ItemList: TList`（人物背包））
     public List<THumMagic> m_MagicList = new();
 
     public TPlayObject()

@@ -77,21 +77,13 @@ public static class PlayerSurfaceItemSeams
     /// </summary>
     public static Action<object>? BlankClientItemBtValue10 { get; set; }
 
-    /// <summary>
-    /// `UserItem.MakeIndex`（ObjPlayer.pas:3376/12655）——`TUserItemView`（`AddAbility.cs:64`）
-    /// **没有**该字段（只有 `wIndex`/`BtValue`/`CustomProperties`）。
-    /// 接缝：待 `TUserItemView` 补全 `TUserItem` 面（或改用 `TUserItem`）后直接取值。
-    /// </summary>
-    public static Func<TUserItemView, int> ItemMakeIndex { get; set; } = _ => 0;
-
-    /// <summary>`UserItem.Name`（ObjPlayer.pas:12651/12652）——理由同 <see cref="ItemMakeIndex"/>。</summary>
-    public static Func<TUserItemView, string> ItemName { get; set; } = _ => "";
-
-    /// <summary>`UserItem.Dura`（ObjPlayer.pas:3388）——理由同 <see cref="ItemMakeIndex"/>。</summary>
-    public static Func<TUserItemView, ushort> ItemDura { get; set; } = _ => 0;
-
-    /// <summary>`UserItem.DuraMax`（ObjPlayer.pas:3388）——理由同 <see cref="ItemMakeIndex"/>。</summary>
-    public static Func<TUserItemView, ushort> ItemDuraMax { get; set; } = _ => 0;
+    // ★ 2026 第六轮（方案 A 第②步）：此处原有 4 个只读委托
+    //   `ItemMakeIndex` / `ItemName` / `ItemDura` / `ItemDuraMax`（各自的 `Func<TUserItemView, ...>`），
+    //   **已全部删除**。
+    //   删除理由（台账 §25.2 立的规矩）：它们是"默认静默返回中性值"的委托
+    //   （`_ => 0` / `_ => ""`），一旦忘记接线就把**字段语义错**伪装成**分支没命中**；
+    //   而且 `Dura`/`DuraMax` 是**可写**的（`GetUserItemPrice` 在 `StdMode = 43` 时写回），
+    //   只读 `Func` 从类型上就承载不了。现在物品元素是权威记录 `TUserItem`，字段直读即可。
 
     /// <summary>`g_CastleManager.IsCastleMember(Self)`（ObjPlayer.pas:16303）——`Castle.cs` 无该方法。</summary>
     public static Func<TPlayObject, object?> IsCastleMember { get; set; } = _ => null;
@@ -117,10 +109,7 @@ public static class PlayerSurfaceItemSeams
         FunctionNpcGotoLable = (_, _, _, _) => { };
         IncBeadExp = (_, _) => { };
         BlankClientItemBtValue10 = null;
-        ItemMakeIndex = _ => 0;
-        ItemName = _ => "";
-        ItemDura = _ => 0;
-        ItemDuraMax = _ => 0;
+        // ★ 4 个 ItemXxx 委托已删除（见上），此处不再复位。
         IsCastleMember = _ => null;
         MyGuild = _ => null;
         GuildRankNo = _ => 0;
@@ -164,7 +153,7 @@ public abstract partial class TCreature
     /// 这些方法在原文里属于 `TBaseObject`，托管侧提到 `TCreature` 这一层才符合原文归属。
     /// </summary>
     /// <remarks>
-    /// ★★ 集成方裁定（2026 第三轮，台账 §26，**方案 A**）与**当前执行状态**：
+    /// ★★ 集成方裁定（台账 §26，**方案 A**）：
     /// <list type="number">
     ///   <item><description>**已做**：`Engine/ObjBase.cs:170` 的 `m_ItemList` 已由 `List&lt;TUserItemView&gt;`
     ///     改为 **`List&lt;TUserItem?&gt;`** —— `GXX.Core.Protocol.TUserItem` 为唯一存储与权威，
@@ -182,21 +171,19 @@ public abstract partial class TCreature
     ///     ② 由 `p6-m2-playersurface` 自行适配其测试后再落这一步。</description></item>
     /// </list>
     /// </remarks>
-    protected virtual List<TUserItemView> BagItems => m_BagItems;
-
-    /// <summary>
-    /// 背包私有后备字段 —— **待删**（接线到 <c>m_ItemList</c> 后即消失；删除条件见
-    /// <see cref="BagItems"/> 的裁定说明第 2 条）。
-    /// </summary>
-    protected readonly List<TUserItemView> m_BagItems = new();
+    protected virtual List<TUserItem?> BagItems => m_ItemList;
 
     /// <summary>
     /// 背包容器的**只读视图**（供跨程序集/NPC 车道读取，不暴露可变接口）。
     /// </summary>
-    public IReadOnlyList<TUserItemView> Bag => m_BagItems;
+    public IReadOnlyList<TUserItem?> Bag => m_ItemList;
 
-    /// <summary>向背包追加一件（等价 `m_ItemList.Add`；ObjNpc 侧 `ClientBuyItem` 等可直接用）。</summary>
-    public void AddToBag(TUserItemView item) => m_BagItems.Add(item);
+    /// <summary>
+    /// 向背包追加一件（等价原文 `m_ItemList.Add(UserItem)`；ObjNpc 侧 `ClientBuyItem` 等可直接用）。
+    /// <para>⚠ 元素是**可空值类型**（对应原文 `pTUserItem`）：`Add(SomeItem)` 会把**值复制**进背包，
+    /// 与原文"加入指针、共享同一对象"的**别名语义不同** —— 详见 <see cref="BagItems"/> 的裁定说明。</para>
+    /// </summary>
+    public void AddToBag(TUserItem? item) => m_ItemList.Add(item);
 
     /// <summary>
     /// 原文 `function TBaseObject.GetMaxBagCount: Integer;`（ObjBase.pas:26738-26741）
@@ -259,7 +246,7 @@ public abstract partial class TCreature
     /// ⚠ 托管 `m_ItemList` 是 `List&lt;TUserItemView&gt;`（**引用语义**，`AddAbility.cs:64`），
     /// 原文 `TList` 存 `pTUserItem` **指针** —— 两者在这一点上**语义一致**（加入的是引用）。
     /// </summary>
-    public virtual bool AddItemToBag(TUserItemView userItem)
+    public virtual bool AddItemToBag(TUserItem? userItem)
     {
         // 原文 26745：Result := False;
         bool result = false;
@@ -305,7 +292,7 @@ public abstract partial class TCreature
     /// 本方法返回的是**背包下标**，取值范围 `[0, Count)`，与 `wIndex` 不共域，安全。
     /// </summary>
     /// <returns>命中的 `BagItems` 下标；未命中返回 `-1`（对应原文 `Result := nil`）。</returns>
-    public int CheckItems(string sItemName, out TUserItemView? userItem)
+    public int CheckItems(string sItemName, out TUserItem? userItem)
     {
         // 原文 41673：Result := nil;
         userItem = null;
@@ -313,11 +300,11 @@ public abstract partial class TCreature
         // 原文 41675：for I := 0 to BagItems.Count - 1 do
         for (int i = 0; i < BagItems.Count; i++)
         {
-            // 原文 41677：UserItem := BagItems.Items[I];
+            // 原文 41677：UserItem := BagItems.Items[I];  （原文不判 nil 就读 wIndex → 空槽即 AV，照抄）
             var item = BagItems[i];
             // 原文 41678：if CompareText(UserEngine.GetStdItemName(UserItem.wIndex), sItemName) = 0 then
             // Delphi `CompareText` 不区分大小写 → 托管 `StringComparison.OrdinalIgnoreCase`。
-            if (string.Equals(PlayerSurfaceItemSeams.GetStdItemName(item.wIndex), sItemName,
+            if (string.Equals(PlayerSurfaceItemSeams.GetStdItemName(item!.Value.wIndex), sItemName,
                     StringComparison.OrdinalIgnoreCase))
             {
                 // 原文 41680-41681：Result := UserItem; Break;
@@ -334,7 +321,7 @@ public abstract partial class TCreature
     /// 名字不同于原文（原文只有返回 `pTUserItem` 的那一个版本），故不占用任何原文成员名。
     /// </summary>
     /// <returns>命中的背包下标；未命中返回 `-1`（对应原文 `nil`）。</returns>
-    public int CheckItemsIndex(string sItemName, out TUserItemView? userItem)
+    public int CheckItemsIndex(string sItemName, out TUserItem? userItem)
         => CheckItems(sItemName, out userItem);
 
     /// <summary>
@@ -404,7 +391,7 @@ public partial class TPlayObject
     /// 不在 `TUserItemView` 上（它只有 `wIndex`/`BtValue`/`CustomProperties`），
     /// 经 <see cref="PlayerSurfaceItemSeams"/> 取值。差异见交付报告「接缝清单」。
     /// </remarks>
-    public void SendAddItem(TUserItemView userItem)
+    public void SendAddItem(TUserItem userItem)
     {
         // 原文 3366-3367
         if (m_boOffLine || m_boDummyObject) return;
@@ -414,14 +401,15 @@ public partial class TPlayObject
         if (stdItem == null) return;
 
         // 原文 3373：UserItemToClientItem(UserItem, StdItem, @ClientItem, True, True);
+        // 方案 A：`TUserItemView` 只是"能力聚合用的轻量视图"，调用处按需从权威记录现造。
         // 接缝：无法编码时按「无宿主」处理（返回 null 表示未编码）。
-        var clientItem = PlayerSurfaceItemSeams.UserItemToClientItem(userItem, stdItem.Value);
+        var clientItem = PlayerSurfaceItemSeams.UserItemToClientItem(ToItemView(userItem), stdItem.Value);
 
         // 原文 3374-3381
         if (m_btRaceServer == Grobal2Const.RC_PLAYOBJECT && PlayerSurfaceItemSeams.FunctionNPC != null)
         {
             // 原文 3376-3377：m_nCurrentItemMakeIndex := UserItem.MakeIndex; m_sCurrentItemName := StdItem.Name;
-            m_nCurrentItemMakeIndex = PlayerSurfaceItemSeams.ItemMakeIndex(userItem);
+            m_nCurrentItemMakeIndex = userItem.MakeIndex;
             m_sCurrentItemName = stdItem.Value.NameStr;
             // 原文 3378：g_FunctionNPC.GotoLable(Self, '@AddBag', False);
             PlayerSurfaceItemSeams.FunctionNpcGotoLable(
@@ -443,7 +431,7 @@ public partial class TPlayObject
 
         // 原文 3388：if (m_dwRecordBeadExp > 0) and (StdItem.StdMode = 49) and (UserItem.Dura < UserItem.DuraMax) then
         if (m_dwRecordBeadExp > 0 && stdItem.Value.StdMode == 49
-            && PlayerSurfaceItemSeams.ItemDura(userItem) < PlayerSurfaceItemSeams.ItemDuraMax(userItem))
+            && userItem.Dura < userItem.DuraMax)
         {
             // 原文 3390-3391：_dwRecordBeadExp := m_dwRecordBeadExp; m_dwRecordBeadExp := 0;
             uint old = m_dwRecordBeadExp;
@@ -451,6 +439,21 @@ public partial class TPlayObject
             // 原文 3392：IncBeadExp(_dwRecordBeadExp, False);
             PlayerSurfaceItemSeams.IncBeadExp(this, old);
         }
+    }
+
+    /// <summary>
+    /// 方案 A 的**视图现造点**：把权威记录 `TUserItem`（唯一存储）转成能力聚合用的
+    /// `TUserItemView`（`AddAbility.cs:64`，只含 `wIndex` + `BtValue[14]` + `CustomProperties`）。
+    /// <para>⚠ **有损**：`TUserItem.btValue` 原文是 `array[0..13] of Integer`（托管 `fixed int btValue[14]`），
+    /// 而 `TUserItemView.BtValue` 是 `byte[14]` —— 大于 255 的附加值会被截断（按 `(byte)` 窄化，与原文
+    /// 消费方 `GetAccessory` 读 byte 的口径一致）。已登记，见报告 §12.5 同族的"视图 ≠ 存储"说明。</para>
+    /// </summary>
+    internal static TUserItemView ToItemView(TUserItem item)
+    {
+        var view = new TUserItemView { wIndex = item.wIndex };
+        for (int i = 0; i < view.BtValue.Length; i++)
+            view.BtValue[i] = (byte)item.GetBtValue(i);
+        return view;
     }
 
     /// <summary>
@@ -469,7 +472,7 @@ public partial class TPlayObject
     /// ⚠ `btValue[13]` 是**魔法下标**（ObjNpc 车道报告 D23 同型）：用 `btValue[13] = 1`
     /// 决定日志/消息里用自定义名还是标准名，无具名常量。
     /// </remarks>
-    public void SendDelItem(TUserItemView userItem)
+    public void SendDelItem(TUserItem userItem)
     {
         // 原文 12645-12646
         if (m_boOffLine || m_boDummyObject) return;
@@ -480,14 +483,13 @@ public partial class TPlayObject
         {
             string sItemName;
             // 原文 12651：if (UserItem.btValue[13] = 1) and (UserItem.Name <> '') then
-            string itemName = PlayerSurfaceItemSeams.ItemName(userItem);
-            if (userItem.BtValue[13] == 1 && itemName != "")
-                sItemName = itemName;                // 原文 12652
+            if (userItem.GetBtValue(13) == 1 && userItem.NameStr != "")
+                sItemName = userItem.NameStr;       // 原文 12652
             else
-                sItemName = stdItem.Value.NameStr;   // 原文 12654
+                sItemName = stdItem.Value.NameStr;  // 原文 12654
             // 原文 12655：SendDefMessage(SM_DELITEM, UserItem.MakeIndex, 0, 0, 0, sItemName);
             PlayerSurfaceMsgSeams.SendDefMessage(this, Grobal2Const.SM_DELITEM,
-                PlayerSurfaceItemSeams.ItemMakeIndex(userItem), 0, 0, 0, sItemName);
+                userItem.MakeIndex, 0, 0, 0, sItemName);
         }
     }
 
