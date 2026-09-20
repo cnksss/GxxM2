@@ -1003,3 +1003,99 @@ public class TUserItemView
 3. **`TMerchant.UserSelect`(2087-2900, 814)** 按 `@buy` / `@sell` / `@repair` **分片**推进。
 4. **`TNormNpc.GotoLable`(9263-9574, 312)** —— `m_nVal` ✅、`LableIsCanJmp`/`SetScriptLabel` ✅，
    主要待与 `HandleNpcCmds` 的条件/动作执行器对接。
+---
+
+# 12. 第六轮（切片 20）：方案 A 第①步已做；**第②步就地停下并报告阻塞** ★ 本节优先于 §11
+
+## 12.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 20 | `692cb768` | 方案 A 第①步：`ObjBase.m_ItemList` 改 **`List<TUserItem?>`**；`sub_4A0218` 强类型化；第②步以**精确阻塞**形式登记 |
+
+门禁：`dotnet build GXX.slnx` 0 error；`GXX.M2Server.Tests` **8,209 passed / 0 failed**（构建**保持绿**）。
+越区检查：本次仅动 `Engine/ObjBase.cs` + `Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs`（**已在 `176edd2e` 授权**）
++ 本车道自己的 `Npc/`、`NpcObjNpc*` 测试。
+
+## 12.2 调度方的侦察结论**完全正确**，且已用脚本二次确认
+
+```powershell
+Select-String -Path (all src/tests *.cs) -Pattern 'm_ItemList' | ? { 非注释行 }
+→ src\GXX.M2Server\Engine\ObjBase.cs:170: public List<TUserItemView> m_ItemList = new();
+```
+**全仓只有它自己的声明这一处** —— 即上一轮把它的类型改成 `TUserItemView`，**没有产生任何效果**。
+`BagItems`（`TCreature.PlayerSurface.Items.cs:180`）指向的是**自己的后备字段 `m_BagItems`**（:186），
+双容器至今存在。「改一个零调用方字段的类型 ≠ 接上了容器」这条自省记号**证据充分**。
+
+## 12.3 第①步已做 —— 但元素类型用 **`List<TUserItem?>`（可空）** 而非 `List<TUserItem>`
+
+**这是对裁定的一处细化，理由是保真**：原文 `ObjBase.pas:322 m_ItemList: TList` 的槽位是
+`pTUserItem` **指针，允许为 nil** —— 原文多处显式判空：
+`ObjNpc.pas:1710`（`if UserItem = nil then Continue`）、`:4254`（`if ItemList = nil then Continue`）等。
+值类型元素**无法表达"空槽"**，故按 `PTUserItem` 语义取可空值类型；
+这与 p6 车道对 `m_UseItems`（`TUserItemView?[]`，`RecalcChain.cs:101`）的既有做法**一致**。
+（若调度方坚持非可空 `List<TUserItem>`，请告知 —— 代价是丢掉原文的空槽语义，且上述判空分支将不可达。）
+
+`sub_4A0218` 同步强类型化为 `List<TUserItem?>`，原文 1710-1711 的判空分支**得以保留**（原 `List<object>` 版是装箱 + 强转）。
+
+## 12.4 ★★ 第②步**就地停下**：改签名会连带打到**另一条车道的测试文件**
+
+裁定第 2 条要求（`BagItems => m_ItemList`、删 `m_BagItems`、删 4 个只读委托）会连带改变
+`TCreature.PlayerSurface.Items.cs` 的 **7 个公开成员签名**：
+`Bag` / `AddToBag` / `AddItemToBag` / `CheckItems` / `CheckItemsIndex` / `SendAddItem` / `SendDelItem`。
+
+而实测这些成员在 **`tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs`** 里有 **约 40 处调用点**：
+
+| 依赖的旧签名 | 该文件中的调用点（行号） |
+|---|---|
+| `PlayerSurfaceItemSeams.ItemMakeIndex/ItemName/ItemDura/ItemDuraMax`（**4 个委托的直接赋值**） | 63 / 64 / 65 / 66 / 570 |
+| `AddItemToBag(TUserItemView)` | 181 / 190 / 191 / 203 / 208 / 230 / 240 / 241 / 251 / 264 / 277 / 297 / 323 / 324 / 340 / 357 / 358 / 370 |
+| `CheckItems(string, out TUserItemView?)` | 311 / 326 / 342 / 343 / 344 / 360 |
+| `CheckItemsIndex(string, out TUserItemView?)` | 371 |
+| `SendAddItem(TUserItemView)` | 440 / 454 / 469 / 483 / 501 / 520 / 538 / 556 / 583 |
+| `SendDelItem(TUserItemView)` | 604 / 620 / 637 / 651 / 665 |
+| `PlayerSurfaceItemSeams.ResetDefaults()`（复位 4 个委托） | 27 / 34 |
+
+**该文件的归属是车道 `p6-m2-playersurface`**（分区表：`GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurface*`），
+**不在本车道（`Npc*`）的分区表内**。据「绝不改他人文件」「每次提交可编译」两条纪律：
+**本车道未执行第②步** —— 否则提交即构建红（且改的是别人车道的测试）。
+
+### 需要的裁定（二选一）
+
+1. **把 `tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs` 加入本车道分区**（与我已获批的两个 Engine 文件同批），
+   我随后一次性完成：`BagItems => m_ItemList`、删 `m_BagItems`、删 4 个委托、签名统一为 `TUserItem?`、
+   **并同步改那 40 处调用点**（含把那 4 个委托的赋值改成直接设置 `TUserItem` 的 `MakeIndex`/`Dura`/`DuraMax`/`NameStr`）；
+2. **或**由 `p6-m2-playersurface` 自行适配其测试后再落这一步（我这边保持现状，`sub_4A0218` 已就绪但仍接不上真实 `m_ItemList`）。
+
+> 无论哪种，**这 40 处调用点是硬约束**：第②步不可能"只改 Engine 两个文件"就完成。这是我停下的**唯一**原因。
+
+## 12.5 ★ `TStdItem` vs `TStdItemView` 的命名/字段对照表（裁定第 3 条要求「只登记，本次不做」）
+
+| 语义 | 权威侧 `GXX.Core.Protocol.TStdItem`（`Grobal2.Types2.cs:26`） | 视图侧 `Engine.TStdItemView`（`AddAbility.cs`） | 备注 |
+|---|---|---|---|
+| 名称 | `NameStr`（**属性**，读 `fixed byte Name[61]`） | `Name`（**string 字段**） | **同概念两套命名** |
+| DB 名 | `DBNameStr`（属性）/ `fixed byte DBName[61]` | `DBName`（string） | 同上 |
+| 动画数 | `AniCount`（`ushort`） | **`Anicount` 与 `AniCount` 两个字段并存** | ⚠ 视图里疑似**重复定义**（大小写不同），需 p6 侧确认哪个是活的 |
+| 需求 | `Need`（`int`） | `Need`（`byte`） | **类型不一致**（int vs byte） |
+| 需求等级 | `NeedLevel`（`int`） | `NeedLevel`（`byte`） | **类型不一致** |
+| HP / MP | `int` | `uint` | **类型不一致** |
+| 重量 | `Weight` | ❌ 缺 | 视图不需要 |
+| 需鉴定 | `NeedIdentify` | ❌ 缺 | **ObjNpc 需要**（`GetUserItemPrice`/`sub_4A0218`） |
+| 最大持久 | `DuraMax` | ❌ 缺 | **ObjNpc 需要**（`GetUserItemPrice`/`AddItemToGoodsList`） |
+| 价格 | `Price` | ❌ 缺 | **ObjNpc 需要**（`GetItemPrice`） |
+| 可叠加 | `OverLap` | ❌ 缺 | **ObjNpc 需要**（`CheckOverLapItem`） |
+| 外形 | `Looks` | ❌ 缺 | |
+| 其它 | `Reserved/Reserved1/Color/Light/Horse/Expand1-5/Elements/InsuranceCurrency/InsuranceGold/BagEffect/BodyEffect/Effect` | ❌ 缺 | 视图只覆盖"能力聚合"需要的子集 |
+
+**结论**：`TStdItemView` 是**能力聚合专用子集**（缺 `NeedIdentify`/`DuraMax`/`Price`/`OverLap` 这四个 ObjNpc 必需的），
+且与权威侧**存在 2 处同概念异名 + 3 处类型不一致 + 1 处疑似重复定义**。
+`GetItemAddValue` 按裁定**保持权威侧定名**（`NpcSeams.GetItemAddValue(ref TUserItem, ref TStdItem)`），已复核无需改。
+若将来 Engine 决定以 `TStdItemView` 为 `GetAccessory` 的正式入参，需先补上 4 个字段并消解上述差异 —— **本次仅登记**。
+
+## 12.6 当前状态与下一轮
+
+- **已就绪、未被阻塞**：`sub_4A0218` 已强类型化；`ClientSellItem` 已完成；`m_ItemList` 类型已对齐权威表示。
+- **被 §12.4 阻塞**：`BagItems` 接线、删 4 个委托、以及所有需要**真实背包容器**的例程
+  （`ClientBuyItem`/`UpgradeWapon` 外层体/`UserSelect` 的 `@buy`/`@sell` 分片）。
+- **本轮未做的其它项**（诚实登记）：裁定第 4 条的"`GetAccessory.Apply` 调用处按需现造视图" ——
+  该步与第②步是同一批改动（视图现造点就在 `BagItems`/`SendAddItem`/`SendDelItem` 内部），故一并延后。

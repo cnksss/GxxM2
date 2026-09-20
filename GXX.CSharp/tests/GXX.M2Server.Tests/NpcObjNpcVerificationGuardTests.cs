@@ -187,7 +187,7 @@ public sealed class NpcObjNpcVerificationGuardTests : System.IDisposable
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         // nDc = DC2(0) + DC1(2000) = 2000 → btDc = 2000 div 5 + 0 div 3 = 400 → (byte)400 = 144
         NpcSeams.GetStdItem = _ => new GXX.Core.Protocol.TStdItem { StdMode = 19, DC1 = 2000 };
-        var list = new List<object> { new GXX.Core.Protocol.TUserItem { wIndex = 1 } };
+        var list = new List<GXX.Core.Protocol.TUserItem?> { new GXX.Core.Protocol.TUserItem { wIndex = 1 } };
         m.sub_4A0218(new GXX.M2Server.Engine.TPlayObject(), list, out byte dc, out _, out _, out _);
         Assert.Equal(unchecked((byte)400), dc);   // 400 & 0xFF == 144
         Assert.Equal(144, dc);

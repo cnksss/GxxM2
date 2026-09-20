@@ -75,7 +75,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         //    抛 Delphi EZeroDivide；托管侧 0/0 得 NaN，`(int)Math.Round(NaN)` 截断为 0，
         //    **不抛异常**。两侧都是"无意义值"，但一边崩一边给 0 —— 已在此锁死托管侧行为。
         var m = new TMerchant();
-        var list = new List<object>();
+        var list = new List<TUserItem?>();
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out byte sc, out byte mc, out byte dura);
         Assert.Equal(0, dc);
         Assert.Equal(0, sc);
@@ -88,7 +88,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
     public void Sub4A0218_NullElementIsSkipped()
     {
         var m = new TMerchant();
-        var list = new List<object> { null };
+        var list = new List<TUserItem?> { null };
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
         Assert.Single(list);   // Continue → 不删除
     }
@@ -104,7 +104,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         SetBlackStone(10);
         NpcSeams.GetStdItem = _ => Std();
 
-        var list = new List<object> { Item(10, dura: 3000, makeIndex: 1), Item(10, dura: 6000, makeIndex: 2), Item(10, dura: 1000, makeIndex: 3) };
+        var list = new List<TUserItem?> { Item(10, dura: 3000, makeIndex: 1), Item(10, dura: 6000, makeIndex: 2), Item(10, dura: 1000, makeIndex: 3) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out byte sc, out byte mc, out byte dura);
 
         Assert.Empty(list);                                  // 三条全被剔除
@@ -125,7 +125,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         SetBlackStone(10);
         NpcSeams.GetStdItem = _ => Std(needIdentify: 1, name: "黑铁矿");
 
-        var list = new List<object> { Item(10, dura: 1000, makeIndex: 42) };
+        var list = new List<TUserItem?> { Item(10, dura: 1000, makeIndex: 42) };
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
 
         Assert.Single(_logs);
@@ -138,7 +138,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         var m = new TMerchant();
         SetBlackStone(10);
         NpcSeams.GetStdItem = _ => Std(needIdentify: 0);
-        var list = new List<object> { Item(10, dura: 1000) };
+        var list = new List<TUserItem?> { Item(10, dura: 1000) };
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
         Assert.Empty(_logs);
     }
@@ -149,7 +149,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         var m = new TMerchant();
         SetBlackStone(10);
         NpcSeams.GetStdItem = _ => Std();
-        var list = new List<object>();
+        var list = new List<TUserItem?>();
         // Dura 1000..7000 → 四舍五入到 1..7；降序后取前 5 = 7+6+5+4+3 = 25
         for (int i = 1; i <= 7; i++)
             list.Add(Item(10, dura: (ushort)(i * 1000)));
@@ -178,7 +178,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
             _ => Std(),
         };
 
-        var list = new List<object> { Item(1), Item(2) };
+        var list = new List<TUserItem?> { Item(1), Item(2) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out _, out _, out _);
 
         // 倒序：先 item2（nDc=30）→ nDcMin=30, nDcMax=0；再 item1（nDc=15）→ nDcMax=15
@@ -194,7 +194,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.sBlackStone = "黑铁矿";
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         NpcSeams.GetStdItem = _ => Std(stdMode: 24, dc1: 4, dc2: 0);
-        var list = new List<object> { Item(1) };
+        var list = new List<TUserItem?> { Item(1) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out _, out _, out _);
         // nDc = 0 + 4 + 1 = 5 → btDc = 5 div 5 + 0 div 3 = 1
         Assert.Equal(1, dc);
@@ -207,7 +207,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.sBlackStone = "黑铁矿";
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         NpcSeams.GetStdItem = _ => Std(stdMode: 26, sc1: 9, sc2: 0);
-        var list = new List<object> { Item(1) };
+        var list = new List<TUserItem?> { Item(1) };
         m.sub_4A0218(new TPlayObject(), list, out _, out byte sc, out _, out _);
         // nSc = 0 + 9 + 1 = 10 → btSc = 10 div 5 + 0 div 3 = 2
         Assert.Equal(2, sc);
@@ -221,7 +221,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         // StdMode 5 → IsUseItem 为假 → 整项**不受影响、不删除**
         NpcSeams.GetStdItem = _ => Std(stdMode: 5, dc1: 100);
-        var list = new List<object> { Item(1) };
+        var list = new List<TUserItem?> { Item(1) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out _, out _, out _);
         Assert.Single(list);   // 未被剔除（IsUseItem false）
         Assert.Equal(0, dc);
@@ -240,7 +240,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
             called = true;
             std.DC1 = 50;    // 加成由接缝注入
         };
-        var list = new List<object> { Item(1) };
+        var list = new List<TUserItem?> { Item(1) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out _, out _, out _);
         Assert.True(called);
         // nDc = 0 + 50 = 50 → btDc = 50 div 5 + 0 div 3 = 10
@@ -254,7 +254,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.sBlackStone = "黑铁矿";
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         NpcSeams.GetStdItem = _ => Std(stdMode: 19, needIdentify: 1, name: "材料");
-        var list = new List<object> { Item(1, makeIndex: 77) };
+        var list = new List<TUserItem?> { Item(1, makeIndex: 77) };
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
         Assert.Single(_logs);
         Assert.Equal($"{ObjNpcConst.LOG_ItemDisappear}/{ObjNpcConst.LOG_ActionNone}/材料/77/使用升级材料", _logs[0]);
@@ -270,7 +270,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         var custom = Item(1, makeIndex: 9);
         custom.NameStr = "自定义名";
         custom.SetBtValue(13, 1);
-        var list = new List<object> { custom };
+        var list = new List<TUserItem?> { custom };
 
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
 
@@ -286,7 +286,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         NpcSeams.GetStdItem = _ => Std(stdMode: 19, name: "标准名");
         var noName = Item(1, makeIndex: 8);   // btValue[13] = 0 且 Name = ''
-        var list = new List<object> { noName };
+        var list = new List<TUserItem?> { noName };
 
         m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _);
 
@@ -303,7 +303,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.sBlackStone = "黑铁矿";
         NpcSeams.GetStdItemName = _ => "NOTBLACK";
         NpcSeams.GetStdItem = _ => null;
-        var list = new List<object> { Item(1) };
+        var list = new List<TUserItem?> { Item(1) };
         Assert.Throws<InvalidOperationException>(() =>
             m.sub_4A0218(new TPlayObject(), list, out _, out _, out _, out _));
     }
@@ -321,7 +321,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
             _ => Std(),
         };
 
-        var list = new List<object> { Item(10, dura: 5000, makeIndex: 1), Item(1, makeIndex: 2) };
+        var list = new List<TUserItem?> { Item(10, dura: 5000, makeIndex: 1), Item(1, makeIndex: 2) };
         m.sub_4A0218(new TPlayObject(), list, out byte dc, out _, out _, out byte dura);
 
         Assert.Empty(list);
