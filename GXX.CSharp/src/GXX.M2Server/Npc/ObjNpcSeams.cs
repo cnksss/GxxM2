@@ -55,6 +55,42 @@ public static class ObjNpcConst
 }
 
 // ---------------------------------------------------------------------------
+// M2Definition.pas:215-230 —— ObjNpc.pas 通过 `m_ScriptList` 使用的两个记录。
+// 该单元尚未移植。按「不顺手移植依赖」原则只落 ObjNpc.pas 用得到的最小面。
+// 接缝：待 M2Definition.pas 移植后由该单元接管。
+// ---------------------------------------------------------------------------
+
+/// <summary>接缝：原文 `TQuestInfo = record wFlag: Word; btValue: Byte; nRandRage: Integer; end;`
+/// （M2Definition.pas:215-219）。</summary>
+public struct TQuestInfo
+{
+    /// <summary>原文 `wFlag: Word;`（M2Definition.pas:216）。</summary>
+    public ushort wFlag;
+    /// <summary>原文 `btValue: Byte;`（M2Definition.pas:217）。</summary>
+    public byte btValue;
+    /// <summary>原文 `nRandRage: Integer;`（M2Definition.pas:218）。</summary>
+    public int nRandRage;
+}
+
+/// <summary>
+/// 接缝：原文 `TScript = record boQuest: Boolean; QuestInfo: array[0..9] of TQuestInfo;
+/// nQuest: Integer; RecordList: TList; end;`（M2Definition.pas:223-228）。
+/// ObjNpc.pas 只使用 `RecordList`（4383-4429 的 ClearScript、9996-10017 的 DoSort）。
+/// `TList` → 托管 `List&lt;object&gt;`。
+/// </summary>
+public class TScript
+{
+    /// <summary>原文 `boQuest: Boolean;`（M2Definition.pas:224）。</summary>
+    public bool boQuest;
+    /// <summary>原文 `QuestInfo: array [0 .. 9] of TQuestInfo;`（M2Definition.pas:225）。</summary>
+    public TQuestInfo[] QuestInfo = new TQuestInfo[10];
+    /// <summary>原文 `nQuest: Integer;`（M2Definition.pas:226）。</summary>
+    public int nQuest;
+    /// <summary>原文 `RecordList: TList;`（M2Definition.pas:227）。</summary>
+    public List<object> RecordList = new();
+}
+
+// ---------------------------------------------------------------------------
 // M2Definition.pas:60-77 —— ObjNpc.pas 通过 uses M2Definition 使用这四个类型。
 // 该单元尚未移植到 M2Server（`GXX.M2Server.Plugins.PluginInterfaceSeams.cs:298`
 // 另有一份**不同用途**的 `TDynamicVar` 接缝，命名空间不同，不冲突）。
@@ -197,6 +233,95 @@ public static class NpcSeams
         GetVariableText { get; set; } =
         (_, _, sMsg, _, _) => (false, sMsg, false);
 
+    // -----------------------------------------------------------------------
+    // 以下为 `TNormNpc.GetValNameValue`(5690-5877) 需要、但托管侧**尚无对应存储**的
+    // 宿主面。全部是接缝，待 ObjPlayer.pas / M2Share.pas 移植后接入。
+    // -----------------------------------------------------------------------
+
+    /// <summary>原文 `TPlayObject.m_nVal[n01]`（ObjPlayer.pas，P 变量 0..999）。接缝。</summary>
+    public static Func<TPlayObject, int, int> GetPlayerPVal { get; set; } = (_, _) => 0;
+
+    /// <summary>原文 `TPlayObject.m_sString[n01 - 7000]`（ObjPlayer.pas，S 变量 0..999）。接缝。</summary>
+    public static Func<TPlayObject, int, string> GetPlayerSString { get; set; } = (_, _) => "";
+
+    /// <summary>原文 `TPlayObject.m_TVal[n01 - 8500]`（ObjPlayer.pas，T 私有字符串变量 0..499）。接缝。</summary>
+    public static Func<TPlayObject, int, string> GetPlayerTVal { get; set; } = (_, _) => "";
+
+    /// <summary>原文 `TPlayObject.m_ArrayList.GetIndex/ Strings`（ObjPlayer.pas，L$ 数组变量）。接缝。</summary>
+    public static Func<TPlayObject, string, string> GetPlayerArrayListValue { get; set; } = (_, _) => "";
+
+    /// <summary>原文 `g_Config.GlobaDyMval[n01 - 4000]`（M2Share.pas，I 全局数字变量 0..999）。接缝。</summary>
+    public static Func<int, int> GetGlobaDyMval { get; set; } = _ => 0;
+
+    /// <summary>原文 `g_Config.GlobalVal[n01 - 5000]`（M2Share.pas，G 全局数字变量 0..999）。接缝。</summary>
+    public static Func<int, int> GetGlobalVal { get; set; } = _ => 0;
+
+    /// <summary>
+    /// 原文 `g_Config.GlobalAVal[n01 - 6000]`（M2Share.pas，A 全局字符串变量 0..999）。
+    /// 托管侧 `GXX.M2Server.Engine.InterServerState.GlobalAVal`（InterServerState.cs:150）已有同布局数组，
+    /// 但 M2Share 的 `g_Config` 归属尚未定案，故仍走接缝，默认读同一数组。
+    /// </summary>
+    public static Func<int, string> GetGlobalAVal { get; set; } = i => InterServerState.GlobalAVal[i];
+
+    /// <summary>
+    /// 原文 `TPlayObject.m_DynamicVarList`（ObjPlayer.pas，人物动态变量表，ObjNpc.pas:9882）。
+    /// 接缝：待 ObjPlayer.pas 移植后接入。
+    /// </summary>
+    public static Func<TPlayObject, List<TDynamicVar>> GetPlayerDynamicVarList { get; set; } = _ => new();
+
+    /// <summary>
+    /// 原文 `TPlayObject.m_MyGuild` 的判空（ObjNpc.pas:9887）与 `TGUild(...).sGuildName`（9891）。
+    /// 返回 null 表示 `m_MyGuild = nil`。接缝：待 Guild.pas / ObjPlayer.pas 移植后接入。
+    /// </summary>
+    public static Func<TPlayObject, string?> GetPlayerGuildName { get; set; } = _ => null;
+
+    /// <summary>
+    /// 原文 `TGUild(PlayObject.m_MyGuild).m_DynamicVarList`（ObjNpc.pas:9890）。接缝。
+    /// </summary>
+    public static Func<TPlayObject, List<TDynamicVar>> GetGuildDynamicVarList { get; set; } = _ => new();
+
+    /// <summary>
+    /// 原文 `g_DynamicVarList`（M2Share.pas 全局，ObjNpc.pas:9895；其 sName 固定为 `'GLOBAL'`）。
+    /// 接缝：待 M2Share.pas 移植后接入。
+    /// </summary>
+    public static Func<List<TDynamicVar>> GetGlobalDynamicVarList { get; set; } = () => new();
+
+    /// <summary>
+    /// 原文 `TNormNpc.SetValNameValue`（ObjNpc.pas:4935-5325，**391 行**，本车道未覆盖）。
+    /// 默认返回 `False`（= 原文未命中分支）。
+    /// </summary>
+    public static Func<TNormNpc, TPlayObject, string, string, int, bool>
+        SetValNameValue { get; set; } = (_, _, _, _, _) => false;
+
+    /// <summary>
+    /// 原文 `GetBoxItemValue(sVar: string; PlayObject: TPlayObject; var Ret: string): Boolean`
+    /// （ObjNpc.pas:5326-5689，**364 行**，本车道未覆盖）。返回 (Result, Ret)。
+    /// </summary>
+    public static Func<string, TPlayObject, (bool Result, string Ret)> GetBoxItemValue { get; set; } =
+        (_, _) => (false, "");
+
+    /// <summary>
+    /// 原文 `SetBoxItemValue(sVar: string; PlayObject: TPlayObject; sValue: string; nValue: Integer): Boolean`
+    /// （ObjNpc.pas:4645-4934，**290 行**，本车道未覆盖）。
+    /// </summary>
+    public static Func<string, TPlayObject, string, int, bool> SetBoxItemValue { get; set; } =
+        (_, _, _, _) => false;
+
+    /// <summary>
+    /// 原文 `Random(n)`（Delphi RTL System.pas）：返回 `0..n-1`，且 **`Random(0) = 0`**（不抛异常）。
+    /// ObjNpc.pas:1084（`CMD_RACE_12`）处使用。用接缝是为了单测可确定性注入。
+    /// </summary>
+    public static Func<int, int> Random { get; set; } = _DelphiRandom;
+
+    private static readonly System.Random _Rnd = new();
+
+    private static int _DelphiRandom(int range)
+    {
+        // Delphi Random(0) = 0（不抛异常）；.NET Random.Next(0) 同样返回 0。
+        if (range <= 0) return 0;
+        return _Rnd.Next(range);
+    }
+
     /// <summary>
     /// 还原全部接缝为默认（"无宿主"）状态 —— 单测之间互相隔离用。
     /// （非原文成员，仅为接缝层的卫生函数。）
@@ -214,5 +339,20 @@ public static class NpcSeams
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);
+        GetPlayerPVal = (_, _) => 0;
+        GetPlayerSString = (_, _) => "";
+        GetPlayerTVal = (_, _) => "";
+        GetPlayerArrayListValue = (_, _) => "";
+        GetGlobaDyMval = _ => 0;
+        GetGlobalVal = _ => 0;
+        GetGlobalAVal = i => InterServerState.GlobalAVal[i];
+        GetPlayerDynamicVarList = _ => new();
+        GetPlayerGuildName = _ => null;
+        GetGuildDynamicVarList = _ => new();
+        GetGlobalDynamicVarList = () => new();
+        SetValNameValue = (_, _, _, _, _) => false;
+        GetBoxItemValue = (_, _) => (false, "");
+        SetBoxItemValue = (_, _, _, _) => false;
+        Random = _DelphiRandom;
     }
 }
