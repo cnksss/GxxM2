@@ -17,7 +17,7 @@
 | 复现 | 两类两顺序：修复前「污染→受害」1 失败 / 1 通过；「受害→污染」2 通过 → 顺序相关 |
 | 修复后 | 两种顺序 **全绿**；整工程 **7298 passed / 0 failed**（基线 7286/0） |
 | 整工程门禁 | `dotnet build GXX.slnx -c Debug` → 0 error ｜ `dotnet test` → 7298/0，27 s（与基线 27 s 持平） |
-| 机制开销 | 实测 `Capture+Restore` = **0.164 ms / 用例**（7300 例 ≈ 1.2 s），墙钟无可测差异 |
+| 机制开销 | 实测 `Capture+Restore` = **0.164 ms / 用例**（7300 例 ≈ 1.2 s），墙钟无可测差异（基线与修复后均为 27 s） |
 
 ---
 
@@ -27,7 +27,8 @@
 |---|---|---|
 | 1 | `60ae723a` | **WIP-不可合并**（预期红）复现：`M2ConfigIsolationReproTests.cs` 两个顺序的污染复现用例 |
 | 2 | `b65ab679` | 修复：`M2ConfigIsolationFramework/State/Coverage/EngineTests.cs` + `TestConfig.cs` 程序集特性；整工程 7298/0 |
-| 3 | *(本报告)* | `GXX.CSharp/docs/并行报告-p6-test-isolation.md` |
+| 3 | `2576a38b` | 本报告 `GXX.CSharp/docs/并行报告-p6-test-isolation.md` |
+| 4 | `HEAD`（`git log -1` 可查） | 报告补记（把第 3 次提交的 hash 写回本表；本文件自身的 hash 无法自指，故记作 HEAD） |
 
 > 步骤 1 的提交故意是红的（复现证据），已按纪律在 subject 标注 `WIP-不可合并`；**HEAD 不含 WIP**。
 
@@ -160,7 +161,7 @@ dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
 * 基线（开工前，同工作树）：`7286 passed / 0 failed / 27 s`。
 * 增量 = 本车道新增 12 例（2 复现 + 2 顺序 + 8 自检）。
 * **未出现基线漂移**：本车道全程未遇到「我没碰过的文件」的编译错误。
-* 机制开销实测（临时探针，测完删除）：`Capture` 0.066 ms、`Capture+Restore` **0.164 ms / 用例** → 全量约 1.2 s，被噪声淹没（27 s ↔ 27 s）。期间观察到 43 s/49 s 的读数，事后确认是**同机其它车道并发跑 dotnet** 造成的抖动。
+* 机制开销实测（临时探针，测完删除）：`Capture` 0.066 ms、`Capture+Restore` **0.164 ms / 用例** → 全量约 1.2 s，被噪声淹没（27 s ↔ 27 s）。期间观察到 43 s / 49 s / 51 s 的读数，事后确认是**同机其它车道并发跑 dotnet** 造成的抖动（同一二进制重复跑读数即 27↔51 波动）。
 
 ---
 
