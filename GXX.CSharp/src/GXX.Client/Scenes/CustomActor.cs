@@ -27,14 +27,16 @@ namespace GXX.Client.Scenes;
 //     是本单元唯一一处门序例外，已用测试固化。）
 //
 // ★ 虚分派：原文 CalcActorFrame / LoadSurface / GetDefaultFrame / DrawChr / Run /
-//   RunActSound / RunSound 全部带 `override`。托管侧基类 TActorCore 目前只有
-//   GetDefaultFrame(ActorMotion.cs:191) 与 Run(uint)(ActorCore.cs:338) 存在，且**均未标 virtual**；
-//   CalcActorFrame(ActorCore.cs:247) 亦为非虚。故本文件：
-//     - 决策层全部抽为纯静态函数（可在无头环境完整单测，不依赖虚分派）；
-//     - 基类**已有同名成员**的三个（CalcActorFrame / GetDefaultFrame / Run）用 `new` 显式隐藏
-//       并标注「非真覆写」；基类**没有**同名成员的四个（LoadSurface / DrawChr /
-//       RunSound / RunActSound）是新增重载，故**不加** `new`（加了会报 CS0109）；
-//     - 精确的基类补虚成员请求见 docs/并行报告-p6-client-actor.md。
+//   RunActSound / RunSound 全部带 `override`。托管侧此前不具备对应的虚槽位：
+//   ActorCore.cs 的 CalcActorFrame / Run(uint) 与 ActorMotion.cs 的 GetDefaultFrame 非虚，
+//   TActor 更没有 LoadSurface / DrawChr / RunSound / RunActSound 四个成员 ——
+//   于是**经基类静态类型调用时**（PlaySceneMessages.cs:729、ActorMessages.cs:277/287、
+//   ActorMotion.cs:290）本单元实现被通用动作表/空实现静默接管。
+//   车道 p7-client-virtual 已修复：基类三处补 `virtual` + TActor 新增 4 个空虚成员，
+//   本类 7 个方法全部改为 `override`（原文形状）。
+//     - 决策层仍全部抽为纯静态函数（可在无头环境完整单测，不依赖虚分派）；
+//     - 多态落点的回归证据：tests/GXX.Client.Tests/VirtualDispatchCustomActorTests.cs
+//       （以基类静态类型 TActor 持有本类实例，逐一断言落到本类实现）。
 //
 // ★ 未移植（接缝）：所有画布绘制调用（GameCanvas.Draw*/GetCachedImage）、
 //   真实纹理/图库查找（g_WMonImages / g_EffectImageList）、音频解码播放、
@@ -1561,22 +1563,24 @@ public static class CustomActorRunContext
 // ============================================================================
 // ★ TCustomActor 本体（CustomActor.pas:18-48 声明 / 61-1130 实现）
 //
-// 虚分派处置（逐方法；精确补虚请求见 docs/并行报告-p6-client-actor.md）：
-//   GetDefaultFrame → 基类 ActorMotion.cs:191 **非虚** → 本类 `new`（非真覆写）
-//   Run(uint)       → 基类 ActorCore.cs:338   **非虚** → 本类 `new`（非真覆写）
-//   CalcActorFrame  → 基类 ActorCore.cs:247   **非虚** → 本类 `new`（非真覆写）
-//   LoadSurface     → 基类**无此成员**（ClEvent 的 LoadSurface 是别的类）→ 本类 `new`
-//   DrawChr         → 基类**无此成员**                        → 本类 `new`
-//   RunSound        → 基类只有**静态** ActorSoundDispatch.RunSound → 本类 `new`
-//   RunActSound     → 基类**无此成员**                        → 本类 `new`
-// 故当前多态调用不会落到本类：这是已登记的接缝。决策逻辑全部在纯静态层（可完整单测），
-// 本类只做"状态搬运 + 接缝调用"。
+// 虚分派处置（车道 p7-client-virtual 已修完；逐方法）：
+//   CalcActorFrame  → 基类 ActorCore.cs:247  已补 `virtual` → 本类 `override`
+//   GetDefaultFrame → 基类 ActorMotion.cs:191 已补 `virtual` → 本类 `override`
+//   Run(uint)       → 基类 ActorCore.cs:338  已补 `virtual` → 本类 `override`
+//   LoadSurface     → 基类新增空虚成员（PlaySceneNewActor.cs TActor）→ 本类 `override`（原带 sender 形参已去掉）
+//   DrawChr         → 基类新增空虚成员 → 本类 `override`
+//   RunSound        → 基类新增空虚成员（ClEvent 的 LoadSurface/Run 是别的类，与本链无关）→ 本类 `override`
+//   RunActSound     → 基类新增空虚成员 → 本类 `override`
+// 因此经**基类静态类型**（PlaySceneMessages.cs:729 / ActorMessages.cs:277,287 / ActorMotion.cs:290）
+// 调用时，多态**确实**落回本类实现（证据见 tests/GXX.Client.Tests/VirtualDispatchCustomActorTests.cs）。
+// 决策逻辑仍全部在纯静态层（可完整单测），本类只做"状态搬运 + 接缝调用"。
 //
-// 基类缺失、故在本类补齐的 TActor 成员（均已注明；不新增同名基类成员，无重名冲突）：
+// 基类缺失、故在本类补齐的 TActor 字段（均已注明；不新增同名基类成员，无重名冲突）：
 //   m_nEffectFrame / m_nEffectEnd / m_nStruckWeaponSound / m_ColorEffect /
 //   m_BodySurface / m_dwLoadSurfaceTime / m_boLoadSurface / m_boCreateEffect /
 //   m_nSpellFrame / m_nCurEffFrame / m_nTargetRecog / m_Saying /
 //   m_dwEffectFrameTime / m_dwEffectStartTime
+// （注：这些是**字段**，与上面 7 个**虚方法**不同；字段重名冲突问题不在本轮范围内。）
 // ============================================================================
 
 /// <summary>
@@ -1687,8 +1691,11 @@ public class TCustomActor : TActor
         => new(m_nChangeAppr, m_btRace, m_nCurrentAction, m_btDir, m_btStep,
                m_nState, m_nOldChrLight, m_dwStruckFrameTime, in FConfig);
 
-    /// <summary>`TCustomActor.CalcActorFrame`（72-401）1:1。</summary>
-    public new void CalcActorFrame()
+    /// <summary>
+    /// `TCustomActor.CalcActorFrame`（72-401）1:1。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员已补 `virtual`，此处由 `new` 改为 `override`。
+    /// </summary>
+    public override void CalcActorFrame()
     {
         var plan = CustomActorLogic.CalcActorFrame(CalcInput(), out int newAction);
 
@@ -1736,8 +1743,12 @@ public class TCustomActor : TActor
         FClientActionIndex = plan.ClientActionIndex;
     }
 
-    /// <summary>`TCustomActor.LoadSurface`（402-584）1:1；纹理抓取走接缝。</summary>
-    public void LoadSurface(object? sender)  // ★ 基类无同名成员：这是新方法而非覆写
+    /// <summary>
+    /// `TCustomActor.LoadSurface`（402-584）1:1；纹理抓取走接缝。
+    /// ★ 车道 p7-client-virtual：原文是无参 `override`；此处去掉 `sender` 形参并改用 `override`。
+    /// （全仓没有任何带参 `LoadSurface(...)` 调用点，方法体亦未引用 `sender`。）
+    /// </summary>
+    public override void LoadSurface()
     {
         var plan = CustomActorSurface.Compute(new CustomActorSurfaceInput(
             m_nChangeAppr, m_btRace, m_boDeath, m_boReverseFrame,
@@ -1746,8 +1757,8 @@ public class TCustomActor : TActor
         // 409-412：前置门 → inherited
         if (plan == null)
         {
-            // 原文 `inherited;` —— 基类 TActorCore 目前没有 LoadSurface(Sender) 成员，
-            // 故此处不发出调用（精确补虚请求见报告）。
+            // 原文 `inherited;` —— 基类 TActor.LoadSurface 本轮已补为**空**虚成员；
+            // 空实现与"无副作用转调"等价，故此处仍不发出调用（行为不变）。
             return;
         }
 
@@ -1794,8 +1805,11 @@ public class TCustomActor : TActor
     /// <summary>LoadSurface 421-423 命中时请求 Finalize 的接缝（原文直接调 Finalize）。</summary>
     public static Action<TCustomActor>? OnFinalizeRequested;
 
-    /// <summary>`TCustomActor.GetDefaultFrame`（585-639）1:1。</summary>
-    public new int GetDefaultFrame(bool wmode)
+    /// <summary>
+    /// `TCustomActor.GetDefaultFrame`（585-639）1:1。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员已补 `virtual`，此处由 `new` 改为 `override`。
+    /// </summary>
+    public override int GetDefaultFrame(bool wmode)
     {
         var plan = CustomActorDefaultFrame.Compute(new CustomActorDefaultFrameInput(
             m_nChangeAppr, m_btRace, m_btDir, m_boDeath, m_boSkeleton,
@@ -1810,8 +1824,11 @@ public class TCustomActor : TActor
         return plan.Frame;
     }
 
-    /// <summary>`TCustomActor.DrawChr`（640-787）1:1；绘制走接缝，顺序已被单测固化。</summary>
-    public void DrawChr(int dx, int dy, bool blend, bool boFlag)  // ★ 基类无同名成员：新方法
+    /// <summary>
+    /// `TCustomActor.DrawChr`（640-787）1:1；绘制走接缝，顺序已被单测固化。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员本轮已补（空虚成员），此处改用 `override`。
+    /// </summary>
+    public override void DrawChr(int dx, int dy, bool blend, bool boFlag)
     {
         var seq = CustomActorDraw.Sequence(new CustomActorDrawInput(
             m_nChangeAppr, m_btRace,
@@ -1822,7 +1839,8 @@ public class TCustomActor : TActor
         // 719-722
         if (seq == null)
         {
-            // 原文 `inherited DrawChr(dx, dy, blend, boFlag);` —— 基类无此成员，不发出调用。
+            // 原文 `inherited DrawChr(dx, dy, blend, boFlag);` —— 基类 TActor.DrawChr 本轮已补为
+            // **空**虚成员；空实现与"无副作用转调"等价，故此处仍不发出调用（行为不变）。
             return;
         }
 
@@ -1833,7 +1851,7 @@ public class TCustomActor : TActor
                 case "self": DrawSelfMagicEffect(dx, dy, true); break;    // 724
                 case "-self": DrawSelfMagicEffect(dx, dy, false); break;  // 785
                 case "body":
-                    // 726/758/783：inherited DrawChr —— 基类无此成员，不发出调用。
+                    // 726/758/783：inherited DrawChr —— 基类空虚成员，不发出调用（行为不变）。
                     break;
                 case "eff1":
                     CustomActorEnv.DrawSurfaceFn(
@@ -1913,8 +1931,11 @@ public class TCustomActor : TActor
             CustomActorDraw.SelfEffectDrawKind((int)cc.Self_DrawMode));
     }
 
-    /// <summary>`TCustomActor.Run`（788-1038）1:1；特效实例化与入列走接缝。</summary>
-    public new void Run(uint now)
+    /// <summary>
+    /// `TCustomActor.Run`（788-1038）1:1；特效实例化与入列走接缝。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员已补 `virtual`，此处由 `new` 改为 `override`。
+    /// </summary>
+    public override void Run(uint now)
     {
         var plan = CustomActorRun.Compute(new CustomActorRunInput(
             m_nChangeAppr, m_btRace,
@@ -1953,12 +1974,15 @@ public class TCustomActor : TActor
             CustomActorEnv.SpawnEffectFn?.Invoke(this, plan);
     }
 
-    /// <summary>`TCustomActor.RunSound`（1108-1130）1:1。</summary>
-    public void RunSound()  // ★ 基类无同名成员：新方法
+    /// <summary>
+    /// `TCustomActor.RunSound`（1108-1130）1:1。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员本轮已补（空虚成员），此处改用 `override`。
+    /// </summary>
+    public override void RunSound()
     {
         var r = CustomActorSound.RunSound(CalcInput(), m_nStruckWeaponSound);
 
-        // 1112-1115：前置门 → inherited RunSound（基类无此成员，不发出调用）
+        // 1112-1115：前置门 → inherited RunSound（基类空虚成员，不发出调用，行为不变）
         if (r == null)
             return;
 
@@ -1969,12 +1993,15 @@ public class TCustomActor : TActor
             CustomActorEnv.PlaySoundFn(s);
     }
 
-    /// <summary>`TCustomActor.RunActSound`（1039-1107）1:1。</summary>
-    public void RunActSound(int frame)  // ★ 基类无同名成员：新方法
+    /// <summary>
+    /// `TCustomActor.RunActSound`（1039-1107）1:1。
+    /// ★ 车道 p7-client-virtual：原文带 `override`；基类同名成员本轮已补（空虚成员），此处改用 `override`。
+    /// </summary>
+    public override void RunActSound(int frame)
     {
         var r = CustomActorSound.RunActSound(CalcInput(), m_boRunSound, frame);
 
-        // 1043 / 1045-1048：两条 Exit 均退回 inherited RunActSound（基类无此成员，不发出调用）
+        // 1043 / 1045-1048：两条 Exit 均退回 inherited RunActSound（基类空虚成员，不发出调用，行为不变）
         if (r == null)
             return;
 

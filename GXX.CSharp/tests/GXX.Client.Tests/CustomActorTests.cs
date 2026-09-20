@@ -1631,7 +1631,7 @@ public sealed class CustomActorTests : IDisposable
         a.m_BodySurface = "sentinel";
 
         CustomActorEnv.GameCanvasActive = false;
-        a.LoadSurface(null);
+        a.LoadSurface();
 
         Assert.Equal("sentinel", a.m_BodySurface);   // 414 提前 Exit，不清表面
     }
@@ -1645,7 +1645,7 @@ public sealed class CustomActorTests : IDisposable
         int fetches = 0;
         CustomActorEnv.FetchSurfaceFn = (_, _, _, _, kind) => { fetches++; return "s"; };
 
-        a.LoadSurface(null);
+        a.LoadSurface();
 
         Assert.True(fetches > 0);
         Assert.False(a.m_boLoadSurface);
@@ -1806,7 +1806,7 @@ public sealed class CustomActorTests : IDisposable
         int fetches = 0;
         CustomActorEnv.FetchSurfaceFn = (_, _, _, _, _) => { fetches++; return null; };
 
-        a.LoadSurface(null);
+        a.LoadSurface();
         Assert.Equal(0, fetches);
     }
 

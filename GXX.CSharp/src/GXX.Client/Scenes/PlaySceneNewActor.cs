@@ -462,9 +462,26 @@ public static class FeatureReader
     public static void SetMonFeature(this TFeature f, TMonFeature mon) => f._mon = mon;
 }
 
-/// <summary>TActor 默认实现（Actor.pas TActor 的 headless 承载类）。</summary>
+/// <summary>
+/// TActor 默认实现（Actor.pas TActor 的 headless 承载类）。
+/// ★ 车道 p7-client-virtual：本轮在此**新增** 4 个虚成员（原文 TActor 的虚方法表成员，
+/// 此前托管侧基类**没有**这 4 个名字，故 TCustomActor 的同名实现被基类静态类型调用点整段旁路）。
+/// 原文各方法本体（几何 / 声音逻辑）尚未 headless 移植，此处只提供**虚分派槽位**，空实现，
+/// 供子类（TCustomActor 等）用 `override` 接入。
+/// </summary>
 public class TActor : TActorCore
 {
+    /// <summary>对应原文 TActor 的虚方法 LoadSurface，供子类 override。**本轮新增**虚成员。</summary>
+    public virtual void LoadSurface() { }
+
+    /// <summary>对应原文 TActor 的虚方法 DrawChr，供子类 override。**本轮新增**虚成员。</summary>
+    public virtual void DrawChr(int dx, int dy, bool blend, bool boFlag) { }
+
+    /// <summary>对应原文 TActor 的虚方法 RunSound，供子类 override。**本轮新增**虚成员。</summary>
+    public virtual void RunSound() { }
+
+    /// <summary>对应原文 TActor 的虚方法 RunActSound，供子类 override。**本轮新增**虚成员。</summary>
+    public virtual void RunActSound(int frame) { }
 }
 
 /// <summary>THumActor（Actor.pas：人物绘制子类）。</summary>

@@ -243,8 +243,11 @@ public partial class TActorCore
         }
     }
 
-    /// <summary>Actor.pas 3643-3760 CalcActorFrame 通用表驱动分支（race 156 自定义怪分支随后续批次）。</summary>
-    public void CalcActorFrame()
+    /// <summary>
+    /// Actor.pas 3643-3760 CalcActorFrame 通用表驱动分支（race 156 自定义怪分支随后续批次）。
+    /// ★ 车道 p7-client-virtual：原文 TActor.CalcActorFrame 为虚方法（子类 override），此处补 `virtual`。
+    /// </summary>
+    public virtual void CalcActorFrame()
     {
         m_boUseMagic = false;
         m_nCurrentFrame = -1;
@@ -334,8 +337,11 @@ public partial class TActorCore
         => currentAction is SM_WALK or SM_BACKSTEP or SM_RUN or SM_HORSERUN or SM_MAGICMOVE
             or SM_RUSH or SM_RUSHKUNG or SM_100HIT;
 
-    /// <summary>Actor.pas 7444-7509 Run 帧推进核心（非魔法路径）。</summary>
-    public void Run(uint now)
+    /// <summary>
+    /// Actor.pas 7444-7509 Run 帧推进核心（非魔法路径）。
+    /// ★ 车道 p7-client-virtual：原文 TActor.Run 为虚方法（子类 override），此处补 `virtual`。
+    /// </summary>
+    public virtual void Run(uint now)
     {
         if (IsMoveAction(m_nCurrentAction))
             return;
