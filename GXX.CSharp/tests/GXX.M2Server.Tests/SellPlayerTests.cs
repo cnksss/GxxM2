@@ -878,6 +878,44 @@ public sealed class SellPlayerIniTests : SellPlayerTestBase
         ini.WriteString("S", "V", "");
         Assert.Equal(12.5, SellPlayerIni.ReadFixedDateTime(ini, "S", "V", 12.5));
     }
+
+    // ------------------------------------------------------------------
+    // 请求 #2 核验：SellPlayerIni 已降级为**纯转调**（实现搬进 GXX.Core）
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void SellPlayerIni_ConstantsDelegateToCoreTIniFixedDateTime()
+    {
+        Assert.Equal(GXX.Core.Util.TIniFixedDateTime.FIXED_DS, SellPlayerIni.FIXED_DS);
+        Assert.Equal(GXX.Core.Util.TIniFixedDateTime.FIXED_DATE, SellPlayerIni.FIXED_DATE);
+        Assert.Equal(GXX.Core.Util.TIniFixedDateTime.FIXED_TS, SellPlayerIni.FIXED_TS);
+        Assert.Equal(GXX.Core.Util.TIniFixedDateTime.FIXED_TIME, SellPlayerIni.FIXED_TIME);
+        Assert.Equal(GXX.Core.Util.TIniFixedDateTime.FIXED_DATETIME, SellPlayerIni.FIXED_DATETIME);
+    }
+
+    [Theory]
+    [InlineData("25-12-2023 13:45:07")]
+    [InlineData("25-12-2023 garbage!")]      // 原文瑕疵分支：坏时间 → 当天 00:00:00
+    [InlineData("25-12-2023")]               // 无空格分支 → Default
+    [InlineData("99-99-9999 13:45:07")]      // 坏日期分支 → Default
+    [InlineData("")]
+    public void SellPlayerIni_ReadFixedDateTime_DelegatesToCoreMethod(string raw)
+    {
+        var ini = NewIni();
+        ini.WriteString("S", "V", raw);
+        Assert.Equal(ini.ReadFixedDateTime("S", "V", -4.5), SellPlayerIni.ReadFixedDateTime(ini, "S", "V", -4.5));
+    }
+
+    [Fact]
+    public void SellPlayerIni_WriteFixedDateTime_DelegatesToCoreMethod()
+    {
+        var viaShim = NewIni();
+        var viaCore = new TFastIniFile(Path.Combine(Dir, "dt2.ini"));
+        double v = new DateTime(2022, 3, 4, 5, 6, 7).ToOADate();
+        SellPlayerIni.WriteFixedDateTime(viaShim, "S", "V", v);
+        viaCore.WriteFixedDateTime("S", "V", v);
+        Assert.Equal(viaCore.ReadString("S", "V", ""), viaShim.ReadString("S", "V", ""));
+    }
 }
 
 /// <summary>
