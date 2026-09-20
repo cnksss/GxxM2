@@ -49,7 +49,7 @@ public class ProcessBlacklistRow
 public static class ProcessBlacklistLogic
 {
     /// <summary>原 :50-59 `ShowFrmProcessBlacklist` 的列表填充（序号从 1 开始）。</summary>
-    public static List<ProcessBlacklistRow> BuildRows(TProcessBlackList list)
+    public static List<ProcessBlacklistRow> BuildRows(TProcessBlacklist list)
     {
         var rows = new List<ProcessBlacklistRow>();
         for (int i = 0; i < list.Count; i++)                       // 原 :50
@@ -67,7 +67,7 @@ public static class ProcessBlacklistLogic
     }
 
     /// <summary>原 :61 `btnAdd.Enabled := g_ProcessBlackList.Count &lt; g_ProcessBlackList.MaxCount;`。</summary>
-    public static bool CanAdd(TProcessBlackList list) => list.Count < list.MaxCount;
+    public static bool CanAdd(TProcessBlacklist list) => list.Count < list.MaxCount;
 
     /// <summary>
     /// 原 :68-96 `btnSearchClick` / :98-131 `btnSearchNextClick` 的**唯一实质逻辑**：

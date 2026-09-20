@@ -550,7 +550,7 @@ public partial class TMirClientContext : TIocpClientContext
         FScreenshotStream.Lock();                            // :643
         try
         {
-            FScreenshotStream.Clear();                       // :645
+            FScreenshotStream.ClearStream();                       // :645
         }
         finally
         {
@@ -560,7 +560,7 @@ public partial class TMirClientContext : TIocpClientContext
         FClientResponseFileStream.Lock();                    // :650
         try
         {
-            FClientResponseFileStream.Clear();               // :652
+            FClientResponseFileStream.ClearStream();               // :652
         }
         finally
         {

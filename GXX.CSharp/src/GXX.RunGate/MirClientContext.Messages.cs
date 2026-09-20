@@ -489,12 +489,12 @@ public partial class TMirClientContext
                                 ErrCode = 53;                // :2396
                                 if (DefMsg.Series == 0)      // :2397
                                 {
-                                    FScreenshotStream.Clear();   // :2399
+                                    FScreenshotStream.ClearStream();   // :2399
                                 }
 
                                 ErrCode = 54;                // :2402
-                                if (FScreenshotStream.Size > 4 << 20)   // :2403 `4 shl 20`
-                                    FScreenshotStream.Clear();          // :2404
+                                if (FScreenshotStream.StreamSize() > 4 << 20)   // :2403 `4 shl 20`
+                                    FScreenshotStream.ClearStream();          // :2404
 
                                 ErrCode = 55;                // :2406
                                 byte[] P = new byte[DefMsg.Param + 1];   // :2407 GetMem(P, DefMsg.Param + 1)
@@ -532,7 +532,7 @@ public partial class TMirClientContext
                                     }
 
                                     ErrCode = 60;                // :2437
-                                    FScreenshotStream.Clear();   // :2438
+                                    FScreenshotStream.ClearStream();   // :2438
                                 }
                             }
                             finally
@@ -562,7 +562,7 @@ public partial class TMirClientContext
                                 ErrCode = 63;                // :2461 原文如此（ErrCode 重复赋值 63）
                                 if (DefMsg.Series <= 1)      // :2462
                                 {
-                                    FClientResponseFileStream.Clear();   // :2464
+                                    FClientResponseFileStream.ClearStream();   // :2464
 
                                     if (DefMsg.Series == 0)  // :2466
                                     {
@@ -572,8 +572,8 @@ public partial class TMirClientContext
                                 }
 
                                 ErrCode = 64;                // :2473
-                                if (FClientResponseFileStream.Size > 300 << 20)   // :2474 `300 shl 20`
-                                    FClientResponseFileStream.Clear();            // :2475
+                                if (FClientResponseFileStream.StreamSize() > 300 << 20)   // :2474 `300 shl 20`
+                                    FClientResponseFileStream.ClearStream();            // :2475
 
                                 ErrCode = 65;                // :2477
                                 byte[] P = new byte[DefMsg.Param + 1];   // :2478 GetMem(P, DefMsg.Param + 1)
@@ -655,7 +655,7 @@ public partial class TMirClientContext
                                     }
 
                                     ErrCode = 690;                   // :2544
-                                    FClientResponseFileStream.Clear();   // :2545
+                                    FClientResponseFileStream.ClearStream();   // :2545
                                 }
                             }
                             finally
@@ -680,12 +680,12 @@ public partial class TMirClientContext
                                 ErrCode = 73;                // :2563
                                 if (DefMsg.Series == 0)      // :2564
                                 {
-                                    FScreenshotStream.Clear();   // :2566
+                                    FScreenshotStream.ClearStream();   // :2566
                                 }
 
                                 ErrCode = 74;                // :2569
-                                if (FScreenshotStream.Size > 4 << 20)   // :2570
-                                    FScreenshotStream.Clear();          // :2571
+                                if (FScreenshotStream.StreamSize() > 4 << 20)   // :2570
+                                    FScreenshotStream.ClearStream();          // :2571
 
                                 ErrCode = 75;                // :2573
                                 byte[] P = new byte[DefMsg.Param + 1];   // :2574
@@ -721,7 +721,7 @@ public partial class TMirClientContext
                                     }
 
                                     ErrCode = 78;                // :2602
-                                    FScreenshotStream.Clear();   // :2603
+                                    FScreenshotStream.ClearStream();   // :2603
                                 }
                             }
                             finally
@@ -1543,7 +1543,7 @@ public partial class TMirClientContext
     {
         if (g_ClientAntiPlugDllSize > 0)                     // :10905
         {
-            int Len = g_ClientAntiPlugDllString.Length;      // :10907
+            int Len = AnsiLen(g_ClientAntiPlugDllString);    // :10907 Length(AnsiString) = 字节数
             ushort W1 = (ushort)(Len & 0xFFFF);              // :10908 LoWord
             ushort W2 = (ushort)((Len >> 16) & 0xFFFF);      // :10909 HiWord
 
@@ -1667,14 +1667,16 @@ public partial class TMirClientContext
     {
         bool Result = false;                                 // :11031
         // 增加(g_RunGatePlugDllHandle <> 0)网关插件加载才下发模块 2019-12-16 19:53:52
-        if (g_ClientAntiPlugDllSize > 0 && g_RunGatePlugDllHandle != 0 &&
+        if (g_ClientAntiPlugDllSize > 0 && g_RunGatePlugDllHandle != IntPtr.Zero &&
             nSendLoadAntiPlugIndex < g_ClientAntiPlugDllBlockCount)   // :11033
         {
             if (nSendLoadAntiPlugIndex == g_ClientAntiPlugDllBlockCount - 1 && !boFirstClientQueryBagItems)
                 return Result;                               // :11035 Exit
 
-            byte[] S = SliceAt(g_ClientAntiPlugDllString,
-                nSendLoadAntiPlugIndex * g_ClientAntiPlugDllBlockSize, g_ClientAntiPlugDllBlockSize);   // :11037 Copy(...)
+            // 原文 :11037 `Copy(g_ClientAntiPlugDllString, 1 + idx * BlockSize, BlockSize)`（**字节**口径）
+            byte[] dllBytes = GbkBytes(g_ClientAntiPlugDllString);
+            byte[] S = SliceAt(dllBytes,
+                nSendLoadAntiPlugIndex * g_ClientAntiPlugDllBlockSize, g_ClientAntiPlugDllBlockSize);
             int Len = S.Length;                              // :11038
             ushort W1 = (ushort)(Len & 0xFFFF);              // :11039 LoWord
             ushort W2 = (ushort)((Len >> 16) & 0xFFFF);      // :11040 HiWord
@@ -1767,10 +1769,23 @@ public partial class TMirClientContext
 }
 
 // -------------------------------------------------------------------------------------
-// TSafeMemoryStream 的落盘助手（原文 TMemoryStream.SaveToFile）。
+// TSafeMemoryStream 的补齐助手。
+//   main 的 `GateShareContainers.cs:407` 只提供 `Lock/UnLock/Destroy`，
+//   **缺**原文 `TMemoryStream.Clear`（= Size:=0 + Position:=0）与 `TMemoryStream.Size`。
+//   按车道纪律「不改非本分区文件」→ 用扩展方法补齐（报告 §6.2-R7 已登记精确差异）。
 // -------------------------------------------------------------------------------------
 internal static class TSafeMemoryStreamExtensions
 {
+    /// <summary>原文 <c>TMemoryStream.Clear</c>（Size := 0、Position := 0）。</summary>
+    public static void ClearStream(this TSafeMemoryStream stream)
+    {
+        stream.SetLength(0);
+        stream.Position = 0;
+    }
+
+    /// <summary>原文 <c>TMemoryStream.Size</c>（LongInt）。</summary>
+    public static long StreamSize(this TSafeMemoryStream stream) => stream.Length;
+
     public static void SaveToFileSafe(this TSafeMemoryStream stream, string fileName)
     {
         try

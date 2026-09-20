@@ -40,7 +40,7 @@ public class RunGateUtilsFormProcessBlacklistTests
     [Fact]
     public void BuildRows_序号从1开始且带Data引用()
     {
-        var list = new TProcessBlackList();
+        var list = new TProcessBlacklist();
         var a = list.Add("p1", new string('A', 32));
         var b = list.Add("p2", new string('B', 32));
 
@@ -57,17 +57,17 @@ public class RunGateUtilsFormProcessBlacklistTests
 
     [Fact]
     public void BuildRows_空列表返回空()
-        => Assert.Empty(ProcessBlacklistLogic.BuildRows(new TProcessBlackList()));
+        => Assert.Empty(ProcessBlacklistLogic.BuildRows(new TProcessBlacklist()));
 
     // ---------------- CanAdd（原 :61）----------------
 
     [Fact]
     public void CanAdd_按MaxCount判定()
     {
-        var list = new TProcessBlackList();
+        var list = new TProcessBlacklist();
         Assert.True(ProcessBlacklistLogic.CanAdd(list));        // 0 < 80
 
-        list.MaxCount = 1;
+        list.MaxCountForTest = 1;   // 原文 :189 MaxCount 只读；这是测试接缝
         list.Add("p", new string('A', 32));
         Assert.False(ProcessBlacklistLogic.CanAdd(list));       // 1 < 1 为假
     }

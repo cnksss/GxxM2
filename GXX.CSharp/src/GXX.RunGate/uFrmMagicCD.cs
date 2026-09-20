@@ -117,7 +117,9 @@ public static class MagicCDLogic
                             MagicID = magicId,               // 原 :376
                             MagicName = reader.GetMagName()  // 原 :377
                         };
-                        var interval = magicCdList.Find(magicId);        // 原 :379
+                        // 原 :379 `MagicInterval := g_MagicCDList.Find(MagicID);`
+                        //   `NodeData.MagicID: Word` 同宽传递；托管侧 MagicID 为 int，按 Word 语义收窄。
+                        var interval = magicCdList.Find(unchecked((ushort)magicId));
                         row.CDTime = interval != null ? interval.Interval : 0;   // 原 :381 / :383
                         rows.Add(row);
                         seen.Add(magicId);                   // 原 :385
@@ -228,7 +230,10 @@ public static class MagicCDLogic
             magicCdList.Clear();                                   // 原 :485
             foreach (var row in rows)                              // 原 :486-496
             {
-                var interval = magicCdList.Add(row.MagicID);       // 原 :491
+                // 原 :491 `MagicInterval := g_MagicCDList.Add(NodeData.MagicID);`
+                //   `NodeData.MagicID: Word` → `Add(MagicID: Word)` 是同宽传递；
+                //   托管侧 `MagicCDRow.MagicID` 为 `int`，按原文的 Word 语义显式收窄。
+                var interval = magicCdList.Add(unchecked((ushort)row.MagicID));
                 if (interval != null)
                     interval.Interval = row.CDTime;                // 原 :493
                 else

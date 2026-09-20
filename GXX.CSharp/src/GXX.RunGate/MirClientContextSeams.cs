@@ -119,10 +119,27 @@ public class TSafeList
 
 // -------------------------------------------------------------------------------------
 // GateShare.pas:133 TSafeStringList = class(TStringList)
+//   **不在本文件定义**：main 上已由 `GateShareContainers.cs:316`（p2-rungate-impl 车道）落地
+//   并已提升，按台账 §12.8「先落地并已提升者为准」+ 车道纪律「复用，不要另造」。
+//   它的 API：`Count / this[int] / Add / Clear / IndexOf / Delete / Text / Lines /
+//              SaveToFile / LoadFromFile / Lock / UnLock / Destroy`。
+//   本车道的调用点只用 `Lock/UnLock/Clear/Text`，与上文 API 完全对口。
 // -------------------------------------------------------------------------------------
-public class TSafeStringList
+
+// -------------------------------------------------------------------------------------
+// GateShare.pas:117 TSafeHashStringList（带 Objects[]）—— 见偏差 D2。
+//   `GateShareContainers.cs` 的文件头明确写：`TSafeHashStringList` 沿用
+//   `uFrmGameSpeedLogic.cs` 的既有接缝（该接缝**没有** Objects[]/AddObject），
+//   GateShareContainers **不重复定义**它。
+//   而 MirClientContext.pas 的 `g_LockUserList` / `g_VerifyFailUserList` / `g_VerifyCodeMapList` /
+//   `g_LoadNoVerifyChrList` / `g_LoginMACPlayerList` 都用到了 `Objects[]/AddObject`
+//   （原文 :336/:346/:2195/:2199/:10070/:10079）→ 需要一个带 Objects 的变体。
+//   本类**自包含**（不继承任何既有类型），名字加 `Ex` 后缀，main 上无同名类型。
+// -------------------------------------------------------------------------------------
+public class TSafeHashStringListEx
 {
     private readonly List<string> _items = new List<string>();
+    private readonly List<object> _objects = new List<object>();
     private readonly object _locker = new object();
 
     public void Lock() => System.Threading.Monitor.Enter(_locker);
@@ -136,98 +153,65 @@ public class TSafeStringList
         set { lock (_locker) _items[index] = value ?? ""; }
     }
 
-    public int Add(string s) { lock (_locker) { _items.Add(s ?? ""); return _items.Count - 1; } }
-    public void Delete(int index) { lock (_locker) { if (index >= 0 && index < _items.Count) _items.RemoveAt(index); } }
-    public void Clear() { lock (_locker) _items.Clear(); }
-    public int IndexOf(string s) { lock (_locker) return _items.IndexOf(s ?? ""); }
-    public string[] Strings { get { lock (_locker) return _items.ToArray(); } }
-
-    /// <summary>
-    /// 原文 <c>TStringList.Text</c>（读写皆可）：
-    /// get = 各行以 <c>sLineBreak</c> 连接；set = 按 CR/LF 拆行并**整体替换**内容。
-    /// </summary>
-    public string Text
+    public int Add(string s)
     {
-        get { lock (_locker) return string.Join("\r\n", _items); }
-        set
+        lock (_locker)
         {
-            lock (_locker)
-            {
-                _items.Clear();
-                if (string.IsNullOrEmpty(value)) return;
-                foreach (string line in value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
-                    _items.Add(line);
-            }
+            _items.Add(s ?? "");
+            _objects.Add(null);
+            return _items.Count - 1;
         }
-    }
-}
-
-// -------------------------------------------------------------------------------------
-// GateShare.pas:117 TSafeHashStringList（带 Objects[]）—— 见偏差 D2。
-// uFrmGameSpeedLogic.cs:834 已占用 `TSafeHashStringList` 这个名字且**没有** Objects，
-// 故此处派生一个带 Objects 的版本，名字加 Ex 后缀。
-// -------------------------------------------------------------------------------------
-public class TSafeHashStringListEx : TSafeStringList
-{
-    private readonly List<object> _objects = new List<object>();
-
-    public new int Add(string s)
-    {
-        int index = base.Add(s);
-        lock (_objects) _objects.Add(null);
-        return index;
     }
 
     /// <summary>原文 <c>AddObject(S, AObject)</c>。</summary>
     public int AddObject(string s, object aObject)
     {
-        int index = Add(s);
-        lock (_objects) _objects[index] = aObject;
-        return index;
+        lock (_locker)
+        {
+            _items.Add(s ?? "");
+            _objects.Add(aObject);
+            return _items.Count - 1;
+        }
     }
 
-    public object GetObject(int index) { lock (_objects) return _objects[index]; }
-    public void SetObject(int index, object value) { lock (_objects) _objects[index] = value; }
+    public object GetObject(int index) { lock (_locker) return _objects[index]; }
+    public void SetObject(int index, object value) { lock (_locker) _objects[index] = value; }
 
     /// <summary>原文 <c>Objects[Index]</c>（默认属性，读写皆可）。</summary>
-    public object[] Objects { get { lock (_objects) return _objects.ToArray(); } }
+    public object[] Objects { get { lock (_locker) return _objects.ToArray(); } }
 
-    public new void Delete(int index)
+    public void Delete(int index)
     {
-        base.Delete(index);
-        lock (_objects) { if (index >= 0 && index < _objects.Count) _objects.RemoveAt(index); }
+        lock (_locker)
+        {
+            if (index < 0 || index >= _items.Count) return;
+            _items.RemoveAt(index);
+            _objects.RemoveAt(index);
+        }
     }
 
-    public new void Clear()
-    {
-        base.Clear();
-        lock (_objects) _objects.Clear();
-    }
-}
-
-// -------------------------------------------------------------------------------------
-// GateShare.pas:149 TSafeMemoryStream = class(TMemoryStream)
-// -------------------------------------------------------------------------------------
-public sealed class TSafeMemoryStream : MemoryStream
-{
-    private readonly object _locker = new object();
-
-    public void Lock() => System.Threading.Monitor.Enter(_locker);
-    public void UnLock() => System.Threading.Monitor.Exit(_locker);
-
-    /// <summary>原文 <c>TMemoryStream.Size</c>（LongInt）。</summary>
-    public long Size => Length;
-
-    /// <summary>原文 <c>Clear</c>（TMemoryStream.Clear：Size := 0、Position := 0）。</summary>
     public void Clear()
     {
         lock (_locker)
         {
-            SetLength(0);
-            Position = 0;
+            _items.Clear();
+            _objects.Clear();
         }
     }
+
+    public int IndexOf(string s) { lock (_locker) return _items.IndexOf(s ?? ""); }
+    public string[] Strings { get { lock (_locker) return _items.ToArray(); } }
 }
+
+// -------------------------------------------------------------------------------------
+// GateShare.pas:149 TSafeMemoryStream = class(TMemoryStream)
+//   **不在本文件定义**：main 上已由 `GateShareContainers.cs:407` 落地并已提升。
+//   它的 API：`Lock / UnLock / Destroy`（继承 `MemoryStream` 的 Length/Position/Write/ToArray）。
+//   ⚠ 与原文的差异：**缺** `Clear()`（原文 TMemoryStream.Clear = Size:=0 + Position:=0）
+//     与 `Size`（原文 TMemoryStream.Size）。本车道在 `MirClientContextSeams.cs` 的
+//     `TSafeMemoryStreamExtensions`（见 MirClientContext.Messages.cs）里用**扩展方法**补齐，
+//     不改 `GateShareContainers.cs`（非本车道分区）。已在报告 §6.2-R7 登记精确差异。
+// -------------------------------------------------------------------------------------
 
 // -------------------------------------------------------------------------------------
 // GateShare.pas:308 TGameSpeed = record
@@ -291,56 +275,12 @@ public sealed class TGameSpeed
 }
 
 // -------------------------------------------------------------------------------------
-// GateShare.pas:82 TAddressInfo / GateShare.pas:93 TAddressListEx
-// 只保留 MirClientContext.pas 用到的面（Find / Delete / Lock / UnLock / Items / Count）。
+// GateShare.pas:82/93 TAddressInfo / TAddressListEx
+//   **不在本文件定义**：main 上已由 `GateShareContainers.cs:71 / :227` 落地并已提升。
+//   `TAddressInfo` 字段与本车道需要的一致（sIPaddr / nIPaddr / nCount / dwIPCountTick1 /
+//   nIPCount1 / dwIPCountTick2 / nIPCount2 / dwDenyTick / nIPDenyCount）；
+//   `TAddressListEx` 提供 `Count / this[int] / Add / Find / Delete / Clear / Lock / UnLock`。
 // -------------------------------------------------------------------------------------
-public sealed class TAddressInfo
-{
-    public string sIPaddr = "";
-    public int nIPaddr;
-    public int nCount;
-    public uint dwIPCountTick1;
-    public int nIPCount1;
-    public uint dwIPCountTick2;
-    public int nIPCount2;
-    public uint dwDenyTick;
-    public int nIPDenyCount;
-}
-
-public sealed class TAddressListEx
-{
-    private readonly List<TAddressInfo> _address = new List<TAddressInfo>();
-    private readonly object _locker = new object();
-
-    public void Lock() => System.Threading.Monitor.Enter(_locker);
-    public void UnLock() => System.Threading.Monitor.Exit(_locker);
-
-    public int Count { get { lock (_locker) return _address.Count; } }
-    public TAddressInfo this[int index] { get { lock (_locker) return _address[index]; } }
-
-    public TAddressInfo Find(string ip)
-    {
-        lock (_locker)
-        {
-            foreach (TAddressInfo info in _address)
-                if (info.sIPaddr == ip) return info;
-            return null;
-        }
-    }
-
-    public TAddressInfo Add(string ip)
-    {
-        lock (_locker)
-        {
-            TAddressInfo info = new TAddressInfo { sIPaddr = ip ?? "" };
-            _address.Add(info);
-            return info;
-        }
-    }
-
-    public void Delete(TAddressInfo addressInfo) { lock (_locker) _address.Remove(addressInfo); }
-    public void Clear() { lock (_locker) _address.Clear(); }
-}
 
 // -------------------------------------------------------------------------------------
 // IocpTcpServer.pas:33 TIocpClientContext（接缝）
@@ -574,8 +514,93 @@ public static class GateShareSeam
     public const int CPT_GUILD = 32;
     public const int CPT_SHOP = 64;
 
-    /// <summary>GateShare.pas —— <c>g_ScreenshotPath</c>（截图/客户端文件落盘根目录）。</summary>
-    public static string g_ScreenshotPath = "";
+    // =================================================================================
+    // ★ 单一真源纪律（台账 §12.8 + 车道纪律「复用，不要另造」）
+    //
+    // main 的 `GateShareGlobals.cs`（p2-rungate-impl 车道，已提升）已经定义了下列 26 个全局量。
+    // 本车道**不再持有自己的副本**，改为**只读/只写转发（alias）**到 `GateShareGlobals.*`，
+    // 因此存储仍然唯一，且调用点可以继续用原文裸名（本文件顶部 `using static GateShareSeam;`）。
+    //
+    // 逐项核对命令（本车道实际执行）：
+    //   git grep -n -E "public static [^=]*\b(g_XXX)\b" main -- 'GXX.CSharp/src/**/*.cs'
+    //
+    // 例外（main 的类型 API 不足，见报告 §6.2-R7）：
+    //   * `g_LockUserList`     —— main 声明为 `TSafeHashStringList`（**无** Objects[]/AddObject），
+    //                            而原文 :336/:346/:377 需要 `Objects[Index]` 存秒数。
+    //   * `g_LoginMACPlayerList` —— 同上，原文 :2195/:2181/:10070/:10079 需要 `Objects[Index]` 存计数。
+    //   这两个由本文件用 `TSafeHashStringListEx` 自持（名字与原文一致，未改名绕开），
+    //   已在报告 §6.2-R7 给出"给 TSafeHashStringList 补 Objects/AddObject/GetObject/SetObject"的精确请求。
+    // =================================================================================
+
+    // ---- 转发到 GateShareGlobals（26 个）----
+    public static TAddressListEx g_CurrIPList => GateShareGlobals.g_CurrIPList;                 // GateShareGlobals.cs
+    public static string g_ScreenshotPath { get => GateShareGlobals.g_ScreenshotPath; set => GateShareGlobals.g_ScreenshotPath = value; }
+    public static string g_sLogClientPacketDir { get => GateShareGlobals.g_sLogClientPacketDir; set => GateShareGlobals.g_sLogClientPacketDir = value; }
+    public static char g_sReplaceWord { get => GateShareGlobals.g_sReplaceWord; set => GateShareGlobals.g_sReplaceWord = value; }
+
+    public static uint g_ClientAntiPlugVersion { get => GateShareGlobals.g_ClientAntiPlugVersion; set => GateShareGlobals.g_ClientAntiPlugVersion = value; }
+    public static uint g_ClientAntiPlugDllStringCRC { get => GateShareGlobals.g_ClientAntiPlugDllStringCRC; set => GateShareGlobals.g_ClientAntiPlugDllStringCRC = value; }
+    public static int g_ClientAntiPlugDllSize { get => GateShareGlobals.g_ClientAntiPlugDllSize; set => GateShareGlobals.g_ClientAntiPlugDllSize = value; }
+    /// <summary>原文 `g_ClientAntiPlugDllString: string`（承载模块二进制）→ main 用 `string`，本车道按 GBK 取字节。</summary>
+    public static string g_ClientAntiPlugDllString { get => GateShareGlobals.g_ClientAntiPlugDllString; set => GateShareGlobals.g_ClientAntiPlugDllString = value; }
+    public static int g_ClientAntiPlugDllBlockSize { get => GateShareGlobals.g_ClientAntiPlugDllBlockSize; set => GateShareGlobals.g_ClientAntiPlugDllBlockSize = value; }
+    public static int g_ClientAntiPlugDllBlockCount { get => GateShareGlobals.g_ClientAntiPlugDllBlockCount; set => GateShareGlobals.g_ClientAntiPlugDllBlockCount = value; }
+    public static IntPtr g_RunGatePlugDllHandle { get => GateShareGlobals.g_RunGatePlugDllHandle; set => GateShareGlobals.g_RunGatePlugDllHandle = value; }
+
+    public static bool g_boOpenVerifyCode { get => GateShareGlobals.g_boOpenVerifyCode; set => GateShareGlobals.g_boOpenVerifyCode = value; }
+    public static int g_nVerifyCodeErrCount { get => GateShareGlobals.g_nVerifyCodeErrCount; set => GateShareGlobals.g_nVerifyCodeErrCount = value; }
+    public static int g_nVerifyCodeRefreshCount { get => GateShareGlobals.g_nVerifyCodeRefreshCount; set => GateShareGlobals.g_nVerifyCodeRefreshCount = value; }
+    public static int g_nVerifyCodeWaitTime { get => GateShareGlobals.g_nVerifyCodeWaitTime; set => GateShareGlobals.g_nVerifyCodeWaitTime = value; }
+    public static uint g_dwVerifyCodeInterval1 { get => GateShareGlobals.g_dwVerifyCodeInterval1; set => GateShareGlobals.g_dwVerifyCodeInterval1 = value; }
+    public static uint g_dwVerifyCodeInterval2 { get => GateShareGlobals.g_dwVerifyCodeInterval2; set => GateShareGlobals.g_dwVerifyCodeInterval2 = value; }
+    public static uint g_dwVerifySuccessAddInterval { get => GateShareGlobals.g_dwVerifySuccessAddInterval; set => GateShareGlobals.g_dwVerifySuccessAddInterval = value; }
+    public static bool g_boVerifyFailTriggerScript { get => GateShareGlobals.g_boVerifyFailTriggerScript; set => GateShareGlobals.g_boVerifyFailTriggerScript = value; }
+    public static bool g_boVerifyFailLoginVerify { get => GateShareGlobals.g_boVerifyFailLoginVerify; set => GateShareGlobals.g_boVerifyFailLoginVerify = value; }
+    public static bool g_boVerifyCodeExcludeMap { get => GateShareGlobals.g_boVerifyCodeExcludeMap; set => GateShareGlobals.g_boVerifyCodeExcludeMap = value; }
+    public static TSafeHashStringList g_VerifyCodeMapList => GateShareGlobals.g_VerifyCodeMapList;
+    public static TSafeHashStringList g_LoadNoVerifyChrList => GateShareGlobals.g_LoadNoVerifyChrList;
+
+    public static bool g_boOneMACLimitePlayer { get => GateShareGlobals.g_boOneMACLimitePlayer; set => GateShareGlobals.g_boOneMACLimitePlayer = value; }
+    public static int g_nOneMACLimitePlayerCount { get => GateShareGlobals.g_nOneMACLimitePlayerCount; set => GateShareGlobals.g_nOneMACLimitePlayerCount = value; }
+    public static TSafeHashStringList g_VerifyFailUserList => GateShareGlobals.g_VerifyFailUserList;
+
+    // ---- 本文件自持：因 main 的 TSafeHashStringList 缺 Objects[]（报告 §6.2-R7）----
+    /// <summary>GateShare.pas:628 —— 锁定用户表。原文用 `Objects[Index]` 存剩余秒数。</summary>
+    public static readonly TSafeHashStringListEx g_LockUserList = new TSafeHashStringListEx();
+    /// <summary>GateShare.pas:1182 —— 单机登录计数表。原文用 `Objects[Index]` 存计数。</summary>
+    public static readonly TSafeHashStringListEx g_LoginMACPlayerList = new TSafeHashStringListEx();
+
+    // ---- main 上确实没有的全局量（本文件自持）----
+    public const int g_dwClientAccumulateMaxSize_Default = 600;                                      // :1206
+    public static int g_dwClientAccumulateMaxSize = g_dwClientAccumulateMaxSize_Default;
+
+    public static int g_nClientCloseDelay = 0;                   // :1185
+    public static int g_nClientLogoutDelay = 0;                  // :1184（GateShare.pas 小退延时秒数）
+    public static bool g_boDelayCloseDisableMove = false;        // :1187
+    public static bool g_boDelayCloseDisableSpell = false;       // :1188
+    public static bool g_boDelayCloseDisableAttack = false;      // :1189
+    public static bool g_boDelayCloseDisableUseItem = false;     // :1190
+
+    public static bool g_boBreakClientLogoutHint = true;         // :1192
+    public static string g_sBreakClientLogoutHint = "小退游戏操作已被中断";  // :1193
+    public static bool g_boBreakClientCloseHint = true;          // :1195
+    public static string g_sBreakClientCloseHint = "大退游戏操作已被中断";   // :1196
+
+    // 原文 GateShare.pas:1201 声明名是 g_boCheckClientPassword（大写 P）；
+    // MirClientContext.pas:2065 写的是 g_boCheckClientPassWord（小写 p）—— Delphi 大小写不敏感，
+    // 托管侧按声明名保留，用站点加 `// 原文如此（MirClientContext.pas:2065）` 注释。
+    public static bool g_boCheckClientPassword = false;          // :1201
+    public static string g_sClientPassWord = "BmM2";             // :1202
+
+    public static string g_sDisableSayMsg = "禁止聊天";            // :1246
+    public static string g_sDisableSayMsgBegin = "由于您说话太快，%d秒内禁止聊天！！！"; // :1247
+
+    public static bool g_boLogoutNoResendAntiplugStream = false; // :1177
+    public static bool g_boAntiplugAllLog = false;
+    public static TRunGatePlugRecvPacketFunc g_rgpRecvPacket = null; // :620
+    public static TRunGatePlugContextFunc g_rgpStartContext = null;  // :616
+    public static TRunGatePlugContextFunc g_rgpEndContext = null;    // :618
+    public static readonly object g_CSRunGatePlug = new object();    // :613
 
     // ---- 字符串/字节编码助手（AnsiString 的托管表示，见偏差 D3）----
     public static readonly Encoding Gbk = EncodingInit.GBK;
@@ -673,70 +698,7 @@ public static class GateShareSeam
 
     public static void AppendTextLine(string fileName, string line) => AppendTextLineSink(fileName, line);
 
-    // ---- GateShare.pas:628 起的全局量（uFrmGameSpeedLogic.cs 里没有的那些）----
-    public static readonly TSafeHashStringListEx g_LockUserList = new TSafeHashStringListEx();       // :628
-    public static readonly TSafeHashStringListEx g_VerifyFailUserList = new TSafeHashStringListEx(); // :630
-    public static readonly TAddressListEx g_CurrIPList = new TAddressListEx();                       // :1127
-
-    public const int g_dwClientAccumulateMaxSize_Default = 600;                                      // :1206
-    public static int g_dwClientAccumulateMaxSize = g_dwClientAccumulateMaxSize_Default;
-
-    public static bool g_boOpenVerifyCode = false;              // :1148
-    public static int g_nVerifyCodeErrCount = 3;                // :1149
-    public static int g_nVerifyCodeRefreshCount = 4;            // :1150
-    public static int g_nVerifyCodeWaitTime = 60;               // :1151
-    public static uint g_dwVerifyCodeInterval1 = 30;            // :1152
-    public static uint g_dwVerifyCodeInterval2 = 50;            // :1153
-    public static uint g_dwVerifySuccessAddInterval = 0;        // :1154
-    public static bool g_boVerifyFailTriggerScript = false;     // :1155
-    public static bool g_boVerifyFailLoginVerify = false;       // :1156
-    public static bool g_boVerifyCodeExcludeMap = true;         // :1157
-    public static readonly TSafeHashStringListEx g_VerifyCodeMapList = new TSafeHashStringListEx();   // :1159
-    public static readonly TSafeHashStringListEx g_LoadNoVerifyChrList = new TSafeHashStringListEx(); // :1165
-
-    public static bool g_boLogoutNoResendAntiplugStream = false; // :1177
-    public static bool g_boOneMACLimitePlayer = false;           // :1180
-    public static int g_nOneMACLimitePlayerCount = 3;            // :1181
-    public static readonly TSafeHashStringListEx g_LoginMACPlayerList = new TSafeHashStringListEx();  // :1182
-
-    public static int g_nClientCloseDelay = 0;                   // :1185
-    public static int g_nClientLogoutDelay = 0;                  // :1184（GateShare.pas 小退延时秒数）
-    public static bool g_boDelayCloseDisableMove = false;        // :1187
-    public static bool g_boDelayCloseDisableSpell = false;       // :1188
-    public static bool g_boDelayCloseDisableAttack = false;      // :1189
-    public static bool g_boDelayCloseDisableUseItem = false;     // :1190
-
-    public static bool g_boBreakClientLogoutHint = true;         // :1192
-    public static string g_sBreakClientLogoutHint = "小退游戏操作已被中断";  // :1193
-    public static bool g_boBreakClientCloseHint = true;          // :1195
-    public static string g_sBreakClientCloseHint = "大退游戏操作已被中断";   // :1196
-
-    // 原文 GateShare.pas:1201 声明名是 g_boCheckClientPassword（大写 P）；
-    // MirClientContext.pas:2065 写的是 g_boCheckClientPassWord（小写 p）—— Delphi 大小写不敏感，
-    // 托管侧按声明名保留，用站点加 `// 原文如此（MirClientContext.pas:2065）` 注释。
-    public static bool g_boCheckClientPassword = false;          // :1201
-    public static string g_sClientPassWord = "BmM2";             // :1202
-
-    public static string g_sLogClientPacketDir = "";              // :1209
-    public static char g_sReplaceWord = '*';                      // :1216
-    public static string g_sDisableSayMsg = "禁止聊天";            // :1246
-    public static string g_sDisableSayMsgBegin = "由于您说话太快，%d秒内禁止聊天！！！"; // :1247
-
-    // ---- CLIENT_ANTIPLUG 相关（Grobal2_Ex.pas 开关 CLIENT_ANTIPLUG = 1，活分支）----
-    public static uint g_ClientAntiPlugVersion = 0;                  // :601
-    public static uint g_ClientAntiPlugDllStringCRC = 0;             // :603
-    public static int g_ClientAntiPlugDllSize = 0;
-    public static byte[] g_ClientAntiPlugDllString = Array.Empty<byte>();
-    public static int g_ClientAntiPlugDllBlockSize = 5120;
-    public static int g_ClientAntiPlugDllBlockCount =
-        g_ClientAntiPlugDllSize > 0 ? (g_ClientAntiPlugDllSize + g_ClientAntiPlugDllBlockSize - 1) / g_ClientAntiPlugDllBlockSize : 0;
-
-    public static bool g_boAntiplugAllLog = false;
-    public static int g_RunGatePlugDllHandle = 0;                    // :615
-    public static TRunGatePlugRecvPacketFunc g_rgpRecvPacket = null; // :620
-    public static TRunGatePlugContextFunc g_rgpStartContext = null;  // :616
-    public static TRunGatePlugContextFunc g_rgpEndContext = null;    // :618
-    public static readonly object g_CSRunGatePlug = new object();    // :613
+    // ---- 全局量：见上方「单一真源纪律」段（26 个转发到 GateShareGlobals + 22 个自持）----
 
     // ---- 日志 / 屏蔽 / 插件宿主接缝 ----
     /// <summary>原文 <c>AddMainLogMsg(Msg: string; nLevel: Integer)</c>（uFrmMain/GateShare）。</summary>
@@ -803,10 +765,14 @@ public static class GateShareSeam
         g_ClientAntiPlugVersion = 0;
         g_ClientAntiPlugDllStringCRC = 0;
         g_ClientAntiPlugDllSize = 0;
-        g_ClientAntiPlugDllString = Array.Empty<byte>();
+        g_ClientAntiPlugDllString = "";                 // main 的表示法：string（见 §6.2-R8）
+        g_ClientAntiPlugDllBlockSize = 0;
+        g_ClientAntiPlugDllBlockCount = 0;
         g_boAntiplugAllLog = false;
-        g_RunGatePlugDllHandle = 0;
+        g_RunGatePlugDllHandle = IntPtr.Zero;           // main 的表示法：IntPtr
         g_rgpRecvPacket = null;
+        g_rgpStartContext = null;
+        g_rgpEndContext = null;
 
         AddMainLogMsgSink = (msg, level) => { };
         AddBlockIPSink = ip => { };
