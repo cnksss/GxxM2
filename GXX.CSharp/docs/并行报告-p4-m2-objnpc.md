@@ -608,3 +608,82 @@ ObjNpc 的剩余 56 条里有 **20 条以上**会同时解锁 —— 比逐条�
 | `NpcObjNpcSub4A0218Tests.cs` | 16 | `sub_4A0218`：黑铁矿剔除/耐久前 5 求和/属性最大与次大/StdMode 三档/`btValue[13]` 自定义名/`NeedIdentify` 日志/空表差异断言/`IsUseItem` 原文空指针 |
 
 `Npc*` 子集：195（切片6）→ **272**；全工程 5,786 → **5,948**。
+---
+
+# 8.10 第三轮（切片 10）★ 本节数字**优先于** §8.2
+
+| # | commit | 内容 |
+|---|---|---|
+| 10 | `001026d7` | 切片10：公会/攻城官员 7 例程 1:1 + `Click` 虚分派链（+20 用例） |
+
+> 前置：本分支已再次 `rebase main`（基点 `97870cd0`；main 已含本车道切片 1-3 **与切片 7** 的两次集成：`7b851725` / `c242bf2c`）。
+
+## 覆盖口径（★ 以本节为准）
+
+| 口径 | 切片6 | 切片8 | **切片10** |
+|---|---|---|---|
+| Covered 例程 / 112 | 34 | 50 | **57** |
+| Seam 例程 / 112 | 4 | 6 | **7** |
+| Missing 例程 / 112 | 74 | 56 | **48** |
+| Covered 例程原文行数 | 1,649 | 1,960 | **2,044** |
+| Seam 例程原文行数 | 4,297 | 4,543 | **4,555** |
+| Missing 例程原文行数 | 4,600 | 3,538 | **3,442** |
+| **逐行 1:1（含嵌套过程 `sub_4A0218` 143 行）** | 1,649 | 2,103 | **2,187 / 10,546 = 20.7%** |
+
+门禁：`GXX.M2Server.Tests` **6,043 passed / 0 failed**；`Npc*` 子集 **302** 例。
+
+## 切片10 上收的 7 条例程（Missing → Covered）
+
+| 原文行号 | 例程 | 归属 |
+|---|---|---|
+| 1107-1116 | `TCastleOfficial.Click` | `ObjNpcGuildCastle.cs` |
+| 3228-3232 | `TMerchant.Click`（覆写） | `ObjNpcGuildCastle.cs` |
+| 10049-10053 | `TGuildOfficial.Click`（覆写） | `ObjNpcGuildCastle.cs` |
+| 10055-10089 | `TGuildOfficial.GetVariableText`（覆写，`$REQUESTCASTLELIST`） | `ObjNpcGuildCastle.cs` |
+| 10364-10367 | `TCastleOfficial.Create` | `ObjNpcGuildCastle.cs` |
+| 10386-10389 | `TGuildOfficial.SendCustemMsg`（覆写） | `ObjNpcGuildCastle.cs` |
+| 10391-10404 | `TCastleOfficial.SendCustemMsg`（覆写） | `ObjNpcGuildCastle.cs` |
+
+**新增 Seam（1 条）**：`TNormNpc.Click`(4431-4442) —— **第二个"虚分派链修正"**（同 §8.4 的 `GetVariableText`/`SendCustemMsg`）。
+原文三个覆写（`TMerchant`/`TGuildOfficial`/`TCastleOfficial`）都用 `inherited`，故必须落为
+`public virtual void Click(TPlayObject)` 外壳 + `NpcSeams.Click` 转发，否则三个覆写无从落地。
+
+## 新增原文缺陷（续 D 系列）
+
+| # | 位置 | 问题 |
+|---|---|---|
+| D27 | `ObjNpc.pas:1114-1115` | `TCastleOfficial.Click`：**非城主行会成员且权限 &lt; 3 时既不提示也不 `inherited`** —— 玩家点 NPC **静默无反应**（无任何反馈）。这是可观测行为差异，已单测锁死（`CastleOfficialClick_NonMemberLowPermission_SilentlyDoesNothing`）。 |
+| D28 | `ObjNpc.pas:10391-10404` | `TCastleOfficial.SendCustemMsg` **不调用 `inherited`**，自己重写全部门槛 —— 与 `TNormNpc.SendCustemMsg`(9837)、`TMerchant.SendCustemMsg`(4235)、`TGuildOfficial.SendCustemMsg`(10386) 三个"只 inherited"的覆写**语义不同**。照抄，并加用例断言"不调基类接缝"。 |
+| D29 | `ObjNpc.pas:10075` | `if ((II div 2) * 2 = II) then sStr := '\'` —— 用整除再乘回的方式判"偶数"，可读性极差；效果是攻城列表**每两项一行**。已用**字面量期望串**锁死输出格式（含 `'\'` 单反斜杠与末尾 `'\ \'`）。 |
+| D30 | `ObjNpc.pas:10364-10367` vs `:10374-10379` | `TCastleOfficial.Create` **只 `inherited`**（不置种族值），而 `TGuildOfficial.Create` 置 `m_btRaceImg := RC_MERCHANT; m_wAppr := 8;` —— 同族两个 `Create` 行为不一致（照抄；已加用例断言 `TCastleOfficial` 的 `m_btRaceServer` 保持 0）。 |
+| D31 | `ObjNpc.pas:1109` | `TCastleOfficial.Click` 用 `m_Castle = nil` 判"不属于城堡"，但 `TCastleOfficial` 自身**没有重写 `Initialize`** —— `m_Castle` 的赋值依赖基类 `TNormNpc.Initialize`(9867) 的 `g_CastleManager.InCastleWarArea(Self)`，而该 `Initialize` 目前**阻塞未移植**（需 `TCreature.Initialize`）。即：本方法的空城堡分支在当前托管状态下**恒真**，已登记。 |
+
+## 新增 Engine / 宿主缺口（与 §8.6 合并看）
+
+| 缺口 | 阻塞的例程 |
+|---|---|
+| `TBaseObject.m_wAppr` | `TGuildOfficial.Create`(10374-10379)、`TNormNpc.Initialize`(9864-9875) |
+| `TCreature.Initialize`（虚方法） | `TNormNpc.Initialize`、`TBoxMonster.Initialize`、`TCastleOfficial`/`TGuildOfficial` 的 `Initialize` |
+| `TCreature.TurnTo(Integer)` / `SendRefMsg(...)` | `TGuildOfficial.Run`(10091-10099) |
+| `TCreature.m_ActorIcons` | `FrmDB.LoadIconFile` 那一路（接缝已吞掉该参数） |
+| `TPlayObject.m_btPermission` | **已用 `NpcSeams.GetPlayerPermission` 接缝绕过**（`TCastleOfficial.Click` 因此得以上收） |
+| `TPlayObject.LableIsCanJmp` / `m_sScriptGoBackLable` / 6 个 `sNF_*` 常量 | `TGuildOfficial.UserSelect`(10101-10151) |
+| `g_CastleManager.GetCastleNameList` | **已用 `NpcSeams.GetCastleNameList` 接缝绕过**（`TCastleOfficial`/`TGuildOfficial` 的 `$REQUESTCASTLELIST` 因此得以上收）。注：`Engine.TCastleManager` 类**已存在**（`Castle.cs:406`），只差这一个方法 —— **这是最便宜的一个补齐点**。 |
+
+**诚实登记**：`NpcSeams.g_sSubkMasterMsgCanNotUseNowMsg` 的默认值 `"当前无法使用城主喊话功能"` 是**语义占位、不是原文文案**
+（原文该字符串由 M2Share 的 `LoadString` 从资源载入，源码里只有键名）。接入时必须以原文资源串为准。
+
+## 剩余 48 条未覆盖的最大块（排序）
+
+| 原文行号 | 例程 | 行数 | 主要阻塞 |
+|---|---|---|---|
+| 6011-9262 | `TNormNpc.GetVariableText` | 3,252 | Seam（宿主面广） |
+| 2087-2900 | `TMerchant.UserSelect` | 814 | ObjPlayer 面（§8.6(1)） |
+| 4935-5325 | `TNormNpc.SetValNameValue` | 391 | Seam（4 类变量容器缺失） |
+| 5326-5689 | `GetBoxItemValue` | 364 | Seam |
+| 3367-3689 | `TMerchant.ClientBuyItem` | 323 | ObjPlayer 面（§8.6(2)） |
+| 9263-9574 | `TNormNpc.GotoLable` | 312 | **`m_nVal`（6 项之一）→ 硬阻塞** |
+| 4645-4934 | `SetBoxItemValue` | 290 | Seam |
+| 1684-1902 | `TMerchant.UpgradeWapon` 外层体 | 76 | §8.6(3) |
+| 1186-1334 | `TCastleOfficial.UserSelect` | 149 | Castle + GotoLable |
+| 1335-1445 | `TCastleOfficial.HireGuard`/`HireArcher` | 111 | Castle |
