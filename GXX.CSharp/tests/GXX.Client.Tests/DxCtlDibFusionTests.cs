@@ -1527,6 +1527,492 @@ public class DxCtlDibFusionTests
     }
 
     // =========================================================================================
+    // DIB.pas 5975-6036 —— DoSmoothRotate
+    // =========================================================================================
+
+    [Fact]
+    public void DoSmoothRotate_角度0且同尺寸等价于恒等拷贝()
+    {
+        var dst = Mk24(3, 3);
+        var src = Mk24(3, 3);
+        Fill(dst, 0, 0, 0);
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+                src.SetPixel(x, y, unchecked((uint)Col(x * 10, y * 20, 30)));
+
+        dst.DoSmoothRotate(src, 0, 0, 0);
+
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+                AssertPx(dst, x, y, x * 10, y * 20, 30, $"恒等采样 ({x},{y})");
+    }
+
+    [Fact]
+    public void DoSmoothRotate_角度0时cxcy不影响结果()
+    {
+        var dst = Mk24(3, 3);
+        var src = Mk24(3, 3);
+        Fill(dst, 1, 2, 3);
+        Fill(src, 200, 100, 50);
+
+        dst.DoSmoothRotate(src, 1, 1, 0);
+
+        // fx = ((px*1 - py*0) - 1)/2 + cx - xDiff = (px-1)/2 + cx = (X-cx) + cx = X
+        AssertPx(dst, 0, 0, 200, 100, 50, "cx/cy 在角度 0 时抵消");
+        AssertPx(dst, 2, 2, 200, 100, 50, "...");
+    }
+
+    [Fact]
+    public void DoSmoothRotate_尺寸不等时按xDiffyDiff平移且越界采样不写()
+    {
+        var dst = Mk24(4, 4);
+        var src = Mk24(2, 2);
+        Fill(dst, 7, 7, 7);
+        src.SetPixel(0, 0, unchecked((uint)Col(1, 1, 1)));
+        src.SetPixel(1, 0, unchecked((uint)Col(2, 2, 2)));
+        src.SetPixel(0, 1, unchecked((uint)Col(3, 3, 3)));
+        src.SetPixel(1, 1, unchecked((uint)Col(4, 4, 4)));
+
+        dst.DoSmoothRotate(src, 0, 0, 0);
+
+        AssertPx(dst, 1, 1, 1, 1, 1, "xDiff=yDiff=1（DIB.pas:5990-5991）");
+        AssertPx(dst, 2, 1, 2, 2, 2, "...");
+        AssertPx(dst, 1, 2, 3, 3, 3, "...");
+        AssertPx(dst, 2, 2, 4, 4, 4, "...");
+        AssertPx(dst, 0, 0, 7, 7, 7, "越界采样 → 整像素不写（DIB.pas:6002）");
+        AssertPx(dst, 3, 3, 7, 7, 7, "fx=2 超出 Src.Width → 不写");
+    }
+
+    [Fact]
+    public void DoSmoothRotate_90度把源前两行转置到目标前两列()
+    {
+        // Angle=-90° → sAngle=-1, cAngle≈0；cx=cy=1 ⇒ fx=Y, fy=1-X
+        var dst = Mk24(3, 3);
+        var src = Mk24(3, 3);
+        Fill(dst, 7, 7, 7);
+        for (int y = 0; y < 3; y++)
+            for (int x = 0; x < 3; x++)
+                src.SetPixel(x, y, unchecked((uint)Col(x * 10, y * 20, 0)));
+
+        dst.DoSmoothRotate(src, 1, 1, 90);
+
+        AssertPx(dst, 0, 0, 0, 20, 0, "← Src(0,1)");
+        AssertPx(dst, 0, 1, 10, 20, 0, "← Src(1,1)");
+        AssertPx(dst, 0, 2, 20, 20, 0, "← Src(2,1)");
+        AssertPx(dst, 1, 0, 0, 0, 0, "← Src(0,0)");
+        AssertPx(dst, 1, 1, 10, 0, 0, "← Src(1,0)");
+        AssertPx(dst, 1, 2, 20, 0, 0, "← Src(2,0)");
+        AssertPx(dst, 2, 0, 7, 7, 7, "fy=-1 → 不写");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6042-6063 —— DoInvert
+    // =========================================================================================
+
+    [Fact]
+    public void DoInvert_逐字节按位取反()
+    {
+        var d = Mk24(2, 2);
+        Fill(d, 10, 20, 30);
+        d.DoInvert();
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 2; x++)
+                AssertPx(d, x, y, 245, 235, 225, "not v = 255-v（DIB.pas:6055-6057）");
+    }
+
+    [Fact]
+    public void DoInvert_两次还原()
+    {
+        var d = Mk24(2, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(1, 2, 3)));
+        d.SetPixel(1, 0, unchecked((uint)Col(200, 150, 100)));
+        d.DoInvert();
+        d.DoInvert();
+        AssertPx(d, 0, 0, 1, 2, 3, "对合");
+        AssertPx(d, 1, 0, 200, 150, 100, "...");
+    }
+
+    [Fact]
+    public void DoInvert_空图先被SetBitCount撑成1x1_24bpp()
+    {
+        var d = new TDIB();
+        Assert.True(d.Empty);
+        d.DoInvert();
+        // w/h 在 SetBitCount **之前**取（都是 0）⇒ 循环空转；仅留下 SetBitCount(24) 的副作用
+        Assert.Equal(1, d.Width);
+        Assert.Equal(1, d.Height);
+        Assert.Equal(24, d.BitCount);
+    }
+
+    // =========================================================================================
+    // DIB.pas 6065-6124 —— DoAddColorNoise / DoAddMonoNoise
+    // =========================================================================================
+
+    [Fact]
+    public void DoAddColorNoise_Amount0时零噪声()
+    {
+        var d = Mk24(2, 2);
+        Fill(d, 100, 100, 100);
+        d.DoAddColorNoise(0);
+        // Random(0)=0、Amount shr 1=0
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 2; x++)
+                AssertPx(d, x, y, 100, 100, 100, "DIB.pas:6076-6081");
+    }
+
+    [Fact]
+    public void DoAddColorNoise_噪声取值范围为负Amount除2到0()
+    {
+        var d = Mk24(16, 16);
+        Fill(d, 100, 100, 100);
+        d.DoAddColorNoise(2);   // Random(2) ∈ {0,1}，减去 (2 shr 1)=1 ⇒ 偏移 ∈ {-1,0}
+        var seen = new HashSet<int>();
+        for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+            {
+                var (R, G, B) = Px(d, x, y);
+                foreach (int v in new[] { R, G, B })
+                {
+                    Assert.InRange(v, 99, 100);
+                    seen.Add(v);
+                }
+            }
+        // 回归断言：修复 DibEffectsSupport.DibRandom 的 `(int)r * 0` 前，偏移恒为 -1（只见到 99）
+        Assert.Contains(99, seen);
+        Assert.Contains(100, seen);
+    }
+
+    [Fact]
+    public void DoAddColorNoise_三通道独立取随机数()
+    {
+        var d = Mk24(16, 16);
+        Fill(d, 100, 100, 100);
+        d.DoAddColorNoise(2);
+        bool sawMixed = false;
+        for (int y = 0; y < 16 && !sawMixed; y++)
+            for (int x = 0; x < 16; x++)
+            {
+                var (R, G, B) = Px(d, x, y);
+                if (R != G || G != B) { sawMixed = true; break; }
+            }
+        Assert.True(sawMixed, "ColorNoise 每通道各调一次 Random（DIB.pas:6076-6078）");
+    }
+
+    [Fact]
+    public void DoAddMonoNoise_三通道共用同一个偏移()
+    {
+        var d = Mk24(16, 16);
+        Fill(d, 100, 100, 100);
+        d.DoAddMonoNoise(2);
+        for (int y = 0; y < 16; y++)
+            for (int x = 0; x < 16; x++)
+            {
+                var (R, G, B) = Px(d, x, y);
+                Assert.True(R == G && G == B, $"MonoNoise 同像素三通道偏移相同 @({x},{y}) 得 ({R},{G},{B})");
+                Assert.InRange(R, 99, 100);
+            }
+    }
+
+    [Fact]
+    public void DoAddMonoNoise_Amount1时只可能是减0或减0_即不变()
+    {
+        var d = Mk24(4, 1);
+        Fill(d, 50, 50, 50);
+        d.DoAddMonoNoise(1);   // Random(1)=0（Range=1 ⇒ r*1 截断为 0）；(1 shr 1)=0 ⇒ 偏移 0
+        for (int x = 0; x < 4; x++)
+            AssertPx(d, x, 0, 50, 50, 50, "Random(1) 恒 0");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6126-6155 —— DoAntiAlias
+    // =========================================================================================
+
+    [Fact]
+    public void DoAntiAlias_均匀图不变且只处理内区()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 100, 100, 100);
+        d.DoAntiAlias();
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 100, 100, 100, "十字均值仍为 100");
+    }
+
+    [Fact]
+    public void DoAntiAlias_3x3十字均值且X递增有顺序依赖()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 0, 0, 0);
+        d.SetPixel(2, 2, unchecked((uint)Col(255, 0, 0)));   // 只设 R 通道
+
+        d.DoAntiAlias();
+
+        // X ∈ [1, Width-2] = [1,2]、Y ∈ [1, Height-2] = [1,2]
+        // 双向依赖（原文就地改写，必须照抄循环方向）：
+        //   * Y 递增 ⇒ Y=2 的 p0 是**已被 Y=1 改写过的**行 1；
+        //   * X 递增 ⇒ X=2 的 p1[(X-1)*3+2] 是 X=1 刚写入的值。
+        // Y=1（p1=行1、P2=行2 含唯一非零 R=255）:
+        //   X=1 → 行1 像素1 R = (0+0+0+0)/4 = 0
+        //   X=2 → 行1 像素2 R = (row0[8]=0 + row2[8]=255 + row1[5]=0 + row1[11]=0)/4 = 63
+        // Y=2（p0=行1(已改)、p1=行2、P2=行3）:
+        //   X=1 → 行2 像素1 R = (row1[5]=0 + row3[5]=0 + row2[2]=0 + row2[8]=255)/4 = 63
+        //   X=2 → 行2 像素2 R = (row1[8]=63 + row3[8]=0 + row2[5]=63 + row2[11]=0)/4 = 126/4 = 31
+        AssertPx(d, 1, 2, 63, 0, 0, "DIB.pas:6146 + X 递增读到刚写入的 p1[(X-1)*3+2]");
+        AssertPx(d, 2, 2, 31, 0, 0, "同时受 Y 方向依赖影响：p0 是已被改写的行 1");
+        AssertPx(d, 2, 1, 63, 0, 0, "Y=1 的 X=2 从 P2（行2）读到 255");
+        AssertPx(d, 1, 1, 0, 0, 0, "Y=1 的 X=1 全零");
+        // 边界不被触碰
+        AssertPx(d, 0, 0, 0, 0, 0, "XOrigin=Max(1,0)=1");
+        AssertPx(d, 3, 3, 0, 0, 0, "XFinal=Min(Width-2,…)=2");
+        AssertPx(d, 0, 2, 0, 0, 0, "第 0 列不处理");
+        AssertPx(d, 2, 0, 0, 0, 0, "第 0 行不处理");
+    }
+
+    [Fact]
+    public void DoAntiAlias_空图与1x1图不崩()
+    {
+        var e = new TDIB();
+        e.DoAntiAlias();                 // SetBitCount(24) 撑成 1x1，循环空转
+        Assert.Equal(24, e.BitCount);
+        Assert.Equal(1, e.Width);
+
+        var one = Mk24(1, 1);
+        Fill(one, 5, 6, 7);
+        one.DoAntiAlias();               // XFinal = Min(-1, 1) = -1 < XOrigin=1 → 空转
+        AssertPx(one, 0, 0, 5, 6, 7, "尺寸过小不写");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6157-6191 —— DoContrast
+    // =========================================================================================
+
+    [Fact]
+    public void DoContrast_以127为中心按Abs127减ch乘Amount除255拉开()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));   // 内存序 B=50,G=100,R=200
+        d.DoContrast(255);
+        // B=50  ≤127 → 50 - (77*255)/255 = 50-77 = -27 → 0
+        // G=100 ≤127 → 100 - 27 = 73
+        // R=200 > 127 → 200 + 73 = 273 → IntToByte → 255
+        AssertPx(d, 0, 0, 255, 73, 0, "DIB.pas:6171-6179");
+    }
+
+    [Fact]
+    public void DoContrast_恰好127走减分支且Amount0不变()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 127, 127, 127);
+        d.DoContrast(255);
+        AssertPx(d, 0, 0, 127, 127, 127, "|127-127|=0 ⇒ 两分支都等价");
+
+        var d2 = Mk24(1, 1);
+        Fill(d2, 200, 100, 50);
+        d2.DoContrast(0);
+        AssertPx(d2, 0, 0, 200, 100, 50, "Amount=0 不变");
+    }
+
+    [Fact]
+    public void DoContrast_负Amount反向压缩()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoContrast(-255);
+        // B=50 → 50 - (77*-255)/255 = 50+77 = 127
+        // G=100 → 100 + 27 = 127
+        // R=200 → 200 + (73*-255)/255 = 200-73 = 127
+        AssertPx(d, 0, 0, 127, 127, 127, "负 Amount 把所有值压向 127");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6193-6302 —— DoFishEye
+    // =========================================================================================
+
+    [Fact]
+    public void DoFishEye_Amount0时全图采样中心一点()
+    {
+        var d = Mk24(4, 4);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                d.SetPixel(x, y, unchecked((uint)Col(x * 10, y * 10, 0)));
+        // 中心 (xmid,ymid) = (2,2) → Col(20,20,0)
+
+        d.DoFishEye(0);
+
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 20, 20, 0, "rmax=0 ⇒ r2=0 ⇒ 全部取 (xmid,ymid)（DIB.pas:6226）");
+    }
+
+    [Fact]
+    public void DoFishEye_中心像素不被移动()
+    {
+        var d = Mk24(4, 4);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                d.SetPixel(x, y, unchecked((uint)Col(x * 10, y * 10, 0)));
+
+        d.DoFishEye(1);
+
+        // (2,2)：dx=dy=0、r1=0 → 直接取 (xmid,ymid) = (2,2)
+        AssertPx(d, 2, 2, 20, 20, 0, "r1=0 特例（DIB.pas:6221-6223）");
+    }
+
+    [Fact]
+    public void DoFishEye_尺寸为1且Amount非0时不崩()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 9, 8, 7);
+        d.DoFishEye(1);   // xmid=ymid=0.5 → ifx=0,ify=0
+        AssertPx(d, 0, 0, 9, 8, 7, "1x1 采样自身");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6304-6328 —— DoGrayScale
+    // =========================================================================================
+
+    [Fact]
+    public void DoGrayScale_按内存序B03G059R011加权()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));   // B=50,G=100,R=200
+        d.DoGrayScale();
+        // Round(50*0.3 + 100*0.59 + 200*0.11) = Round(15+59+22) = 96
+        AssertPx(d, 0, 0, 96, 96, 96, "DIB.pas:6313");
+    }
+
+    [Fact]
+    public void DoGrayScale_全白得255而非254()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 255, 255, 255);
+        d.DoGrayScale();
+        AssertPx(d, 0, 0, 255, 255, 255, "权重和为 1，浮点误差被 Round 吞掉");
+    }
+
+    [Fact]
+    public void DoGrayScale_全黑与多像素()
+    {
+        var d = Mk24(2, 2);
+        Fill(d, 0, 0, 0);
+        d.DoGrayScale();
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 2; x++)
+                AssertPx(d, x, y, 0, 0, 0, "全黑不变");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6330-6356 —— DoLightness
+    // =========================================================================================
+
+    [Fact]
+    public void DoLightness_向白靠拢()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+        d.DoLightness(51);
+        // 100 + (155*51)/255 = 100 + 31 = 131
+        AssertPx(d, 0, 0, 131, 131, 131, "DIB.pas:6342-6344");
+    }
+
+    [Fact]
+    public void DoLightness_Amount255全变白_Amount0不变()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoLightness(255);
+        AssertPx(d, 0, 0, 255, 255, 255, "255 + 0");
+
+        var d2 = Mk24(1, 1);
+        d2.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d2.DoLightness(0);
+        AssertPx(d2, 0, 0, 200, 100, 50, "Amount=0 不变");
+    }
+
+    [Fact]
+    public void DoLightness_负Amount变暗到0()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+        d.DoLightness(-255);
+        // 100 + (155*-255)/255 = 100-155 = -55 → IntToByte → 0
+        AssertPx(d, 0, 0, 0, 0, 0, "IntToByte 下界夹取");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6358-6367 —— DoDarkness
+    // =========================================================================================
+
+    [Fact]
+    public void DoDarkness_委托给Darkness()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+        d.DoDarkness(51);
+        // 100 - (100*51)/255 = 80
+        AssertPx(d, 0, 0, 80, 80, 80, "DIB.pas:6364 → 5961-5963");
+    }
+
+    [Fact]
+    public void DoDarkness_非24bpp时Assign后位深回落_故不做任何事()
+    {
+        var d = new TDIB();
+        d.SetSize(2, 1, 8);
+        d.SetPixel(0, 0, 200);
+        uint before = d.GetPixel(0, 0);
+        d.DoDarkness(255);
+        // BB.BitCount := 24 被随后的 BB.Assign(Self) 覆盖 → Darkness 直接 Exit
+        Assert.Equal(8, d.BitCount);
+        Assert.Equal(before, d.GetPixel(0, 0));
+    }
+
+    [Fact]
+    public void DoDarkness_Amount0不变()
+    {
+        var d = Mk24(2, 1);
+        Fill(d, 100, 100, 100);
+        d.DoDarkness(0);
+        AssertPx(d, 0, 0, 100, 100, 100, "Amount=0");
+        AssertPx(d, 1, 0, 100, 100, 100, "...");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6369-6396 —— DoSaturation
+    // =========================================================================================
+
+    [Fact]
+    public void DoSaturation_Amount255是恒等()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoSaturation(255);
+        // Gray=116；每通道 116 + ((ch-116)*255)/255 = ch
+        AssertPx(d, 0, 0, 200, 100, 50, "DIB.pas:6382-6384");
+    }
+
+    [Fact]
+    public void DoSaturation_Amount0全部变灰()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoSaturation(0);
+        // Gray = (50+100+200)/3 = 116
+        AssertPx(d, 0, 0, 116, 116, 116, "Gray 是整数除");
+    }
+
+    [Fact]
+    public void DoSaturation_Amount128_负差值走向零截断的div()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoSaturation(128);
+        // B=50  ：116 + (-66*128)/255 = 116 + (-8448/255 = -33) = 83
+        // G=100 ：116 + (-16*128)/255 = 116 + (-2048/255 =  -8) = 108
+        // R=200 ：116 + ( 84*128)/255 = 116 + (10752/255 =  42) = 158
+        AssertPx(d, 0, 0, 158, 108, 83, "div 向零截断（不是 shr）");
+    }
+
+    // =========================================================================================
     // DIB.pas 4940-4955 —— TCustomDXDIB
     // =========================================================================================
 

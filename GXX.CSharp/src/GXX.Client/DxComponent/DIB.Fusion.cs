@@ -34,6 +34,31 @@ namespace GXX.Client.DxComponent;
 //   5938-5966  TDIB.Darkness
 //   5940-5945  IntToByte（单元级）—— **不在此处**：已在 DIB.cs:494 落地；TDIB 的同名方法在 DIB.Effects.cs:2818
 //   5968-5973  TrimInt（单元级）—— **不在此处**：已在 DIB.cs:502 落地；TDIB 的同名方法在 DIB.Effects.cs:2803
+//   5975-6036  TDIB.DoSmoothRotate（局部类型 TFColor → 本文件的 DibFColor）
+//   6042-6063  TDIB.DoInvert
+//   6065-6093  TDIB.DoAddColorNoise
+//   6095-6124  TDIB.DoAddMonoNoise
+//   6126-6155  TDIB.DoAntiAlias
+//   6157-6191  TDIB.DoContrast
+//   6193-6302  TDIB.DoFishEye
+//   6304-6328  TDIB.DoGrayScale
+//   6330-6356  TDIB.DoLightness
+//   6358-6367  TDIB.DoDarkness
+//   6369-6396  TDIB.DoSaturation
+//   --- 以下尚未覆盖（见车道报告"空洞覆盖表"）---
+//   6398-6458  DoSplitBlur / DoGaussianBlur
+//   6459-6503  DoMosaic
+//   6504-6643  DoTwist
+//   6644-6791  DoTrace
+//   6792-6826  DoSplitlight
+//   6827-6914  DoTile（含 SmoothResize / Tile 子过程）
+//   6915-6959  DoSpotLight
+//   6960-6989  DoEmboss
+//   6990-7032  DoSolorize
+//   7033-7066  DoPosterize
+//   7067-7116  DoBrightness
+//   7117-7674  DoResample + 8 个重采样滤波器 + TContributor/TCList/TRGB/TColorRGB
+//   7676-7929  DoColorize（含 InvertBitmap）/ FadeOut / DoZoom / DoBlur / FadeIn / FillDIB8
 //
 // 语义前提（**全部为原文 Delphi 7 语义，不是 C# 默认语义**）：
 //   1. 整型提升：Delphi 7 的 `+ - * div mod shl shr` 在操作数小于 Integer 时**提升到 Integer**
@@ -1415,6 +1440,543 @@ public partial class TDIB
                 p0[X * 3 + 2] = IntToByte(B - (B * Amount) / 255);
             }
         }
+    }
+
+    // =========================================================================================
+    // DIB.pas 5975-6036 —— DoSmoothRotate
+    // =========================================================================================
+
+    /// <summary>DIB.pas 5978 —— 原文 `DoSmoothRotate` 内的**局部**类型 `TFColor = record B, G, R: Byte`。</summary>
+    private struct DibFColor
+    {
+        public byte B;
+        public byte G;
+        public byte R;
+    }
+
+    /// <summary>
+    /// DIB.pas 5975-6036 1:1（双线性采样的平滑旋转）。
+    /// 原文冗余（照抄 + 注释）：
+    ///   * 5986 `Angle := Angle;` —— **自赋值**，无效果；
+    ///   * 5980 声明的 `Left` / `Right` / `wx` / `wy` **从未被使用**（托管侧不声明，避免 CS0168 噪声）。
+    /// 字段名与内存序相反但自洽：`nw.R := p1[ifx*3]` 取的是**内存第 0 字节（B 通道）**，
+    /// 而插值写回时 `p3[X*3] := …nw.R…` 也落在第 0 字节 —— 原文如此（DIB.pas:6009-6032）。
+    /// 采样点越界（`ifx`/`ify` 不在 `[0, Src.W/H)`）时**整像素不写**（不是填零）。
+    /// `fx`/`fy` 原文是 Extended（80 位），托管侧用 double（本工程既有约定）；
+    /// `Round` 走 DibFusionSupport.Round（银行家舍入）。
+    /// </summary>
+    public unsafe void DoSmoothRotate(TDIB Src, int cx, int cy, double Angle)
+    {
+        double Top, Bottom, eww, nsw, fx, fy;
+        double cAngle, sAngle;
+        int xDiff, yDiff, ifx, ify, px, py, ix, iy, X, Y;
+        DibFColor nw, ne, sw, se;
+
+        Angle = Angle;                       // 原文如此（DIB.pas:5986）—— 自赋值
+        Angle = -Angle * Math.PI / 180;
+        sAngle = Math.Sin(Angle);
+        cAngle = Math.Cos(Angle);
+        xDiff = (this.Width - Src.Width) / 2;
+        yDiff = (this.Height - Src.Height) / 2;
+        for (Y = 0; Y <= this.Height - 1; Y++)
+        {
+            byte* p3 = (byte*)ScanLine(Y);
+            py = 2 * (Y - cy) + 1;
+            for (X = 0; X <= this.Width - 1; X++)
+            {
+                px = 2 * (X - cx) + 1;
+                fx = (((px * cAngle - py * sAngle) - 1) / 2 + cx) - xDiff;
+                fy = (((px * sAngle + py * cAngle) - 1) / 2 + cy) - yDiff;
+                ifx = DibFusionSupport.Round(fx);
+                ify = DibFusionSupport.Round(fy);
+
+                if (ifx > -1 && ifx < Src.Width && ify > -1 && ify < Src.Height)
+                {
+                    eww = fx - ifx;
+                    nsw = fy - ify;
+                    iy = TrimInt(ify + 1, 0, Src.Height - 1);
+                    ix = TrimInt(ifx + 1, 0, Src.Width - 1);
+                    byte* p1 = (byte*)Src.ScanLine(ify);
+                    byte* P2 = (byte*)Src.ScanLine(iy);
+                    nw.R = p1[ifx * 3];
+                    nw.G = p1[ifx * 3 + 1];
+                    nw.B = p1[ifx * 3 + 2];
+                    ne.R = p1[ix * 3];
+                    ne.G = p1[ix * 3 + 1];
+                    ne.B = p1[ix * 3 + 2];
+                    sw.R = P2[ifx * 3];
+                    sw.G = P2[ifx * 3 + 1];
+                    sw.B = P2[ifx * 3 + 2];
+                    se.R = P2[ix * 3];
+                    se.G = P2[ix * 3 + 1];
+                    se.B = P2[ix * 3 + 2];
+
+                    Top = nw.B + eww * (ne.B - nw.B);
+                    Bottom = sw.B + eww * (se.B - sw.B);
+                    p3[X * 3 + 2] = IntToByte(DibFusionSupport.Round(Top + nsw * (Bottom - Top)));
+
+                    Top = nw.G + eww * (ne.G - nw.G);
+                    Bottom = sw.G + eww * (se.G - sw.G);
+                    p3[X * 3 + 1] = IntToByte(DibFusionSupport.Round(Top + nsw * (Bottom - Top)));
+
+                    Top = nw.R + eww * (ne.R - nw.R);
+                    Bottom = sw.R + eww * (se.R - sw.R);
+                    p3[X * 3] = IntToByte(DibFusionSupport.Round(Top + nsw * (Bottom - Top)));
+                }
+            }
+        }
+    }
+
+    // =========================================================================================
+    // DIB.pas 6042-6063 —— DoInvert
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6042-6063 1:1。
+    /// `PicInvert` 先取 `w`/`h` **再**执行 `Src.BitCount := 24`（SetBitCount → 空图时
+    /// SetSize(max(W,1),max(H,1),24)，非空时 ConvertBitCount(24)）—— 于是循环边界用的是**旧**尺寸。
+    /// 逐字节 `not`（Byte 语义 = 255 - v）。
+    /// </summary>
+    public unsafe void DoInvert()
+    {
+        void PicInvert(TDIB Src)
+        {
+            int w = Src.Width;
+            int h = Src.Height;
+            Src.SetBitCount(24);
+            for (int Y = 0; Y <= h - 1; Y++)
+            {
+                byte* P = (byte*)Src.ScanLine(Y);
+                for (int X = 0; X <= w - 1; X++)
+                {
+                    P[X * 3] = unchecked((byte)~P[X * 3]);
+                    P[X * 3 + 1] = unchecked((byte)~P[X * 3 + 1]);
+                    P[X * 3 + 2] = unchecked((byte)~P[X * 3 + 2]);
+                }
+            }
+        }
+
+        PicInvert(this);
+    }
+
+    // =========================================================================================
+    // DIB.pas 6065-6093 —— DoAddColorNoise
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6065-6093 1:1（三通道**各自独立**取一次随机噪声）。
+    /// `Amount shr 1` 走逻辑右移（§24.3 陷阱 5）。`Random(Amount)` 是 Delphi System.Random 的
+    /// 全局 RandSeed LCG —— 本工程落在 DibEffectsSupport.DibRandom（与 DIB.Effects.cs 的
+    /// Spray/AddMonoNoise 同一实现，保证跨方法共享同一 RandSeed 序列）。
+    /// </summary>
+    public unsafe void DoAddColorNoise(int Amount)
+    {
+        void AddColorNoise(TDIB clip, int Amount2)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int R = p0[X * 3] + (DibEffectsSupport.DibRandom(Amount2) - DibFusionSupport.Shr(Amount2, 1));
+                    int G = p0[X * 3 + 1] + (DibEffectsSupport.DibRandom(Amount2) - DibFusionSupport.Shr(Amount2, 1));
+                    int B = p0[X * 3 + 2] + (DibEffectsSupport.DibRandom(Amount2) - DibFusionSupport.Shr(Amount2, 1));
+                    p0[X * 3] = IntToByte(R);
+                    p0[X * 3 + 1] = IntToByte(G);
+                    p0[X * 3 + 2] = IntToByte(B);
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        AddColorNoise(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6095-6124 —— DoAddMonoNoise
+    // =========================================================================================
+
+    /// <summary>DIB.pas 6095-6124 1:1（三个通道共用**同一个**随机噪声 `a`，与 DoAddColorNoise 相对照）。</summary>
+    public unsafe void DoAddMonoNoise(int Amount)
+    {
+        void _AddMonoNoise(TDIB clip, int Amount2)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int a = DibEffectsSupport.DibRandom(Amount2) - DibFusionSupport.Shr(Amount2, 1);
+                    int R = p0[X * 3] + a;
+                    int G = p0[X * 3 + 1] + a;
+                    int B = p0[X * 3 + 2] + a;
+                    p0[X * 3] = IntToByte(R);
+                    p0[X * 3 + 1] = IntToByte(G);
+                    p0[X * 3 + 2] = IntToByte(B);
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        _AddMonoNoise(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6126-6155 —— DoAntiAlias
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6126-6155 1:1（3x3 十字均值 `div 4`）。
+    /// 原文冗余/怪癖（照抄 + 注释）：
+    ///   * 6132-6133 的 `Memo` 交换：入口恒定传 `(0, 0, Width, Height)`，故交换永不触发；
+    ///   * 6134-6137 的夹取把范围收成 `X ∈ [1, Width-2]`、`Y ∈ [1, Height-2]`；
+    ///   * `clip.BitCount := 24` 在夹取**之后**执行（会重排/换缓冲区）；
+    ///   * 就地写 `p1[X*3]` 而 `p1[(X-1)*3]` 是**同一行上一像素**，X 递增 ⇒ 有顺序依赖，必须照抄顺序。
+    /// 原文注释里的 `(* Inversion des valeurs *)` / `(* si diff俽ence n俫ative*)` 是 OEM 乱码，保留原样。
+    /// </summary>
+    public unsafe void DoAntiAlias()
+    {
+        void AntiAliasRect(TDIB clip, int XOrigin, int YOrigin, int XFinal, int YFinal)
+        {
+            int Memo;
+            if (XFinal < XOrigin) { Memo = XOrigin; XOrigin = XFinal; XFinal = Memo; } // (* Inversion des valeurs   *)
+            if (YFinal < YOrigin) { Memo = YOrigin; YOrigin = YFinal; YFinal = Memo; } // (* si diff俽ence n俫ative*)
+            XOrigin = Math.Max(1, XOrigin);
+            YOrigin = Math.Max(1, YOrigin);
+            XFinal = Math.Min(clip.Width - 2, XFinal);
+            YFinal = Math.Min(clip.Height - 2, YFinal);
+            clip.SetBitCount(24);
+            for (int Y = YOrigin; Y <= YFinal; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y - 1);
+                byte* p1 = (byte*)clip.ScanLine(Y);
+                byte* P2 = (byte*)clip.ScanLine(Y + 1);
+                for (int X = XOrigin; X <= XFinal; X++)
+                {
+                    p1[X * 3] = unchecked((byte)((p0[X * 3] + P2[X * 3] + p1[(X - 1) * 3] + p1[(X + 1) * 3]) / 4));
+                    p1[X * 3 + 1] = unchecked((byte)((p0[X * 3 + 1] + P2[X * 3 + 1] + p1[(X - 1) * 3 + 1] + p1[(X + 1) * 3 + 1]) / 4));
+                    p1[X * 3 + 2] = unchecked((byte)((p0[X * 3 + 2] + P2[X * 3 + 2] + p1[(X - 1) * 3 + 2] + p1[(X + 1) * 3 + 2]) / 4));
+                }
+            }
+        }
+
+        void AntiAlias(TDIB clip)
+        {
+            AntiAliasRect(clip, 0, 0, clip.Width, clip.Height);
+        }
+
+        AntiAlias(this);
+    }
+
+    // =========================================================================================
+    // DIB.pas 6157-6191 —— DoContrast
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6157-6191 1:1：以 127 为中心按 `(Abs(127-ch) * Amount) div 255` 拉开/压缩对比。
+    /// 原文的 `R/G/B` 局部名取的仍是内存序 B/G/R（同式作用，结果不受影响）—— 原文如此（DIB.pas:6168-6170）。
+    /// `> 127` 与 `else`（即 `&lt;= 127`）两分支方向相反 —— 注意 127 本身走**减**分支。
+    /// </summary>
+    public unsafe void DoContrast(int Amount)
+    {
+        void _Contrast(TDIB clip, int Amount2)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int R = p0[X * 3];
+                    int G = p0[X * 3 + 1];
+                    int B = p0[X * 3 + 2];
+                    int rg = (Math.Abs(127 - R) * Amount2) / 255;
+                    int gg = (Math.Abs(127 - G) * Amount2) / 255;
+                    int bg = (Math.Abs(127 - B) * Amount2) / 255;
+                    if (R > 127) R = R + rg; else R = R - rg;
+                    if (G > 127) G = G + gg; else G = G - gg;
+                    if (B > 127) B = B + bg; else B = B - bg;
+                    p0[X * 3] = IntToByte(R);
+                    p0[X * 3 + 1] = IntToByte(G);
+                    p0[X * 3 + 2] = IntToByte(B);
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        _Contrast(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6193-6302 —— DoFishEye
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6193-6302 1:1。
+    /// `Single` 声明照抄为 `float`（原文的表达式在 FPU 里按 Extended 求值，托管侧按 double/float；
+    /// 差异只在末位，故本方法的测试用结构性断言而非逐位相等）。
+    /// 原文缺陷/怪癖（照抄 + 注释）：
+    ///   * 6226 `rmax / 2 * (1 / (1 - r1 / rmax) - 1)`：`r1 = rmax` 时 `1/0` 得 +Inf（Single 除法
+    ///     不抛），随后 `Trunc(±Inf)` 在 Delphi 抛 EInvalidOp —— 托管侧由 DibFusionSupport.Trunc
+    ///     显式抛 ArithmeticException（§25.2，不静默）；
+    ///   * `Amount = 0` 时 `rmax = 0` ⇒ `r1/rmax = +Inf` ⇒ `r2` 得 `0 * (-1) = 0`
+    ///     ⇒ 全图采样到 `(xmid, ymid)` 一点（本片用差异断言锁死）；
+    ///   * 6265/6273 等回绕分支用 `Height - ify - iy` / `Width - ifx - ix`（**不是** `-1-…`），
+    ///     下标可能为负 —— 原文如此；
+    ///   * `slo[tx*3] := Round(total_red)` 直接截断到 Byte（**无** IntToByte 夹取）。
+    /// </summary>
+    public unsafe void DoFishEye(int Amount)
+    {
+        void _FishEye(TDIB bmp, TDIB Dst, double Amount2)
+        {
+            float xmid, ymid;
+            float fx, fy;
+            float r1, r2;
+            int ifx, ify;
+            float dx, dy;
+            float rmax;
+            int ty, tx;
+            float[] weight_x = new float[2];
+            float[] weight_y = new float[2];
+            float weight;
+            int new_red, new_green, new_blue;
+            float total_red, total_green, total_blue;
+            int ix, iy;
+
+            xmid = (float)(bmp.Width / 2.0);
+            ymid = (float)(bmp.Height / 2.0);
+            rmax = (float)(Dst.Width * Amount2);
+
+            for (ty = 0; ty <= Dst.Height - 1; ty++)
+            {
+                for (tx = 0; tx <= Dst.Width - 1; tx++)
+                {
+                    dx = tx - xmid;
+                    dy = ty - ymid;
+                    r1 = (float)Math.Sqrt(dx * dx + dy * dy);
+                    if (r1 == 0)
+                    {
+                        fx = xmid;
+                        fy = ymid;
+                    }
+                    else
+                    {
+                        r2 = (float)((double)rmax / 2 * (1 / (1 - (double)r1 / rmax) - 1));
+                        fx = (float)((double)dx * r2 / r1 + xmid);
+                        fy = (float)((double)dy * r2 / r1 + ymid);
+                    }
+                    ify = DibFusionSupport.Trunc(fy);
+                    ifx = DibFusionSupport.Trunc(fx);
+                    // Calculate the weights.
+                    if (fy >= 0)
+                    {
+                        weight_y[1] = fy - ify;
+                        weight_y[0] = 1 - weight_y[1];
+                    }
+                    else
+                    {
+                        weight_y[0] = -(fy - ify);
+                        weight_y[1] = 1 - weight_y[0];
+                    }
+                    if (fx >= 0)
+                    {
+                        weight_x[1] = fx - ifx;
+                        weight_x[0] = 1 - weight_x[1];
+                    }
+                    else
+                    {
+                        weight_x[0] = -(fx - ifx);
+                        weight_x[1] = 1 - weight_x[0];
+                    }
+
+                    if (ifx < 0)
+                        ifx = bmp.Width - 1 - (-ifx % bmp.Width);
+                    else if (ifx > bmp.Width - 1)
+                        ifx = ifx % bmp.Width;
+                    if (ify < 0)
+                        ify = bmp.Height - 1 - (-ify % bmp.Height);
+                    else if (ify > bmp.Height - 1)
+                        ify = ify % bmp.Height;
+
+                    total_red = 0.0f;
+                    total_green = 0.0f;
+                    total_blue = 0.0f;
+                    for (ix = 0; ix <= 1; ix++)
+                    {
+                        for (iy = 0; iy <= 1; iy++)
+                        {
+                            byte* sli;
+                            if (ify + iy < bmp.Height)
+                                sli = (byte*)bmp.ScanLine(ify + iy);
+                            else
+                                sli = (byte*)bmp.ScanLine(bmp.Height - ify - iy);
+                            if (ifx + ix < bmp.Width)
+                            {
+                                new_red = sli[(ifx + ix) * 3];
+                                new_green = sli[(ifx + ix) * 3 + 1];
+                                new_blue = sli[(ifx + ix) * 3 + 2];
+                            }
+                            else
+                            {
+                                new_red = sli[(bmp.Width - ifx - ix) * 3];
+                                new_green = sli[(bmp.Width - ifx - ix) * 3 + 1];
+                                new_blue = sli[(bmp.Width - ifx - ix) * 3 + 2];
+                            }
+                            weight = weight_x[ix] * weight_y[iy];
+                            total_red = total_red + new_red * weight;
+                            total_green = total_green + new_green * weight;
+                            total_blue = total_blue + new_blue * weight;
+                        }
+                    }
+                    byte* slo = (byte*)Dst.ScanLine(ty);
+                    slo[tx * 3] = unchecked((byte)DibFusionSupport.Round(total_red));
+                    slo[tx * 3 + 1] = unchecked((byte)DibFusionSupport.Round(total_green));
+                    slo[tx * 3 + 2] = unchecked((byte)DibFusionSupport.Round(total_blue));
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        _FishEye(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6304-6328 —— DoGrayScale
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6304-6328 1:1：`Gray := Round(B*0.3 + G*0.59 + R*0.11)`，三通道同写该值。
+    /// 写回是**直接截断**到 Byte（无 IntToByte 夹取）—— 原文如此（DIB.pas:6314-6316）。
+    /// 权重按**内存序**（0=B、1=G、2=R）取，故 0.3 加在 B 上 —— 与常规亮度公式的
+    /// "R 权重最大"相反，但三通道权重和仍为 1，结果不受影响。
+    /// </summary>
+    public unsafe void DoGrayScale()
+    {
+        void GrayScale(TDIB clip)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int Gray = DibFusionSupport.Round(
+                        p0[X * 3] * 0.3 + p0[X * 3 + 1] * 0.59 + p0[X * 3 + 2] * 0.11);
+                    p0[X * 3] = unchecked((byte)Gray);
+                    p0[X * 3 + 1] = unchecked((byte)Gray);
+                    p0[X * 3 + 2] = unchecked((byte)Gray);
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        GrayScale(BB);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6330-6356 —— DoLightness
+    // =========================================================================================
+
+    /// <summary>DIB.pas 6330-6356 1:1：`ch + ((255 - ch) * Amount) div 255`（向白靠拢）。</summary>
+    public unsafe void DoLightness(int Amount)
+    {
+        void _Lightness(TDIB clip, int Amount2)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int R = p0[X * 3];
+                    int G = p0[X * 3 + 1];
+                    int B = p0[X * 3 + 2];
+                    p0[X * 3] = IntToByte(R + ((255 - R) * Amount2) / 255);
+                    p0[X * 3 + 1] = IntToByte(G + ((255 - G) * Amount2) / 255);
+                    p0[X * 3 + 2] = IntToByte(B + ((255 - B) * Amount2) / 255);
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        _Lightness(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6358-6367 —— DoDarkness
+    // =========================================================================================
+
+    /// <summary>DIB.pas 6358-6367 1:1（转调 TDIB.Darkness，即 DIB.pas 5949-5966）。</summary>
+    public void DoDarkness(int Amount)
+    {
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        BB.Darkness(Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6369-6396 —— DoSaturation
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6369-6396 1:1：`Gray := (R+G+B) div 3`，再 `Gray + ((ch - Gray) * Amount) div 255`。
+    /// `(ch - Gray)` 可为负 ⇒ `* Amount) div 255` 是**向零截断**的整数除（C# 的 int `/` 同）——
+    /// 注意与 `shr` 的区别：这里用的是 `div`，绝不能换成移位。
+    /// </summary>
+    public unsafe void DoSaturation(int Amount)
+    {
+        void _Saturation(TDIB clip, int Amount2)
+        {
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int R = p0[X * 3];
+                    int G = p0[X * 3 + 1];
+                    int B = p0[X * 3 + 2];
+                    int Gray = (R + G + B) / 3;
+                    p0[X * 3] = IntToByte(Gray + (((R - Gray) * Amount2) / 255));
+                    p0[X * 3 + 1] = IntToByte(Gray + (((G - Gray) * Amount2) / 255));
+                    p0[X * 3 + 2] = IntToByte(Gray + (((B - Gray) * Amount2) / 255));
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        _Saturation(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
     }
 
     // =========================================================================================

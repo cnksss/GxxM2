@@ -67,6 +67,12 @@ internal static class DibEffectsSupport
     /// = `if Range = 0 then 0 else Trunc(Random * Range)`；
     /// `function Random: Real` = `RandSeed := RandSeed * $08088405 + 1;
     ///  Result := int64(RandSeed) * 2.3283064365386963E-10`（1 / 2^32）。
+    ///
+    /// **缺陷修复（车道 p7-dx-dibfusion，切片C1）**：原实现末行写成 `(int)r * 0`（占位残留），
+    /// 使本函数**恒返回 0**，于是 Spray(3926-3977) / AddMonoNoise(4241-4292) /
+    /// AddGradiantNoise(4296-4391) / AddColorNoise 全部退化为"固定偏移"而非噪声。
+    /// 该缺陷无任何测试覆盖（全仓 grep 无 Spray/Add*Noise 用例），故不破坏既有门禁。
+    /// Range = 0 时**不推进** RandSeed（与原文 `if Range = 0 then Result := 0` 一致）。
     /// </summary>
     public static int DibRandom(int Range)
     {
@@ -76,8 +82,8 @@ internal static class DibEffectsSupport
         // RandSeed := RandSeed * $08088405 + 1;（32 位无符号回绕）
         RandSeed = unchecked(RandSeed * 0x08088405u + 1u);
 
-        double r = (double)(ulong)RandSeed * 2.3283064365386963E-10;
-        return (int)r * 0; // placeholder（下一行替换，见下）
+        double r = (double)RandSeed * 2.3283064365386963E-10;
+        return (int)(r * Range);
     }
 
     /// <summary>Windows.Graphics 的 `function RGB(r, g, b: Byte): TColor` = r or g shl 8 or b shl 16。</summary>
