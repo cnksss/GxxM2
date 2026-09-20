@@ -238,6 +238,12 @@ public partial interface IMirReturnConfigDlgControls
     string PlugComboBoxPlayAttackValueItemsText { get; set; }
 
     // ---- 音量（原文 2034-2039 / 5942-5952） ----
+    /// <summary>接缝：<c>TrackBarVolume.Max</c>（原文 2037）。</summary>
+    int TrackBarVolumeMax { get; set; }
+    /// <summary>接缝：<c>TrackBarVolume.Min</c>（原文 2038）。</summary>
+    int TrackBarVolumeMin { get; set; }
+    /// <summary>接缝：<c>TrackBarVolume.Position</c>（原文 2039/5944/5950）。</summary>
+    int TrackBarVolumePosition { get; set; }
     /// <summary>接缝：<c>PlugCheckBoxVolume.Caption</c>（5945 写 '音量'、5951 写音量数字）。</summary>
     string PlugCheckBoxVolumeCaption { get; set; }
     /// <summary>接缝：<c>PlugComboBoxCheckHPValue.Visible</c>（原文 1868/1875）。</summary>
@@ -246,8 +252,8 @@ public partial interface IMirReturnConfigDlgControls
     bool PlugComboBoxCheckMPValueVisible { get; set; }
 
     // ---- 帮助页（原文 1036-1080） ----
-    /// <summary>接缝：<c>PlugMemoConfigHelp &lt;&gt; nil</c>。</summary>
-    object PlugMemoConfigHelp { get; }
+    /// <summary>接缝：<c>PlugMemoConfigHelp &lt;&gt; nil</c>（可注入，便于测试"控件缺失"分支）。</summary>
+    object PlugMemoConfigHelp { get; set; }
     /// <summary>接缝：<c>PlugMemoConfigHelp.LoadFromFile(FileName)</c>。</summary>
     void PlugMemoConfigHelpLoadFromFile(string fileName);
     /// <summary>接缝：<c>PlugMemoConfigHelp.Lines.Count</c>。</summary>
@@ -521,8 +527,16 @@ public sealed partial class MirReturnConfigDlgControlsStub : IMirReturnConfigDlg
     public int PlugEditSuperMedicaHPTime(int index) => SuperHpTime(index);
     public int PlugEditSuperMedicaMP(int index) => SuperMp(index);
     public int PlugEditSuperMedicaMPTime(int index) => SuperMpTime(index);
-    public void SetPlugEditSuperMedicaHP(int index, int value) { SetSuperHp(index, value); SuperHpWrites[index < 8 ? index : 0] = value; }
-    public void SetPlugEditSuperMedicaMP(int index, int value) { SetSuperMp(index, value); SuperMpWrites[index < 8 ? index : 0] = value; }
+    public void SetPlugEditSuperMedicaHP(int index, int value)
+    {
+        SetSuperHp(index, value);
+        if (index >= 0 && index <= 7) SuperHpWrites[index] = value;   // 原文 5913-5920 只回写控件 0..7
+    }
+    public void SetPlugEditSuperMedicaMP(int index, int value)
+    {
+        SetSuperMp(index, value);
+        if (index >= 0 && index <= 7) SuperMpWrites[index] = value;
+    }
     public void SetPlugEditSuperMedicaHPTime(int index, int value) => SetSuperHpTime(index, value);
     public void SetPlugEditSuperMedicaMPTime(int index, int value) => SetSuperMpTime(index, value);
 
@@ -537,6 +551,7 @@ public sealed partial class MirReturnConfigDlgControlsStub : IMirReturnConfigDlg
     // ---- 自动练功下拉 ----
     /// <summary>测试用：自动练功下拉条目（name + 原始对象）。</summary>
     public readonly List<(string Name, object Obj)> AutoMagicItems = new List<(string, object)>();
+    public object PlugComboBoxAutoMagic { get; set; } = new object();
     public int PlugComboBoxAutoMagicItemIndex { get; set; } = -1;
     public int PlugComboBoxAutoMagicItemsCount => AutoMagicItems.Count;
     public void PlugComboBoxAutoMagicItemsClear() => AutoMagicItems.Clear();
@@ -549,11 +564,15 @@ public sealed partial class MirReturnConfigDlgControlsStub : IMirReturnConfigDlg
     public string PlugComboBoxBagFullValueItemsText { get; set; } = "";
     public string PlugComboBoxPlayAttackValueItemsText { get; set; } = "";
 
+    public int TrackBarVolumeMax { get; set; }
+    public int TrackBarVolumeMin { get; set; }
+    public int TrackBarVolumePosition { get; set; }
     public string PlugCheckBoxVolumeCaption { get; set; } = "";
     public bool PlugComboBoxCheckHPValueVisible { get; set; } = true;
     public bool PlugComboBoxCheckMPValueVisible { get; set; } = true;
 
     // ---- 帮助页 ----
+    public object PlugMemoConfigHelp { get; set; } = new object();
     public bool PlugMemoConfigHelpFontBackTransparent { get; set; }
     public void PlugMemoConfigHelpLoadFromFile(string fileName) => HelpLoadedFrom = fileName;
     /// <summary>测试用：最近一次 LoadFromFile 的路径。</summary>

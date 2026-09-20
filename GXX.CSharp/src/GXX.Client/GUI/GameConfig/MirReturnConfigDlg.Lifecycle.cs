@@ -429,7 +429,7 @@ public partial class TMirReturnConfigDlg
     /// </summary>
     public void OnChangedVolumePosition()
     {
-        MirReturnGlobalSeam.g_SoundVolume = Plug.TrackBarVolume;    // 5944
+        MirReturnGlobalSeam.g_SoundVolume = Plug.TrackBarVolumePosition;    // 5944
         Plug.PlugCheckBoxVolumeCaption = "音量";                            // 5945
     }
 
@@ -440,7 +440,7 @@ public partial class TMirReturnConfigDlg
     /// </summary>
     public void OnChanggingVolumePosition()
     {
-        MirReturnGlobalSeam.g_SoundVolume = Plug.TrackBarVolume;    // 5950
+        MirReturnGlobalSeam.g_SoundVolume = Plug.TrackBarVolumePosition;    // 5950
         Plug.PlugCheckBoxVolumeCaption = MirReturnGlobalSeam.g_SoundVolume.ToString(
             System.Globalization.CultureInfo.InvariantCulture);             // 5951
     }
