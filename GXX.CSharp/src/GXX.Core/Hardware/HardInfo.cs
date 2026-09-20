@@ -599,6 +599,8 @@ public static unsafe class HardInfo
             var pInData = new TSendCmdInParams();
             // FillChar(Buffer, BufferSize, #0) —— 原文 :505
             BuildScsiIdentifySendCmdIn(ref pInData, identifyCommand: IDE_ID_FUNCTION); // 原文 :553-567
+            // pInData := PSendCmdInParams(@Buffer); —— 原文 :551（Win9x 分支的 SCIP 就写在缓冲首址）
+            WriteStruct(pInData, Buffer, 0);
             ioOk = runtime.Disk.SmartVsdIoControl(
                 pInData, HardInfoLayout.SendCmdInParamsSize - 1, Buffer,
                 HardInfoLayout.SendCmdInParams_bBuffer, W9xBufferSize, out cbBytesReturned); // 原文 :568-570

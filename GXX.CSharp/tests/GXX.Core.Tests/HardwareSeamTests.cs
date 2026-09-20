@@ -196,6 +196,10 @@ public class HardwareSeamTests
         // ★ 原文缺陷：Win9x 分支的 outOffset 是 @pInData^.bBuffer = 32（不是 0），IDENTIFY 因而是 +48 而不是 +44
         Assert.Equal(HardInfoLayout.SendCmdInParams_bBuffer, call.outOffset);
         Assert.Equal(HardInfo.W9xBufferSize, call.outSize);
+        // 原文 :551 把 SCIP 就写在**缓冲首址**（与 NT 分支的 +28 不同）
+        Assert.Equal(512u, ReadU32(os.LastSmartVsdBuffer, 0));   // cBufferSize
+        Assert.Equal(0xA0, os.LastSmartVsdBuffer[4 + 5]);        // bDriveHeadReg
+        Assert.Equal(0xEC, os.LastSmartVsdBuffer[4 + 6]);        // bCommandReg
     }
 
     [Fact]
