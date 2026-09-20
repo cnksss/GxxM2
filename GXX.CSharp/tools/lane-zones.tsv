@@ -27,3 +27,4 @@ p4-rungate-mirclient	!GXX.CSharp/src/GXX.RunGate/MirClientContext*.cs;GXX.CSharp
 p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;GXX.CSharp/tests/GXX.M2Server.Tests/Npc*;!GXX.CSharp/docs/并行报告-p4-m2-objnpc.md
 # ---- P5 wave: 最后一个无人认领的巨型单元 ----
 p5-client-mirreturn	GXX.CSharp/src/GXX.Client/GUI/GameConfig/MirReturn*.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirReturn*;GXX.CSharp/docs/并行报告-p5-client-mirreturn.md
+p5-m2-custommagic	GXX.CSharp/src/GXX.M2Server/Forms/CustomMagic/**;GXX.CSharp/tests/GXX.M2Server.Tests/CustomMagic*;GXX.CSharp/docs/并行报告-p5-m2-custommagic.md
