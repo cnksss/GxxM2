@@ -276,4 +276,60 @@ public sealed class NpcObjNpcVerificationGuardTests : System.IDisposable
         Assert.Equal("", DelphiRTL.Copy("ABC", 1, 0));       // Count = 0 → 空
         Assert.Equal("", DelphiRTL.Copy("", 1, 10));         // 源为空 → 空
     }
+
+    // =======================================================================
+    // V7：常量值逐条对照原文（防止转录错位）
+    // =======================================================================
+
+    [Fact]
+    public void V7_CmdRaceConstantsMatchOriginalLines10To22()
+    {
+        Assert.Equal(0, ObjNpcConst.CMD_RACE_0);
+        Assert.Equal(1, ObjNpcConst.CMD_RACE_1);
+        Assert.Equal(2, ObjNpcConst.CMD_RACE_2);
+        Assert.Equal(3, ObjNpcConst.CMD_RACE_3);
+        Assert.Equal(4, ObjNpcConst.CMD_RACE_4);
+        Assert.Equal(5, ObjNpcConst.CMD_RACE_5);
+        Assert.Equal(6, ObjNpcConst.CMD_RACE_6);
+        Assert.Equal(7, ObjNpcConst.CMD_RACE_7);
+        Assert.Equal(8, ObjNpcConst.CMD_RACE_8);
+        Assert.Equal(9, ObjNpcConst.CMD_RACE_9);
+        Assert.Equal(10, ObjNpcConst.CMD_RACE_10);
+        Assert.Equal(11, ObjNpcConst.CMD_RACE_11);
+        Assert.Equal(12, ObjNpcConst.CMD_RACE_12);
+        // M2Share.pas:87 / :96
+        Assert.Equal(0, ObjNpcConst.LOG_ActionNone);
+        Assert.Equal(9, ObjNpcConst.LOG_ItemDisappear);
+    }
+
+    [Fact]
+    public void V7_M2ShareDirectoryConstantsMatchOriginalLines378To381()
+    {
+        Assert.Equal(@"Market_Def\", NpcSeams.sMarket_Def);  // M2Share.pas:378
+        Assert.Equal(@"Npc_def\", NpcSeams.sNpc_def);        // M2Share.pas:379
+        Assert.Equal(@"NpcIcons\", NpcSeams.sNpcIcons);      // M2Share.pas:381
+    }
+
+    [Fact]
+    public void V7_BlackStoneDefaultNameMatchesM2ShareLine4142()
+    {
+        Assert.Equal("黑铁矿", NpcSeams.sBlackStone);
+    }
+
+    [Fact]
+    public void V7_RcBoxValueIsThirty()
+    {
+        Assert.Equal(30, GXX.Core.Protocol.Grobal2Const.RC_BOX);
+    }
+
+    [Fact]
+    public void V7_HeroExtOffLeavesZeroWhichEqualsCmdRaceZero()
+    {
+        // `CMD_RACE_0 = 0` 与"未赋值"的零初始化**不可区分** —— 这是最容易把
+        // "HM 分支没生效"误判成"映射成了 self"的一处，用常量关系显式钉住。
+        NpcSeams.g_nKey_HeroExt = 0;
+        var info = new TQuestActionInfo();
+        ObjNpcUnitFuncs.LoadLevelScriptAction(info, "HM.X");
+        Assert.Equal(ObjNpcConst.CMD_RACE_0, info.ScriptCmd[1]);
+    }
 }

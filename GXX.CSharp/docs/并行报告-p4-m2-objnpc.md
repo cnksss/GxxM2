@@ -687,3 +687,97 @@ ObjNpc 的剩余 56 条里有 **20 条以上**会同时解锁 —— 比逐条�
 | 1684-1902 | `TMerchant.UpgradeWapon` 外层体 | 76 | §8.6(3) |
 | 1186-1334 | `TCastleOfficial.UserSelect` | 149 | Castle + GotoLable |
 | 1335-1445 | `TCastleOfficial.HireGuard`/`HireArcher` | 111 | Castle |
+---
+
+# 9. 复核轮（切片 12）：已覆盖 57 条的逐条回读复核
+
+> 按调度方裁定：**暂停新增接缝**（guild/castle 剩余例程接缝密度约 1 接缝/7 行，不划算；
+> `TPlayObject`/`TCreature` 面已另开车道 `p6-m2-playersurface` 补齐），转为"已覆盖例程的语义等价复核"。
+> 复核方法：**机械化交叉核对**（分支顺序 / Break 归属 / 数值区间序列 / 常量值）+ **逐族人工回读原文**。
+
+## 9.1 复核结果表
+
+| 方法族 | 例程（原文行号） | 结论 | 依据 |
+|---|---|---|---|
+| 脚本目标级解析 | `LoadLevelScriptAction`(509) `LoadLevelScriptCondition`(596) `GetLevelBaseObjectCondition`(682) `GetLevelBaseObjectAction`(857) | **等价** | ① case 标签序列：Condition 10/10、Action 13/13 **逐项一致**（首轮脚本误报 7/8 缺失，根因是原文 801/818/983/1000 的标签**带行尾注释** `// Hero.mon`，正则漏配 —— 已修正正则复跑）；② `Break` 归属：原文 Action 段共 25 个 `Break`，其中 3 个（1043/1065/1088）缩进 18 空格、属**内层 `for II` / `while`**，剩余 22 个属外层 for —— 与 C# 的 22 处 `boBreak = true` **完全一致**；Condition 段 18/18 一致；③ 23 条分支逐条人工回读（含 `m_MyGamePet` / `m_SlaveList` / `GetPoseCreate` 的逐支 nil 判定） |
+| 变量系统 | `GetValNameValue`(5690) `GetVarValue`×4(4443-4493) `SetVarValue`(4495) `GetDynamicValue`(4512) `SetDynamicValue`(4576) `GetDynamicVarList`(9877) `GetLineVariableText`(5981) | **等价（1 处已修）** | ① 12 段数值区间序列**逐项一致**；② `sData[Length(sData)-1]`（1-based 倒数第二）→ 托管 `sData[Length-2]` 换算核对；③ `ref` vs `out`：原文空串提前 `Exit` **不写出参**，已用 `GetValNameValue_EmptyVar_LeavesOutParamsUntouched` 锁死（若误用 `out` 此例必红）；④ **已修**：`GetDynamicValue`/`SetDynamicValue` 的变量名比较原用 `StringComparison.OrdinalIgnoreCase`，原文 4554/4616 是 `SysUtils.CompareText` → 改为 `ObjNpcText.CompareText(...) == 0`（`CompareText` 是本车道落地的原文 1:1 版）。保留 `OrdinalIgnoreCase` 的一处是原文 5709 `SameText`（Delphi 为 locale 敏感的 `AnsiCompareText`，仓库无对应垫片，托管取 `OrdinalIgnoreCase` 为最接近等效） |
+| 标签 / 排序 | `AllowSelect`(5934) `AddSelectLable`(5953) `DeleteSelectLable`(5967) `QuickSortRecordList`(9955) `DoSort`(9996) `GetSayingRecordFromRecordList`(10019) `ClearScript`(4383) `ScriptActionError`(9745) `ScriptConditionError`(9767) | **等价** | ① 200 元素随机标签排序结果与 `List.Sort(OrdinalIgnoreCase)` **全等**（覆盖 Hoare 划分 + 枢纽元素跟随交换 + 尾递归消除）；② 二分命中项 `Assert.Same`（引用相等）；③ `CompareLStr(sLabel, 条目, **条目长度**)` 的"长度取条目侧"怪癖已单测；④ 错误上报格式串**逐字**对照（含 `%s`/`%d` 与 16 个占位符） |
+| 商人价格 | `AddItemPrice`(1446) `CheckItemPrice`(1457) `GetRefillList`(1488) `CheckItemType`(1630) `GetItemPrice`(1645) `GetUserPrice`(2052) `GetUserItemPrice`(3272) `GetSellItemPrice`(3793) `ClearExpreUpgradeListData`(3160) | **等价** | 42 用例：`GetUserItemPrice` 的 8 步公式链（肉/43/属性加成/叠加/耐久折算）逐步锁定；银行家舍入 6 个边界（±0.5/±1.5/±2.5）；`GetUserPrice` 成员价的**整数除法缺陷**已用 3 个不同 `m_nPriceRate`（100/1/999）证明结果恒 60 |
+| 商人存取 / 装载 | `LoadNPCData`(3052) `SaveNPCData`(3062) `LoadNpcScript`(3180) `LoadNpcIconFile`(3206) `LoadUpgradeList`(4196) `SaveUpgradingList`(1674) `ClearData`(4241) `AddItemToGoodsList`(3869) `SendCustemMsg`(4235) | **等价** | seam 调用的**顺序与文件名**逐条断言（`m_sScript + '-' + m_sMapName`）；`IsAddMapName × m_boFB` **四组合**全覆盖（含原文"两分支体相同"的冗余）；异常被吞 + 输出两条信息；`ClearData` 的 nil 组 `Continue` |
+| 升级材料聚合 | 嵌套过程 `sub_4A0218`(1686-1828) | **等价** | 16 用例：倒序拼接 `DelItems`（`黑铁矿/3/2/1` 顺序）、只取前 5 耐久、最大/次大滚动、StdMode 三档、`btValue[13]` 自定义名、`NeedIdentify` 日志、空表差异、byte 截断（400→144） |
+| 公会 / 攻城 | `TGuildOfficial.Click`(10049) `TGuildOfficial.GetVariableText`(10055) `TGuildOfficial.SendCustemMsg`(10386) `TCastleOfficial.Click`(1107) `TCastleOfficial.Create`(10364) `TCastleOfficial.SendCustemMsg`(10391) `TMerchant.Click`(3228) | **等价** | `$REQUESTCASTLELIST` 用**字面量期望串**锁死（含 `\` 每两项分行、末尾 `'\ \'`、`%s`/`%d` 位置）；`TCastleOfficial.Click` 的"非成员静默无反应"三分支；`SendCustemMsg` 不调基类 |
+| 箱子怪 / 类型 | `TBoxMonster.Create/Operate/Run`(10510/10527/10534)；全部记录与类字段；常量 | **等价** | 常量值**逐条**对照原文：`CMD_RACE_0..12`(10-22) / `LOG_ActionNone=0`(M2Share:87) / `LOG_ItemDisappear=9`(:96) / `sMarket_Def`·`sNpc_def`·`sNpcIcons`(:378/379/381) / `sBlackStone='黑铁矿'`(:4142) / `RC_BOX=30` |
+
+## 9.2 复核发现的两个 **GXX.Core 层真实语义偏差**（本车道无写权限，仅上报）
+
+> 两者**都能被 ObjNpc 的已覆盖路径触达**，故不是理论问题。均已加"复核守卫"用例锁定当前行为，
+> Core 侧修好后这些用例会**失败** —— 那正是它们的作用（提醒本车道调用点需重新回读原文）。
+
+### (A) `DelphiRTL.Trim` / `TrimLeft` / `TrimRight` 比 Delphi 的**窄**
+
+现状（`src/GXX.Core/Rtl/DelphiRTL.cs:55-57`）：
+```csharp
+public static string Trim(string s) => s?.Trim(' ', '\t', '\r', '\n', '\f', '\v') ?? "";
+```
+只去 6 个字符（#9 #10 #11 #12 #13 #32）。原文 `SysUtils.Trim` 是
+```
+while (I <= L) and (S[I] <= ' ') do Inc(I);   // 即去所有 #0..#32
+```
+→ **#0..#8 与 #14..#31 原文会去掉、托管侧不去**。
+要求改为：
+```csharp
+public static string Trim(string s)
+{
+    if (string.IsNullOrEmpty(s)) return "";
+    int i = 0, j = s.Length - 1;
+    while (i <= j && s[i] <= ' ') i++;
+    if (i > j) return "";
+    while (s[j] <= ' ') j--;
+    return s.Substring(i, j - i + 1);
+}
+```
+（`TrimLeft`/`TrimRight` 同理。）
+
+**可达后果**（已加 `V1_*` 3 例）：`LoadLevelScriptAction("HERO\u0014.CHECKITEM")`
+原文 → `Trim` 去 #20 → `'HERO'` → `CMD_RACE_1`；托管 → `'HERO\u0014'` ≠ `'HERO'` → `CMD_RACE_5`（目标级别解析错）。
+
+### (B) `DelphiRTL.StrToInt64Def` 会 **Trim**，而 Delphi 的 `Val` 只跳**前导**空白
+
+现状（`DelphiRTL.cs:76-81`）：`s = s?.Trim() ?? "";` 后 `long.TryParse`。
+原文 `StrToInt64Def` 走 `Val(S, Result, E)`；`Val` **跳前导空白但不接受尾随空白**，尾随空白时 `E <> 0` → 返回 `Default`。
+→ **`"123 "` 原文得 `Default`、托管得 `123`**。
+要求改为：先只去**前导**空白（`TrimStart(' ')`，且 `Val` 只跳空格与制表符）再 `TryParse`：
+```csharp
+public static long StrToInt64Def(string s, long def)
+{
+    s = (s ?? "").TrimStart(' ', '\t');
+    return long.TryParse(s, NumberStyles.AllowLeadingSign, CultureInfo.InvariantCulture, out long v) ? v : def;
+}
+```
+**可达后果**（已加 `V2_*` 3 例）：`S$V = "77 "` 时 `GetValNameValue` 的
+`nValue := StrToInt64Def(sValue, nValue)` 原文保留 Default（0），托管得 77。
+
+> 注：`DelphiRTL.StrToIntDef`（`int` 版，`:70-75`）有同样问题；`StrToInt`（`:64`）亦然。
+> 另：`GXX.M2Server.Engine` 侧若也有同名垫片，请一并统一 —— 本车道不改他人文件。
+
+## 9.3 复核**未发现**问题的项（列出以便审计）
+
+- `DelphiRTL.Pos` 空串返回 0、1-based：与原文一致；ObjNpc 所有调用点传的是非空字面量（`.`/`<`/`$`/`>`/`[`/`]`），空串分支不可达。
+- `DelphiRTL.Copy` 的 `Index > Length → ''`、`Count <= 0 → ''`、`Count` 超长截断：与原文一致（已加 `V6_*`）。
+- `DelphiRTL.UpperCase` = `ToUpperInvariant`：对 ASCII 与 CJK 与原文 `UpCase` 等价（Delphi 的 `UpperCase` 是逐字节 locale 无关 UpCase）。
+- `DelphiRTL.Format` 的 `%s`/`%d`：3 处调用点的实参类型与占位符**逐一对齐**（无 `ParadoxConv` 那类 `%S` 误用）。
+- `EnvirWalkDoorCore.DelphiRound`（银行家舍入）：与 Delphi `Round` 一致，6 个半值边界已锁。
+- `HUtil32.sub_49ADB8` / `ArrestVariable` / `ArrestStringEx`：ObjNpc 是**调用方**，其语义已由既有单元负责；本车道用 3 例锁死调用点观测行为（含 `ArrestVariable` 取出串**含 `$`**）。
+- 整数除法/取模：3 处（`GetUserPrice:2073`、`GetUserItemPrice:3321` 组、`sub_4A0218:1821-1823`）逐处核对。
+- `byte` 出参在范围检查关闭下的截断：2 处（`sub_4A0218` 的 4 个 `var Byte`）已用 `(byte)` 显式转换 + 用例锁定（400 → 144）。
+
+## 9.4 复核的**局限（诚实说明）**
+
+1. `ExtractStrings(['.'], [], ...)` 的等效**仍未从 Delphi 7 `Classes.pas` 源码逐行核实**（本机无 Delphi 源码），
+   只做了"跳空串 + 不 Trim + 前导/中间/尾随点"的**行为面**锁定（`V3_*` 4 例）。Delphi 实现内部的
+   `ItemBuf[0..4095]` 单项上限与 `#0` 截断分支**未覆盖**（ObjNpc 调用点已由 `Pos('.')>0` 保证非空且命令名远短于 4095）。
+2. `TGroupItems.ExtractStrings` 属**会话 A 常驻区**，本车道只调用不改；它一旦被改，`V3_*` 会红。
+3. 复核是**语义等价**层面的，**不是**"与真实宿主的端到端行为一致" —— 接缝默认实现仍是"无宿主"，
+   端到端仍不可运行（见 §7.3）。
+4. `GetVariableText`(3,252 行)、`SetValNameValue`(391)、`Get/SetBoxItemValue`(654) 四条 **Seam 例程本身未经复核**
+   （它们只有外壳 + 接缝，没有可复核的实现体）。
