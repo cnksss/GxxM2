@@ -39,3 +39,4 @@ p6-m2-playersurface	GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/**;GXX.CSha
 p6-test-isolation	GXX.CSharp/tests/GXX.M2Server.Tests/M2ConfigIsolation*.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/TestConfig.cs;GXX.CSharp/docs/并行报告-p6-test-isolation.md
 # CustomActor: replaces a 6-line stub in PlaySceneNewActor.cs with the full 1130-line class.
 p6-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/CustomActor*.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;GXX.CSharp/tests/GXX.Client.Tests/CustomActor*;GXX.CSharp/docs/并行报告-p6-client-actor.md
+p6-core-hardinfo	GXX.CSharp/src/GXX.Core/Hardware/**;GXX.CSharp/tests/GXX.Core.Tests/Hardware*;GXX.CSharp/docs/并行报告-p6-core-hardinfo.md

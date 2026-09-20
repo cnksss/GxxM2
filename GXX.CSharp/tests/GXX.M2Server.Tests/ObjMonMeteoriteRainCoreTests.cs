@@ -300,9 +300,12 @@ public sealed class ObjMonMeteoriteRainCoreTests
         Assert.True(ObjMonMeteoriteRainCore.NewResistForm());
         Assert.True(ObjMonMeteoriteRainCore.FifthForm());
         Assert.True(ObjMonMeteoriteRainCore.UsesAntiMagicNotAntiPoison());
-        Assert.True(ObjMonMeteoriteRainCore.DirectionIsReversed());
+        Assert.True(ObjMonMeteoriteRainCore.SameDirectionAsOthers());
+        Assert.True(ObjMonMeteoriteRainCore.FormDiffersNotDirection());
         Assert.True(ObjMonMeteoriteRainCore.ResistFormsExtracted());
-        Assert.True(ObjMonMeteoriteRainCore.FirstFourSameDirection());
+        Assert.True(ObjMonMeteoriteRainCore.VariableFacesFamilyHasThree());
+        Assert.True(ObjMonMeteoriteRainCore.IndexTwoIsDiceProperty());
+        Assert.True(ObjMonMeteoriteRainCore.IndexFourIsFixedFaces());
 
         Assert.Equal(5, ObjMonMeteoriteRainCore.ResistForms.Length);
         Assert.Equal("m_nAntiMagic", ObjMonMeteoriteRainCore.ResistForms[4].Target);

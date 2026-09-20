@@ -1012,3 +1012,27 @@ DFM 边界由**脚本抽取 + 回读**（非手工转录）：`seCheckServerTime
 * **S6/S7/S8** 未开始；`IRunGate`/`TIocpClientContext`/`TIocpTcpServer`/`IFrmMainSeam` 已由兄弟车道
   在 `MirClientContextSeams.cs` 提供，落笔前先 grep（本轮已确认 `ILogSink`/`TSafeList`/`TRunGate`/`TVersionNumber`
   **均已存在**，不得重复定义）。
+## 23. UI 接缝垫片 `RunGateUiSeams`（`uFrmMainUiSeams.cs`）—— 防 `ItemIndex` 越界崩
+
+跨车道踩坑（`p6-m2-pets` 车道在 `uFrmMainGamePets.pas:408/:415` 用测试抓出，已通报本车道）：
+**Delphi `TComboBox.ItemIndex := V` / `TListBox.ItemIndex := V` 在 `V` 越界时静默置 -1、不抛；
+WinForms `SelectedIndex = V` 越界抛 `ArgumentOutOfRangeException` → 必崩。**
+
+★ **本车道确有命中点，且就是我自己登记的 C1**：
+`uFrmMain.pas:1112-1113` 把 `g_btShowLogLevel` 的上界钳到 **`cbbShowLogLevel.Items.Count`（= 11）**，
+而该下拉框（`uFrmMain.dfm:715-735`）恰好 **11 项** → 合法 `ItemIndex` 只到 **10**；
+随后 `:1521` `cbbShowLogLevel.ItemIndex := g_btShowLogLevel;` 在值为 **11** 时越界。
+Delphi 静默 -1，WinForms 直接抛。
+
+→ 新增 `RunGateUiSeams`：`DelphiItemIndex(value, itemCount)`（纯函数，越界 → -1）+
+`SetComboItemIndex` / `SetListItemIndex` 垫片 + `ComboTextForItemIndex` / `ItemTextOr`。
+**S2 及后续任何"从配置读索引 → 赋给 ComboBox/ListBox"的路径必须走这个垫片**，
+不要依赖"配置里的值一定合法"。
+
+另一类**不要混淆**（两边都抛、但类型不同）：Delphi `TStrings[i]` 越界抛 `EStringListError`，
+托管 `List<T>[i]` 抛 `ArgumentOutOfRangeException` —— 若原文用 `try/except` 吞掉，托管侧必须吞**对应的**异常类型。
+本车道的 `TAddressList`/`TAddressListEx`/`TMagicIntervalList` 的 `this[int]` 已按原文**返回 nil（不抛）**，不受影响。
+
+> 附：`p6-m2-pets` 车道另一条可复用发现 —— `4000000000 div (High(dwPetNeedExps) { div 2})` 里
+> **`{ div 2}` 是 Pascal 注释**，除数是 1000 而非 500。**凡从原文复制算式，注意 `{ }` / `(* *)`
+> 注释可能嵌在表达式中间**（本工程已多次在"看起来一样的算术"上栽跟头）。
