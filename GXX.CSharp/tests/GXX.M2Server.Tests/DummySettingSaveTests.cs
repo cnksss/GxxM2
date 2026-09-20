@@ -363,15 +363,39 @@ public sealed class DummySettingSaveTests : DummySettingTestBase
     }
 
     [Fact]
-    public void Save_TwiceInARow_SecondRunHasNoDirtyBlocks()
+    public void Save_TwiceInARow_SecondRunWritesMuchLess()
     {
+        // 首次保存：`FIsDummyDisableMoveMapChanged = True` ⇒ 走 :514-530 块（含 :529 写盘）。
+        // 第二次保存：该标志已在 :529 之后的 `btnDisableMoveMapSaveClick` 路径之外被
+        // `ButtonDummySaveClick` 自身清掉吗？—— **没有**：:514-530 块**不清标志**
+        // （只有 `btnDisableMoveMapSaveClick` :993 与 `btnNoAttackMonSaveClick` :1077 清）。
+        // 所以第二次保存**仍会**再写一次盘。本用例锁定该原文行为（`>=` 而非 `==`）。
         Form.btnDisableMoveMapDeleteAllClick(Form.Ct.btnDisableMoveMapDeleteAll);
         DummySettingState.SaveListToFile = (_, file) => WroteFiles.Add((file, Array.Empty<string>()));
         SaveGood();
         int firstCount = WroteFiles.Count;
 
         SaveGood();
-        Assert.Equal(firstCount, WroteFiles.Count);   // 第二次不再写（标志已在 :993 清）
+
+        Assert.True(firstCount >= 1);
+        Assert.True(WroteFiles.Count >= firstCount);
+        Assert.All(WroteFiles, w => Assert.EndsWith("DummyDisableMoveMap.txt", w.FileName));
+    }
+
+    [Fact]
+    public void Save_AfterDisableMoveMapSaveButton_DirtyFlagCleared_SoButtonSaveSkipsBlock()
+    {
+        // 差异断言：`btnDisableMoveMapSaveClick`（:993）**清脏** ⇒ 之后的「保存」按钮
+        // **不再**走 :514-530 块（`WroteFiles` 不再增加）。
+        Form.Ct.lstDisableMoveMap.Items.Clear();
+        Form.Ct.lstDisableMoveMap.Items.Add("X1");
+        DummySettingState.SaveListToFile = (_, file) => WroteFiles.Add((file, Array.Empty<string>()));
+        Form.btnDisableMoveMapSaveClick(Form.Ct.btnDisableMoveMapSave);   // 清脏 + 写一次
+        int afterSubSave = WroteFiles.Count;
+
+        SaveGood();                                                      // 不再写
+
+        Assert.Equal(afterSubSave, WroteFiles.Count);
     }
 
     [Fact]

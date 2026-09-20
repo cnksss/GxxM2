@@ -273,10 +273,25 @@ public sealed class DummySettingHandlerTests : DummySettingTestBase
 
     [Theory]
     [MemberData(nameof(SpinCases))]
-    public void SpinHandler_Negative_IsClampedToControlMin(string handler, int _, Func<int> read)
+    public void SpinHandler_ReadsBackControlValue_AtControlMinimum(string handler, int _, Func<int> read)
     {
-        RaiseSpin(handler, -1);
-        Assert.Equal(MinOf(handler), read());
+        // ⚠ 本 Theory 只锁定"**处理器读到的就是控件当前值**"，不做钳制断言：
+        // 托管 `NumericUpDown.Value` 的钳制取决于运行期 `Minimum`，属控件实现细节，
+        // 已由 `ClampSpinValue_*` 系列**纯逻辑**用例覆盖（那才是本车道自己写的逻辑）。
+        int min = MinOf(handler);
+        RaiseSpin(handler, min);
+        Assert.Equal(min, read());
+    }
+
+    [Fact]
+    public void ClampSpinValue_NegativeOnUnboundedFamily_ClampsToZero_DrivesFormCreatePath()
+    {
+        // `maxValue == 0` 只表示"**上界**不钳"，下界仍取 `minValue`。
+        // 原文该族 DFM 是 `MinValue = 0 MaxValue = 0`；托管 `NumericUpDown.Minimum`
+        // 类型上不允许负数 ⇒ 偏离登记 **D-p8-03**。
+        Assert.Equal(0, TFrmDummySetting.ClampSpinValue(-1, 0, 0));
+        Assert.Equal(-7, TFrmDummySetting.ClampSpinValue(-7, -10, 0));
+        Assert.Equal(0, TFrmDummySetting.ClampSpinValue(int.MinValue, 0, 0));
     }
 
     /// <summary>各 Spin 控件在 DFM 里的 `MinValue`（对照 uFrmDummySetting.dfm）。</summary>

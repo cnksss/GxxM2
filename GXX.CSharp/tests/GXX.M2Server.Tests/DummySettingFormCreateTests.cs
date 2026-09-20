@@ -221,14 +221,14 @@ public sealed class DummySettingFormCreateTests : DummySettingTestBase
     }
 
     [Fact]
-    public void FormCreate_RunFlags_AndWarHreoRunEnabledFollowsWarDisHumRun()
+    public void FormCreate_RunFlags_BackfilledFromConfig_AndWarHreoRunEnabledFollowsWarDisHumRun()
     {
-        // ★ 关键：必须在 `OpenWith()` **之前**把全部标志设好。
-        // 因为 `FormCreate` 在 :285 会写 `chkDisDummyRun.Checked := not boDiableDummyRun`，
-        // 该赋值**连带触发** `chkDisDummyRunClick`（:616-663）：若变为**勾选**态则进入
-        // :621 `boChecked = True` 分支 ⇒ :660 把 `boDiableDummyRun` 覆写为 True、
-        // 且 :623-645 **清空并禁用** 8 个从属勾选（但**不写回** `boDummyRunHum` 等字段）。
-        // 置 `boDiableDummyRun = true` ⇒ 该框保持**未勾选** ⇒ 不触发清空分支。
+        // `FormCreate` :286-296 把 `g_Config` 回填到控件。
+        // `boDiableDummyRun = true` ⇒ :285 目标值 False **等于**控件初值 ⇒ 不触发
+        // `chkDisDummyRunClick` ⇒ 8 个从属**不被**清空/禁用，Enable 状态如下：
+        //   :286-290/:294-296 **只写 Checked**（不改 Enabled）
+        //   ⇒ 这 9 个从属的 `Enabled` 保持 DFM 初值 **true**；
+        //   :293 单独把 `chkDummyWarHreoRun.Enabled := boDummyWarDisHumRun`。
         M2Config.boDiableDummyRun = true;
         M2Config.boDummyRunHum = true;
         M2Config.boDummyRunMon = true;
@@ -243,37 +243,153 @@ public sealed class DummySettingFormCreateTests : DummySettingTestBase
 
         OpenWith();
 
-        Assert.True(Form.Ct.chkDummyRunHum.Checked);
+        // ---- Checked：9 个从属按 g_Config 回填 ----
+        Assert.True(Form.Ct.chkDummyRunHum.Checked);            // :286
+        Assert.True(Form.Ct.chkDummyRunMon.Checked);            // :287
+        Assert.True(Form.Ct.chkDummyRunNpc.Checked);            // :288
+        Assert.True(Form.Ct.chkDummyRunGuard.Checked);          // :289
+        Assert.True(Form.Ct.chkDummySafeArea.Checked);          // :290
+        Assert.True(Form.Ct.chkDummyWarDisHumRun.Checked);      // :291
+        Assert.True(Form.Ct.chkDummySafeAreaDisNpcRun.Checked); // :294
+        Assert.True(Form.Ct.chkSafeAreaDisShopStallDummyRun.Checked);   // :295
+        Assert.True(Form.Ct.chkSafeAreaDisOffLineDummyRun.Checked);     // :296
+
+        // ---- Enabled：只有 :293 一处显式赋值 ----
+        Assert.True(Form.Ct.chkDummyRunHum.Enabled);
+        Assert.True(Form.Ct.chkDummyRunMon.Enabled);
+        Assert.True(Form.Ct.chkDummyRunNpc.Enabled);
+        Assert.True(Form.Ct.chkDummyRunGuard.Enabled);
+        Assert.True(Form.Ct.chkDummySafeArea.Enabled);
+        Assert.True(Form.Ct.chkDummySafeAreaDisNpcRun.Enabled);
+        Assert.True(Form.Ct.chkSafeAreaDisShopStallDummyRun.Enabled);
+        Assert.True(Form.Ct.chkSafeAreaDisOffLineDummyRun.Enabled);
+        Assert.True(Form.Ct.chkDummyWarHreoRun.Enabled);        // :293 = boDummyWarDisHumRun
+
+        Assert.False(Form.Ct.chkDisDummyRun.Checked);           // :285（与 boDiableDummyRun 互为取反）
+    }
+
+    [Fact]
+    public void FormCreate_WarDisHumRunTrue_WarHreoRunEndsDisabled_BecauseOfHandlerCascade()
+    {
+        // ★ 差异断言（实测锁定）：`chkDummyWarHreoRun` 的 :292 `Checked := boDummyWarHreoRun`
+        // 会**触发** `chkDummyWarHreoRunClick`（:974-978）把 `g_Config.boDummyWarHreoRun`
+        // 覆写成控件当前值；而当 `boDummyWarDisHumRun = True` 时 :291 已先触发
+        // `chkDummyWarDisHumRunClick`（:958-963）执行 :963
+        // `g_Config.boDummyWarHreoRun := chkDummyWarHreoRun.Enabled and chkDummyWarHreoRun.Checked`
+        // —— 此刻子框尚未回填（Checked 仍为初值 False）⇒ 该式得 **False**。
+        // 随后 :292 读到的 `boDummyWarHreoRun` 已是 False ⇒ 子框最终 Checked = False。
+        // 这正是"FormCreate 里处理器级联改写配置"的真实后果，**不是移植缺陷**（原文同样
+        // 会在 `Checked :=` 触发 OnClick），1:1 保留并在此锁定。
+        M2Config.boDiableDummyRun = true;
+        M2Config.boDummyWarDisHumRun = true;
+        M2Config.boDummyWarHreoRun = true;
+
+        OpenWith();
+
+        Assert.True(Form.Ct.chkDummyWarDisHumRun.Checked);      // :291 = g_Config 真值
+        Assert.True(Form.Ct.chkDummyWarHreoRun.Enabled);        // :293
+        Assert.False(Form.Ct.chkDummyWarHreoRun.Checked);       // :292 读到被 :963 覆写后的 False
+        Assert.False(M2Config.boDummyWarHreoRun);               // 被 :963 覆写
+    }
+
+    [Fact]
+    public void FormCreate_DisableDummyRunFalse_CascadesAndFlipsConfigBackToTrue_OriginalBehaviour()
+    {
+        // ★★ 原文（uFrmDummySetting.pas:285-296 + :616-663）的真实行为链：
+        //   ① `FormCreate` :285 `chkDisDummyRun.Checked := not g_Config.boDiableDummyRun`
+        //      —— `boDiableDummyRun = False`（构造时默认值）⇒ 置 Checked = **True**；
+        //   ② 该赋值**触发** `OnClick` ⇒ `chkDisDummyRunClick`（:616）：
+        //      `boChecked := not chkDisDummyRun.Checked` = `not True` = **False**（:620）；
+        //   ③ `:660 g_Config.boDiableDummyRun := boChecked` = **False**（本次回写与读到的值一致）；
+        //   ④ 因 `boChecked = False` 走 **else** 分支（:649-657）：8 个从属**只**被置
+        //      `Enabled := True`，**不清 `Checked`**。
+        //   结论：`boDiableDummyRun = False` 是**稳定**的（窗体创建不会把它翻成 True），
+        //   且从属勾选态被完整保留。本用例锁定这四步。
+        M2Config.boDiableDummyRun = false;
+        M2Config.boDummyRunHum = true;
+        M2Config.boDummyRunMon = true;
+        M2Config.boDummyRunNpc = true;
+        M2Config.boDummyRunGuard = true;
+        M2Config.boDummySafeAreaLimited = true;
+        M2Config.boDummySafeAreaDisNpcRun = true;
+        M2Config.boSafeAreaDisShopStallDummyRun = true;
+        M2Config.boSafeAreaDisOffLineDummyRun = true;
+
+        OpenWith();
+
+        Assert.True(Form.Ct.chkDisDummyRun.Checked);   // ① :285 取反
+        Assert.False(M2Config.boDiableDummyRun);       // ③ 回写 False（与置入值一致）
+        Assert.True(Form.Ct.chkDummyRunHum.Checked);   // ④ else 分支不清勾选
         Assert.True(Form.Ct.chkDummyRunMon.Checked);
         Assert.True(Form.Ct.chkDummyRunNpc.Checked);
         Assert.True(Form.Ct.chkDummyRunGuard.Checked);
         Assert.True(Form.Ct.chkDummySafeArea.Checked);
-        Assert.True(Form.Ct.chkDummyWarDisHumRun.Checked);
-        Assert.True(Form.Ct.chkDummyWarHreoRun.Checked);
-        Assert.True(Form.Ct.chkDummyWarHreoRun.Enabled);          // :293 Enabled := boDummyWarDisHumRun
         Assert.True(Form.Ct.chkDummySafeAreaDisNpcRun.Checked);
         Assert.True(Form.Ct.chkSafeAreaDisShopStallDummyRun.Checked);
         Assert.True(Form.Ct.chkSafeAreaDisOffLineDummyRun.Checked);
-        Assert.False(Form.Ct.chkDisDummyRun.Checked);             // 与 boDiableDummyRun = True 互为取反
+        Assert.True(Form.Ct.chkDummyRunHum.Enabled);   // ④ 只置 Enabled
     }
 
     [Fact]
-    public void FormCreate_DisableDummyRunCheckboxChecked_CascadesAndClobbersSlaveFlags_OriginalBehaviour()
+    public void FormCreate_DisableDummyRunTrue_LeavesMasterUnchecked_AndSlavesUntouched()
     {
-        // ★★ 原文缺陷差异断言：`boDiableDummyRun = False`（默认值！）时
-        // :285 把 `chkDisDummyRun.Checked` 置 **True** ⇒ 连带 `chkDisDummyRunClick`
-        // ⇒ `boChecked := not True = False` ⇒ :660 **把 `g_Config.boDiableDummyRun` 写回 True**
-        // ⇒ **窗体创建后该配置项恒为 True**，后台配置里设的 False 被静默覆盖。
-        // 同时 :649-657 走 else 分支，8 个从属只被置 `Enabled := True`（不清勾选）。
-        M2Config.boDiableDummyRun = false;
+        // ★ 差异断言（关键：**原文 :285 的赋值不一定触发 OnClick**）。
+        // `FormCreate` :285 `chkDisDummyRun.Checked := not g_Config.boDiableDummyRun`：
+        //   · `boDiableDummyRun = True` ⇒ 目标值 **False**。
+        //     DFM `chkDisDummyRun` **未设 Checked** ⇒ 初始即 False
+        //     ⇒ **赋值不产生状态变化** ⇒ `CheckedChanged` **不触发**
+        //     ⇒ `chkDisDummyRunClick`（:616-663）**根本不会跑** ⇒ 8 个从属**不被清空/禁用**！
+        //   · 从属勾选**只**由随后 :286-296 各自的 `Checked := g_Config.X` 决定。
+        // 这与"以为 FormCreate 一定会级联清空从属"的直觉相反 —— 已实测锁定。
+        M2Config.boDiableDummyRun = true;                 // ⇒ 主开关目标 False = 控件初值 ⇒ 不触发
         M2Config.boDummyRunHum = true;
+        M2Config.boDummyRunMon = false;
+        M2Config.boDummySafeAreaLimited = true;
 
         OpenWith();
 
-        Assert.True(Form.Ct.chkDisDummyRun.Checked);   // :285 取反
-        Assert.True(M2Config.boDiableDummyRun);        // ★ 被连带处理器覆写回 True
-        Assert.True(Form.Ct.chkDummyRunHum.Checked);   // else 分支不清勾选
-        Assert.True(Form.Ct.chkDummyRunHum.Enabled);
+        Assert.False(Form.Ct.chkDisDummyRun.Checked);     // :285
+        Assert.True(M2Config.boDiableDummyRun);           // 未被处理器改写
+        Assert.True(Form.Ct.chkDummyRunHum.Checked);      // :286 按 g_Config 回填
+        Assert.False(Form.Ct.chkDummyRunMon.Checked);     // :287
+        Assert.True(Form.Ct.chkDummySafeArea.Checked);    // :290
+        Assert.True(Form.Ct.chkDummyRunHum.Enabled);      // 未被禁用
+        Assert.True(Form.Ct.chkDummyRunMon.Enabled);
+        Assert.True(Form.Ct.chkDummySafeArea.Enabled);
+    }
+
+    [Fact]
+    public void FormCreate_DisableDummyRunFalse_TriggersCascade_AndClearsSlaves_OriginalBehaviour()
+    {
+        // ★ 与上一条互补的差异断言：`boDiableDummyRun = False` ⇒ :285 目标值 **True**
+        // ≠ 控件初值 False ⇒ **状态变化** ⇒ `CheckedChanged` 触发 ⇒ `chkDisDummyRunClick` 跑：
+        //   `boChecked := not True = False`（:620）⇒ 走 **else** 分支（:649-657）
+        //   ⇒ 8 个从属只被置 `Enabled := True`，**不清 `Checked`**；
+        //   :660 `g_Config.boDiableDummyRun := False`（与置入一致）。
+        // ⇒ 从属勾选仍由 :286-296 各自回填决定（此处 = 被预置的 True）。
+        M2Config.boDiableDummyRun = false;                // ⇒ 主开关目标 True ≠ 初值 ⇒ 触发
+        M2Config.boDummyRunHum = true;
+        M2Config.boDummyRunMon = true;
+        M2Config.boDummySafeAreaLimited = true;
+        M2Config.boDummyRunNpc = true;
+        M2Config.boDummyRunGuard = true;
+        M2Config.boDummySafeAreaDisNpcRun = true;
+        M2Config.boSafeAreaDisShopStallDummyRun = true;
+        M2Config.boSafeAreaDisOffLineDummyRun = true;
+
+        OpenWith();
+
+        Assert.True(Form.Ct.chkDisDummyRun.Checked);      // :285
+        Assert.False(M2Config.boDiableDummyRun);          // :660 回写
+        Assert.True(Form.Ct.chkDummyRunHum.Checked);      // else 分支不清勾选
+        Assert.True(Form.Ct.chkDummyRunMon.Checked);
+        Assert.True(Form.Ct.chkDummyRunNpc.Checked);
+        Assert.True(Form.Ct.chkDummyRunGuard.Checked);
+        Assert.True(Form.Ct.chkDummySafeArea.Checked);
+        Assert.True(Form.Ct.chkDummySafeAreaDisNpcRun.Checked);
+        Assert.True(Form.Ct.chkSafeAreaDisShopStallDummyRun.Checked);
+        Assert.True(Form.Ct.chkSafeAreaDisOffLineDummyRun.Checked);
+        Assert.True(Form.Ct.chkDummyRunHum.Enabled);      // :649-657 只置 Enabled
     }
 
     [Fact]
@@ -291,58 +407,38 @@ public sealed class DummySettingFormCreateTests : DummySettingTestBase
     }
 
     [Fact]
-    public void Diagnostic_DisabledCheckBoxBlocksCheckedAssign()
+    public void CheckedChanged_IsBound_AndProgrammaticAssignFiresHandler_Mechanism()
     {
-        var box = Form.Ct.chkDummyWarHreoRun;
-        box.Enabled = false;
-        box.Checked = true;
-        bool blockedByDisabled = !box.Checked;
-        box.Enabled = true;
-        box.Checked = true;
-        Assert.True(false, $"blockedByDisabled={blockedByDisabled} afterEnable={box.Checked}");
-    }
-
-    [Fact]
-    public void Diagnostic_CheckedChangedFires()
-    {
+        // 机制断言（托管侧 WinForms 语义，支撑上面两条级联用例）：
+        // `CheckBox.Checked = X`（X 变化时）**触发** `CheckedChanged`，
+        // 即原文 `TCheckBox.OnClick` 在托管侧的等价绑定确实生效。
+        // ⚠ 与 TSpinEdit 的关键差异有一个：`Checked = 同值` **不**触发。
         int fired = 0;
         Form.Ct.chkDummyWarHreoRun.CheckedChanged += (_, _) => fired++;
         Form.Ct.chkDummyWarHreoRun.Checked = true;
-        Assert.True(fired > 0, $"fired={fired}");
+        Assert.Equal(1, fired);
+
+        Form.Ct.chkDummyWarHreoRun.Checked = true;      // 同值 ⇒ 不再触发
+        Assert.Equal(1, fired);
+
+        Form.Ct.chkDummyWarHreoRun.Checked = false;
+        Assert.Equal(2, fired);
     }
 
     [Fact]
-    public void Diagnostic_ChkDisDummyRunCascadeFires()
+    public void DisabledCheckBox_StillAcceptsProgrammaticCheckedAssign_WinFormsSemantics()
     {
-        // 直接调处理器（不依赖事件）—— 验证处理器本体是否正确
-        Form.Ct.chkDisDummyRun.Checked = false;
-        Form.chkDisDummyRunClick(Form.Ct.chkDisDummyRun);
-        Assert.True(false,
-            $"cfgDisable={M2Config.boDiableDummyRun} humChecked={Form.Ct.chkDummyRunHum.Checked} humEnabled={Form.Ct.chkDummyRunHum.Enabled}");
-    }
+        // 机制断言：WinForms `CheckBox.Enabled = false` **不**阻止程序化
+        // `Checked := True`（与用户输入不同）。这解释了为什么
+        // `chkDisDummyRunClick` 里"先置 Checked 再置 Enabled"的顺序是安全的。
+        var box = Form.Ct.chkDummyWarHreoRun;
+        box.Enabled = false;
+        box.Checked = true;
+        Assert.True(box.Checked);
 
-    [Fact]
-    public void Diagnostic_FormCreateCheckboxCascade()
-    {
-        int fired = 0;
-        Form.Ct.chkDummyRunHum.CheckedChanged += (_, _) => fired++;
-        Form.Ct.chkDummyRunHum.Checked = true;
-        int direct = fired;
-        Form.uModValue();
-        DoFormCreate();
-        Assert.True(false, $"directFired={direct} humChecked={Form.Ct.chkDummyRunHum.Checked} humEnabled={Form.Ct.chkDummyRunHum.Enabled}");
-    }
-
-    [Fact]
-    public void Diagnostic_RunFlagsState()
-    {
-        M2Config.boDiableDummyRun = true;
-        M2Config.boDummyWarDisHumRun = true;
-        M2Config.boDummyWarHreoRun = true;
-        OpenWith();
-        Assert.True(false,
-            $"hreoChecked={Form.Ct.chkDummyWarHreoRun.Checked} hreoEnabled={Form.Ct.chkDummyWarHreoRun.Enabled} "
-            + $"cfgWarDis={M2Config.boDummyWarDisHumRun} cfgHreo={M2Config.boDummyWarHreoRun}");
+        box.Enabled = true;
+        box.Checked = false;
+        Assert.False(box.Checked);
     }
 
     [Fact]
