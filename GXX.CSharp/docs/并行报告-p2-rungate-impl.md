@@ -875,3 +875,68 @@ ProcessBlacklistUnit.Sink = new GateShareProcessBlacklistSink();   // 启动时�
 `TSafeHashStringList`（字符串表，窗体直接读写并遍历），而原文这两者是 `TAddressList`
 （只存 `nIPaddr` 数值、不存字符串）→ 真实实现需要一层"字符串视图 ↔ `TAddressList`"双向同步，
 会改动 12 个窗体测试类。**登记为后续事项**，本轮不动。
+## 18. 两条精确交付说明（应集成者要求）
+
+### 18.1 `GateShareProcessBlacklistSink` 的落盘路径与格式（**以及唯一的简化偏差**）
+
+| 项 | 值 |
+|---|---|
+| 落盘路径 | `GateSharePaths.ExeDir + "ProcessBlacklist.txt"`（原文 `GateShare.pas:1874/:1964` 的 `ExtractFilePath(ParamStr(0)) + 'ProcessBlacklist.txt'`；`GateSharePaths.ExeDir` 带尾随目录分隔符） |
+| 编码 / 行尾 | **GBK + CRLF**（`GXX.Core.Util.TStringList.SaveToFile`，与 Delphi `TStrings.SaveToFile` 一致） |
+| 行格式 | `ProcessName + '|' + ProcessMD5`（原文 `GateShare.pas:1971`）。`ProcessMD5` 在 `TProcessBlacklist.Add` 里已 `UpperCase`（原 `:3301`） |
+| 读取 | 同一路径，跳过空行与 `;` 开头行，按**首个** `'|'` 切分；`Length(MD5) = 32 and IsHexString(MD5)` 才收（原 `:1885-1896`） |
+| 空名单 | 写出**空文件**（不是不写） |
+
+**简化偏差（1 处，已登记）**：
+* `SaveProcessBlacklist` **无简化** —— 它本来就只写上面那张明文表；原文的 zLib/RSA/MD5 都在 `RebuildProcessBlacklist` 里，产物是发往 M2 的 `g_ProcessBlacklistStr` / `g_ProcessBlacklistMD5`，**不落盘**。
+* `RebuildProcessBlacklist` 的 **zLib 与 MD5 是真的**（`EDcode.zLibCompressBuffer` / `System.Security.Cryptography.MD5`），
+  **只有 RSA 那一步是"恒等 + 计数"的可注入接缝**（`GateShareLists.ProcessBlacklistCipher`），因为 **`LbRSA.pas` 在本仓库整树不存在**
+  （`Get-ChildItem -Recurse -Filter LbRSA.pas` 零命中）→ 无法 1:1。原文参数已登记为常量供接线：
+  `aks128` / `ModulusAsString = '597A185BA5F22A014F50B453E647C0C5'` / `ExponentAsString = 'CF2C34C6204626E70E493F5B37930363'`（原 `:1939-1941`）。
+  **未接线时 `RebuildProcessBlacklist` 仍会产出"zLib(明文 MD5 串联)"并通过 CRC/MD5 自校验，但那个负载对 M2 是无效的** —— 生产必须接线，否则应视为**未完成**。
+
+### 18.2 `ISafeFilterHost` 的"字符串视图 ↔ `TAddressList` 双向同步"方案（**本轮不实施，留集成者裁定**）
+
+**问题**：`uFrmSafeFilter.cs` 的接口把 4 个名单声明为字符串表：
+
+```csharp
+public interface ISafeFilterHost {
+    TSafeHashStringList TempIPList  { get; }   // 原文 g_TempIPList : TAddressList
+    TSafeHashStringList BlockIPList { get; }   // 原文 g_BlockIPList: TAddressList
+    List<IPSECTION>     IPSectionList { get; } // 原文 g_IPSectionList: TSafeList（元素 TIPSection）
+    TSafeHashStringList TempMacList  { get; }  // 原文 g_TempMacList : TSafeStringList  ✔ 已对齐
+    TSafeHashStringList BlockMacList { get; }  // 原文 g_BlockMacList: TSafeStringList  ✔ 已对齐
+    ...
+}
+```
+
+`TSafeHashStringList` 能承载**字符串**，而 `TAddressList` 只存 `nIPaddr`（`inet_addr` 的小端打包整数），
+**不存原始字符串** → 窗体里 `lstTemp.Items` ↔ `Host.TempIPList` 的往返会丢"原始写法"（`001.002.003.004` 写成 `1.2.3.4`），
+且 `Add` 的失败语义不同（`TSafeHashStringList.Add` 永成功；`TAddressList.Add` 在重复/空串时返回 nil）。
+
+**建议实现（保持 12 个窗体测试类不改）** —— 新增一个**只读投影 + 命令式写入**的适配器，**不实现 `ISafeFilterHost`**，
+而是新增窄接口供 `uFrmSafeFilter` 的二选一接线：
+
+```csharp
+/// 与原文 g_TempIPList/g_BlockIPList 语义一致的门（写走 TAddressList，读走一次 inet_ntoa 投影）
+public interface IAddressListHost {
+    string[] SnapshotTempIPs();      // g_TempIPList → inet_ntoa(nIPaddr) 逐项，顺序 = 容器顺序（原 :2632 顺序遍历）
+    string[] SnapshotBlockIPs();
+    bool AddTempIP(string ip);       // 返回 false = TAddressList.Add 返回 nil（重复或空串）—— 保留原语义
+    bool AddBlockIP(string ip);
+    bool DeleteTempIP(string ip);    // 原 TAddressList.Delete(IP) 无返回值；此处返回是否命中
+    bool DeleteBlockIP(string ip);
+    void ClearTempIPs();             // 原 g_TempIPList.Clear
+    void ClearBlockIPs();
+}
+```
+
+* **写入**：直接落到 `GateShareGlobals.g_TempIPList` / `g_BlockIPList`（本轮产物），
+  并**同时**调用 `GateShareLists.SaveBlockIPList()`（原文 `uFrmSafeFilter.pas:533/553/579/...` 本来就是 Add+Save 成对）。
+* **读取**：`SnapshotXxx()` 用 `GateShareInet.InetNtoa(unchecked((uint)item.nIPaddr))` 逐项投影，
+  **顺序即容器顺序**（原文 `TAddressList.FindIndex` 也是顺序扫描）。
+* **`IPSectionList`**：可直接用本轮的 `GateShareGlobals.g_IPSectionList`（`TIPSection` 已 1:1），
+  但窗体侧的 `IPSECTION` 是另一个类型 → 需要一次字段映射（`nBeginAddr`/`nEndAddr` 同名同型，**零成本**）。
+* **不动的部分**：`TempMacList`/`BlockMacList` 保持 `TSafeStringList`，与原文一致，**无需适配**。
+* **代价**：`uFrmSafeFilter.cs` 的 `Host.TempIPList.Items[...]` 一类调用点需要改成 `Host.SnapshotTempIPs()`；
+  这是**唯一**会触碰 12 个窗体测试的地方，故必须由集成者统一裁定后再做（不在本车道单方面改）。
