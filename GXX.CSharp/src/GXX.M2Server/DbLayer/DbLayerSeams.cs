@@ -57,6 +57,11 @@ public static class DbLayerRunSeam
     /// 返回既有 <c>GXX.Core.Protocol.TStdItem</c>（Grobal2.Types2.cs:26）的可空引用。</summary>
     public static Func<ushort, GXX.Core.Protocol.TStdItem?> GetStdItem { get; set; } = _ => null;
 
+    /// <summary>原文 <c>UserEngine.GetStdItemName(wIndex): string</c>（SqliteM2DataDB.pas:898/942、
+    /// MySqlM2DataDB.pas DoUpdate 的 <c>ItemName := GetStdItemName(DBIndex)</c>）。
+    /// 接缝：待 UsrEngn.pas 移植后接入；默认返回 <c>''</c>（原文物品不存在时也是空串）。</summary>
+    public static Func<int, string> GetStdItemName { get; set; } = _ => "";
+
     /// <summary>原文 <c>Grobal2.ProcessItemName(s: string): string</c>。接缝：待 Grobal2.pas 移植后接入。</summary>
     public static Func<string, string> ProcessItemName { get; set; } = name => name ?? "";
 
@@ -77,6 +82,7 @@ public static class DbLayerRunSeam
     public static void ResetDefaults()
     {
         GetStdItem = _ => null;
+        GetStdItemName = _ => "";
         ProcessItemName = name => name ?? "";
         GetUserItemBindValue = (bindOption, bit) => (bindOption & (1 << bit)) != 0;
         GetItemRule = (_, _) => false;

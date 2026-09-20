@@ -121,6 +121,8 @@ public sealed class ScriptedSqliteStatement : ScriptedStatementBase, ISqliteStat
 
     public void OrderBindText(string value) => Binds.Add(new BindCall { Kind = "text", Value = value ?? "" });
 
+    public void OrderBindDouble(double value) => Binds.Add(new BindCall { Kind = "double", Value = value });
+
     public int Step()
     {
         StepCount++;
