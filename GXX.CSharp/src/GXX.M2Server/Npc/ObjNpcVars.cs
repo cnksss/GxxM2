@@ -189,7 +189,7 @@ public partial class TNormNpc
             for (int I = 0; I <= DynamicVarList.Count - 1; I++)
             {
                 TDynamicVar DynamicVar = DynamicVarList[I];
-                if (string.Equals(DynamicVar.sName, sVarName, StringComparison.OrdinalIgnoreCase))
+                if (ObjNpcText.CompareText(DynamicVar.sName, sVarName) == 0)
                 {
                     switch (DynamicVar.VarType)
                     {
@@ -264,7 +264,7 @@ public partial class TNormNpc
             for (int I = 0; I <= DynamicVarList.Count - 1; I++)
             {
                 TDynamicVar DynamicVar = DynamicVarList[I];
-                if (string.Equals(DynamicVar.sName, sVarName, StringComparison.OrdinalIgnoreCase))
+                if (ObjNpcText.CompareText(DynamicVar.sName, sVarName) == 0)
                 {
                     switch (DynamicVar.VarType)
                     {
