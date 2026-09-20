@@ -8,7 +8,7 @@
 |---|---|---|---|
 | 第一轮（受限） | build 0 Error / 157 W；`GXX.Client.Tests` **4326** | 4326 → **4386**（+60）；任务1 落成静态核心、任务2 未做（越区阻塞） | `72da453a` `ea380457` `16515c30` |
 | rebase 到 main（`5538f7d0`，已并入 §32 批次） | 基线 **4437** | 4437 → 4534 → **4603** | 见 §1.2 |
-| **第二轮（越区请求全部获批）** | 续上 | **两项任务全部完成**；`GXX.Client.Tests` **4603** 全绿 | 见 §1.2 |
+| 第二轮（越区请求全部获批） | 续上 | **两项任务全部完成**；`GXX.Client.Tests` **4603** 全绿 | `802e87ca` `215775b7` `ac2e7cd5` |
 
 > ★ **本报告 §0 的"未完成"结论已被第二轮推翻**：父 agent 批准了三项越区请求
 > （`PlaySceneNewActor.cs` / `CustomActor.cs` / `ActorSoundDispatch.cs` 加入本车道分区），
@@ -574,7 +574,13 @@ TCastleDoor / TWallStructure / TNewWallStructure : TActor
 | `dotnet build GXX.slnx -c Debug --nologo` | **0 Error** |
 | `dotnet test tests\GXX.Client.Tests` | **Passed 4603 / Failed 0 / Skipped 0** |
 
-进度：`4437（rebase 后基线）→ 4534（切片3 +97）→ 4603（切片5 +69）`。
+进度：`4437（rebase 后基线）→ 4534（切片3）→ 4603（切片5）`，共 **+166 例**。
+
+两轮新增的本车道自有测试共 **129 例**（`--filter FullyQualifiedName~ActorFamily` 实跑）：
+- `ActorFamilyBaseTests` 60 例（第一轮，4 个本体与接缝）；
+- `ActorFamilySubclassTests` 69 例（第二轮，7 个子类 override）。
+其余 `+37` 来自 `FormJ94Tests` 新增 4 例（锁定 `RunActSoundOther` 补齐的两支）
+与 main 并入的其它车道用例。**全量无新增失败**。
 
 新增两个测试文件：
 - `ActorFamilyBaseTests.cs`（60 例，第一轮）：4 个本体 + 接缝语义；
@@ -649,8 +655,10 @@ cd D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p7-client-actor-family\GXX.CSha
 $env:DOTNET_CLI_UI_LANGUAGE='en'
 dotnet build GXX.slnx -c Debug --nologo
 dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo
-# 只看本车道证据（9 个测试类共 174 例）：
+# 只看本车道证据（本车道新增两个测试文件，实跑 129 例全绿）：
 dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo `
   --filter "FullyQualifiedName~ActorFamily"
+#   ActorFamilyBaseTests       60 例
+#   ActorFamilySubclassTests   69 例
 ```
 
