@@ -940,3 +940,75 @@ public interface IAddressListHost {
 * **不动的部分**：`TempMacList`/`BlockMacList` 保持 `TSafeStringList`，与原文一致，**无需适配**。
 * **代价**：`uFrmSafeFilter.cs` 的 `Host.TempIPList.Items[...]` 一类调用点需要改成 `Host.SnapshotTempIPs()`；
   这是**唯一**会触碰 12 个窗体测试的地方，故必须由集成者统一裁定后再做（不在本车道单方面改）。
+---
+
+# 第三轮（吸收 main 之后）：uFrmMain.pas 剩余例程 —— **S1 完成**
+
+> 基线：吸收 main 后 `GXX.RunGate.Tests` = **1677 例全绿**（main 上已含本车道第二轮产物 + `p4-rungate-mirclient` 车道 + RTL 修正）
+> 本轮结束：**1735 例全绿**（+58），`dotnet build GXX.slnx -c Debug` = 0 错误
+
+## 19. 吸收 main 后修正的**接缝口径**（本轮顺手改掉的第 4 处「接缝臆造」）
+
+`uFrmGameSpeedLogic.FormGlobals.nMaxClientMsgCount` 原先是 **`const int = 5`**，注释称"INI 里 MaxClientMsgCount
+写的是这个'看似同名实则不同'的常量"。**这是错的**：
+
+* `GateShare.pas:1226` 的真实声明是 **`nMaxClientMsgCount: Integer = 100;`**（在 `var` 段，**可变**）；
+* `uFrmMain.pas:1207` 会**从 INI 覆盖它**、`uFrmSafeFilter.pas:740` 会把它**写回 INI**；
+* 被误当成它的 `g_Config.nSumSpeedMaxCount` 才是 5。
+
+→ 已改为 `public static int nMaxClientMsgCount = 100;`（并在 `ResetForTest` 复位），
+同步订正 `RunGateUtilsFormSafeFilterTests` 里 2 处 `MaxClientMsgCount=5` 期望为 `=100`。
+
+## 20. S1：`RunGateConfigLoader.cs`（uFrmMain 配置加载/校验/写回）
+
+| 覆盖 | Delphi 行号 |
+|---|---|
+| `LoadConfig` 解析内核 | `1076-1507`（`:1509-1855` 的 UI 尾巴仍属后续 UI 片） |
+| `btnSettingOKClick` 输入校验 | `2766-2806` |
+| 全局赋值 | `2808-2813` |
+| 48 行 INI 写回 | `2874-2929` |
+
+DFM 边界由**脚本抽取 + 回读**（非手工转录）：`seCheckServerTimeOutTime 60..600`、
+`seClientSendBlockSize 1..8`、`sePreAllocatedCount 256..102400`、
+`seRecvAntiPlugHeartbeatTimeOutTime 15..180`、`seAntiPlugStreamSendSpeed 1..20`、
+`cbbShowLogLevel.Items.Count=11`、`cbbAntiPlugStreamSendBlockSize.Items.Count=4`；
+断言 `uFrmMainConfigTests.DfmBounds_MatchScriptExtraction`。
+
+本轮**新发现 1 条原文缺陷**：
+
+* **C15**（`uFrmMain.pas:1109-1113`）：`g_btShowLogLevel: Byte`（`GateShare.pas:1172`）——
+  `ReadInteger` 的结果**先截断成 Byte 再比较**，故 `if g_btShowLogLevel <= 0` **对负值不可达**
+  （Byte 无负值）→ 实际等价于 `= 0`；INI 里的 `-5` 会变成 **251**，随后命中**上界钳位得 11**。
+  即"负值抹成 0"的直觉是错的。已照抄（未"顺手修正"成 int 比较）。
+
+同时登记并逐条固化的原文缺陷：**C1**（上界钳到 `Items.Count=11` 但合法 ItemIndex 只到 10 → UI 越界）、
+**C2**（`AttackTick`/`AttackCount` 同一个键被读两次）、**C3**（`MaxClientPacketSize > 512` 回落 **128** 而非内联初值 512）、
+**C4**（`BlockMethod`/`CheckClientFailBlockMethod` 不做范围校验，越界 INI 值产生非法枚举）、
+**C5**（`AntiPlugUpdateCheckInterval` 只钳下界）、**C6**（`String/DisableSayMsg*` 缺键时**写回**默认）、
+**C7**（`FYDownDenyIPUrl`/`FYDownPassIPUrl` 有 `ValueExists` 保护、`FYDownDenyMACUrl` **没有**）、
+**C9**（`dwSpeedValue >= dwCollectCount → dwCollectCount-1`）、**C10**（吃药 CD 键名 `1NormalHP`，前缀从 1 起、无分隔符）、
+**C11**（端口允许 0；`IntDBPort` **完全不校验**）、**C12**（端口 `Integer → Word` 截断）、
+**C13**（写回 `AntiplugAllLog` 但读取行被注释 → 写入型设置）、**C14**（写回用**控件值**而非落地的 `MAX_*`）。
+
+## 21. 本轮新建的两个**集成阻塞项**（均在本车道分区之外）
+
+1. **`MAX_OVERLAPPEDEX_BUFFER_SIZE` / `MAX_PREALLOCATED_MEMORY_SIZE` 是可变的原文全局量**
+   （`IocpCommon.pas:24/:26` 在 `var` 段），而 main 上 `IocpSendCachePolicy.MaxOverlappedExBufferSizeKb`
+   / `MaxPreallocatedMemorySize` 是 **`const`** → INI 覆盖无法流进发送路径
+   （`MirClientContext.Run.cs:310` 读的仍是那个 const）。
+   → 本轮把运行期真值放在 `GateShareGlobals.MAX_OVERLAPPEDEX_BUFFER_SIZE` / `MAX_PREALLOCATED_MEMORY_SIZE`
+   （`LoadConfig` 会写它们），**需要集成者把那两个 const 改成读这两个字段**，否则 INI 的这两个键是"读了不用"。
+2. **`FormGlobals.ResetForTest()` 不重置 `g_EatItemCDConfig` 的 42 个字段** → 跨测试类污染源
+   （本轮的 `uFrmMainConfigTests` 已自行清理以保用例独立）。建议补进 `ResetForTest`。
+
+## 22. 后续（仍按 §15 的 S2→S8）
+
+* **S2**：补 §5 缺口全局量 —— main 上 `MirClientContextSeams.GateShareSeam`（兄弟车道）已托管了
+  `g_boCheckClientPassword`/`g_sClientPassWord`/`g_dwClientAccumulateMaxSize`/退出延时组/禁言提示组等
+  **十多个**，本轮 `RunGateConfigLoader` 直接**引用**它们而没有重复定义；剩余缺口（`g_btShowLogLevel`
+  之外的 identity/port 组已在 `GateShareGlobals`，`g_rgp*` 插件句柄在 `GateShareSeam`）→ S2 体量比原估的小。
+* **S3/S5 已完成**（第二轮 `uFrmMainLogic.cs`）；**S4** 可复用 main 上已有的 `ILogSink`
+  （`IpDownThread.cs`，签名 `void AddMainLogMsg(string msg, int nLevel)`）——**不要另造同名接口**。
+* **S6/S7/S8** 未开始；`IRunGate`/`TIocpClientContext`/`TIocpTcpServer`/`IFrmMainSeam` 已由兄弟车道
+  在 `MirClientContextSeams.cs` 提供，落笔前先 grep（本轮已确认 `ILogSink`/`TSafeList`/`TRunGate`/`TVersionNumber`
+  **均已存在**，不得重复定义）。

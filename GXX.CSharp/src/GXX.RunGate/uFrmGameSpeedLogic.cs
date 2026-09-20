@@ -178,6 +178,55 @@ public class TAntiPlugConfig
         for (int i = 0; i < ActionList.Length; i++) ActionList[i] = new TAntiPlugAction();
     }
 
+    /// <summary>Delphi `g_DefaultConfig := g_Config;`（**记录整体赋值** → 就地深拷贝）。
+    /// 与 <see cref="Clone"/> 的区别：本方法**不新建实例**，只把 <paramref name="src"/> 的字段逐个搬进来，
+    /// 以保持 `FormGlobals.g_DefaultConfig` 这个 `readonly` 引用的同一性（原文是变量赋值，引用语义等价）。</summary>
+    public void CopyFrom(TAntiPlugConfig src)
+    {
+        for (int i = 0; i < ActionList.Length; i++)
+        {
+            var s = src.ActionList[i];
+            var d = ActionList[i];
+            d.boEnabled = s.boEnabled;
+            d.nInterval = s.nInterval;
+            d.ProcessMode = s.ProcessMode;
+            d.boProcessScript = s.boProcessScript;
+            d.SumProcessMode = s.SumProcessMode;
+            d.boShowHint = s.boShowHint;
+            d.sHintText = s.sHintText;
+            d.nCompensationValue = s.nCompensationValue;
+            d.boDebug = s.boDebug;
+        }
+        btMsgType = src.btMsgType;
+        btMsgFColor = src.btMsgFColor;
+        btMsgBColor = src.btMsgBColor;
+        nLockTime = src.nLockTime;
+        boSaveLockStatus = src.boSaveLockStatus;
+        boShowLockLog = src.boShowLockLog;
+        sShowLockMsg = src.sShowLockMsg;
+        boSpeedClearData = src.boSpeedClearData;
+        dwUserShop_Search_Interval = src.dwUserShop_Search_Interval;
+        boUserShop_Search_ShowHint = src.boUserShop_Search_ShowHint;
+        dwUserShop_Buy_Interval = src.dwUserShop_Buy_Interval;
+        boUserShop_Buy_ShowHint = src.boUserShop_Buy_ShowHint;
+        dwTakeOn_Item_Interval = src.dwTakeOn_Item_Interval;
+        boTakeOn_Item_ShowHint = src.boTakeOn_Item_ShowHint;
+        dwDealTry_Attack_Interval = src.dwDealTry_Attack_Interval;
+        boDealTry_Attack_ShowHint = src.boDealTry_Attack_ShowHint;
+        dwBrutal_Attack_Interval = src.dwBrutal_Attack_Interval;
+        boBrutal_Attack_ShowHint = src.boBrutal_Attack_ShowHint;
+        boShowAttackLog = src.boShowAttackLog;
+        dwContinueSpeedPassIncTime = src.dwContinueSpeedPassIncTime;
+        boContinueSpeedCloseSocket = src.boContinueSpeedCloseSocket;
+        nContinueSpeedCount = src.nContinueSpeedCount;
+        nSumSpeedCheckTime = src.nSumSpeedCheckTime;
+        nSumSpeedMaxCount = src.nSumSpeedMaxCount;
+        dwCollectCount = src.dwCollectCount;
+        dwSpeedValue = src.dwSpeedValue;
+        boZeroCompensationValueClearPool = src.boZeroCompensationValueClearPool;
+        dwClientUploadPickItemsTime = src.dwClientUploadPickItemsTime;
+    }
+
     public TAntiPlugConfig Clone()
     {
         var c = (TAntiPlugConfig)MemberwiseClone();
@@ -382,8 +431,11 @@ public static class FormGlobals
     public static string g_ProcessBlacklistStr = "";
     public static byte[] g_ProcessBlacklistMD5 = new byte[16];
 
-    /// <summary>GateShare.pas:1059 `nSumSpeedMaxCount`（INI 里 MaxClientMsgCount 写的是这个"看似同名实则不同"的常量）。</summary>
-    public const int nMaxClientMsgCount = 5;
+    /// <summary>GateShare.pas:1226 —— <c>nMaxClientMsgCount: Integer = 100;</c>。
+    /// ★ 更正（本轮）：原接缝写成 `const int = 5`，那是把 <c>g_Config.nSumSpeedMaxCount</c>（=5）误当成同一个量；
+    /// 原文这里在 **`var` 段**、初值 **100**，且 `uFrmMain.LoadConfig:1207` 会从 INI 覆盖它、
+    /// `uFrmSafeFilter.pas:740` 会把它写回 INI。故必须是**可变静态量**。</summary>
+    public static int nMaxClientMsgCount = 100;
 
     /// <summary>GateShare.pas:1256 `g_dwSayMaxCount: LongWord = 2;`。</summary>
     public static uint g_dwSayMaxCount = 2;
@@ -654,6 +706,7 @@ public static class FormGlobals
         g_dwSayMaxLen = 0;
         g_dwSayTime = 0;
         g_dwSayMaxCount = 2;                       // GateShare.pas:1256 内联初值
+        nMaxClientMsgCount = 100;                  // GateShare.pas:1226 内联初值（本轮更正：原为 const 5）
         g_dwSayDisableTime = 0;
         g_dwIPCountLimitTime1 = 0;
         g_dwIPCountLimit1 = 0;

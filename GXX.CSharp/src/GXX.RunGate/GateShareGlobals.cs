@@ -300,6 +300,41 @@ public static class GateShareGlobals
     /// <summary>原文 :1264 `g_dwDefenseLevel: LongWord = 1;` 的原文内联初值。</summary>
     public const uint Original_dwDefenseLevel = 1;
 
+    // ================= :1198 / :1204 / :1174-1176 / :1206 / :1207（LoadConfig 读写、originally 未登记） =================
+    /// <summary>原文 :1198 `g_boMinimize: Boolean = True;`。</summary>
+    public static bool g_boMinimize = true;
+
+    /// <summary>原文 :1204 `g_dwCheckServerTimeOutTime: LongWord = 300;`。</summary>
+    public static uint g_dwCheckServerTimeOutTime = 300;
+
+    /// <summary>原文 :1174 `g_nRecvAntiPlugHeartbeatTimeOutTime: Integer = 25;`。</summary>
+    public static int g_nRecvAntiPlugHeartbeatTimeOutTime = 25;
+
+    /// <summary>原文 :1175 `g_nAntiPlugStreamSendSpeed: Integer = 2;`。</summary>
+    public static int g_nAntiPlugStreamSendSpeed = 2;
+
+    /// <summary>原文 :1176 `g_nAntiPlugStreamSendBlockSize: Integer = 2;`。</summary>
+    public static int g_nAntiPlugStreamSendBlockSize = 2;
+
+    /// <summary>原文 :1226 `nMaxClientMsgCount: Integer = 100;`（**注意：这是 `var` 段的可变全局量**，
+    /// `uFrmSafeFilter.pas:740` 与 `uFrmMain.LoadConfig:1207` 都会读写它）。
+    /// ★ 更正：`uFrmGameSpeedLogic.FormGlobals.nMaxClientMsgCount` 原先是 `const int = 5`，
+    /// 那是把 `g_Config.nSumSpeedMaxCount`（=5）**误当成**同一个量。本轮已把它改成
+    /// `static int = 100`（原文初值），并订正了 2 处测试期望。此处**不重复定义**（唯一真源仍在 FormGlobals）。</summary>
+    public const int Original_nMaxClientMsgCount = 100;
+
+    // ================= IocpCommon.pas:24 / :26 —— 原文是 **var**（可被 INI 覆盖） =================
+    /// <summary>原文 `IocpCommon.pas:24 MAX_OVERLAPPEDEX_BUFFER_SIZE: LongWord = 5;`（KB）。
+    /// ★ `IocpSendCachePolicy.MaxOverlappedExBufferSizeKb` 是 **const**，无法表达"INI 可覆盖"；
+    /// 运行期真值放在这里，`RunGateConfigLoader.LoadConfig` 会写它。
+    /// **集成事项**：`MirClientContext.Run.cs:310` 读的仍是那个 const → 需要把该 const 改成读本字段。</summary>
+    public static uint MAX_OVERLAPPEDEX_BUFFER_SIZE = 5;
+
+    /// <summary>原文 `IocpCommon.pas:26 MAX_PREALLOCATED_MEMORY_SIZE: Integer = 1024;`。
+    /// 同上：`IocpSendCachePolicy.MaxPreallocatedMemorySize` 是 const，运行期真值放这里。
+    /// （原文名字叫 MemorySize，但实际语义是"预分配**个数**"，被 `RecallPreAllocatedSize` 当乘数用 —— 见 uFrmMain D10。）</summary>
+    public static int MAX_PREALLOCATED_MEMORY_SIZE = 1024;
+
     /// <summary>初值审计：原文 `var` 段里带内联初值的那些量（供测试逐项比对）。</summary>
     public static readonly (string Name, string Literal)[] OriginalInlineLiterals =
     {
@@ -411,5 +446,14 @@ public static class GateShareGlobals
         g_sRunGatePlusDllName = "RunGatePlug.dll";
         g_RunGatePlugDllHandle = IntPtr.Zero;
         g_dwAntiPlugUpdateCheckTick = 0;
+
+        // :1198 / :1204 / :1174-1176 / IocpCommon.pas:24/26
+        g_boMinimize = true;
+        g_dwCheckServerTimeOutTime = 300;
+        g_nRecvAntiPlugHeartbeatTimeOutTime = 25;
+        g_nAntiPlugStreamSendSpeed = 2;
+        g_nAntiPlugStreamSendBlockSize = 2;
+        MAX_OVERLAPPEDEX_BUFFER_SIZE = 5;
+        MAX_PREALLOCATED_MEMORY_SIZE = 1024;
     }
 }
