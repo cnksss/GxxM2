@@ -2013,6 +2013,541 @@ public class DxCtlDibFusionTests
     }
 
     // =========================================================================================
+    // DIB.pas 6398-6445 —— DoSplitBlur
+    // =========================================================================================
+
+    private static TDIB SplitBlurFixture()
+    {
+        var d = Mk24(4, 4);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                d.SetPixel(x, y, unchecked((uint)Col(x + y * 10, 0, 0)));
+        return d;
+    }
+
+    [Fact]
+    public void DoSplitBlur_Amount0不变()
+    {
+        var d = SplitBlurFixture();
+        d.DoSplitBlur(0);
+        AssertPx(d, 0, 0, 0, 0, 0, "Amount=0 → Exit（DIB.pas:6406）");
+        AssertPx(d, 3, 3, 33, 0, 0, "...");
+    }
+
+    [Fact]
+    public void DoSplitBlur_四角均值且越界反折与X递增依赖()
+    {
+        var d = SplitBlurFixture();
+        d.DoSplitBlur(1);
+        // Y=0: p1=行0（=p0 自身）、P2=行1；cx 左 = X-1 取**已改写**的左邻
+        // X=0: (r0p0=0 + r1p0=10 + r0p1=1 + r1p1=11)/4 = 22/4 = 5
+        // X=1: (r0p0(已改)=5 + r1p0=10 + r0p2=2 + r1p2=12)/4 = 29/4 = 7
+        // X=2: (r0p1(已改)=7 + r1p1=11 + r0p3=3 + r1p3=13)/4 = 34/4 = 8
+        // X=3: (r0p2(已改)=8 + r1p2=12 + 右越界 → cx = Width-X = 1 → r0p1(已改)=7 + r1p1=11)/4 = 38/4 = 9
+        AssertPx(d, 0, 0, 5, 0, 0, "DIB.pas:6431-6433（R 通道）");
+        AssertPx(d, 1, 0, 7, 0, 0, "...");
+        AssertPx(d, 2, 0, 8, 0, 0, "...");
+        AssertPx(d, 3, 0, 9, 0, 0, "右越界用 cx := clip.Width - X（DIB.pas:6424）");
+        // Y=1: p1=行0、P2=行2、p0=行1
+        // X=0: (r0p0=5 + r2p0=20 + r0p1=7 + r2p1=21)/4 = 53/4 = 13
+        AssertPx(d, 0, 1, 13, 0, 0, "Y=1 读的是已被改写的行 0");
+    }
+
+    [Fact]
+    public void DoSplitBlur_Amount不小于Height时Y0行号越界抛SScanline()
+    {
+        var d = SplitBlurFixture();
+        // Y=0 → Y+Amount >= Height → P2 := ScanLine(Height - 0) = ScanLine(4) → 越界
+        Assert.Throws<EInvalidGraphicOperation>(() => d.DoSplitBlur(4));
+    }
+
+    // =========================================================================================
+    // DIB.pas 6447-6457 —— DoGaussianBlur
+    // =========================================================================================
+
+    [Fact]
+    public void DoGaussianBlur_均匀图不变()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 100, 100, 100);
+        d.DoGaussianBlur(3);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 100, 100, 100, "转调 GaussianBlur→SplitBlur（DIB.pas:4705-4706）");
+    }
+
+    [Fact]
+    public void DoGaussianBlur_Amount0不变()
+    {
+        var d = Mk24(2, 1);
+        Fill(d, 10, 20, 30);
+        d.DoGaussianBlur(0);
+        AssertPx(d, 0, 0, 10, 20, 30, "for I := 1 to 0 空转");
+    }
+
+    [Fact]
+    public void DoGaussianBlur_非24bpp时SplitBlur直接退出()
+    {
+        var d = new TDIB();
+        d.SetSize(4, 4, 8);
+        d.SetPixel(0, 0, 123);
+        uint before = d.GetPixel(0, 0);
+        d.DoGaussianBlur(2);
+        Assert.Equal(8, d.BitCount);   // BB.BitCount := 24 被 Assign 覆盖
+        Assert.Equal(before, d.GetPixel(0, 0));
+    }
+
+    // =========================================================================================
+    // DIB.pas 6459-6502 —— DoMosaic
+    // =========================================================================================
+
+    private static TDIB MosaicFixture()
+    {
+        var d = Mk24(4, 4);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                d.SetPixel(x, y, unchecked((uint)Col(x + y * 10, 0, 0)));
+        return d;
+    }
+
+    [Fact]
+    public void DoMosaic_按Size做水平游程填充且色取自游程起点()
+    {
+        var d = MosaicFixture();
+        d.DoMosaic(2);
+        // 关键：6476-6478 的 R/G/B 读在**最内层 repeat 之外** ⇒ 一次读、连续写 Size 个像素；
+        // 被覆盖的位置**不会**先被读回 ⇒ 游程色恒为游程起点的颜色。
+        // 行 0（p1 = 行 0）：run(0..1) 用 p0 → [0,0]；run(2..3) 用 p2 → [2,2]
+        AssertPx(d, 0, 0, 0, 0, 0, "run 起点");
+        AssertPx(d, 1, 0, 0, 0, 0, "被 run 起点颜色覆盖（原值 1）");
+        AssertPx(d, 2, 0, 2, 0, 0, "下一 run 的起点");
+        AssertPx(d, 3, 0, 2, 0, 0, "被覆盖（原值 3）");
+        // j=2 的 P2 = 行 1，但 p1 仍是行 0 ⇒ 行 1 也变成行 0 的游程结果
+        AssertPx(d, 0, 1, 0, 0, 0, "DIB.pas:6473 + 6489（Y 被内层推进）");
+        AssertPx(d, 2, 1, 2, 0, 0, "...");
+        // 最外层第二轮：p1 = 行 2（未被前面改过）
+        AssertPx(d, 0, 2, 20, 0, 0, "第二轮 p1 = 行 2");
+        AssertPx(d, 1, 2, 20, 0, 0, "...");
+        AssertPx(d, 2, 2, 22, 0, 0, "...");
+        AssertPx(d, 0, 3, 20, 0, 0, "行 3 ← 行 2 的游程结果（原值 30）");
+        AssertPx(d, 3, 3, 22, 0, 0, "...");
+    }
+
+    [Fact]
+    public void DoMosaic_Size1与Size0为恒等()
+    {
+        var d1 = MosaicFixture();
+        d1.DoMosaic(1);
+        var d0 = MosaicFixture();
+        d0.DoMosaic(0);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+            {
+                AssertPx(d1, x, y, x + y * 10, 0, 0, "Size=1 → 游程长度 1");
+                AssertPx(d0, x, y, x + y * 10, 0, 0, "Size=0 → I > 0 立即成立，游程长度 1");
+            }
+    }
+
+    [Fact]
+    public void DoMosaic_单行图不崩()
+    {
+        var d = Mk24(3, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(1, 2, 3)));
+        d.SetPixel(1, 0, unchecked((uint)Col(4, 5, 6)));
+        d.SetPixel(2, 0, unchecked((uint)Col(7, 8, 9)));
+        d.DoMosaic(2);
+        AssertPx(d, 0, 0, 1, 2, 3, "游程 0..1 取 p0");
+        AssertPx(d, 1, 0, 1, 2, 3, "被 p0 覆盖（原值 (4,5,6)）");
+        AssertPx(d, 2, 0, 7, 8, 9, "第二个游程的起点");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6504-6642 —— DoTwist
+    // =========================================================================================
+
+    [Fact]
+    public void DoTwist_均匀图在重采样后不变()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 77, 88, 99);
+        d.DoTwist(3);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 77, 88, 99, "双线性权重和为 1 ⇒ 均匀图恒等");
+    }
+
+    [Fact]
+    public void DoTwist_Amount0时R除0得Inf经Trunc抛异常()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 10, 20, 30);
+        // R / Amount = +Inf ⇒ Cos(Inf)=NaN ⇒ Trunc(NaN) ⇒ ArithmeticException（Delphi EInvalidOp）
+        Assert.Throws<ArithmeticException>(() => d.DoTwist(0));
+    }
+
+    [Fact]
+    public void DoTwist_小图时循环上界未被夹住会越界()
+    {
+        // 3x3：R = Sqrt(4+4) = 2.828 < Height=3 ⇒ ty2 不被夹到 2 ⇒ Round(2.828)=3 ⇒ ScanLine(3) 越界
+        var d = Mk24(3, 3);
+        Fill(d, 10, 20, 30);
+        Assert.Throws<EInvalidGraphicOperation>(() => d.DoTwist(1));
+    }
+
+    // =========================================================================================
+    // DIB.pas 6644-6790 —— DoTrace
+    // =========================================================================================
+
+    [Fact]
+    public void DoTrace_未装载Canvas接缝时影子图恒0故原图不变()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 10, 20, 30);
+        d.DoTrace(2);
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 10, 20, 30, "8bpp 影子图未接线 ⇒ 全部比较为假（DIB.pas:6656）");
+    }
+
+    [Fact]
+    public void DoTrace_装载Canvas接缝时取一次影子绘制且原图仍不变()
+    {
+        var canvas = new FakeCanvas();
+        DibSeams.Canvas = canvas;
+        var d = Mk24(4, 4);
+        Fill(d, 10, 20, 30);
+
+        d.DoTrace(2);
+
+        Assert.Equal(1, canvas.DrawCount);
+        AssertPx(d, 0, 0, 10, 20, 30, "影子图仍是全 0（假接缝不写像素）⇒ 无描边");
+    }
+
+    [Fact]
+    public void DoTrace_intensity0时不进入循环()
+    {
+        var canvas = new FakeCanvas();
+        DibSeams.Canvas = canvas;
+        var d = Mk24(2, 2);
+        Fill(d, 1, 2, 3);
+        d.DoTrace(0);
+        Assert.Equal(1, canvas.DrawCount);   // 影子图仍被建/绘
+        AssertPx(d, 1, 1, 1, 2, 3, "for I := 1 to 0 空转");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6792-6825 —— DoSplitlight
+    // =========================================================================================
+
+    [Fact]
+    public void DoSplitlight_0与255是曲线的不动点()
+    {
+        var d = Mk24(2, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(0, 255, 128)));
+        d.SetPixel(1, 0, unchecked((uint)Col(255, 0, 0)));
+        var (_, g0, _) = Px(d, 0, 0);
+        d.DoSplitlight(1);
+        // 内存序 (B,G,R)：px0 = (128,255,0) → 128 会被提亮，255/0 不动
+        AssertPx(d, 1, 0, 255, 0, 0, "0 与 255 是 sin 曲线的端点（DIB.pas:6800）");
+        Assert.InRange(Px(d, 0, 0).B, 140, 200);
+        Assert.Equal(255, g0);
+    }
+
+    [Fact]
+    public void DoSplitlight_Amount0不变()
+    {
+        var d = Mk24(2, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.SetPixel(1, 0, unchecked((uint)Col(10, 20, 30)));
+        d.DoSplitlight(0);
+        AssertPx(d, 0, 0, 200, 100, 50, "for I := 1 to 0 空转");
+        AssertPx(d, 1, 0, 10, 20, 30, "...");
+    }
+
+    [Fact]
+    public void DoSplitlight_多次施加单调提亮()
+    {
+        var d1 = Mk24(1, 1);
+        Fill(d1, 128, 128, 128);
+        d1.DoSplitlight(1);
+        var one = Px(d1, 0, 0).R;
+
+        var d2 = Mk24(1, 1);
+        Fill(d2, 128, 128, 128);
+        d2.DoSplitlight(2);
+        var two = Px(d2, 0, 0).R;
+
+        Assert.InRange(one, 150, 200);
+        Assert.True(two > one, $"复合应更亮：{one} → {two}");
+        Assert.True(two <= 255, "上界 255");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6827-6913 —— DoTile
+    // =========================================================================================
+
+    [Fact]
+    public void DoTile_图太小直接早退_尺寸保持()
+    {
+        var d = Mk24(8, 8);
+        Fill(d, 10, 20, 30);
+        d.DoTile(2);   // 8 div 2 = 4 < 5 → Exit
+        Assert.Equal(8, d.Width);
+        Assert.Equal(8, d.Height);
+        for (int y = 0; y < 8; y++)
+            for (int x = 0; x < 8; x++)
+                AssertPx(d, x, y, 10, 20, 30, "早退条件 (w div Amount) < 5（DIB.pas:6888）");
+    }
+
+    [Fact]
+    public void DoTile_Amount非正直接早退()
+    {
+        var d = Mk24(20, 20);
+        Fill(d, 7, 8, 9);
+        d.DoTile(0);
+        AssertPx(d, 0, 0, 7, 8, 9, "Amount <= 0 → Exit");
+        d.DoTile(-1);
+        AssertPx(d, 0, 0, 7, 8, 9, "Amount < 0 → Exit");
+    }
+
+    [Fact]
+    public void DoTile_满足条件时走SmoothResize但平铺靠接缝故像素不变()
+    {
+        var canvas = new FakeCanvas();
+        DibSeams.Canvas = canvas;
+        var d = Mk24(10, 10);
+        for (int y = 0; y < 10; y++)
+            for (int x = 0; x < 10; x++)
+                d.SetPixel(x, y, unchecked((uint)Col(x * 20, y * 20, 0)));
+
+        d.DoTile(2);   // 10 div 2 = 5 ≥ 5 → 进入 SmoothResize 与 4 次平铺 Draw
+
+        Assert.Equal(10, d.Width);
+        // 1 次 Tile 内的 Dst.Canvas.Draw(0,0,Src) + Amount^2 = 4 次平铺 Draw
+        Assert.Equal(5, canvas.DrawCount);
+        AssertPx(d, 0, 0, 0, 0, 0, "平铺写的是 Dst 的接缝（GDI），无头时不改像素");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6915-6958 —— DoSpotLight
+    // =========================================================================================
+
+    private sealed class FakeSpotSeam : IDibFusionSpotSeam
+    {
+        public readonly List<int> BrushColors = new();
+        public readonly List<(int, int, int, int)> Rects = new();
+        public readonly List<(int, int, int, int)> Ellipses = new();
+        public readonly List<(TDIB bmp, bool value)> Transparency = new();
+        public readonly List<(TDIB dib, uint value)> CopyModes = new();
+
+        public void SetBrushColor(int Color) => BrushColors.Add(Color);
+        public void FillRect(int Left, int Top, int Right, int Bottom) => Rects.Add((Left, Top, Right, Bottom));
+        public void Ellipse(int X1, int Y1, int X2, int Y2) => Ellipses.Add((X1, Y1, X2, Y2));
+        public void SetBitmapTransparent(TDIB Bmp, bool Value) => Transparency.Add((Bmp, Value));
+        public void SetCanvasCopyMode(TDIB Dib, uint Value) => CopyModes.Add((Dib, Value));
+    }
+
+    [Fact]
+    public void DoSpotLight_绘制接缝未装载时抛异常()
+    {
+        var d = Mk24(4, 4);
+        Fill(d, 10, 20, 30);
+        Assert.Throws<InvalidOperationException>(() => d.DoSpotLight(50, TDxRect.Rect(0, 0, 2, 2)));
+    }
+
+    [Fact]
+    public void DoSpotLight_原文把结果画进临时z后即释放_故对自身是空操作()
+    {
+        var spot = new FakeSpotSeam();
+        DibFusionSpot.Seam = spot;
+        DibFusionCanvas.Seam = new FakeFusionCanvas();
+        var canvas = new FakeCanvas();
+        DibSeams.Canvas = canvas;
+
+        var d = Mk24(4, 4);
+        Fill(d, 100, 100, 100);
+
+        d.DoSpotLight(51, TDxRect.Rect(1, 1, 3, 3));
+
+        // 原文缺陷：SpotLight 内部只改临时 z，从不回写 Src ⇒ Self 像素不变
+        for (int y = 0; y < 4; y++)
+            for (int x = 0; x < 4; x++)
+                AssertPx(d, x, y, 100, 100, 100, "DIB.pas:6921-6944 未回写 Src");
+
+        // 但接缝调用序列完整发生
+        Assert.Equal(new[] { DibFusionSupport.clBlack, DibFusionSupport.clWhite }, spot.BrushColors);
+        Assert.Single(spot.Rects);
+        Assert.Equal((0, 0, 4, 4), spot.Rects[0]);
+        Assert.Single(spot.Ellipses);
+        Assert.Equal((1, 1, 3, 3), spot.Ellipses[0]);
+        Assert.Single(spot.Transparency);
+        Assert.True(spot.Transparency[0].value);
+        Assert.Single(spot.CopyModes);
+        Assert.Equal(DibFusionSupport.cmSrcAnd, spot.CopyModes[0].value);
+        Assert.Equal(1, canvas.DrawCount);
+
+        // 被设置 CopyMode 的那张图（= 临时 z）已被 Darkness 处理过：
+        // z 的像素来自 BitBlt 接缝（假接缝不拷像素）⇒ 全 0 → Darkness 后仍全 0
+        var z = spot.CopyModes[0].dib;
+        Assert.NotSame(d, z);
+        AssertPx(z, 0, 0, 0, 0, 0, "z 由 SetSize 清零且假 BitBlt 不拷像素");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6960-6988 —— DoEmboss
+    // =========================================================================================
+
+    [Fact]
+    public void DoEmboss_当前行与下一行相隔3像素反相叠加()
+    {
+        var d = Mk24(4, 2);
+        Fill(d, 100, 100, 100);
+        for (int x = 0; x < 4; x++)
+            d.SetPixel(x, 1, 0);          // 下一行全 0 → xor $FF = 255
+
+        d.DoEmboss();
+
+        // (100 + 255) shr 1 = 177，只作用于 Y=0 行、X=0（Width-4 = 0）
+        AssertPx(d, 0, 0, 177, 177, 177, "DIB.pas:6970-6972");
+        AssertPx(d, 1, 0, 100, 100, 100, "列范围 0..Width-4");
+        AssertPx(d, 0, 1, 0, 0, 0, "行范围 0..Height-2，末行不改");
+    }
+
+    [Fact]
+    public void DoEmboss_下一行为白时反相后为0()
+    {
+        var d = Mk24(4, 2);
+        Fill(d, 100, 100, 100);
+        for (int x = 0; x < 4; x++)
+            d.SetPixel(x, 1, unchecked((uint)Col(255, 255, 255)));
+
+        d.DoEmboss();
+        AssertPx(d, 0, 0, 50, 50, 50, "(100 + (255 xor 255)) shr 1 = 50");
+    }
+
+    [Fact]
+    public void DoEmboss_宽度小于4时不处理()
+    {
+        var d = Mk24(3, 2);
+        Fill(d, 100, 100, 100);
+        for (int x = 0; x < 3; x++)
+            d.SetPixel(x, 1, 0);
+        d.DoEmboss();
+        AssertPx(d, 0, 0, 100, 100, 100, "for X := 0 to Width-4 = -1 空转");
+    }
+
+    // =========================================================================================
+    // DIB.pas 6990-7031 —— DoSolorize
+    // =========================================================================================
+
+    [Fact]
+    public void DoSolorize_均值大于阈值则整像素反相()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));   // 均值 = (50+100+200)/3 = 116
+        d.DoSolorize(100);
+        AssertPx(d, 0, 0, 55, 155, 205, "255 - 原值（DIB.pas:7007-7009）");
+    }
+
+    [Fact]
+    public void DoSolorize_阈值等于均值时走拷贝分支()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoSolorize(116);
+        AssertPx(d, 0, 0, 200, 100, 50, "C > Amount 为假 ⇒ 原样拷贝");
+    }
+
+    [Fact]
+    public void DoSolorize_阈值更高与全黑像素()
+    {
+        var d = Mk24(2, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.SetPixel(1, 0, 0);
+        d.DoSolorize(200);
+        AssertPx(d, 0, 0, 200, 100, 50, "116 > 200 为假");
+        AssertPx(d, 1, 0, 0, 0, 0, "C=0 > 200 为假");
+
+        var d0 = Mk24(1, 1);
+        d0.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d0.DoSolorize(0);
+        AssertPx(d0, 0, 0, 55, 155, 205, "C=116 > 0 → 反相");
+    }
+
+    // =========================================================================================
+    // DIB.pas 7033-7065 —— DoPosterize
+    // =========================================================================================
+
+    [Fact]
+    public void DoPosterize_按Round浮点除量化()
+    {
+        var d = Mk24(2, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(100, 100, 100)));
+        d.SetPixel(1, 0, unchecked((uint)Col(255, 255, 255)));
+        d.DoPosterize(64);
+        // 100/64 = 1.5625 → Round = 2 → 128
+        AssertPx(d, 0, 0, 128, 128, 128, "DIB.pas:7047-7049");
+        // 255/64 = 3.984 → Round = 4 → 256 → Byte 回绕 = 0
+        AssertPx(d, 1, 0, 0, 0, 0, "量化结果可超过 255 ⇒ 写回 Byte 回绕");
+    }
+
+    [Fact]
+    public void DoPosterize_Amount100时255回绕成44()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 255, 255, 255);
+        d.DoPosterize(100);
+        // 255/100 = 2.55 → Round = 3 → 300 → 300 and $FF = 44
+        AssertPx(d, 0, 0, 44, 44, 44, "原文无夹取（DIB.pas:7047）");
+    }
+
+    [Fact]
+    public void DoPosterize_Amount0时除零抛异常()
+    {
+        var d = Mk24(1, 1);
+        Fill(d, 100, 100, 100);
+        Assert.Throws<ArithmeticException>(() => d.DoPosterize(0));
+    }
+
+    // =========================================================================================
+    // DIB.pas 7067-7115 —— DoBrightness
+    // =========================================================================================
+
+    [Fact]
+    public void DoBrightness_正数提亮并夹到255()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoBrightness(50);
+        AssertPx(d, 0, 0, 250, 150, 100, "Min(255, v+Value)（DIB.pas:7091-7093）");
+
+        var d2 = Mk24(1, 1);
+        d2.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d2.DoBrightness(200);
+        AssertPx(d2, 0, 0, 255, 255, 250, "R/G 溢出夹到 255");
+    }
+
+    [Fact]
+    public void DoBrightness_负数变暗并夹到0()
+    {
+        var d = Mk24(1, 1);
+        d.SetPixel(0, 0, unchecked((uint)Col(200, 100, 50)));
+        d.DoBrightness(-50);
+        AssertPx(d, 0, 0, 150, 50, 0, "Max(0, v+Value)（DIB.pas:7096-7098）");
+    }
+
+    [Fact]
+    public void DoBrightness_Amount0保持不变()
+    {
+        var d = Mk24(2, 2);
+        Fill(d, 10, 20, 30);
+        d.DoBrightness(0);
+        for (int y = 0; y < 2; y++)
+            for (int x = 0; x < 2; x++)
+                AssertPx(d, x, y, 10, 20, 30, "Value=0 → else 分支 Max(0, v)");
+    }
+
+    // =========================================================================================
     // DIB.pas 4940-4955 —— TCustomDXDIB
     // =========================================================================================
 

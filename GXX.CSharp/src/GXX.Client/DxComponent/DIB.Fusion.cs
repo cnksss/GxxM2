@@ -45,18 +45,19 @@ namespace GXX.Client.DxComponent;
 //   6330-6356  TDIB.DoLightness
 //   6358-6367  TDIB.DoDarkness
 //   6369-6396  TDIB.DoSaturation
+//   6398-6445  TDIB.DoSplitBlur
+//   6447-6457  TDIB.DoGaussianBlur（转调 DIB.Effects.cs 的 TDIB.GaussianBlur）
+//   6459-6502  TDIB.DoMosaic
+//   6504-6642  TDIB.DoTwist（含内嵌 ArcTan2）
+//   6644-6790  TDIB.DoTrace（阴影图为 8bpp，经 Canvas 接缝）
+//   6792-6825  TDIB.DoSplitlight
+//   6827-6913  TDIB.DoTile（含内嵌 SmoothResize / Tile）
+//   6915-6958  TDIB.DoSpotLight
+//   6960-6988  TDIB.DoEmboss
+//   6990-7031  TDIB.DoSolorize
+//   7033-7065  TDIB.DoPosterize
+//   7067-7115  TDIB.DoBrightness
 //   --- 以下尚未覆盖（见车道报告"空洞覆盖表"）---
-//   6398-6458  DoSplitBlur / DoGaussianBlur
-//   6459-6503  DoMosaic
-//   6504-6643  DoTwist
-//   6644-6791  DoTrace
-//   6792-6826  DoSplitlight
-//   6827-6914  DoTile（含 SmoothResize / Tile 子过程）
-//   6915-6959  DoSpotLight
-//   6960-6989  DoEmboss
-//   6990-7032  DoSolorize
-//   7033-7066  DoPosterize
-//   7067-7116  DoBrightness
 //   7117-7674  DoResample + 8 个重采样滤波器 + TContributor/TCList/TRGB/TColorRGB
 //   7676-7929  DoColorize（含 InvertBitmap）/ FadeOut / DoZoom / DoBlur / FadeIn / FillDIB8
 //
@@ -118,6 +119,15 @@ public static class DibFusionSupport
     /// Delphi 会先截断到 Byte 再打包 —— 故本方法形参取 byte，调用方负责 `unchecked((byte)…)`。
     /// </summary>
     public static int Rgb(byte r, byte g, byte b) => r | (g << 8) | (b << 16);
+
+    /// <summary>Windows.Graphics.clBlack = $000000。</summary>
+    public const int clBlack = 0x000000;
+
+    /// <summary>Windows.Graphics.clWhite = $FFFFFF。</summary>
+    public const int clWhite = 0xFFFFFF;
+
+    /// <summary>Windows.CM_SRCAND = $008800C6（TDIB.DoSpotLight 的 CopyMode，DIB.pas:6937）。</summary>
+    public const uint cmSrcAnd = 0x008800C6;
 
     /// <summary>
     /// Delphi 的 `shr`：对 32 位 Integer 是**逻辑**右移（高位补 0），
@@ -248,6 +258,39 @@ public static class DibFusionCanvas
 
     /// <summary>Windows.SRCCOPY = $00CC0020。</summary>
     public const uint SRCCOPY = 0x00CC0020;
+}
+
+/// <summary>
+/// 接缝：`TDIB.DoSpotLight`（DIB.pas 6915-6959）里的 TCanvas/TBitmap 绘制面。
+/// 原文调用点：`Bm.Canvas.Brush.Color := clBlack/clWhite`、`Bm.Canvas.FillRect(Rect(0,0,w,h))`、
+/// `Bm.Canvas.Ellipse(...)`、`Bm.Transparent := True`、`z.Canvas.CopyMode := cmSrcAnd`、
+/// `z.Canvas.Draw(0, 0, Bm)`（最后一条走既有的 DibSeams.IDibCanvasSeam）。
+/// 这里把"接收者"显式入参（TDIB），以便测试断言改的是哪一张图。
+/// **未装载 → DoSpotLight 抛 InvalidOperationException**（§25.2，不静默）。
+/// </summary>
+public interface IDibFusionSpotSeam
+{
+    /// <summary>Canvas.Brush.Color := Color。</summary>
+    void SetBrushColor(int Color);
+
+    /// <summary>Canvas.FillRect(const Rect: TRect)。</summary>
+    void FillRect(int Left, int Top, int Right, int Bottom);
+
+    /// <summary>Canvas.Ellipse(X1, Y1, X2, Y2)。</summary>
+    void Ellipse(int X1, int Y1, int X2, int Y2);
+
+    /// <summary>`bmp.Transparent := Value`（TGraphic.Transparent）。</summary>
+    void SetBitmapTransparent(TDIB Bmp, bool Value);
+
+    /// <summary>`dib.Canvas.CopyMode := Value`（TCanvas.CopyMode）。</summary>
+    void SetCanvasCopyMode(TDIB Dib, uint Value);
+}
+
+/// <summary>DoSpotLight 的接缝落点。</summary>
+public static class DibFusionSpot
+{
+    /// <summary>未装载 → DoSpotLight 抛 InvalidOperationException。</summary>
+    public static IDibFusionSpotSeam Seam;
 }
 
 // =============================================================================================
@@ -1977,6 +2020,897 @@ public partial class TDIB
         _Saturation(BB, Amount);
         Assign(BB);
         BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6398-6445 —— DoSplitBlur
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6398-6445 1:1（原文头注 `{NOTE: For a gaussian blur is amount 3}`，照抄）。
+    /// 四角采样均值 `shr 2`；源行/列的两侧"越界反折"写法是 `clip.Height - Y` / `clip.Width - X`
+    /// （**不是** `Height-1-Y`）—— 原文如此（DIB.pas:6412/6424）。
+    /// 后果：`Amount >= clip.Height` 时 Y=0 的 `ScanLine(clip.Height - 0)` 抛 SScanline；
+    /// 列方向无范围检查（`p1[clip.Width*3]` 会越出行尾）。
+    /// 又：`p1` 在 Y=0 时就是 `p0` 自身，而 `cx = X - Amount` 取的是**已改写过的**左邻（X 递增）——
+    /// 原文如此，本片用逐像素表锁死。
+    /// </summary>
+    public unsafe void DoSplitBlur(int Amount)
+    {
+        void _SplitBlur(TDIB clip, int Amount2)
+        {
+            byte[] Buf = new byte[4 * 3]; // Buf: array[0..3, 0..2] of Byte（行主序）
+            if (Amount2 == 0) return;
+            for (int Y = 0; Y <= clip.Height - 1; Y++)
+            {
+                byte* p0 = (byte*)clip.ScanLine(Y);
+                byte* p1 = (Y - Amount2 < 0) ? (byte*)clip.ScanLine(Y) : (byte*)clip.ScanLine(Y - Amount2);
+                byte* P2 = (Y + Amount2 < clip.Height)
+                    ? (byte*)clip.ScanLine(Y + Amount2)
+                    : (byte*)clip.ScanLine(clip.Height - Y);
+
+                for (int X = 0; X <= clip.Width - 1; X++)
+                {
+                    int cx = (X - Amount2 < 0) ? X : X - Amount2;
+                    Buf[0] = p1[cx * 3];
+                    Buf[1] = p1[cx * 3 + 1];
+                    Buf[2] = p1[cx * 3 + 2];
+                    Buf[3] = P2[cx * 3];
+                    Buf[4] = P2[cx * 3 + 1];
+                    Buf[5] = P2[cx * 3 + 2];
+                    cx = (X + Amount2 < clip.Width) ? X + Amount2 : clip.Width - X;
+                    Buf[6] = p1[cx * 3];
+                    Buf[7] = p1[cx * 3 + 1];
+                    Buf[8] = p1[cx * 3 + 2];
+                    Buf[9] = P2[cx * 3];
+                    Buf[10] = P2[cx * 3 + 1];
+                    Buf[11] = P2[cx * 3 + 2];
+                    p0[X * 3] = unchecked((byte)((Buf[0] + Buf[3] + Buf[6] + Buf[9]) >> 2));
+                    p0[X * 3 + 1] = unchecked((byte)((Buf[1] + Buf[4] + Buf[7] + Buf[10]) >> 2));
+                    p0[X * 3 + 2] = unchecked((byte)((Buf[2] + Buf[5] + Buf[8] + Buf[11]) >> 2));
+                }
+            }
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        _SplitBlur(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6447-6457 —— DoGaussianBlur
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6447-6457 1:1。
+    /// **原文冗余照抄**：6451-6452 连写两次 `BB.BitCount := 24;`（第二行无任何效果）。
+    /// 转调 `TDIB.GaussianBlur`（已由 DIB.Effects.cs:4701-4707 落地）。
+    /// </summary>
+    public void DoGaussianBlur(int Amount)
+    {
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.SetBitCount(24);   // 原文如此（DIB.pas:6452）—— 连写两次赋值
+        BB.Assign(this);
+        GaussianBlur(BB, Amount);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6459-6502 —— DoMosaic
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6459-6502 1:1（四层嵌套 repeat/until，全部照抄为 do/while）。
+    /// **真实语义（实测，与"马赛克"名字不完全相符）**：
+    ///   * 6476-6478 的 `R/G/B` 读位于**最内层 `repeat` 之外** ⇒ 每个游程只读一次起点颜色，
+    ///     然后向 `Size` 个连续像素刷同一个颜色 —— 被覆盖的位置**不会**先被读回
+    ///     （横向游程填充，不是块内取平均）；
+    ///   * 6473-6474 每轮 `j` 都重新 `P2 := Bm.ScanLine[Y]` **并 `X := 0`**，而 `p1` 只在
+    ///     最外层 `Y` 循环头取一次 ⇒ 当 `Y` 已被内层推进后 `P2` 与 `p1` 是**不同行**，
+    ///     于是整块 `Size` 行都被刷成同一个横向游程结果（纵向块扩散）；
+    ///   * 内层 `until (Y >= Bm.Height) or (X >= Bm.Width)` 中 `X` 此时恒为 `Width-1` 或 `Width`，
+    ///     该条件几乎总为假 —— 循环靠 `j` 与最外层 `Y` 退出。
+    /// 实测（4x4、`pixel(x,y).R = x + 10y`、Size=2）：行 0 = [0,0,2,2]、行 1 = [0,0,2,2]、
+    /// 行 2 = [20,20,22,22]、行 3 = [20,20,22,22]。
+    /// `Size &lt;= 1` 时每个游程长度为 1 ⇒ 恒等。
+    /// </summary>
+    public unsafe void DoMosaic(int Size)
+    {
+        void Mosaic(TDIB Bm, int Size2)
+        {
+            int X, Y, I, j;
+            Y = 0;
+            do
+            {
+                byte* p1 = (byte*)Bm.ScanLine(Y);
+                X = 0;
+                do
+                {
+                    j = 1;
+                    do
+                    {
+                        byte* P2 = (byte*)Bm.ScanLine(Y);
+                        X = 0;
+                        do
+                        {
+                            byte R = p1[X * 3];
+                            byte G = p1[X * 3 + 1];
+                            byte B = p1[X * 3 + 2];
+                            I = 1;
+                            do
+                            {
+                                P2[X * 3] = R;
+                                P2[X * 3 + 1] = G;
+                                P2[X * 3 + 2] = B;
+                                X++;
+                                I++;
+                            } while (!(X >= Bm.Width || I > Size2));
+                        } while (!(X >= Bm.Width));
+                        j++;
+                        Y++;
+                    } while (!(Y >= Bm.Height || j > Size2));
+                } while (!(Y >= Bm.Height || X >= Bm.Width));
+            } while (!(Y >= Bm.Height));
+        }
+
+        var BB = new TDIB();
+        BB.SetBitCount(24);
+        BB.Assign(this);
+        Mosaic(BB, Size);
+        Assign(BB);
+        BB.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6504-6642 —— DoTwist
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6504-6642 1:1（内嵌 `ArcTan2` 一并照抄）。
+    /// 原文缺陷/怪癖（照抄 + 注释）：
+    ///   * 6526-6538 `ArcTan2(xt, yt)` 的形参序与常规 `atan2(y, x)` **相反**；
+    ///     且 `xt &lt; 0` 时无条件 `Pi + ArcTan(yt/xt)`（未按 `yt` 符号选 `±Pi`），
+    ///     并且把 `ArcTan(yt / xt)` 算了两遍；
+    ///   * 6564 `R / Amount`：`Amount = 0` 时得 ±Inf ⇒ `Cos(Inf) = NaN` ⇒ `Trunc(NaN)`
+    ///     抛 EInvalidOp（托管侧由 DibFusionSupport.Trunc 显式抛 ArithmeticException）；
+    ///   * 6606/6613 回绕用 `Height - ify - iy` / `Width - ifx - ix`，下标可为负（原文无检查）；
+    ///   * 6624-6626 写回直接截断到 Byte（**无** IntToByte 夹取）。
+    /// `Single` 声明照抄为 `float`（表达式按 double 求值，末位与原文 Extended 可能有别）。
+    /// </summary>
+    public unsafe void DoTwist(int Amount)
+    {
+        void _Twist(TDIB bmp, TDIB Dst, int Amount2)
+        {
+            float fxmid, fymid, txmid, tymid;
+            float fx, fy, tx2, ty2, R, Theta;
+            int ifx, ify;
+            float dx, dy;
+            float OFFSET;
+            int ty, tx;
+            float[] weight_x = new float[2];
+            float[] weight_y = new float[2];
+            float weight;
+            int new_red, new_green, new_blue;
+            float total_red, total_green, total_blue;
+            int ix, iy;
+
+            float ArcTan2(float xt, float yt)
+            {
+                float Result;
+                if (xt == 0)
+                    if (yt > 0)
+                        Result = (float)(Math.PI / 2);
+                    else
+                        Result = (float)(-(Math.PI / 2));
+                else
+                {
+                    Result = (float)Math.Atan(yt / xt);
+                    if (xt < 0)
+                        Result = (float)(Math.PI + Math.Atan(yt / xt));
+                }
+                return Result;
+            }
+
+            OFFSET = (float)(-(Math.PI / 2));
+            dx = bmp.Width - 1;
+            dy = bmp.Height - 1;
+            R = (float)Math.Sqrt(dx * dx + dy * dy);
+            tx2 = R;
+            ty2 = R;
+            txmid = (bmp.Width - 1) / 2f;   // Adjust these to move center of rotation
+            tymid = (bmp.Height - 1) / 2f;  // Adjust these to move ......
+            fxmid = (bmp.Width - 1) / 2f;
+            fymid = (bmp.Height - 1) / 2f;
+            if (tx2 >= bmp.Width) tx2 = bmp.Width - 1;
+            if (ty2 >= bmp.Height) ty2 = bmp.Height - 1;
+
+            for (ty = 0; ty <= DibFusionSupport.Round(ty2); ty++)
+            {
+                for (tx = 0; tx <= DibFusionSupport.Round(tx2); tx++)
+                {
+                    dx = tx - txmid;
+                    dy = ty - tymid;
+                    R = (float)Math.Sqrt(dx * dx + dy * dy);
+                    if (R == 0)
+                    {
+                        fx = 0;
+                        fy = 0;
+                    }
+                    else
+                    {
+                        Theta = ArcTan2(dx, dy) - R / Amount2 - OFFSET;
+                        fx = (float)(R * Math.Cos(Theta));
+                        fy = (float)(R * Math.Sin(Theta));
+                    }
+                    fx = fx + fxmid;
+                    fy = fy + fymid;
+
+                    ify = DibFusionSupport.Trunc(fy);
+                    ifx = DibFusionSupport.Trunc(fx);
+                    // Calculate the weights.
+                    if (fy >= 0)
+                    {
+                        weight_y[1] = fy - ify;
+                        weight_y[0] = 1 - weight_y[1];
+                    }
+                    else
+                    {
+                        weight_y[0] = -(fy - ify);
+                        weight_y[1] = 1 - weight_y[0];
+                    }
+                    if (fx >= 0)
+                    {
+                        weight_x[1] = fx - ifx;
+                        weight_x[0] = 1 - weight_x[1];
+                    }
+                    else
+                    {
+                        weight_x[0] = -(fx - ifx);
+                        weight_x[1] = 1 - weight_x[0];
+                    }
+
+                    if (ifx < 0)
+                        ifx = bmp.Width - 1 - (-ifx % bmp.Width);
+                    else if (ifx > bmp.Width - 1)
+                        ifx = ifx % bmp.Width;
+                    if (ify < 0)
+                        ify = bmp.Height - 1 - (-ify % bmp.Height);
+                    else if (ify > bmp.Height - 1)
+                        ify = ify % bmp.Height;
+
+                    total_red = 0.0f;
+                    total_green = 0.0f;
+                    total_blue = 0.0f;
+                    for (ix = 0; ix <= 1; ix++)
+                    {
+                        for (iy = 0; iy <= 1; iy++)
+                        {
+                            byte* sli;
+                            if (ify + iy < bmp.Height)
+                                sli = (byte*)bmp.ScanLine(ify + iy);
+                            else
+                                sli = (byte*)bmp.ScanLine(bmp.Height - ify - iy);
+                            if (ifx + ix < bmp.Width)
+                            {
+                                new_red = sli[(ifx + ix) * 3];
+                                new_green = sli[(ifx + ix) * 3 + 1];
+                                new_blue = sli[(ifx + ix) * 3 + 2];
+                            }
+                            else
+                            {
+                                new_red = sli[(bmp.Width - ifx - ix) * 3];
+                                new_green = sli[(bmp.Width - ifx - ix) * 3 + 1];
+                                new_blue = sli[(bmp.Width - ifx - ix) * 3 + 2];
+                            }
+                            weight = weight_x[ix] * weight_y[iy];
+                            total_red = total_red + new_red * weight;
+                            total_green = total_green + new_green * weight;
+                            total_blue = total_blue + new_blue * weight;
+                        }
+                    }
+                    byte* slo = (byte*)Dst.ScanLine(ty);
+                    slo[tx * 3] = unchecked((byte)DibFusionSupport.Round(total_red));
+                    slo[tx * 3 + 1] = unchecked((byte)DibFusionSupport.Round(total_green));
+                    slo[tx * 3 + 2] = unchecked((byte)DibFusionSupport.Round(total_blue));
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        _Twist(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6644-6790 —— DoTrace
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6644-6790 1:1。
+    /// 内嵌 `Trace` 先造一张 **8bpp** 的影子图 `Bitmap`（`Width/Height` 各赋值一次，
+    /// 中途 `Bitmap.BitCount := 8`），再 `Src.BitCount := 24`，然后按 8bpp 的单字节比较
+    /// 在 24bpp 的 `Src` 上"描边"。
+    /// 接缝依赖（§2.3）：`Bitmap.Canvas.Draw(0, 0, Src)` 是 GDI BitBlt（会把 24bpp 转成 8bpp），
+    /// 托管侧走 `DibSeams.Canvas.DrawGraphic` 之外的 `IDibCanvasSeam.Draw`；
+    /// **未装载接缝时影子图恒为 0** ⇒ 全部比较为假 ⇒ `Src` 除位深外不变（本片断言该退化行为）。
+    /// 原文笔误照抄：6686-6688 连写两次 `p3[(X+1)*3+1] := TraceB;`（第二次覆盖第一次，R 通道漏写）。
+    /// </summary>
+    public unsafe void DoTrace(int Amount)
+    {
+        // 原文 `tb` 声明在 Trace 体内；托管侧提到此处以便局部函数捕获（Trace 只被调用一次，语义等价）
+        byte tb = 0;
+
+        void Trace(TDIB Src, int intensity)
+        {
+            var Bitmap = new TDIB();
+            Bitmap.SetWidth(Src.Width);
+            Bitmap.SetHeight(Src.Height);
+            Bitmap.Canvas.Draw(0, 0, Src);
+            Bitmap.SetBitCount(8);
+            Src.SetBitCount(24);
+            bool hasb = false;
+            byte TraceB = 0x00;
+            for (int I = 1; I <= intensity; I++)
+            {
+                for (int Y = 0; Y <= Bitmap.Height - 2; Y++)
+                {
+                    byte* p1 = (byte*)Bitmap.ScanLine(Y);
+                    byte* P2 = (byte*)Bitmap.ScanLine(Y + 1);
+                    byte* p3 = (byte*)Src.ScanLine(Y);
+                    byte* p4 = (byte*)Src.ScanLine(Y + 1);
+                    int X = 0;
+                    do
+                    {
+                        if (p1[X] != p1[X + 1])
+                        {
+                            if (!hasb)
+                            {
+                                tb = p1[X + 1];
+                                hasb = true;
+                                p3[X * 3] = TraceB;
+                                p3[X * 3 + 1] = TraceB;
+                                p3[X * 3 + 2] = TraceB;
+                            }
+                            else
+                            {
+                                if (p1[X] != tb)
+                                {
+                                    p3[X * 3] = TraceB;
+                                    p3[X * 3 + 1] = TraceB;
+                                    p3[X * 3 + 2] = TraceB;
+                                }
+                                else
+                                {
+                                    p3[(X + 1) * 3] = TraceB;
+                                    p3[(X + 1) * 3 + 1] = TraceB;
+                                    p3[(X + 1) * 3 + 1] = TraceB; // 原文如此（DIB.pas:6688）—— 应为 +2
+                                }
+                            }
+                        }
+                        if (p1[X] != P2[X])
+                        {
+                            if (!hasb)
+                            {
+                                tb = P2[X];
+                                hasb = true;
+                                p3[X * 3] = TraceB;
+                                p3[X * 3 + 1] = TraceB;
+                                p3[X * 3 + 2] = TraceB;
+                            }
+                            else
+                            {
+                                if (p1[X] != tb)
+                                {
+                                    p3[X * 3] = TraceB;
+                                    p3[X * 3 + 1] = TraceB;
+                                    p3[X * 3 + 2] = TraceB;
+                                }
+                                else
+                                {
+                                    p4[X * 3] = TraceB;
+                                    p4[X * 3 + 1] = TraceB;
+                                    p4[X * 3 + 2] = TraceB;
+                                }
+                            }
+                        }
+                        X++;
+                    } while (!(X >= Bitmap.Width - 2));
+                }
+                if (I > 1)
+                {
+                    for (int Y = Bitmap.Height - 1; Y >= 1; Y--)
+                    {
+                        byte* p1 = (byte*)Bitmap.ScanLine(Y);
+                        byte* P2 = (byte*)Bitmap.ScanLine(Y - 1);
+                        byte* p3 = (byte*)Src.ScanLine(Y);
+                        byte* p4 = (byte*)Src.ScanLine(Y - 1);
+                        int X = Bitmap.Width - 1;
+                        do
+                        {
+                            if (p1[X] != p1[X - 1])
+                            {
+                                if (!hasb)
+                                {
+                                    tb = p1[X - 1];
+                                    hasb = true;
+                                    p3[X * 3] = TraceB;
+                                    p3[X * 3 + 1] = TraceB;
+                                    p3[X * 3 + 2] = TraceB;
+                                }
+                                else
+                                {
+                                    if (p1[X] != tb)
+                                    {
+                                        p3[X * 3] = TraceB;
+                                        p3[X * 3 + 1] = TraceB;
+                                        p3[X * 3 + 2] = TraceB;
+                                    }
+                                    else
+                                    {
+                                        p3[(X - 1) * 3] = TraceB;
+                                        p3[(X - 1) * 3 + 1] = TraceB;
+                                        p3[(X - 1) * 3 + 2] = TraceB;
+                                    }
+                                }
+                            }
+                            if (p1[X] != P2[X])
+                            {
+                                if (!hasb)
+                                {
+                                    tb = P2[X];
+                                    hasb = true;
+                                    p3[X * 3] = TraceB;
+                                    p3[X * 3 + 1] = TraceB;
+                                    p3[X * 3 + 2] = TraceB;
+                                }
+                                else
+                                {
+                                    if (p1[X] != tb)
+                                    {
+                                        p3[X * 3] = TraceB;
+                                        p3[X * 3 + 1] = TraceB;
+                                        p3[X * 3 + 2] = TraceB;
+                                    }
+                                    else
+                                    {
+                                        p4[X * 3] = TraceB;
+                                        p4[X * 3 + 1] = TraceB;
+                                        p4[X * 3 + 2] = TraceB;
+                                    }
+                                }
+                            }
+                            X--;
+                        } while (!(X <= 1));
+                    }
+                }
+            }
+            Bitmap.Destroy();
+        }
+
+        var BB1 = new TDIB(); // 原文 `tb` 已在方法头声明（供局部函数捕获）
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Trace(BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6792-6825 —— DoSplitlight
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6792-6825 1:1（对三通道反复施加 `sin(a/255*Pi/2)*255` 的提亮曲线）。
+    /// 原文怪癖（照抄 + 注释）：
+    ///   * 6798-6801 `sinpixs` 的结果写成 `variant(...)` —— Variant 转 Integer 走 `Round`
+    ///     （银行家舍入），本片用 DibFusionSupport.Round；
+    ///   * 6813/6818-6820/6824 的 `BB2` **整段被注释掉**（变量声明里的 `{,BB2}` 也是注释），
+    ///     托管侧照抄为注释，不留死代码。
+    /// 重复 `Amount` 次 ⇒ 曲线迭代复合。
+    /// </summary>
+    public unsafe void DoSplitlight(int Amount)
+    {
+        void Splitlight(TDIB clip, int Amount2)
+        {
+            int sinpixs(int a) => DibFusionSupport.Round(Math.Sin(a / 255.0 * Math.PI / 2) * 255);
+
+            for (int I = 1; I <= Amount2; I++)
+            {
+                for (int Y = 0; Y <= clip.Height - 1; Y++)
+                {
+                    byte* p1 = (byte*)clip.ScanLine(Y);
+                    for (int X = 0; X <= clip.Width - 1; X++)
+                    {
+                        p1[X * 3] = unchecked((byte)sinpixs(p1[X * 3]));
+                        p1[X * 3 + 1] = unchecked((byte)sinpixs(p1[X * 3 + 1]));
+                        p1[X * 3 + 2] = unchecked((byte)sinpixs(p1[X * 3 + 2]));
+                    }
+                }
+            }
+        }
+
+        var BB1 = new TDIB(); // 原文 `var BB1 {,BB2}: TDIB;`（DIB.pas:6813）
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        // BB2 := TDIB.Create;     原文如此（DIB.pas:6818）—— 整段被注释掉
+        // BB2.BitCount := 24;     原文如此（DIB.pas:6819）
+        // BB2.Assign (BB1);       原文如此（DIB.pas:6820）
+        Splitlight(BB1, Amount);
+        Assign(BB1);
+        BB1.Destroy();
+        // BB2.Free;               原文如此（DIB.pas:6824）
+    }
+
+    // =========================================================================================
+    // DIB.pas 6827-6913 —— DoTile（含 SmoothResize / Tile 两个内嵌过程）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6827-6913 1:1。
+    /// `Tile` 只做三件事然后交给接缝：`Dst.Width/Height := Src 的`、`Dst.Canvas.Draw(0,0,Src)`、
+    /// 以及早退条件 `(Amount &lt;= 0) or ((w div Amount) &lt; 5) or ((h div Amount) &lt; 5)`；
+    /// 真正的平铺是 `for j/I` 里 `Dst.Canvas.Draw(I*w2, j*h2, Bm)`（GDI → 接缝，无头时不产生像素变化）。
+    /// `SmoothResize` 是**纯逻辑**（16.15 定点双线性），本片逐像素实测。
+    /// 原文笔误照抄：
+    ///   * 6844 `yP shr 16 &lt; Src.Height - 1` 用的是 **shr 16**（同一函数其它处都是 shr 15）；
+    ///   * 6871 **R 通道**那一行把 `Read2[(t+1)*3]` 当成源（其余两通道用 `Read[(t+1)*3+ch]`）
+    ///     —— 导致 R 通道的"右上"取样取自下一行；
+    ///   * 6864/6867/6870 写回直接截断到 Byte。
+    /// </summary>
+    public void DoTile(int Amount)
+    {
+        void SmoothResize(TDIB Src, TDIB Dst)
+        {
+            int xP2, yP2;
+            xP2 = DibFusionSupport.Shl(Src.Width - 1, 15) / Dst.Width;
+            yP2 = DibFusionSupport.Shl(Src.Height - 1, 15) / Dst.Height;
+            int yP = 0;
+            for (int Y = 0; Y <= Dst.Height - 1; Y++)
+            {
+                int xP = 0;
+                unsafe
+                {
+                    byte* Read = (byte*)Src.ScanLine(yP >> 15);
+                    byte* Read2 = ((yP >> 16) < Src.Height - 1)
+                        ? (byte*)Src.ScanLine((yP >> 15) + 1)
+                        : (byte*)Src.ScanLine(yP >> 15);
+                    byte* pc = (byte*)Dst.ScanLine(Y);
+                    int z2 = yP & 0x7FFF;
+                    int iz2 = 0x8000 - z2;
+                    for (int X = 0; X <= Dst.Width - 1; X++)
+                    {
+                        int t = xP >> 15;
+                        byte Col1r = Read[t * 3];
+                        byte col1g = Read[t * 3 + 1];
+                        byte col1b = Read[t * 3 + 2];
+                        byte Col2r = Read2[t * 3];
+                        byte col2g = Read2[t * 3 + 1];
+                        byte col2b = Read2[t * 3 + 2];
+                        int z = xP & 0x7FFF;
+                        int w2 = (z * iz2) >> 15;
+                        int w1 = iz2 - w2;
+                        int w4 = (z * z2) >> 15;
+                        int w3 = z2 - w4;
+                        pc[X * 3 + 2] = unchecked((byte)((col1b * w1 + Read[(t + 1) * 3 + 2] * w2 +
+                            col2b * w3 + Read2[(t + 1) * 3 + 2] * w4) >> 15));
+                        pc[X * 3 + 1] = unchecked((byte)((col1g * w1 + Read[(t + 1) * 3 + 1] * w2 +
+                            col2g * w3 + Read2[(t + 1) * 3 + 1] * w4) >> 15));
+                        // 原文如此（DIB.pas:6871）：R 通道这里写 Read2 而不是 Read
+                        pc[X * 3] = unchecked((byte)((Col1r * w1 + Read2[(t + 1) * 3] * w2 +
+                            Col2r * w3 + Read2[(t + 1) * 3] * w4) >> 15));
+                        xP += xP2;
+                    }
+                }
+                yP += yP2;
+            }
+        }
+
+        void Tile(TDIB Src, TDIB Dst, int Amount2)
+        {
+            int w = Src.Width;
+            int h = Src.Height;
+            Dst.SetWidth(w);
+            Dst.SetHeight(h);
+            Dst.Canvas.Draw(0, 0, Src);
+            if (Amount2 <= 0 || (w / Amount2) < 5 || (h / Amount2) < 5) return;
+            int h2 = h / Amount2;
+            int w2 = w / Amount2;
+            var Bm = new TDIB();
+            Bm.SetWidth(w2);
+            Bm.SetHeight(h2);
+            Bm.SetBitCount(24);
+            SmoothResize(Src, Bm);
+            for (int j = 0; j <= Amount2 - 1; j++)
+                for (int I = 0; I <= Amount2 - 1; I++)
+                    Dst.Canvas.Draw(I * w2, j * h2, Bm);
+            Bm.Destroy();
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Tile(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6915-6958 —— DoSpotLight
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6915-6958 1:1。
+    /// 流程：`z := 24bpp 的 Src 副本` → `z.DrawTo(Src, 0,0,W,H, 0,0)`（BitBlt 接缝）→
+    /// `z.Darkness(Amount)`（纯逻辑）→ 造一张黑底白椭圆遮罩 `Bm` → `z.Canvas.Draw(0,0,Bm)`
+    /// 配合 `CopyMode := cmSrcAnd` 只保留椭圆内的变暗结果。
+    /// 接缝：`DibFusionCanvas.Seam`（BitBlt）+ `DibFusionSpot.Seam`（Brush/FillRect/Ellipse/
+    /// Transparent/CopyMode）+ `DibSeams.Canvas`（`z.Canvas.Draw`）。前两者未装载 → 抛
+    /// InvalidOperationException（§25.2）。**本方法的可见像素效果完全依赖这三个接缝。**
+    /// 原文笔误照抄：6932/6934 `Bm.Canvas.Brush.Color := clBlack / clwhite`（clwhite 小写）。
+    /// </summary>
+    public void DoSpotLight(int Amount, TDxRect Spot)
+    {
+        void SpotLight(TDIB Src, int Amount2, TDxRect Spot2)
+        {
+            if (DibFusionSpot.Seam == null)
+                throw new InvalidOperationException(
+                    "TDIB.DoSpotLight: 绘制接缝（DibFusionSpot.Seam / IDibFusionSpotSeam）未装载 —— " +
+                    "TCanvas/TBitmap 绘制面在托管侧无对应物（§25.2：接缝不得静默退化）");
+
+            var z = new TDIB();
+            try
+            {
+                z.SetSize(Src.Width, Src.Height, 24);
+                z.DrawTo(Src, 0, 0, Src.Width, Src.Height, 0, 0);
+                z.Darkness(Amount2);
+                int w = z.Width;
+                int h = z.Height;
+                var Bm = new TDIB();
+                try
+                {
+                    Bm.SetWidth(w);
+                    Bm.SetHeight(h);
+                    DibFusionSpot.Seam.SetBrushColor(DibFusionSupport.clBlack);
+                    DibFusionSpot.Seam.FillRect(0, 0, w, h);
+                    DibFusionSpot.Seam.SetBrushColor(DibFusionSupport.clWhite); // clwhite
+                    DibFusionSpot.Seam.Ellipse(Spot2.Left, Spot2.Top, Spot2.Right, Spot2.Bottom);
+                    DibFusionSpot.Seam.SetBitmapTransparent(Bm, true);
+                    DibFusionSpot.Seam.SetCanvasCopyMode(z, DibFusionSupport.cmSrcAnd); // {as transparentcolor for white}
+                    z.Canvas.Draw(0, 0, Bm);
+                }
+                finally
+                {
+                    Bm.Destroy();
+                }
+            }
+            finally
+            {
+                z.Destroy();
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        SpotLight(BB2, Amount, Spot);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6960-6988 —— DoEmboss
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6960-6988 1:1：`p1[X*3+ch] := (p1[X*3+ch] + (P2[(X+3)*3+ch] xor $FF)) shr 1`
+    /// （当前行与下一行相隔 3 像素叠加反相）。
+    /// 行范围 `0..Height-2`、列范围 `0..Width-4`（`(X+3)*3+2` 恰好落在行内最后一字节）。
+    /// `xor $FF` 在 Integer 上做（Byte 提升），写回直接截断（和 ≤ 510 ⇒ 结果 ≤ 255）。
+    /// 同一行内先读后写、不跨迭代复用（P2 是下一行）—— 但 `p1` 与 `P2` 在
+    /// `Y` 递增时角色互换（下一次迭代的 p1 已是上一轮的 P2 所在行的下一行）—— 原文如此。
+    /// </summary>
+    public unsafe void DoEmboss()
+    {
+        void Emboss(TDIB bmp)
+        {
+            for (int Y = 0; Y <= bmp.Height - 2; Y++)
+            {
+                byte* p1 = (byte*)bmp.ScanLine(Y);
+                byte* P2 = (byte*)bmp.ScanLine(Y + 1);
+                for (int X = 0; X <= bmp.Width - 4; X++)
+                {
+                    p1[X * 3] = unchecked((byte)((p1[X * 3] + (P2[(X + 3) * 3] ^ 0xFF)) >> 1));
+                    p1[X * 3 + 1] = unchecked((byte)((p1[X * 3 + 1] + (P2[(X + 3) * 3 + 1] ^ 0xFF)) >> 1));
+                    p1[X * 3 + 2] = unchecked((byte)((p1[X * 3 + 2] + (P2[(X + 3) * 3 + 2] ^ 0xFF)) >> 1));
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Emboss(BB2);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 6990-7031 —— DoSolorize（原文拼写如此）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 6990-7031 1:1：`C := (b0+b1+b2) div 3`，`C &gt; Amount` → 整像素反相，否则原样拷贝。
+    /// 注意与 `TDIB.Negative`（DIB.Effects.cs:3165-3221，按 DWORD 粒度取反）**不是**同一实现。
+    /// </summary>
+    public unsafe void DoSolorize(int Amount)
+    {
+        void Solorize(TDIB Src, TDIB Dst, int Amount2)
+        {
+            int w = Src.Width;
+            int h = Src.Height;
+            Src.SetBitCount(24);
+            Dst.SetBitCount(24);
+            for (int Y = 0; Y <= h - 1; Y++)
+            {
+                byte* ps = (byte*)Src.ScanLine(Y);
+                byte* pd = (byte*)Dst.ScanLine(Y);
+                for (int X = 0; X <= w - 1; X++)
+                {
+                    int C = (ps[X * 3] + ps[X * 3 + 1] + ps[X * 3 + 2]) / 3;
+                    if (C > Amount2)
+                    {
+                        pd[X * 3] = unchecked((byte)(255 - ps[X * 3]));
+                        pd[X * 3 + 1] = unchecked((byte)(255 - ps[X * 3 + 1]));
+                        pd[X * 3 + 2] = unchecked((byte)(255 - ps[X * 3 + 2]));
+                    }
+                    else
+                    {
+                        pd[X * 3] = ps[X * 3];
+                        pd[X * 3 + 1] = ps[X * 3 + 1];
+                        pd[X * 3 + 2] = ps[X * 3 + 2];
+                    }
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Solorize(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 7033-7065 —— DoPosterize
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7033-7065 1:1：`pd := Round(v / Amount) * Amount`，其中 `/` 是**浮点除法**。
+    /// 两个原文陷阱（本片用差异断言锁死）：
+    ///   * `Amount = 0` → `v / 0` 得 ±Inf（v=0 时得 NaN）⇒ `Round` 抛 EInvalidOp
+    ///     （托管侧由 DibFusionSupport.Round 显式抛 ArithmeticException）；
+    ///   * 量化结果**可能超过 255**（如 v=255、Amount=100 → Round(2.55)=3 → 300），
+    ///     写回 Byte 时**回绕**成 44（原文没有夹取）。
+    /// </summary>
+    public unsafe void DoPosterize(int Amount)
+    {
+        void Posterize(TDIB Src, TDIB Dst, int Amount2)
+        {
+            int w = Src.Width;
+            int h = Src.Height;
+            Src.SetBitCount(24);
+            Dst.SetBitCount(24);
+            for (int Y = 0; Y <= h - 1; Y++)
+            {
+                byte* ps = (byte*)Src.ScanLine(Y);
+                byte* pd = (byte*)Dst.ScanLine(Y);
+                for (int X = 0; X <= w - 1; X++)
+                {
+                    pd[X * 3] = unchecked((byte)(DibFusionSupport.Round((double)ps[X * 3] / Amount2) * Amount2));
+                    pd[X * 3 + 1] = unchecked((byte)(DibFusionSupport.Round((double)ps[X * 3 + 1] / Amount2) * Amount2));
+                    pd[X * 3 + 2] = unchecked((byte)(DibFusionSupport.Round((double)ps[X * 3 + 2] / Amount2) * Amount2));
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Posterize(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 7067-7115 —— DoBrightness
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7067-7115 1:1。
+    /// 原文用 `pRGBArray = ^TRGBArray`（`TRGBArray = array[0..32767] of TRGBTriple`，
+    /// `MaxPixelCount = 32768`），逐像素 `rgbtRed/Green/Blue`。
+    /// 注意 Windows.TRGBTriple 的**字段序是 Blue,Green,Red**（内存偏移 0/1/2），
+    /// 而原文按 Red→Green→Blue 的顺序赋值 —— 三条赋值互不依赖，结果不受影响（照抄该顺序）。
+    /// 分支：`Value &gt; 0` 用 `Min(255, v+Value)`，否则（含 0 与负数）用 `Max(0, v+Value)`。
+    /// </summary>
+    public unsafe void DoBrightness(int Amount)
+    {
+        const int MaxPixelCount = 32768; // 原文 `MaxPixelCount = 32768`（DIB.pas:7070）
+
+        void Brightness(TDIB Src, TDIB Dst, int level)
+        {
+            int Value = level;
+            Src.SetBitCount(24);
+            Dst.SetBitCount(24);
+            for (int I = 0; I <= Src.Height - 1; I++)
+            {
+                byte* OrigRow = (byte*)Src.ScanLine(I);
+                byte* DestRow = (byte*)Dst.ScanLine(I);
+                for (int j = 0; j <= Src.Width - 1; j++)
+                {
+                    if (Value > 0)
+                    {
+                        DestRow[j * 3 + 2] = unchecked((byte)Math.Min(255, OrigRow[j * 3 + 2] + Value)); // rgbtRed
+                        DestRow[j * 3 + 1] = unchecked((byte)Math.Min(255, OrigRow[j * 3 + 1] + Value)); // rgbtGreen
+                        DestRow[j * 3] = unchecked((byte)Math.Min(255, OrigRow[j * 3] + Value));         // rgbtBlue
+                    }
+                    else
+                    {
+                        DestRow[j * 3 + 2] = unchecked((byte)Math.Max(0, OrigRow[j * 3 + 2] + Value));
+                        DestRow[j * 3 + 1] = unchecked((byte)Math.Max(0, OrigRow[j * 3 + 1] + Value));
+                        DestRow[j * 3] = unchecked((byte)Math.Max(0, OrigRow[j * 3] + Value));
+                    }
+                }
+            }
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();
+        BB2.SetBitCount(24);
+        BB2.Assign(BB1);
+        Brightness(BB1, BB2, Amount);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
     }
 
     // =========================================================================================
