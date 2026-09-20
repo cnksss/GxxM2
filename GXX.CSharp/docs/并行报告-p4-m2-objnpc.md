@@ -406,3 +406,205 @@ ObjNpc.pas 的 `TNormNpc` 的**正式归属应是 ObjNpc 车道**，因此
 ---
 
 *报告完。本车道全部产出在 `.worktrees/p4-m2-objnpc`，分支 `par/p4-m2-objnpc`，未触碰主工作树与任何兄弟工作树。*
+
+---
+
+# 8. 第二轮（切片 7 / 8，2026 波次续作）★ 本节数字**优先于** §2/§3/§7
+
+> 前置：本分支已 `git rebase main`（基点由 `767ab38d` → **`5f34e9aa`**，main 上已有本车道切片 1-3 的集成提交 `7b851725`）。
+> 后基线上门禁基线由 5,591 变为 **5,871**（main 的 29 个新提交带来的测试增量），本车道新增用例叠加于其上。
+
+## 8.1 新增 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 7 | `6c9e4d92` | 切片7：商人存取/装载族 + `TBoxMonster` + `GetVariableText` 虚分派链 1:1（16 例程上收，+61 用例） |
+| 8 | `db3c3537` | 切片8：`UpgradeWapon` 嵌套过程 `sub_4A0218`（143 行）1:1 + 6 接缝（+16 用例） |
+
+## 8.2 覆盖口径（★ 以本节为准）
+
+| 口径 | 切片6 | **切片8** |
+|---|---|---|
+| Covered 例程数 / 112 | 34 | **50** |
+| Seam 例程数 / 112 | 4 | **6** |
+| Missing 例程数 / 112 | 74 | **56** |
+| Covered 例程原文行数 | 1,649 | **1,960** |
+| Seam 例程原文行数 | 4,297 | **4,543** |
+| Missing 例程原文行数 | 4,600 | **3,538** |
+| **逐行 1:1 落地（含嵌套过程 sub_4A0218 的 143 行）** | 1,649 | **2,103 / 10,546 = 19.9%** |
+
+`GXX.M2Server.Tests`：**5,948 passed / 0 failed**（切片6 时 5,786；main 基线漂移 +85，本车道第二轮新增 +77）。
+
+## 8.3 切片 7 / 8 逐例程判定
+
+**切片7（16 条上收 Missing → Covered）**
+
+| 原文行号 | 例程 | 归属 |
+|---|---|---|
+| 1674-1682 | `TMerchant.SaveUpgradingList` | `ObjNpcMerchant.cs` |
+| 3052-3060 | `TMerchant.LoadNPCData` | `ObjNpcMerchant.cs` |
+| 3062-3069 | `TMerchant.SaveNPCData` | `ObjNpcMerchant.cs` |
+| 3180-3204 | `TMerchant.LoadNpcScript` | `ObjNpcPersistence.cs` |
+| 3206-3226 | `TMerchant.LoadNpcIconFile` | `ObjNpcPersistence.cs` |
+| 3234-3270 | `TMerchant.GetVariableText`（覆写） | `ObjNpcMerchant.cs` |
+| 3869-3892 | `TMerchant.AddItemToGoodsList` | `ObjNpcMerchant.cs` |
+| 4164-4194 | `TMerchant.ClearScript`（覆写） | `ObjNpcMerchant.cs` |
+| 4196-4211 | `TMerchant.LoadUpgradeList` | `ObjNpcMerchant.cs` |
+| 4235-4238 | `TMerchant.SendCustemMsg`（覆写） | `ObjNpcMerchant.cs` |
+| 4241-4280 | `TMerchant.ClearData` | `ObjNpcMerchant.cs` |
+| 9575-9591 | `TNormNpc.LoadNpcScript` | `ObjNpcPersistence.cs` |
+| 9593-9602 | `TNormNpc.LoadNpcIconFile` | `ObjNpcPersistence.cs` |
+| 10510-10514 | `TBoxMonster.Create` | `ObjNpcBoxMonster.cs` |
+| 10527-10532 | `TBoxMonster.Operate` | `ObjNpcBoxMonster.cs` |
+| 10534-10543 | `TBoxMonster.Run` | `ObjNpcBoxMonster.cs` |
+
+**切片8（1 条 Missing → Seam：嵌套过程已 1:1，外层体阻塞）**
+
+| 原文行号 | 例程 | 状态 |
+|---|---|---|
+| 1684-1902 | `TMerchant.UpgradeWapon` | **Seam** —— 嵌套过程 `sub_4A0218`(1686-1828，143 行)**已 1:1**；外层体(1830-1901，72 行)**阻塞未做** |
+
+**新增 Seam（1 条）**：`TNormNpc.SendCustemMsg`(9837-9862) —— 由 `TMerchant.SendCustemMsg` 的 `inherited` 需要，
+已落为 `public virtual` 外壳 + `NpcSeams.SendCustemMsg` 转发。
+
+## 8.4 关键结构修正：`GetVariableText` / `SendCustemMsg` 由"纯委托"改为**真虚方法**
+
+切片 2 把 `TNormNpc.GetVariableText`(6011-9262) 做成纯委托 —— 这是**错的**：原文的
+`TMerchant.GetVariableText`(3234)、`TCastleOfficial.GetVariableText`(1118)、`TGuildOfficial.GetVariableText`(10055)
+三个覆写都用 `inherited GetVariableText(...)`，且 `GetLineVariableText`(6000) 对它是**虚调用**。
+切片 7 已改正为：
+
+```
+public virtual bool GetVariableText(TPlayObject, ref string sMsg, string sVariable, ref bool IsBreakParseVar, int nPos)  // 外壳→接缝
+public virtual void SendCustemMsg(TPlayObject, string)                                                                    // 外壳→接缝
+GetLineVariableText(...) → GetVariableText(...)   // 虚调用，不再是接缝直调
+```
+
+并加了 **虚分派回归用例**：`GetLineVariableText_DispatchesVirtuallyToMerchantOverride`（`"P=<$PRICERATE>"` → `"P=100"`）。
+—— 这是"接缝做过头会**破坏虚分派链**"的一个真实例子，建议记入台账。
+
+## 8.5 新增原文缺陷（续 D 系列）
+
+| # | 位置 | 问题 |
+|---|---|---|
+| D20 | `ObjNpc.pas:3196-3200` / `3220-3224` | `TMerchant.LoadNpcScript`/`LoadNpcIconFile` 的 `IsAddMapName = False` 分支里，`if m_boFB then SC := m_sScript else SC := m_sScript;` —— **两个分支体完全相同**（原文冗余，照抄）。 |
+| D21 | `ObjNpc.pas:1820` | `btDura := Round(Min(5, nItemCount) + Min(5, nItemCount) * ((nDura / nItemCount) / 5.0))` —— `nItemCount = 0`（一条材料都没剔到）时 `nDura / nItemCount` 是**实数除法** → Delphi 抛 `EZeroDivide`。实测托管侧 0/0 得 NaN、`(int)Math.Round(NaN)` 截断为 **0 且不抛** —— **两侧行为不同**（一边崩一边给 0），已单测锁死托管侧行为。 |
+| D22 | `ObjNpc.pas:1803-1812` | `DuraList` 排序是**逐轮冒泡**（最坏 O(n²)），且外层 `for I := 0 to Count - 1` 内的 `if DuraList.Count <= 0 then Break` 永不为真（冗余守卫，照抄）。 |
+| D23 | `ObjNpc.pas:1787` | `if (UserItem.btValue[13] = 1) and (UserItem.Name <> '')` —— 用 `btValue[13]` 这个**魔法下标**决定日志里用自定义名还是标准名，无具名常量。 |
+| D24 | `M2Share.pas:11664-11665` | `IsUseItem` **不判 `StdItem = nil`** 就读 `StdItem.StdMode` —— 原文空指针 AV；已按原文照抄（托管侧读 `Nullable.Value` 抛 `InvalidOperationException`），并加用例 `Sub4A0218_IsUseItem_NoStdItemThrowsLikeOriginalNullDeref` 锁死。 |
+| D25 | `ObjNpc.pas:3167-3168`（切片3 已记 D6） | 同型冗余守卫在 `sub_4A0218` 的 1805-1806 再次出现 —— 说明这是该作者的习惯写法，**不是孤例**。 |
+| D26 | `ObjNpc.pas:3240-3268` | `TMerchant.GetVariableText` 在 `Result := inherited ...` 为假时把 `Result := True`，三个变量分支各 `Exit`，末尾再 `Result := False` —— 用"先置真再置假"表达"只有命中才成功"，功能正确但极易误读（照抄）。 |
+
+## 8.6 ★ 四个优先方法（`UserSelect` / `ClientBuyItem` / `UpgradeWapon` 外层 / `GotoLable`）的**精确阻塞清单**
+
+> 按任务要求"就地停下并列出哪个方法需要哪个成员"。用脚本从原文对应行区间抽取 `Player.`/`User.`/`PlayObject.` 成员访问，
+> 再逐个核对托管侧是否存在。**结论：四个方法全部阻塞**，且阻塞面**不是**已上报的那 6 个 Engine 成员，
+> 而是**整片未移植的 `ObjPlayer.pas` `TPlayObject` 面**（每人 7~14 个成员）。
+> 表中 ✅ = 托管侧已有；❌ = 缺失。
+
+### (1) `TMerchant.UserSelect`（2087-2900，814 行）
+
+| 需要成员 | 托管侧 | 说明 |
+|---|---|---|
+| `m_sCharName` | ✅ | `Engine.TCreature.m_sCharName` |
+| `m_nInteger`（N 变量） | ✅ | `Engine.TPlayObject.m_nInteger` |
+| `m_sString`（S 变量） | ❌ | 属已上报的 6 项之一（`CombatPower.cs` 需补） |
+| `m_nGameGold`（元宝） | ❌ | ObjPlayer.pas |
+| `m_nBigStoragePage` / `m_nDealGoldPose` | ❌ | ObjPlayer.pas |
+| `m_boWaitHeroDate` | ❌ | ObjPlayer.pas |
+| `m_sHeroName` / `m_sDeputyHeroName` / `m_sTempHeroName` | ❌ | ObjPlayer.pas（卧龙英雄/副将） |
+| `m_sAutoSendMsg` | ❌ | ObjPlayer.pas |
+| `GameGoldChanged()` | ❌ | ObjPlayer.pas |
+| `SendMsg(...)` | ⚠ | `TCreature.SendMsg` 存在但**签名不同**（无 sender 参数，且是入队而非下发），需 `NpcSeams.SendMsgToClient` 那类接缝 |
+| `SysMsg(...)` | ❌ | ObjPlayer.pas |
+| `GetPoseCreate` | ❌ | 基类成员（已上报 6 项之一） |
+
+### (2) `TMerchant.ClientBuyItem`（3367-3689，323 行）
+
+| 需要成员 | 托管侧 | 说明 |
+|---|---|---|
+| `m_sCharName` | ✅ | — |
+| `m_nGold` | ❌ | ObjPlayer.pas |
+| `AddItemToBag(...)` | ❌ | ObjPlayer.pas |
+| `IsEnoughBag()` | ❌ | ObjPlayer.pas |
+| `IsAddWeightAvailable(...)` | ❌ | ObjPlayer.pas |
+| `SendAddItem(...)` | ❌ | ObjPlayer.pas |
+| `SendMsg(...)` | ⚠ | 同 (1) |
+
+> 另：同族的 `ClientSellItem`(3798-3868) 只要 `IncGold` / `m_nGold` / `SendMsg` —— **是这四个里阻塞最浅的**，
+> 若下轮补齐 `m_nGold` + `IncGold`，它可立即上收。
+
+### (3) `TMerchant.UpgradeWapon` 外层体（1830-1901，72 行）
+
+| 需要成员 | 托管侧 | 说明 |
+|---|---|---|
+| `m_sCharName` | ✅ | — |
+| `m_ItemList` | ✅ | `Engine.TPlayObject.m_ItemList`（`List<TUserItem>`）→ `sub_4A0218` 因此可独立落地 |
+| `m_nGold` | ❌ | ObjPlayer.pas |
+| `m_UseItems[U_WEAPON]`（**读写**） | ❌ | ObjPlayer.pas（接缝只能读，1866 行还要写回 `wIndex := 0`） |
+| `CheckItems(name)` | ❌ | ObjPlayer.pas |
+| `DecGold(n)` / `GoldChanged()` | ❌ | ObjPlayer.pas |
+| `SendDelItem(@item)` | ❌ | ObjPlayer.pas |
+| `RecalcAbilitys()` / `FeatureChanged()` | ❌ | ObjBase/ObjPlayer |
+| `SendMsg(...)` / `SysMsg(...)` | ⚠ / ❌ | 同上 |
+| `GotoLable(...)` | ❌ | **ObjNpc.pas 自身未移植的 9263-9574**（见 (4)） |
+| `g_ItemRules.Get(idx, 17)` / `g_CastleManager.IncRateGold` / `g_boGameLogGold` / `g_sCannotUpgradeWeapon` | ❌ | 均为 M2Share/ItemRules 侧 |
+
+### (4) `TNormNpc.GotoLable`（9263-9574，312 行）
+
+| 需要成员 | 托管侧 | 说明 |
+|---|---|---|
+| `m_sCharName` | ✅ | — |
+| `m_nVal`（P 变量，**含 `FillChar` 整块清零**） | ❌ | **属已上报的 6 项之一** → 本方法**硬阻塞** |
+| `m_NPC` / `m_Script` | ❌ | ObjPlayer.pas（NPC 会话绑定） |
+| `m_ItemBoxNpc` | ❌ | ObjPlayer.pas |
+| `m_boOffLine` / `m_boDummyObject` | ❌ | ObjPlayer.pas |
+| `m_dwLastGotoLabelTick` / `m_nOneLabelGotoCount` / `m_sLastGotoLabel` / `m_sScriptParams` | ❌ | ObjPlayer.pas（跳转防环/参数） |
+| `GetQuestFlagStatus(flag)` | ❌ | ObjPlayer.pas（任务标志） |
+| `GetScriptLabel(sMsg)` | ❌ | ObjPlayer.pas |
+| `SendFirstMsg(...)` / `SendMsg(...)` | ❌ / ⚠ | ObjPlayer.pas |
+
+**给调度方的建议**：`ObjPlayer.pas` 的 `TPlayObject` 面是这四条（以及 `TMerchant.UserSelect` 分片）
+的共同硬前置。若把它排成一条**专门的 `TPlayObject` 面拼接批次**（按"变量容器 → 金额/物品容器 → NPC 会话/脚本标签 → 英雄/副将"分四片上收），
+ObjNpc 的剩余 56 条里有 **20 条以上**会同时解锁 —— 比逐条开接缝划算得多。
+本车道**不自行声明任何 `TPlayObject` 替身成员**。
+
+## 8.7 本车道第二轮新增接缝（14 个，全部集中在 `ObjNpcSeams.cs`，后续车道请复用）
+
+| 接缝 | 精确签名 | 原文出处 |
+|---|---|---|
+| `LoadGoodRecord` | `Action<TMerchant, string>` | FrmDB；3057 |
+| `SaveGoodRecord` | `Action<TMerchant, string>` | FrmDB；3067 |
+| `LoadGoodPriceRecord` | `Action<TMerchant, string>` | FrmDB；3058 |
+| `LoadUpgradeWeaponRecord` | `Action<string, List<object>>` | FrmDB；4207 |
+| `SaveUpgradeWeaponRecord` | `Action<string, List<object>>` | FrmDB；1678 |
+| `LoadNpcScriptFile` | `Action<TNormNpc, string, string>` | `FrmDB.LoadNpcScript`；9583/9589 |
+| `LoadScriptFile` | `Action<TMerchant, string, string>` | `FrmDB.LoadScriptFile`；3201 |
+| `LoadIconFile` | `Action<TNormNpc, string, string>` | `FrmDB.LoadIconFile`；**吞掉 `@m_ActorIcons`**（该基类字段托管侧尚无） |
+| `sMarket_Def` / `sNpc_def` / `sNpcIcons` | `string { get; set; }` | M2Share.pas:378/379/381，默认值即原文 |
+| `GetStdItemName` | `Func<int, string>` | `UserEngine.GetStdItemName`；1712/3259 |
+| `GetUseItemsWeapon` | `Func<TPlayObject, TUserItem>` | `m_UseItems[U_WEAPON]`；3257/3259 |
+| `GetItemAddValue` | `delegate void (ref TUserItem, ref TStdItem)` | `ItemUnit.GetItemAddValue`；1733 |
+| `AddGameDataLog` | `Action<byte,byte,TCreature,string,int,string,int,int,string>` | M2Share.pas:11686；1719/1794 |
+| `sBlackStone` | `string`（默认 `"黑铁矿"`） | M2Share.pas:918/4142 |
+| `IsUseItem` | `Func<int,bool>`（**默认实现即原文 1:1 逻辑**） | M2Share.pas:11660-11669 |
+| `SendMsgToClient` | `Action<TCreature,TCreature,ushort,long,long,long,long,string>` | `TBaseObject.SendMsg`（网络下发版）；1825 |
+| `SendCustemMsg` | `Action<TNormNpc,TPlayObject,string>` | 9837（虚外壳转发） |
+
+新增常量：`ObjNpcConst.LOG_ActionNone = 0`、`ObjNpcConst.LOG_ItemDisappear = 9`（M2Share.pas:87/96，同一工程内 `LogDataServer` 有同值副本但不跨工程引用）。
+
+## 8.8 `TBoxMonster` 的两个**未覆盖**子项（阻塞登记）
+
+| 原文行号 | 例程 | 阻塞原因 |
+|---|---|---|
+| 10516-10519 | `TBoxMonster.Destroy` | 原文函数体**只有 `inherited;`**；托管侧 `TCreature` 无 `Destroy` 覆写语义 → 登记未覆盖，不伪造 |
+| 10521-10525 | `TBoxMonster.Initialize` | 需要 `TCreature.Initialize`（原文 `inherited`）—— 托管侧 **`Engine.TCreature` 没有 `Initialize` 这个虚方法**。这**不在**已上报的 6 项里，属同类缺口，请一并纳入下一轮 Engine 成员补齐。`TNormNpc.Initialize`(9864) 与 `TCastleOfficial`/`TGuildOfficial` 的 `Initialize` 同此缺口。 |
+
+## 8.9 第二轮测试增量
+
+| 文件 | 用例数 | 覆盖 |
+|---|---|---|
+| `NpcObjNpcMerchant2Tests.cs` | 45 | 商人价格外的方法族：`GetVariableText`(覆写+虚分派)、`AddItemToGoodsList`、`ClearScript`、`ClearData`、`SendCustemMsg`、`LoadNPCData`/`SaveNPCData`、`LoadUpgradeList`、`SaveUpgradingList`、`LoadNpcScript`/`LoadNpcIconFile`(×2 类)、`TBoxMonster` |
+| `NpcObjNpcSub4A0218Tests.cs` | 16 | `sub_4A0218`：黑铁矿剔除/耐久前 5 求和/属性最大与次大/StdMode 三档/`btValue[13]` 自定义名/`NeedIdentify` 日志/空表差异断言/`IsUseItem` 原文空指针 |
+
+`Npc*` 子集：195（切片6）→ **272**；全工程 5,786 → **5,948**。
