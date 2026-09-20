@@ -156,6 +156,64 @@ public abstract class GamePetsTestBase : IDisposable
 
     protected static (string sName, byte btRace) Mon(string name, byte race) => (name, race);
 
+    /// <summary>
+    /// 装载窗体：把 `configs` 放进 `g_GamePetConfigList` 后 `DoOpen(showModal:false)`，
+    /// 使 `lstGamePets`/GridLevelExp/全部控件就位（等价于原文 FrmGamePets.DoOpen）。
+    /// </summary>
+    protected void OpenWith(params TGamePetConfig[] configs)
+    {
+        GamePetsState.ClearGamePetsConfig();
+        foreach (var c in configs)
+            GamePetsState.g_GamePetConfigList.Add(c);
+        Form.MonsterListHandler ??= () => new List<(string, byte)>();
+        Form.EffectImageListHandler ??= () => new List<string>();
+        Form.DoOpen(showModal: false);
+    }
+
+    /// <summary>造一只配置齐备的宠物（全部 41 字段给可辨识值）。</summary>
+    protected static TGamePetConfig Pet(string name) => new()
+    {
+        Name = name,
+        CaptureRate = 1,
+        EnabledLevelDifference = true,
+        LevelDifference = 2,
+        HPScale = 50,
+        ShowFile1 = 3,
+        ShowStart1 = 4,
+        ShowCount1 = 5,
+        ShowTime1 = 6,
+        ShowOffsetX1 = 7,
+        ShowOffsetY1 = 8,
+        ShowFile2 = 9,
+        ShowStart2 = 10,
+        ShowCount2 = 11,
+        ShowTime2 = 12,
+        ShowOffsetX2 = 13,
+        ShowOffsetY2 = 14,
+        AddHP = 15,
+        IsAddHPRate = true,
+        AddDC1 = 16,
+        IsAddDC1Rate = true,
+        AddDC2 = 17,
+        IsAddDC2Rate = true,
+        AddMC1 = 18,
+        IsAddMC1Rate = true,
+        AddMC2 = 19,
+        IsAddMC2Rate = true,
+        AddSC1 = 20,
+        IsAddSC1Rate = true,
+        AddSC2 = 21,
+        IsAddSC2Rate = true,
+        AddAC1 = 22,
+        IsAddAC1Rate = true,
+        AddAC2 = 23,
+        IsAddAC2Rate = true,
+        AddMAC1 = 24,
+        IsAddMAC1Rate = true,
+        AddMAC2 = 25,
+        IsAddMAC2Rate = true,
+    };
+
     /// <summary>造一个 DoOpen 用的怪物表：覆盖全部过滤分支。</summary>
     protected static List<(string sName, byte btRace)> MonsterTable() => new()
     {

@@ -477,17 +477,18 @@ public sealed partial class GamePetsForm : System.Windows.Forms.Form
     }
 
     /// <summary>
-    /// DFM 事件绑定 1:1（原文 `.dfm` 的 `OnClick`/`OnChange` 属性）。
+    /// DFM 事件绑定 1:1（原文 `.dfm` 共 **48** 条 `On*` 绑定，已逐条核对）。
     /// ⚠ 顺序无关：所有处理器内部都以 `boOpened` 早退，构造期（boOpened=false）不会写配置。
     /// </summary>
+    /// <remarks>
+    /// ⚠ 以下控件在原文 `.dfm` 里**没有**任何 `On*` 绑定（不在那 48 条里），故此处也不绑定：
+    ///   `chkLevelDifference` / `seLevelDifference` / `seHPScale` / `sePetCaptureRate` ——
+    ///   它们只在 :469-473（改）与 :558-562（增）里被**读取**，改值不置脏、不写 g_Config，
+    ///   必须点"增加/修改"才生效。**不要**给它们补处理器（会改变原文行为）。
+    ///   同理 `sePetShow*` / `sePetAdd*` 全族与 `cbbPetShowFile1/2` / `cbbPetAdd*Type` 亦无绑定。
+    /// </remarks>
     private void HookParamHandlers()
     {
-        // 宠物列表页
-        chkLevelDifference.CheckedChanged += (_, _) => NoCodeHandler("chkLevelDifference");
-        seLevelDifference.ValueChanged += (_, _) => NoCodeHandler("seLevelDifference");
-        seHPScale.ValueChanged += (_, _) => NoCodeHandler("seHPScale");
-        sePetCaptureRate.ValueChanged += (_, _) => NoCodeHandler("sePetCaptureRate");
-
         // 全局参数页（纯布尔）
         chkOpenGamePet.CheckedChanged += (_, _) => chkOpenGamePetClick(chkOpenGamePet);
         chkEnabledPetAttack.CheckedChanged += (_, _) => chkEnabledPetAttackClick(chkEnabledPetAttack);
@@ -525,17 +526,6 @@ public sealed partial class GamePetsForm : System.Windows.Forms.Form
         seGamePetMaxCount.ValueChanged += (_, _) => seGamePetMaxCountChange(seGamePetMaxCount);
         seGamePetNameCount.ValueChanged += (_, _) => seGamePetNameCountChange(seGamePetNameCount);
         seGamePetRecallTime.ValueChanged += (_, _) => seGamePetRecallTimeChange(seGamePetRecallTime);
-    }
-
-    /// <summary>
-    /// 原文 `.dfm` 中**没有** OnChange/OnClick 绑定的控件（占位以免误接）。
-    /// `chkLevelDifference`/`seLevelDifference`/`seHPScale`/`sePetCaptureRate` 只在
-    /// 增/改按钮里被读取（:469-473 / :558-562），原文未绑定任何处理器。
-    /// </summary>
-    private void NoCodeHandler(string controlName)
-    {
-        // 原文如此：DFM 未绑定事件，改动不置脏、不写 g_Config。
-        _ = controlName;
     }
 
     /// <summary>暴露给测试：原文 private 处理器的直调入口（事件处理器直调 + 决策镜像）。</summary>

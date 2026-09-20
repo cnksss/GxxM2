@@ -20,6 +20,17 @@ public sealed partial class GamePetsForm
 
     private static int Idx(System.Windows.Forms.ComboBox cb) => cb.SelectedIndex;
 
+    /// <summary>
+    /// `TComboBox.ItemIndex := value` 语义垫片（**必须**，非风格问题）。
+    /// Delphi：越界/负值一律静默置 `ItemIndex := -1`（不抛异常）。
+    /// WinForms：`ComboBox.SelectedIndex` 越界**抛 `ArgumentOutOfRangeException`**。
+    /// 原文 `:408/:415` 直接写 `cbbPetShowFile*.ItemIndex := SelGamePetConfig.ShowFile*`，
+    /// 而配置里的 ShowFile* 来自 INI，完全可能大于下拉项数（例如 `根据Appr计算` 之外
+    /// 的素材表尚未装载）→ 不垫片会直接崩。
+    /// </summary>
+    private static void SetItemIndex(System.Windows.Forms.ComboBox cb, int value)
+        => cb.SelectedIndex = value >= 0 && value < cb.Items.Count ? value : -1;
+
     // ========================================================================
     //  :241-390 DoOpen
     // ========================================================================
@@ -237,14 +248,14 @@ public sealed partial class GamePetsForm
             seLevelDifference.Value = SelGamePetConfig.LevelDifference;        // :405
             seHPScale.Value = SelGamePetConfig.HPScale;                         // :406
 
-            cbbPetShowFile1.SelectedIndex = SelGamePetConfig.ShowFile1;         // :408
+            SetItemIndex(cbbPetShowFile1, SelGamePetConfig.ShowFile1);           // :408
             sePetShowStart1.Value = SelGamePetConfig.ShowStart1;                // :409
             sePetShowCount1.Value = SelGamePetConfig.ShowCount1;                // :410
             sePetShowTime1.Value = SelGamePetConfig.ShowTime1;                  // :411
             sePetShowOffsetX1.Value = SelGamePetConfig.ShowOffsetX1;            // :412
             sePetShowOffsetY1.Value = SelGamePetConfig.ShowOffsetY1;            // :413
 
-            cbbPetShowFile2.SelectedIndex = SelGamePetConfig.ShowFile2;         // :415
+            SetItemIndex(cbbPetShowFile2, SelGamePetConfig.ShowFile2);           // :415
             sePetShowStart2.Value = SelGamePetConfig.ShowStart2;                // :416
             sePetShowCount2.Value = SelGamePetConfig.ShowCount2;                // :417
             sePetShowTime2.Value = SelGamePetConfig.ShowTime2;                  // :418
