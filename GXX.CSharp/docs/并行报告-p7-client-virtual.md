@@ -11,7 +11,7 @@
 | hash | 说明 |
 |---|---|
 | `28868762` | 11 处机械改动 + 多态验证测试（7 例）+ `CustomActorTests` 三处调用点收敛；build 0 error、`GXX.Client.Tests` 4319→4326 全绿 |
-| 本报告所在提交 | 仅新增 `GXX.CSharp/docs/并行报告-p7-client-virtual.md`（HEAD，无 WIP 标记） |
+| **HEAD**（本报告提交，无 WIP 标记） | 仅新增 `GXX.CSharp/docs/并行报告-p7-client-virtual.md`；确切 hash 见车道最终交付消息（自引用 hash 会随 amend 变化，故不写死） |
 
 > 本车道**没有** `WIP-不可合并` 提交：第一笔提交前已实跑
 > `dotnet build GXX.slnx -c Debug`（0 error）与
