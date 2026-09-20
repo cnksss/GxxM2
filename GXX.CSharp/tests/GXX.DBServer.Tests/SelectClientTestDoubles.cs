@@ -198,11 +198,16 @@ public sealed class SentFrame
     public string SessionID = "";
     /// <summary>完整原始字节（含前后缀），用于逐字节断言。</summary>
     public byte[] Raw = Array.Empty<byte>();
+    /// <summary>是否匹配 <c>%&lt;sid&gt;/#…!$</c>（心跳 <c>%++$</c> 等为 false）。</summary>
+    public bool IsUserSocket;
     /// <summary>载荷 = 22 字节编码头 + 编码体。</summary>
     public byte[] Payload = Array.Empty<byte>();
     public TDefaultMessage Msg;
     /// <summary>头部之后的编码体（原文 <c>s18</c>）。</summary>
     public byte[] Body = Array.Empty<byte>();
+
+    /// <summary>原文意义的 AnsiString 文本（latin-1 逐字节）。</summary>
+    public string RawAnsi => System.Text.Encoding.Latin1.GetString(Raw);
 }
 
 /// <summary>
@@ -258,7 +263,12 @@ public abstract class SelectClientTestBase : TempDirTest
         {
             if (raw[i] == (byte)'!' && raw[i + 1] == (byte)'$') { end = i; break; }
         }
-        if (start < 0) start = 0;
+        if (start < 0)
+        {
+            f.SessionID = "";
+            return f;                                                             // 非 %<sid>/#…!$ 形态（如 %++$）
+        }
+        f.IsUserSocket = true;
         f.SessionID = System.Text.Encoding.Latin1.GetString(raw, 1, Math.Max(0, start - 3));
         int len = Math.Max(0, end - start);
         f.Payload = new byte[len];
@@ -277,14 +287,22 @@ public abstract class SelectClientTestBase : TempDirTest
     /// <summary>构造一条 <c>%&lt;cmd&gt;…$</c> 收包文本（latin-1 字节串）。</summary>
     protected static string GateFrame(string cmd, string body) => "%" + cmd + body + "$";
 
-    /// <summary>构造一帧用户数据：<c>%A&lt;connID&gt;/#&lt;encoded&gt;!$</c>。</summary>
-    protected static string UserDataFrame(string connID, TDefaultMessage msg, string nameArg = "")
-    {
-        byte[] payload = nameArg == ""
+    /// <summary>
+    /// 构造一帧用户数据的**编码载荷文本**（latin-1 逐字节），即 <c>%A&lt;connID&gt;/#1</c> 之后、
+    /// <c>!</c> 之前那一段：22 字节编码头 + 可选的 <c>EncodeString(参数)</c>。
+    ///
+    /// ★ <c>#</c> 之后那个 <c>1</c> 不是装饰：SelGate 侧原文是
+    ///   <c>StrFmt(@pszBuf[1], 'A%d/#1%s!$', [Socket, PAnsiChar(Addr)])</c>（ClientSession.pas:253-254），
+    ///   而 DBServer 的 <c>ProcessUserMsg:650</c> 正是用 <c>Copy(s10, 2, Length(s10) - 1)</c> 把它剥掉。
+    /// </summary>
+    protected static string EncodedPayload(TDefaultMessage msg, string nameArg = "")
+        => System.Text.Encoding.Latin1.GetString(nameArg == ""
             ? EDcode.EncodeMessage(msg)
-            : Concat(EDcode.EncodeMessage(msg), EDcode.EncodeString(nameArg));
-        return "%A" + connID + "/#" + System.Text.Encoding.Latin1.GetString(payload) + "!$";
-    }
+            : Concat(EDcode.EncodeMessage(msg), EDcode.EncodeString(nameArg)));
+
+    /// <summary>构造一帧用户数据：<c>%A&lt;connID&gt;/#1&lt;encoded&gt;!$</c>。</summary>
+    protected static string UserDataFrame(string connID, TDefaultMessage msg, string nameArg = "")
+        => "%A" + connID + "/#1" + EncodedPayload(msg, nameArg) + "!$";
 
     protected static byte[] Concat(byte[] a, byte[] b)
     {

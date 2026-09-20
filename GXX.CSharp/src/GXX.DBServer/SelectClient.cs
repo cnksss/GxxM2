@@ -101,15 +101,15 @@ public class TSelectClient : TServerClientWinSocket
     /// </summary>
     public TSelectClient()
     {
-        m_dwKeepAliveTick = DelphiRTL.GetTickCount();
+        m_dwKeepAliveTick = DelphiTick.GetTickCount();
         m_sReceiveText = "";
         m_sGateaddr = "";
-        m_dwTick10 = DelphiRTL.GetTickCount();
+        m_dwTick10 = DelphiTick.GetTickCount();
         m_nGateID = 0;
         m_Module = IntPtr.Zero;
-        m_dwCheckServerTimeMin = DelphiRTL.GetTickCount();
+        m_dwCheckServerTimeMin = DelphiTick.GetTickCount();
         m_dwCheckServerTimeMax = 0;                                                                      //GetTickCount;
-        m_dwCheckRecviceTick = DelphiRTL.GetTickCount();
+        m_dwCheckRecviceTick = DelphiTick.GetTickCount();
         SelectCharList = new TSelectChar();
     }
 
@@ -143,10 +143,10 @@ public class TSelectClient : TServerClientWinSocket
     public void SendKeepAlivePacket()
     {
         SendText(SelectClientAnsi.BytesOf("%++$"));
-        m_dwKeepAliveTick = DelphiRTL.GetTickCount();
-        m_dwCheckServerTimeMin = DelphiRTL.GetTickCount() - m_dwCheckRecviceTick;
+        m_dwKeepAliveTick = DelphiTick.GetTickCount();
+        m_dwCheckServerTimeMin = DelphiTick.GetTickCount() - m_dwCheckRecviceTick;
         if (m_dwCheckServerTimeMin > m_dwCheckServerTimeMax) m_dwCheckServerTimeMax = m_dwCheckServerTimeMin;
-        m_dwCheckRecviceTick = DelphiRTL.GetTickCount();
+        m_dwCheckRecviceTick = DelphiTick.GetTickCount();
         if (m_Module != IntPtr.Zero)
             SelectClientModuleSeam.UpdateModuleBuffer(m_Module,
                 DelphiFormat.Format("%d/%d", m_dwCheckServerTimeMin, m_dwCheckServerTimeMax));  // §17.2：Delphi 格式串
