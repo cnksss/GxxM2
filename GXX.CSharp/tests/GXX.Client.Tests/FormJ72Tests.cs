@@ -950,7 +950,7 @@ public sealed class PlaySceneCoreTests : IDisposable
         Assert.IsNotType<TCustomActor>(actor);
 
         // 配置存在 → TCustomActor
-        scene.CustomMonsterConfigResolver = _ => new object();
+        scene.CustomMonsterConfigResolver = _ => new GXX.Core.Protocol.TClientCustomMonsterConfig();
         var found = scene.NewActor(2, 2, 2, 0,
             MonFeatureOf(new TMonFeature { wRaceImg = 156, btRace = 155, wAppr = 400 }), 0);
         Assert.IsType<TCustomActor>(found);

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GXX.Core.Protocol;
 
 namespace GXX.Client.Scenes;
 
@@ -10,8 +11,12 @@ namespace GXX.Client.Scenes;
 /// </summary>
 public partial class TPlayScene
 {
-    /// <summary>g_CustomMonsterConfig 接缝（外观 → 自定义怪配置；null = 未配置）。</summary>
-    public Func<int, object?>? CustomMonsterConfigResolver;
+    /// <summary>
+    /// g_CustomMonsterConfig 接缝（外观 → 自定义怪配置；null = 未配置）。
+    /// 与 <see cref="TActorCore.CustomMonsterConfigResolver"/>（ActorMotion.cs:180）同型，
+    /// 以便 TCustomActor.Config 直接用协议结构体 TClientCustomMonsterConfig。
+    /// </summary>
+    public Func<int, TClientCustomMonsterConfig?>? CustomMonsterConfigResolver;
 
     /// <summary>自定义怪缺配置提示接缝（DScreen.AddChatBoardString(SCustomMonNoConfig, 外观)）。</summary>
     public Action<int>? OnCustomMonMissingConfig;
@@ -425,8 +430,8 @@ public partial class TPlayScene
         if (raceImg == 156 && feature.btRace is 154 or 155 or 156 or 157)
         {
             var cfg = CustomMonsterConfigResolver?.Invoke(feature.wAppr);
-            if (cfg != null)
-                return new TCustomActor { Config = cfg };
+            if (cfg.HasValue)
+                return new TCustomActor(cfg.Value);
             customMissing = true;
         }
         return CreateActorByRaceImg(raceImg, feature, out _);
@@ -474,12 +479,8 @@ public class THeroActor : TActor
     public override string ActorClass => "THeroActor";
 }
 
-/// <summary>TCustomActor（自定义怪；持有配置对象）。</summary>
-public class TCustomActor : TActor
-{
-    public object? Config;
-    public override string ActorClass => "TCustomActor";
-}
+// TCustomActor（自定义怪）已 1:1 移植到独立文件 Scenes/CustomActor.cs
+// （源单元 Source\Client-HGE\CustomActor.pas 1,130 行）。此处原为 6 行桩，已删除以免重名。
 
 // ---- wRaceImg 分派表承载类（Class name 与 Delphi 1:1；行为随后续批次深化） ----
 
