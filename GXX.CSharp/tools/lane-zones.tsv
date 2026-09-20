@@ -23,7 +23,7 @@ p3-m2-dbdata	!GXX.CSharp/src/GXX.M2Server/DbLayer/**;!GXX.CSharp/tests/GXX.M2Ser
 p3-dx-big	GXX.CSharp/src/GXX.Client/DxComponent/Dib*.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxMemo*.cs;!GXX.CSharp/src/GXX.Client/DxComponent/DxControls.cs;GXX.CSharp/tests/GXX.Client.Tests/DxCtlDib*;GXX.CSharp/tests/GXX.Client.Tests/DxCtlMemo*;GXX.CSharp/docs/并行报告-p3-dx-big.md
 p3-m2-sweep	GXX.CSharp/src/GXX.M2Server/Sweep/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep*;GXX.CSharp/docs/并行报告-p3-m2-sweep.md
 # ---- P4 wave (2026-09-20): the four unowned giants ----
-p4-rungate-mirclient	!GXX.CSharp/src/GXX.RunGate/MirClientContext*.cs;GXX.CSharp/tests/GXX.RunGate.Tests/MirClient*;!GXX.CSharp/docs/并行报告-p4-rungate-mirclient.md
+p4-rungate-mirclient	!GXX.CSharp/src/GXX.RunGate/MirClientContext*.cs;!GXX.CSharp/tests/GXX.RunGate.Tests/MirClient*;!GXX.CSharp/docs/并行报告-p4-rungate-mirclient.md
 p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs;!GXX.CSharp/src/GXX.M2Server/Engine/AddAbility.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurfaceItemsTests.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/Npc*;!GXX.CSharp/docs/并行报告-p4-m2-objnpc.md
 # ---- P5 wave: 最后一个无人认领的巨型单元 ----
 p5-client-mirreturn	GXX.CSharp/src/GXX.Client/GUI/GameConfig/MirReturn*.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirReturn*;GXX.CSharp/docs/并行报告-p5-client-mirreturn.md
