@@ -12,12 +12,12 @@
 |---|---|
 | `2ddb4cc4` | `WIP-不可合并` — 纯逻辑层 + 实体骨架（编译通过、无测试） |
 | `f6ef8e1d` | CustomActor.pas 1:1 移植 — 纯决策层 + `TCustomActor` + 148 项测试 |
-| `HEAD`（见最终消息） | 补 5 项「退回基类落点」测试 → 153 项 |
+| `64d8fa20` | **HEAD** — 补 5 项「退回基类落点」测试（→153 项）+ 本报告 |
 
 > 中间那笔 `WIP-不可合并` 是**已登记的存档提交**（按纪律要求标注）。它**不是** HEAD，
 > `tools/Check-LaneReady.ps1` 只检 HEAD subject，实测输出
-> `par/p6-client-actor  2  0  p6: ...` → `OK: 3 lane(s) ready to merge, none marked WIP.`
-> 若波次前需要线性历史，可在集成侧 `rebase -i` 压平；两笔均**编译通过**，无损坏风险。
+> `par/p6-client-actor  3  0  p6: 补 153 项测试…` → `OK: 3 lane(s) ready to merge, none marked WIP.`
+> 三笔**均编译通过**，无损坏风险；若需线性历史可在集成侧 `rebase -i` 压平。
 
 ---
 
