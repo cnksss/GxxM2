@@ -35,25 +35,32 @@ public sealed class NpcObjNpcVerificationGuardTests : System.IDisposable
     // =======================================================================
 
     [Fact]
-    public void V1_DelphiRtlTrim_StripsOnlyTheSixCommonWhitespaceChars()
+    public void V1_DelphiRtlTrim_StripsAllCharsAtOrBelowSpace()
     {
-        // 原文 SysUtils.Trim 会去掉的字符集（#0..#32）里，DelphiRTL 只覆盖 6 个。
+        // 原文 SysUtils.Trim 的判据是 `S[I] <= ' '`，即去掉**所有** #0..#32。
+        // 本用例原先是"锁定 DelphiRTL 只去 6 个字符"的差异守卫；
+        // **GXX.Core 已按原文修正**（DelphiRTL.cs 的 Trim/TrimLeft/TrimRight 改为 `<= ' '` 扫描），
+        // 故此处改为断言**正确的原文语义**。
         Assert.Equal("A", DelphiRTL.Trim(" \t\r\n\f\vA \t\r\n\f\v"));
-        // 这些控制字符 DelphiRTL **不去**（原文会去）—— 差异锁定点
-        Assert.Equal("\u0001A", DelphiRTL.Trim("\u0001A"));
-        Assert.Equal("\u0014A", DelphiRTL.Trim("\u0014A"));
-        Assert.Equal("A\u001f", DelphiRTL.Trim("A\u001f"));
+        // 控制字符现在也应被去掉（原 DelphiRTL 不去 —— 这正是被修掉的偏差）
+        Assert.Equal("A", DelphiRTL.Trim("\u0001A"));
+        Assert.Equal("A", DelphiRTL.Trim("\u0014A"));
+        Assert.Equal("A", DelphiRTL.Trim("A\u001f"));
+        Assert.Equal("A", DelphiRTL.Trim("\0A\0"));
+        // TrimLeft/TrimRight 同判据
+        Assert.Equal("A\u0014", DelphiRTL.TrimLeft("\u0014A\u0014"));
+        Assert.Equal("\u0014A", DelphiRTL.TrimRight("\u0014A\u0014"));
     }
 
     [Fact]
-    public void V1_LoadLevelScriptAction_SegmentWithControlCharDoesNotMatchPrefix()
+    public void V1_LoadLevelScriptAction_SegmentWithControlCharNowMatchesPrefix()
     {
-        // 可达后果：原文 `Upper(Trim('HERO' + #20))` = 'HERO' → CMD_RACE_1；
-        //          托管侧 DelphiRTL.Trim 不去 #20 → 'HERO\u0014' ≠ 'HERO' → 落 else = CMD_RACE_5。
+        // 可达后果（修正后）：原文 `Upper(Trim('HERO' + #20))` = `HERO` → CMD_RACE_1。
+        // 修正前托管侧不去 #20 → `HERO\u0014` ≠ `HERO` → 落 else = CMD_RACE_5（与本工程原版行为不符）。
         var info = new TQuestActionInfo();
         ObjNpcUnitFuncs.LoadLevelScriptAction(info, "HERO\u0014.CHECKITEM");
-        Assert.Equal(new[] { ObjNpcConst.CMD_RACE_0, ObjNpcConst.CMD_RACE_5 }, info.ScriptCmd);
-        Assert.Equal(new[] { "SELF", "HERO\u0014" }, info.ScriptList);
+        Assert.Equal(new[] { ObjNpcConst.CMD_RACE_0, ObjNpcConst.CMD_RACE_1 }, info.ScriptCmd);
+        Assert.Equal(new[] { "SELF", "HERO" }, info.ScriptList);
     }
 
     [Fact]

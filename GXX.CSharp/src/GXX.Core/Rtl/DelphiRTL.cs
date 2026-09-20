@@ -52,9 +52,38 @@ public static unsafe class DelphiRTL
         return i + 1;
     }
 
-    public static string Trim(string s) => s?.Trim(' ', '\t', '\r', '\n', '\f', '\v') ?? "";
-    public static string TrimLeft(string s) => s?.TrimStart(' ', '\t', '\r', '\n', '\f', '\v') ?? "";
-    public static string TrimRight(string s) => s?.TrimEnd(' ', '\t', '\r', '\n', '\f', '\v') ?? "";
+    // 原文 SysUtils.Trim/TrimLeft/TrimRight：
+    //   while (I <= L) and (S[I] <= ' ') do Inc(I);      // 左
+    //   while (L >= I) and (S[L] <= ' ') do Dec(L);      // 右
+    // 判据是 `S[I] <= ' '` —— 即**所有 #0..#32**（含 NUL、BEL、ESC 等控制字符）；
+    // 旧实现只去 6 个字符（#9 #10 #11 #12 #13 #32），**窄了**（车道 p4-m2-objnpc 复核发现，已修）。
+    // 可达后果：原文 `"HERO\u0014.CHECKITEM"` 经 Trim 得 `"HERO"`，托管旧实现得 `"HERO\u0014"`，
+    // 使 NPC 脚本的目标级别解析落到**不同分支**（CMD_RACE_1 vs CMD_RACE_5）。
+    public static string Trim(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        int i = 0, l = s.Length;
+        while (i < l && s[i] <= ' ') i++;
+        while (l > i && s[l - 1] <= ' ') l--;
+        return s.Substring(i, l - i);
+    }
+
+    public static string TrimLeft(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        int i = 0;
+        while (i < s.Length && s[i] <= ' ') i++;
+        return s.Substring(i);
+    }
+
+    public static string TrimRight(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return "";
+        int l = s.Length;
+        while (l > 0 && s[l - 1] <= ' ') l--;
+        return s.Substring(0, l);
+    }
+
     public static string UpperCase(string s) => s?.ToUpperInvariant() ?? "";
     public static string LowerCase(string s) => s?.ToLowerInvariant() ?? "";
 
