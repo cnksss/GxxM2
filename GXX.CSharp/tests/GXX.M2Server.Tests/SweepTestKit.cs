@@ -183,6 +183,19 @@ internal sealed class FakeNationPlayer : INationsPlayObject
 /// </summary>
 internal sealed class SweepTestEnv : IDisposable
 {
+    /// <summary>
+    /// 本车道测试**固定**使用的 Envir 目录（= <c>M2Config.sEnvirDir</c> 的出厂默认值，见 M2Config.General.cs:40）。
+    /// <para>为什么必须显式钉死：<c>M2Config</c> 是进程级静态全局（对应 Delphi 的 <c>g_Config</c>），
+    /// 本测试工程里已有若干测试类会在用例体内改它且**不还原**
+    /// （实测：<c>FormGeneralConfigTests.cs:488</c> 把 <c>sEnvirDir</c> 设成 <c>"D:\Mir\Envir\"</c>）。
+    /// 由于 xUnit 的并行已被 <c>TestConfig.cs</c> 关闭、测试按类顺序执行，
+    /// 一旦那类测试先跑，后续用例看到的 <c>sEnvirDir</c> 就是被污染的残留值；
+    /// 此时若测试自己用**硬编码**的 <c>.\Envir\</c> 去 Seed 内存文件系统，就会与实现算出的路径错位
+    /// → LoadConfig 找不到文件 → 一连串 NRE/断言失败（本轮集成分支上真实复现过 4 例）。
+    /// 因此构造时**主动设定**、析构时**还原**，使本车道的用例与外部残留状态完全解耦。</para>
+    /// </summary>
+    public const string CanonicalEnvirDir = ".\\Envir\\";
+
     public readonly SweepTestFs Fs = new();
 
     private readonly bool _savedShowPreFixMsg = GXX.M2Server.Engine.M2Config.boShowPreFixMsg;
@@ -204,6 +217,8 @@ internal sealed class SweepTestEnv : IDisposable
     public SweepTestEnv()
     {
         Tick = 0;
+        // 钉死 Envir 目录：与外部残留解耦（理由见 CanonicalEnvirDir 的注释）
+        GXX.M2Server.Engine.M2Config.sEnvirDir = CanonicalEnvirDir;
         SweepSeam.ResetDefaults();
         SweepSeam.CreateIniFile = path => new MemIniFile(Fs, path);
         SweepSeam.FileExists = Fs.FileExists;

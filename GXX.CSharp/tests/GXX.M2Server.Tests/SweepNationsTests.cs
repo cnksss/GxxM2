@@ -20,9 +20,18 @@ public class SweepNationsTests
 {
     private const int Max = 1000; // Grobal2Const.MAXNATIONCOUNT
 
-    private static string NationFile(string name) => ".\\Envir\\" + "\\Nations\\" + name + ".ini";
+    /// <summary>
+    /// 国家 ini 的期望落盘路径。<b>必须从 <c>M2Config.sEnvirDir</c> 派生</b>，不能硬编码 ——
+    /// 实现侧用的是 <c>g_Config.sEnvirDir + '\Nations\%s.ini'</c>（Nations.pas:342/346），
+    /// 而 <c>sEnvirDir</c> 是进程级静态全局，本工程别的测试类会改它且不还原
+    /// （见 SweepTestKit.CanonicalEnvirDir 的说明）。硬编码会让用例在那种残留状态下与实现错位。
+    /// </summary>
+    private static string NationFile(string name)
+        => M2Config.sEnvirDir + "\\Nations\\" + name + ".ini";
 
-    private const string NationsIni = ".\\Envir\\" + "\\Nations\\Nations.ini";
+    private static string NationsIni => M2Config.sEnvirDir + "\\Nations\\Nations.ini";
+
+    private static string NationsDir => M2Config.sEnvirDir + "\\Nations\\";
 
     /// <summary>建一个「国家 1 = 甲国」的管理器（直接写 NationConfigList 只能经 LoadConfig，故用 LoadConfig 建）。</summary>
     private static TNationManage MakeWithNation(SweepTestEnv env, string nationName, int index = 1)
@@ -35,6 +44,40 @@ public class SweepNationsTests
     }
 
     // ------------------------------------------------------------------ 构造 / Count / Items
+
+    /// <summary>
+    /// **回归断言（集成分支上真实发生过 4 例失败）**：<c>M2Config.sEnvirDir</c> 是进程级静态全局，
+    /// 本测试工程里 <c>FormGeneralConfigTests.cs:488</c> 会在用例体内把它改成 <c>"D:\Mir\Envir\"</c>
+    /// 且**不还原**。由于 xUnit 并行已关闭、测试按类顺序执行，SweepNationsTests 可能在其之后运行。
+    /// <para>要求：<see cref="SweepTestEnv"/> 构造时把 <c>sEnvirDir</c> 钉回出厂默认
+    /// （<c>M2Config.General.cs:40</c> 的 <c>".\Envir\"</c>），并且用例的期望路径从
+    /// <c>sEnvirDir</c> 派生而非硬编码 —— 这样无论外部留下什么残留，用例都自洽。</para>
+    /// </summary>
+    [Fact]
+    public void Env_SurvivesPollutedEnvirDir_LeftByOtherTestClasses()
+    {
+        string polluted = "D:\\Mir\\Envir\\";
+        M2Config.sEnvirDir = polluted;                       // 模拟别的测试类留下的残留
+        try
+        {
+            using var env = new SweepTestEnv();              // 构造时应钉回 CanonicalEnvirDir
+            Assert.Equal(SweepTestEnv.CanonicalEnvirDir, M2Config.sEnvirDir);
+
+            env.Fs.Seed(NationsIni, ("Names", "NationalNames1", "残留国"));
+            env.Fs.Seed(NationFile("残留国"));
+            var mgr = new TNationManage();
+            mgr.LoadConfig();
+
+            Assert.Equal(1, mgr.Count);                      // 实现与期望路径一致 → 能找到文件
+            Assert.Equal(1, mgr.GetNationIndex("残留国"));
+            Assert.NotNull(mgr[1]);
+            Assert.NotEqual(polluted, M2Config.sEnvirDir);
+        }
+        finally
+        {
+            M2Config.sEnvirDir = polluted;                   // 复原现场，避免影响别的用例
+        }
+    }
 
     [Fact]
     public void Ctor_CountZero_ItemsNull_And_ConfigDefaultsWritten()
@@ -399,7 +442,7 @@ public class SweepNationsTests
         env.Fs.Dirs.Clear();                     // 模拟目录不存在
         mgr.SaveConfig();
 
-        Assert.True(env.Fs.DirectoryExists(".\\Envir\\" + "\\Nations\\"), "ForceDirectories 应被调用");
+        Assert.True(env.Fs.DirectoryExists(NationsDir), "ForceDirectories 应被调用");
         Assert.True(env.Fs.FileExists(NationFile("甲国")));
         Assert.True(env.Fs.FileExists(NationFile("乙国")));
         Assert.True(env.Fs.Has(NationFile("甲国"), "Info", "Peoples"));
