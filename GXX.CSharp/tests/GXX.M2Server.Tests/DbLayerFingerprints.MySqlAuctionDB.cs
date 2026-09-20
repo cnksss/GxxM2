@@ -12,16 +12,16 @@ public static class MySqlAuctionDbFingerprints
     /// <summary>Delphi statement field name → SHA-256 of the SQL text bound to it (lower-case hex).</summary>
     public static readonly (string Label, string Sha256)[] Statements =
     {
-        ("Auction_UpdateAuctionItemFail", "b489a3ad3501b23c2dd3e2691803f5a4cdf79d3dd6930a0764ffc77411209b40"),   // MySqlAuctionDB.pas:181-182 (FStatementUpdateAuctionItemFail), len=223
+        ("Auction_UpdateAuctionItemFail", "38ae3a2f34a4ece7db0b08144ef8f67aeb8ef1b9217c069331b8889b05714898"),   // MySqlAuctionDB.pas:181-182 (FStatementUpdateAuctionItemFail), len=221
         ("Auction_UpdateAuctionItemSuccess", "a45fa030b3e622a84decc6140348b0f4bf26db6c98c7e31991f67fb2073388c4"),   // MySqlAuctionDB.pas:185-185 (FStatementUpdateAuctionItemSuccess), len=61
-        ("Auction_QueryAuctionItemSuccess", "86ef6cf0cc375f972f7bbc2afa3fae6708b97054cce223b62515cfde5974294d"),   // MySqlAuctionDB.pas:188-191 (FStatementQueryAuctionItemSuccess), len=407
+        ("Auction_QueryAuctionItemSuccess", "28862dc8b1a64024ddd3bdc01343d168b73263224f198e38789b700d958a0751"),   // MySqlAuctionDB.pas:188-191 (FStatementQueryAuctionItemSuccess), len=405
         ("Auction_QueryAuctionItems", "a3855f74194f66e8217986bd985fbaffd614a5d6ebbbe858feba54a72bf1926f"),   // MySqlAuctionDB.pas:195-198 (FStatementQueryMyItems), len=334
         ("Auction_GetMyItemsCount", "11f537eda51aa40b67cb507fb489d8e34fba41b37fa012b1d1294d5a331eb2a8"),   // MySqlAuctionDB.pas:202-202 (FStatementGetMyItemsCount), len=53
         ("Auction_QueryAttentionItems", "2ce300e73fc63ca8d20ae1676f5ce4fb1fbac4c410064324d132eea322455b55"),   // MySqlAuctionDB.pas:206-207 (FStatementQueryMyAttentionItems), len=95
         ("Auction_GetMyAttentionItemsCount", "31fbb2afde40082974e2acbbf54e6e46b08f6aebe8166cd99fc1a23c359fb674"),   // MySqlAuctionDB.pas:211-211 (FStatementQueryMyAttentionItemsCount), len=58
         ("Auction_QueryOneItem", "4773309758d9f372c9cd7e8a66e36ea0550bcff32ab122d3822d7c6ba5ad7c66"),   // MySqlAuctionDB.pas:215-218 (FStatementQueryOneItem), len=282
         ("Auction_GetMyAuctioningItemsCount", "b5faf2244151f08969b9a3b7e4fe321e76e376f77dfddb33c5653750a5df50c6"),   // MySqlAuctionDB.pas:222-223 (FStatementGetMyAuctioningItemsCount), len=189
-        ("Auction_GetMySellFailItemsCount", "80498437026106e956d04b8bfe99b9df6b657ec732587f221abd365bd83d6ae9"),   // MySqlAuctionDB.pas:227-228 (FStatementGetMySellFailItemsCount), len=287
+        ("Auction_GetMySellFailItemsCount", "f0ef88d2d01c02657849805b21ff7f886a996bd6790dcb5438de9bc66dde81ac"),   // MySqlAuctionDB.pas:227-228 (FStatementGetMySellFailItemsCount), len=285
         ("Auction_GetMyBuyOKItemsCount", "addea4844c44d267abe1d0c7a3b27867ac7ece80560cba6f962e8b02fb6c516d"),   // MySqlAuctionDB.pas:232-233 (FStatementGetMyBuyOKItemsCount), len=107
         ("Auction_GetMaxAuctionID", "ccf5c16824a541ceeb1e07702198bae18a97090f923a7c447493d487868c6765"),   // MySqlAuctionDB.pas:236-236 (FStatementGetMaxAuctionID), len=53
         ("Auction_InsertAuctionItem", "192bfaed01a3883f96eb928ed177dea6576fecb270724f63d101a5da6dd07e47"),   // MySqlAuctionDB.pas:240-242 (FStatementInsertAuctionItem), len=182

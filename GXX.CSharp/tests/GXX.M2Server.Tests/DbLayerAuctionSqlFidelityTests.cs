@@ -391,7 +391,9 @@ public class DbLayerAuctionSqlFidelityTests
         var host = new FakeDbLayerHost { DataBase = db };
         var unit = new TSqliteAuctionDB(host, db);
         unit.DoInit();
-        db.For("Auction_QueryAllItems").AddRow(
+        // DoQueryAllItems 用的是 DoInit 之后才 AddSQLStatement("Auction_QueryAllItems") 的动态语句；
+        // 先预登记同名语句并塞结果集（SQLite3DataBase 的 AddSQLStatement 同名复用返回同一实例）。
+        ((ScriptedSqliteStatement)db.AddSQLStatement("Auction_QueryAllItems")).AddRow(
             11, "李四", 1600000000, 48, 3600, 100, 500, 1, 250, "王五", 0, 0, 1);
 
         var list = new TAuctionItemList();

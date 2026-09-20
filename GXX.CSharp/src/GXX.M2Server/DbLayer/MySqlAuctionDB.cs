@@ -933,7 +933,7 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                         auctionRecord.IsItemGive = sm.OrderGetColumnValueBool;
                         auctionRecord.IsAttention = sm.OrderGetColumnValueBool;
 
-                        Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                        Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                             DataItemTypes.AuctionItemType, 0);
 
                         itemList.Add(auctionRecord);
@@ -989,7 +989,7 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                         auctionRecord.TradingStatus = _fStatementQueryMyItems.OrderGetColumnValueInt;
                         auctionRecord.IsItemGive = _fStatementQueryMyItems.OrderGetColumnValueBool;
 
-                        Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                        Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                             DataItemTypes.AuctionItemType, 0);
 
                         itemList.Add(auctionRecord);
@@ -1048,7 +1048,7 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                             auctionRecord.IsItemGive = _fStatementQueryOneItem.OrderGetColumnValueBool;
                         }
 
-                        Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                        Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                             DataItemTypes.AuctionItemType, 0);
 
                         itemList.Add(auctionRecord);
@@ -1143,7 +1143,7 @@ public sealed class TMySqlAuctionDB : TAuctionDB
                     auctionRecord.IsItemGive = _fStatementQueryOneItem.OrderGetColumnValueBool;
                     auctionRecord.IsAttention = false;
 
-                    Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                    Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                         DataItemTypes.AuctionItemType, 0);
 
                     result = true;

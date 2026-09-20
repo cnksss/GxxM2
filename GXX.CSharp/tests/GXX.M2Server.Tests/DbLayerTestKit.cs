@@ -346,7 +346,7 @@ public sealed class FakeDbLayerHost : IDbLayerHost
 
     public void UnLock() => UnLockCount++;
 
-    public void LoadItemFromDB(GXX.Core.Protocol.TUserItem userItem, int parentId, int itemType, int itemIndex)
+    public void LoadItemFromDB(ref GXX.Core.Protocol.TUserItem userItem, int parentId, int itemType, int itemIndex)
     {
         LoadedItems.Add($"{parentId}/{itemType}/{itemIndex}");
         if (LoadedByParent.TryGetValue(parentId, out GXX.Core.Protocol.TUserItem item))

@@ -50,6 +50,9 @@ public sealed class TSqliteAuctionDB : TAuctionDB
 {
     private ISqliteDatabase? _fdb;
 
+    /// <summary><c>true</c> = 构造时显式注入了 db（优先于原文 202-203 的 Owner.DataBase 回退）。</summary>
+    private readonly bool _dbInjected;
+
     /// <summary>SqliteAuctionDB.pas:21 <c>FStatementUpdateAuctionItemFail</c>（更新拍卖物品的状态）。</summary>
     private ISqliteStatement? _fStatementUpdateAuctionItemFail;
 
@@ -120,7 +123,10 @@ public sealed class TSqliteAuctionDB : TAuctionDB
     /// （无宿主时会落到 <see cref="UnavailableSqliteDatabase"/> 并抛 NotSupportedException）。</para></summary>
     public TSqliteAuctionDB(IDbLayerHost owner, ISqliteDatabase? db = null) : base(owner)
     {
-        _fdb = db;
+        // 与同族 TSqliteM2DataDB(owner, db) 同形：未注入时用"不可用"接缝占位。
+        // 另记 _dbInjected 以便 DoInit 区分"显式注入"与"占位"——原文 202-203 的 is 判定回退只在未注入时生效。
+        _fdb = db ?? UnavailableSqliteDatabase.Instance;
+        _dbInjected = db != null;
         _fStatementUpdateAuctionItemFail = null;
         // 原文如此（SqliteAuctionDB.pas:147）：多余的空语句 `;`
         _fStatementUpdateAuctionItemSuccess = null;
@@ -181,9 +187,10 @@ public sealed class TSqliteAuctionDB : TAuctionDB
         // 原文 200 行 inherited;（基类 DoInit 为 abstract，无实现体）
 
         // 原文 202-203：if (Owner.DataBase <> nil) and (Owner.DataBase is TSqlite3DataBase) then FDB := Owner.DataBase as TSqlite3DataBase;
-        if (Owner.DataBase is ISqliteDatabase sqliteDb) _fdb = sqliteDb;
+        // 未显式注入时按原文从宿主取；显式注入优先（与同族 TMySqlAuctionDB 的注入语义一致）。
+        if (!_dbInjected && Owner.DataBase is ISqliteDatabase sqliteDb) _fdb = sqliteDb;
 
-        ISqliteDatabase fdb = _fdb!;
+        ISqliteDatabase fdb = _fdb;
 
         _fStatementUpdateAuctionItemFail = fdb.AddSQLStatement("Auction_UpdateAuctionItemFail");
         _fStatementUpdateAuctionItemFail.Sql = SqliteAuctionDbStatements.Auction_UpdateAuctionItemFail;
@@ -885,7 +892,7 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                     auctionRecord.IsItemGive = sm.OrderGetColumnValueBool;
                     auctionRecord.IsAttention = sm.OrderGetColumnValueBool;
 
-                    Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                    Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                         DataItemTypes.AuctionItemType, 0);
 
                     itemList.Add(auctionRecord);
@@ -937,7 +944,7 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                     auctionRecord.TradingStatus = _fStatementQueryMyItems!.OrderGetColumnValueInt;
                     auctionRecord.IsItemGive = _fStatementQueryMyItems!.OrderGetColumnValueBool;
 
-                    Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                    Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                         DataItemTypes.AuctionItemType, 0);
 
                     itemList.Add(auctionRecord);
@@ -995,7 +1002,7 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                         auctionRecord.IsItemGive = _fStatementQueryOneItem!.OrderGetColumnValueBool;
                     }
 
-                    Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                    Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                         DataItemTypes.AuctionItemType, 0);
 
                     itemList.Add(auctionRecord);
@@ -1085,7 +1092,7 @@ public sealed class TSqliteAuctionDB : TAuctionDB
                     auctionRecord.IsItemGive = _fStatementQueryOneItem!.OrderGetColumnValueBool;
                     auctionRecord.IsAttention = false;
 
-                    Owner.LoadItemFromDB(auctionRecord.ActionItem, auctionRecord.AuctionID,
+                    Owner.LoadItemFromDB(ref auctionRecord.ActionItem, auctionRecord.AuctionID,
                         DataItemTypes.AuctionItemType, 0);
 
                     result = true;
@@ -1730,11 +1737,20 @@ public sealed class TSqliteAuctionDB : TAuctionDB
         return sColors;
     }
 
-    /// <summary>SQLite 方言：AuctionData.AddDateTime 是 INTEGER（Unix 秒），原文用 OrderGetColumnValueInt
-    /// 读出后**直接赋给 TDateTime**（SqliteAuctionDB.pas:885/887/935/937/987/989/1030/1032/1065/1067）。
-    /// 托管侧 TDateTime 已建模为 <see cref="DateTime"/>，这里按"原始 Unix 秒"承载（不经 UnixToDateTime，
-    /// 与 MySQL 侧 OrderGetColumnValueDateTime 的方言差异见 docs/并行报告-p2b-m2-dblayer.md:100）。</summary>
-    private static DateTime AuctionAddDateTime(int rawUnixSeconds) => DateTime.FromOADate(rawUnixSeconds);
+    /// <summary>
+    /// SQLite 方言：<c>AuctionData.AddDateTime</c> 是 INTEGER（Unix 秒，建表默认值就是
+    /// <c>strftime('%s','now')</c>），原文用 <c>OrderGetColumnValueInt</c> 读出后**直接赋给 TDateTime**
+    /// （SqliteAuctionDB.pas:885/935/987/1030/1065）；MySQL 侧同名列走
+    /// <c>OrderGetColumnValueDateTime</c>（真 DATETIME）—— 这是原文的方言差异。
+    /// <para>
+    /// ★ 托管侧偏离说明（必要，已在报告登记）：原文的 <c>TDateTime := Integer</c> 是"把 Unix 秒当成
+    /// Delphi 日期序列号"，托管侧 <see cref="DateTime"/> 无法表示（<c>DateTime.FromOADate(1600000000)</c>
+    /// 直接抛 <see cref="ArgumentOutOfRangeException"/>，会让 DoQueryAllItems 对**任何真实数据**都返回 0 条）。
+    /// 故这里按该列的真实语义把 Unix 秒还原成 <see cref="DateTime"/>，使 SQLite/MySQL 两个方言在托管模型里
+    /// 对同一个逻辑字段给出一致的值（原文两库的存储形态本来就不同，这正是不移植 Delphi 数值语义的原因）。
+    /// </para>
+    /// </summary>
+    private static DateTime AuctionAddDateTime(int rawUnixSeconds) => DelphiDateUtil.UnixToDateTime(rawUnixSeconds);
 
     /// <summary>原文 <c>IntToStr</c>。</summary>
     private static string IntToStr(int value) => GXX.Core.Rtl.DelphiRTL.IntToStr(value);

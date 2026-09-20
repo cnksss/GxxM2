@@ -55,10 +55,10 @@ public class DbLayerM2DataBehaviorTests
         row[4] = dura;
         row[5] = duraMax;
         for (int i = 6; i < row.Length; i++) row[i] = 0;
-        row[22] = "";    // ItemFrom.MapName
-        row[23] = "";    // ItemFrom.MonName
-        row[24] = "";    // ItemFrom.MakerName
-        row[25] = 0.0;   // ItemFrom.DateTime
+        row[21] = "";    // ItemFrom.MapName（第 22 列）
+        row[22] = "";    // ItemFrom.MonName（第 23 列）
+        row[23] = "";    // ItemFrom.MakerName（第 24 列）
+        row[24] = 0.0;   // ItemFrom.DateTime（第 25 列，Double）
         return row;
     }
 
@@ -220,7 +220,8 @@ public class DbLayerM2DataBehaviorTests
         unit.LoadItemsFromDB(100, 1, false, list);
 
         Assert.Equal(2, list.Count);
-        Assert.Equal(7, list[0].MakeIndex);
+        // 第 1 列 ItemIndex(7) 被读掉丢弃（原文如此，它只用于主键定位）；MakeIndex 是第 2 列。
+        Assert.Equal(4242, list[0].MakeIndex);
         Assert.Equal("屠龙", list[0].NameStr);
         Assert.Equal((ushort)33, list[0].Dura);
         Assert.Equal((ushort)40, list[0].DuraMax);
@@ -436,8 +437,9 @@ public class DbLayerM2DataBehaviorTests
         unit.SaveItemToDB(item, 1, 1, 1);
 
         var v = db.For("InsertItemValueAdd");
-        Assert.Equal(1, v.StepCount);
-        Assert.Equal(new[] { "1", "1", "1", "0", "5" }, v.LastBinds.Select(b => b.Text));
+        // btValue 有 2 个非零槽（0 与 13）⇒ 插 2 行；LastBinds 是最后一次 Step（j=13）的快照。
+        Assert.Equal(2, v.StepCount);
+        Assert.Equal(new[] { "1", "1", "1", "13", "7" }, v.LastBinds.Select(b => b.Text));
 
         var e = db.For("InsertItemElementAdd");
         Assert.Equal(1, e.StepCount);
@@ -558,9 +560,14 @@ public class DbLayerM2DataBehaviorTests
 
         unit.SaveItemToDB(item, 1, 1, 1);
 
+        // NameStr 是 string[60]，装得下；sAddDataText 是 string[20]（原文），按 GBK 字节截断。
         Assert.Equal(evil, db.For("InsertItems").LastBinds[5].Text);
-        Assert.Equal(evil, db.For("InsertItemAddDataText").LastBinds[4].Text);
+        string truncated = M2ItemDbAccess.GetAddDataText(ref copy, 0);
+        Assert.NotEqual(evil, truncated);
+        Assert.Equal(truncated, db.For("InsertItemAddDataText").LastBinds[4].Text);
+        // 注入串始终作为**参数值**，从不进入 SQL 文本。
         Assert.DoesNotContain("DELETE FROM Items", db.For("InsertItems").Sql, StringComparison.Ordinal);
+        Assert.DoesNotContain("DELETE FROM Items", db.For("InsertItemAddDataText").Sql, StringComparison.Ordinal);
     }
 
     [Fact]

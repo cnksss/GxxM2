@@ -201,7 +201,7 @@ public class DbLayerM2DataSqlFidelityTests
 
         Assert.True(db.MustExist);
         Assert.True(db.UseThreadMode);
-        Assert.Equal(@"C:\M2Test\M2Data.DB", db.Database);
+        Assert.Equal(@"C:\M2Test\M2Data\M2Data.DB", db.Database);   // ExtractFilePath() + "M2Data\\" + "M2Data.DB"
         Assert.Equal(1, db.For("get_db_constant_value").PrepareCount);
         Assert.False(unit.IsInitOK);   // ★ 原文 DoInit 不设 IsInitOK（由 TM2DataDB.Init 设置）
         unit.Init();
@@ -225,7 +225,7 @@ public class DbLayerM2DataSqlFidelityTests
         unit.DoInit();
 
         // M2Data 资源被释放到 <dir>M2Data.DB。
-        Assert.Equal(new[] { @"M2Data|C:\M2Test\M2Data.DB" }, released);
+        Assert.Equal(new[] { @"M2Data|C:\M2Test\M2Data\M2Data.DB" }, released);
 
         Assert.False(db.MustExist);
         Assert.Equal(new[] { "begin", "commit" }, db.Transactions);
@@ -451,8 +451,8 @@ public class DbLayerM2DataSqlFidelityTests
         Assert.Single(db.Created, s => s.Label == "temp");
         // 第二条 temp SQL 覆盖第一条（同一个语句实例）。
         Assert.Equal(SqliteM2DataDbScripts.DoUpdate_L934_sm_Sql, db.For("temp").Sql);
-        // 两次 Prepare（873-888 与 917-932 各一次），Finalize 两次。
-        Assert.Equal(2, db.For("temp").PrepareCount);
-        Assert.Equal(2, db.For("temp").FinalizeCount);
+        // 原文 873-888 / 890-915 / 917-932 / 934-955 各 Prepare+Finalize 一次 → 4 次。
+        Assert.Equal(4, db.For("temp").PrepareCount);
+        Assert.Equal(4, db.For("temp").FinalizeCount);
     }
 }

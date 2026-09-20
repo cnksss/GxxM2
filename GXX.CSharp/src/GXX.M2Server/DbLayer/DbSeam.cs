@@ -58,10 +58,17 @@ public interface IDbLayerHost
     /// </summary>
     object? DataBase { get; }
 
-    /// <summary>M2DataCommon.pas:480 <c>DoLoadItemFromDB(UserItem, ParentID, ItemType, ItemIndex)</c>（外层包 try/except）。</summary>
-    void LoadItemFromDB(TUserItem userItem, int parentId, int itemType, int itemIndex);
+    /// <summary>
+    /// M2DataCommon.pas:1653-1663 <c>TM2DataDB.LoadItemFromDB(UserItem: PTUserItem; ...)</c>
+    /// （外层包 <c>try DoLoadItemFromDB except MainOutMessage end</c>）。
+    /// ★ 原文传的是 <c>PTUserItem</c>（指针，调用点写 <c>@ShopItem.UserItem</c> / <c>@AuctionRecord.ActionItem</c>），
+    /// 读取结果写回调用方记录；托管侧 <c>TUserItem</c> 是 struct，必须以 <c>ref</c> 表达，
+    /// 否则宿主写回的内容会随栈拷贝被丢弃（UserShop/AuctionDB 读到的物品恒为空）。
+    /// </summary>
+    void LoadItemFromDB(ref TUserItem userItem, int parentId, int itemType, int itemIndex);
 
-    /// <summary>M2DataCommon.pas:480 <c>DoSaveItemToDB(UserItem, ParentID, ItemType, ItemIndex)</c>（外层包 try/except）。</summary>
+    /// <summary>M2DataCommon.pas:1665-1675 <c>TM2DataDB.SaveItemToDB(UserItem: PTUserItem; ...)</c>
+    /// （外层包 try/except）。原文指针只为避免大记录拷贝，<c>DoSaveItemToDB</c> 只读不改，故按值语义等价。</summary>
     void SaveItemToDB(TUserItem userItem, int parentId, int itemType, int itemIndex);
 }
 
