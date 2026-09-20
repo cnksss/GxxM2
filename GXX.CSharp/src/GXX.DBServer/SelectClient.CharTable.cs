@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using GXX.Core.Rtl;
 
 namespace GXX.DBServer;
 
@@ -209,8 +208,8 @@ public sealed class TSelectChar
             UserInfo.nSessionID = 0;
             UserInfo.Socket = null;
             UserInfo.sReceiveText = "";
-            UserInfo.dwTick34 = DelphiRTL.GetTickCount();
-            UserInfo.dwChrTick = DelphiRTL.GetTickCount();
+            UserInfo.dwTick34 = DelphiTick.GetTickCount();
+            UserInfo.dwChrTick = DelphiTick.GetTickCount();
             UserInfo.boChrSelected = false;
             UserInfo.boChrQueryed = false;
             UserInfo.nSelGateID = 0;
@@ -268,8 +267,8 @@ public sealed class TSelectChar
             UserInfo.nSessionID = 0;
             UserInfo.Socket = null;
             UserInfo.sReceiveText = "";
-            UserInfo.dwTick34 = DelphiRTL.GetTickCount();
-            UserInfo.dwChrTick = DelphiRTL.GetTickCount();
+            UserInfo.dwTick34 = DelphiTick.GetTickCount();
+            UserInfo.dwChrTick = DelphiTick.GetTickCount();
             UserInfo.boChrSelected = false;
             UserInfo.boChrQueryed = false;
             UserInfo.nSelGateID = 0;
