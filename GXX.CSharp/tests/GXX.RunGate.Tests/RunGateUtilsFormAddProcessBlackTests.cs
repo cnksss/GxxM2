@@ -10,7 +10,7 @@ namespace GXX.RunGate.Tests;
 /// 重点差异断言：
 ///   * 分支 2（进程名判空）用**未 Trim 的原始文本**，分支 3（MD5 判空）用 **Trim 后**；
 ///   * 分支 1 的上限是**硬编码 80**，不是 `g_ProcessBlackList.MaxCount`；
-///   * 第 6 条来自 `TProcessBlackList.Add` 的 nil 返回（MD5 重复）。
+///   * 第 6 条来自 `TProcessBlacklist.Add` 的 nil 返回（MD5 重复）。
 /// </summary>
 [Collection("RunGateFormLane")]
 public class RunGateUtilsFormAddProcessBlackTests
@@ -41,7 +41,7 @@ public class RunGateUtilsFormAddProcessBlackTests
                 AddProcessBlackLogic.Validate("a.exe", new string('A', 32), 80, NoDup));
 
             // ★ 差异断言：MaxCount 被改成 10 也不影响该分支（原文写死 80）
-            FormGlobals.g_ProcessBlackList.MaxCount = 10;
+            FormGlobals.g_ProcessBlackList.MaxCountForTest = 10;
             Assert.Equal(AddProcessBlackResult.OK,
                 AddProcessBlackLogic.Validate("a.exe", new string('A', 32), 11, NoDup));
             Assert.Equal(AddProcessBlackResult.MaxCountReached,
@@ -50,7 +50,7 @@ public class RunGateUtilsFormAddProcessBlackTests
         finally
         {
             // 还原 FMaxCount，避免影响同类其它用例（ResetForTest 也会复位，这里再加一道保险）
-            FormGlobals.g_ProcessBlackList.MaxCount = originalMax;
+            FormGlobals.g_ProcessBlackList.MaxCountForTest = originalMax;
         }
     }
 
@@ -212,12 +212,12 @@ public class RunGateUtilsFormAddProcessBlackTests
             AddProcessBlackLogic.Validate("a.exe", new string('A', 32), 0, null));
     }
 
-    // ---------------- TProcessBlackList（GateShare.pas:3271-3300）----------------
+    // ---------------- TProcessBlacklist（GateShare.pas:3271-3300）----------------
 
     [Fact]
     public void ProcessBlackList_重复MD5返回null_不同MD5返回新项()
     {
-        var list = new TProcessBlackList();
+        var list = new TProcessBlacklist();
         var a = list.Add("p1", new string('A', 32));
         Assert.NotNull(a);
         Assert.Equal(1, list.Count);
@@ -234,7 +234,7 @@ public class RunGateUtilsFormAddProcessBlackTests
     [Fact]
     public void ProcessBlackList_MaxCount为80时第81项返回null()
     {
-        var list = new TProcessBlackList();
+        var list = new TProcessBlacklist();
         for (int i = 0; i < 80; i++)
         {
             string md5 = i.ToString("X2").PadLeft(32, '0');
@@ -247,7 +247,7 @@ public class RunGateUtilsFormAddProcessBlackTests
     [Fact]
     public void ProcessBlackList_Delete与Clear()
     {
-        var list = new TProcessBlackList();
+        var list = new TProcessBlacklist();
         var a = list.Add("p1", new string('A', 32));
         list.Delete(a);
         Assert.Equal(0, list.Count);
@@ -334,7 +334,7 @@ public class RunGateUtilsFormAddProcessBlackTests
             //   但本类别的 `Validate_上限用字面量80而不是MaxCount_...` 用例会把它改成 10；
             //   若不复位，这里 `list.Add` 会在第 10 项后静默返回 nil（原 :3296），
             //   于是 Count < 80 → 走不到"上限"分支而落到"MD5 已存在"分支。
-            list.MaxCount = AddProcessBlackLogic.HardCodedMaxCount;
+            list.MaxCountForTest = AddProcessBlackLogic.HardCodedMaxCount;
             for (int i = 0; i < 80; i++) list.Add("p" + i, i.ToString("X2").PadLeft(32, '0'));
             Assert.Equal(80, list.Count);   // 前提校验：确实加满了
 
@@ -403,7 +403,10 @@ public class RunGateUtilsFormAddProcessBlackTests
             Assert.Equal(System.Windows.Forms.DialogResult.OK, f.DialogResult);
             Assert.NotNull(f.FProcessInfo);
             Assert.Equal("cheat.exe", f.FProcessInfo.ProcessName);                  // 进程名不 Trim
-            Assert.Equal("0123456789abcdef0123456789ABCDEF", f.FProcessInfo.ProcessMD5);   // MD5 Trim 后
+            // ★ 更正（本轮 TProcessBlacklist 名字/语义对齐）：原文 `GateShare.pas:3301` 在 Add 内部执行
+//   `Result.ProcessMD5 := UpperCase(ProcessMD5)`，而 `uFrmAddProcessBlack.pas:91` 把 Add 的返回值
+//   直接赋给 `FProcessInfo` —— 故入库后的 MD5 一定是**大写**。旧接缝漏了 UpperCase，本条期望随之错误。
+Assert.Equal("0123456789ABCDEF0123456789ABCDEF", f.FProcessInfo.ProcessMD5);   // MD5 Trim 后 + UpperCase
             Assert.Equal(1, list.Count);
         }
         finally
