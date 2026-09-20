@@ -75,6 +75,9 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 | `8a14e8ea` | 切片C：全量测试 117 例（649 总 / 0 失败）；修正记录布局为 Explicit FieldOffset；修正接缝 `Eof`/`Value` 后备字段与 `GetFieldData` False 传播 |
 | `69d2eb22` | 切片D：补 `EncodingField`/`EncodingMemo` 路径与 `FileLoc` 符号位差异断言（653 例全绿）；登记 D17/D18；跨车道重名复核 |
 | `8a14e8ea`→后续 | 切片E：抓出并修复 **D19 未初始化内存导致的不确定行为**（空表 `First` 后 `RecNo` 约 1/6 概率为随机值）；连跑 10 次门禁全绿 |
+| `982333eb` | 切片E 定稿：修 D19；报告落 `docs/并行报告-p6-core-paradox.md` |
+| `4e0c06f4` | 报告计数精确化 |
+| 见 §9 后续提交 | **复核提交**：D19 根因三段互证（排除 stale pointer 假设）+ 加固测试（整块头部断言 + 独立"残留复用"证据用例）+ 工作树事故记录 |
 
 （`ae70b566`/`6cc7afae` 标记 `WIP-不可合并` 是因为当时唯一允许的提交点；**最终提交 `69d2eb22` 是全绿可合并的**。）
 
@@ -187,12 +190,13 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 | 项 | 结果 |
 |---|---|
 | `dotnet build GXX.slnx -c Debug` | **Build succeeded / 0 Error(s)**（本车道文件零 warning） |
-| `dotnet test tests\GXX.Core.Tests` | **Passed! Failed: 0, Passed: 653, Skipped: 0, Total: 653**（修复 D19 后**连跑 10 次全绿**，见 §8.5） |
+| `dotnet test tests\GXX.Core.Tests` | **Passed! Failed: 0, Passed: 654, Skipped: 0, Total: 654**（D19 根因复核后**共 31 次全绿**：默认 15 + 各 verbosity 12 + 强并行 4；见 §9） |
 | 车道前基线（同工作树实测） | **532 例**（不是派发词里的 550 —— 见下） |
-| 本车道新增 | **120 例**（`ParadoxDataSetTests.cs`：72 个 `[Fact]` + 48 行 `[Theory]` 数据），0 失败 |
+| 本车道新增 | **121 例**（`ParadoxDataSetTests.cs`：73 个 `[Fact]` + 48 行 `[Theory]` 数据），0 失败 |
 
-> **门禁可重复性**：修复 D19 后，`dotnet test GXX.Core.Tests` **连跑 10 次**全部
-> `Passed! Failed: 0, Passed: 653`；全解决方案 `dotnet build GXX.slnx` 亦复跑多次 0 error。
+> **门禁可重复性**：修复 D19 后，`dotnet test GXX.Core.Tests` **连跑 31 次**（默认 15 + `-v q/m/n/d` 各 3 + 强并行 4）
+> 全部 `Passed! Failed: 0`；全解决方案 `dotnet build GXX.slnx` 亦复跑多次 0 error。
+> **必要性与充分性对照实验**：仅去掉 `AllocRecordBuffer` 的 `FillChar` 一行 → 第 2 次即复现失败（§9.1c）。
 
 > **基线漂移说明**：派发词写的基线是 `GXX.Core.Tests = 550 例全绿`，但**本工作树在本车道动任何代码前实测为 532 例**。
 > 差别来自 `main` 在派发词写作之后、且本工作树基线分支（`603672af`，批次 J215）之前的移动——
@@ -206,7 +210,7 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 | `ParadoxLangTableTests` | 4（含 12 行 Theory） | 118 项抽取正确性 + 1-based 不变量 |
 | `ParadoxDataSetOpenTests` | 13（含 8 行 Theory） | 空名/缺文件/FileType/加密判定/.mb/字段构建 |
 | `ParadoxDataSetLangTests` | 8 | `DetectLang` 双路径 + `Language` 往返 |
-| `ParadoxDataSetCursorTests` | 13（含 4 行 Theory） | 游标/EOF/RecNo/除零/块越界 |
+| `ParadoxDataSetCursorTests` | 14（含 4 行 Theory） | 游标/EOF/RecNo/除零/块越界/缓冲初始化不变量 |
 | `ParadoxDataSetFieldDataTests` | 12（含 27 行 Theory） | 字段族逐分支 + 空值 + 逆序 + xor |
 | `ParadoxDataSetBlobTests` | 6 | 行内/单块/索引块/无 .mb/负偏移 |
 | `ParadoxDataSetEncodingTests` | 12 | `EncodingField`/`EncodingString`/接缝注入 |
@@ -246,7 +250,7 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 | **D15** | `:1045` | `if (Value < 1) or (Value >= RecordCount + 1)` ⇒ `RecNo := RecordCount+1` 被拒，`:1025` 的 `InternalLast` 造的游标无法复现 | 断言：3 条表 `RecNo=4` 被静默忽略 |
 | **D16** | `:1080` | `PxLangTable[I].Name = Value` 是**大小写敏感**短串比较，与 `:1066` 的 1..118 边界检查不对称 | 断言：`"parados china 936"` 不命中 |
 | **D10** | `:1277` | `Blob.Length > Field.Size - SizeOf(TPxBlob)` 用同一表达式同时表达"长度"与"是否行内 Blob" | 已被 §Blob 三路径测试间接锁定 |
-| **D19** | `:1005` + `:937-957` + `:1052` | `GetMem` **不清零**，而 gmPrior/gmNext 在 `FCursor <= 1` / `FCursor >= RecordCount` 时直接返回 `grBOF`/`grEOF`，**连 `RecordIndex` 都不写**；`:992-994` 的 else 只清零**用户记录区**（不含头部 6 字节）⇒ `GetRecNo` 读到**未初始化内存** | **本轮最有价值的发现之一**：实测空表 `First` 后 `RecNo` 在 `0` 与随机值（`166957392`）之间抖动，**约 1/6 概率**（本车道门禁因此偶发 1 例失败，连跑 6 次抓到）。Delphi 下 `GetMem` 同样不清零 ⇒ **原文行为本身就是不确定的**。处置：托管侧在 `AllocRecordBuffer` 显式清零（**有意偏离，已登记**），使该路径确定性为 `RecordIndex = 0`；回归测试连做 3 轮 |
+| **D19** | `:1005` + `:937-957` + `:1052` | `GetMem` **不清零**，而 gmPrior/gmNext 在 `FCursor <= 1` / `FCursor >= RecordCount` 时直接返回 `grBOF`/`grEOF`，**连 `RecordIndex` 都不写**；`:992-994` 的 else 只清零**用户记录区**（不含头部 6 字节）⇒ `GetRecNo` 读到**本次刚分配、尚未写过**的非托管内存 | **本轮最有价值的发现**，也是唯一造成**间歇性失败**的缺陷。实测值随进程堆复用而变（`166957392` / `-35615349` / `0x656C6F74`），约 1/6 概率；并行度越高越易显形。**根因三段互证见 §9**（已排除"stale pointer/use-after-free"假设）。Delphi 下 `GetMem` 同样不清零 ⇒ **原文在该路径本就没有确定值**（未定义行为）。处置：`AllocRecordBuffer` **分配即清零**（有意偏离，已登记） |
 | **D20** | `:1052` | `GetRecNo` 在 `ActiveBuffer` 未分配（nil）时解引用空指针 | 原文从不查询"打开但未 First"的 `RecNo`，未触发；托管侧同样不额外保护 |
 
 **其它易错点（不是原文缺陷，但会坑移植者）**
@@ -306,7 +310,7 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
 
 * `TParadoxDataSet` **30 个方法 + 全属性 + 全部记录布局 + 118 项语言表**：1:1 移植完成，未覆盖行号仅
   3 处（`806-810` FPC 分支、`1327-1331` 原文注释代码块、`139-423` 注释文档），均为**不可执行或非 FPC 目标**。
-* 120 例新测试，**653/653 全绿**（连跑 10 次）；全解决方案 **0 error**。
+* 121 例新测试，**654/654 全绿**（31 连跑，§9.5）；全解决方案 **0 error**。
 * 大段常量脚本抽取 + 双向回读比对（118/118）。
 
 ### 8.2 未做（明确不做，理由充分）
@@ -356,3 +360,90 @@ GXX.Core.Paradox.ParadoxConvSeam.EncodingHook =
   这**不是**测试期望写错，而是 §6 的 **D19**（原文未初始化内存）在托管侧的暴露。
   规程价值：**"偶发失败"必须连跑到复现并定位根因，不能当环境抖动重跑放过** ——
   本例若按"重跑即可"处理，就会把一个真实的原文缺陷留到集成后才炸。
+
+---
+
+## 9. D19 根因复核（集成方复核后回填，2026-09）
+
+> 背景：集成方派发 `p6-core-hardinfo` 复核时，**在它自己的干净基线上又复现了同一条 flaky**
+> （4 次里 2 次），并给出**相反假设**："根因很可能不是 D19，而像 `ActiveBuffer` 指向了
+> 已被释放或从未属于本次 `First()` 的内存（use-after-free / 陈旧指针）"，依据是
+> 实测值"像文本"（`0x656C6F74` = `74 6F 6C 65` = `"tole"`）。
+> 本节用**三段互证**给出最终结论：**集成方的假设可以排除，根因就是 D19（use-of-uninitialized-memory）**。
+
+### 9.1 证据链
+
+| # | 实验 | 结果 | 结论 |
+|---|---|---|---|
+| (a) | 列出 `FActiveBuffer` 的**全部**赋值/释放点 | 赋值仅 2 处（`TDataSet.Next()` 与 `Resync()`，都是 `if (FActiveBuffer == IntPtr.Zero) FActiveBuffer = AllocRecordBuffer();`）；清零点仅 1 处（`TDataSet.Close()` 置 `IntPtr.Zero`） | 空表用例从头到尾**只分配一次**，`FActiveBuffer` 无第二个指针源 ⇒ **不存在**"上一实例遗留"或"已释放"的指针 |
+| (b) | 在 grEOF 路径现场打印 `ActiveBuffer` 的原始 6 字节 | `00-00-00-00-02-00`（`RecordIndex=0`、`BookmarkFlagRaw=bfEOF=2`） | 缓冲**内容与布局都正确**，没有被覆写 ⇒ 不是"读到别人的缓冲" |
+| (c) | **因果实验**：仅注释掉 `AllocRecordBuffer` 里的 `PxBuffer.FillChar(p, size, 0)`，跑全量测试 | **第 2 次即复现** `Expected: 0, Actual: -35615349`；恢复 `FillChar` 后**连续 31 次全绿** | 该行**既是充分条件也是必要条件** ⇒ 根因锁定为"分配后未初始化" |
+
+### 9.2 为什么值"像文本"、为什么与并行度相关（假设被证伪的机制解释）
+
+`AllocHGlobal`/`FreeHGlobal` 背后是**进程堆**：同一进程内先前的分配被释放后，同样的尺寸会**常数级复用**同一批块。
+`GXX.Core.Tests` 里有大量"含可打印字节"的短命分配——例如 `PxSyntheticDb` 反复构造 `byte[]`、
+用 `PxAnsi` 把 GBK 字段名（`MagName`/`Descr`/`MagId`）搬进/搬出托管数组、`FromBytes/ToBytes` 的 `char[]`/`byte[]` 往返。
+于是那 4 字节**恰好可读成 ASCII** 是复用巧合，而不是"另一个数据集实例的记录文本"。
+
+这与并行度相关的原因：**唯一让该缺陷显形的随机源就是堆状态**——并行度越高/越杂，复用模式越随机，
+"恰好非 0"的概率越高；而 `-v n`（更慢、调度更松散）跑多次全绿，只是**碰巧每次复用到的块都是 0**
+（例如复用了一块刚被 `Array.Clear` 过的数组），**不是"没有缺陷"**。
+⇒ 复核发现的"值每次不同"与"与并行度相关"**恰恰是未初始化内存的典型指纹**，与 stale pointer 无关。
+
+### 9.3 修复方式与"为什么不只兜底 RecNo"
+
+保留**分配即清零**（`AllocRecordBuffer` 里 `PxBuffer.FillChar(p, size, 0)`），理由：
+
+1. 它修的是**对象本身**（"新分配的记录缓冲"这一不变量：**返回时整块已定义**），
+   而不是某一个读取点。同一块头部的另外 5 字节（`BookmarkFlag` +4..+5）与
+   `InternalSetToRecord`(:1030) 读的是**同一个头部** —— 只把 `GetRecNo` 包一层 `if` 返回 0
+   会漏掉它们，正是"掩盖症状"。
+2. 语义上等价于 Delphi 下"恰好拿到清零内存"的那一支，**不改变任何"会写入"的路径**
+   （`:961` 写 `RecordIndex`、`:994` 写 `bfEOF` 全部照旧），只是把原文的未定义值**固定**为一个确定值。
+3. 与原文的偏离点已在 `ParadoxDataSet.cs` 文件头 **D19** 条目与 `AllocRecordBuffer` 的 XML 注释里写清
+   （含 (a)(b)(c) 三段证据），并在报告本节登记。
+
+### 9.4 加固后的测试（把不变量写进断言）
+
+`EmptyTable_First_IsEof_NoRecords` 从"只断 `RecNo == 0`"加固为**断言整块头部**：
+`PxBuffer.ToArray(ds.ActiveBuffer, PxRecordHeaderOps.Size)` 必须等于
+`{ 00 00 00 00 02 00 }`（`RecordIndex=0` + `BookmarkFlag=bfEOF`）。
+
+并**新增一条独立证据用例** `AllocRecordBuffer_FreshBufferIsFullyDefined_NotRecycledGarbage`：
+先建一个含**可打印文本** `"tole"` 记录的数据集并**释放**（故意在堆里留下 ASCII 残留，
+复现集成方看到的 `0x656C6F74` 来源），再建空表走 grEOF，断言 `RecNo == 0` 且
+`NotEqual(0x656C6F74, ...)` —— **直接对"残留复用"这一根因机制下断言**，不依赖 `RecNo` 的单一读点。
+
+### 9.5 稳定性证明（本次要求的 10 连跑，实际做了 31 次）
+
+| 配置 | 次数 | 结果 |
+|---|---|---|
+| 默认 verbosity | **15** | 15/15 全绿 |
+| `-v q` / `-v m` / `-v n` / `-v d` | 各 3 = **12** | 12/12 全绿（含集成方称"多次全绿"的 `-v n`） |
+| `xUnit.MaxParallelThreads=16`（强制高并行） | **4** | 4/4 全绿 |
+| **合计** | **31** | **31/31 全绿，0 失败** |
+
+用例总数 **654**（比上一版 653 多 1，即 9.4 新增的独立证据用例）。
+对照实验（9.1c）：同一份代码**仅去掉那一行 `FillChar`** → 第 2 次即失败。
+⇒ "修复有效"与"修复必要"两侧都有实测支撑。
+
+### 9.6 ⚠ 复核期间发现的工作树事故（与本 flaky 无关，但必须上报）
+
+在本次复核开始时实测发现：**本工作树的 `GXX.Core` 目录下 64 个已跟踪文件全部从磁盘上消失**
+（`git status` 显示 64 条 ` D`），覆盖 `Async/ Compress/ Crypto/ Data/ IO/ Launcher/ Protocol/ Rtl/ Stubs/ Util/`
+**以及本车道的 `Paradox/**` 全部 7 个文件**。根目录只剩 `CommonConst.g.cs / EncodingInit.cs / Share.cs / UpdateCommon.cs`。
+`GXX.Core.csproj` 本身还在，所以项目仍在、但**只剩 4 个 .cs**。
+
+* **性质**：这是"把文件挪出树再挪回来"式实验（`p6-core-hardinfo` 称移出了 7 个文件）的**误伤**——
+  移动的范围远超其声明的 7 个文件，把整个 `GXX.Core` 子树都移走了。
+* **处置**：本车道用 `git checkout HEAD -- GXX.CSharp/src/GXX.Core` **完整恢复**（全部来自 HEAD 提交，
+  无任何内容损失），`git status` 随即归零、`cs` 文件数 69。
+* **给集成方/调度方的提醒**：
+  1. **任何"移出文件做干净基线"的实验，都必须在移出前后各跑一次 `git status --porcelain | Measure-Object` 并比对数量**，
+     否则"移出 7 个"和"移出 71 个"在报告里长得一模一样。
+  2. **恢复必须按路径白名单 `git checkout HEAD -- <自己的独占区>`**，不要用 `git checkout .` 或 `git restore .`
+     —— 那会把**别的车道未提交的在飞产出**一起静默还原，是本工程 §13.2 那类事故的翻版。
+  3. 车道报告里的"全绿"结论**必须绑定 `git status` 为空**；否则可能是在"源码已被移走、用的是陈旧 DLL"
+     的树上得出的（本车道这次即无法排除该风险，故恢复后**全部重跑**）。
+
