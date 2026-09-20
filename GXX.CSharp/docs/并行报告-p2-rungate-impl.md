@@ -672,3 +672,271 @@ Select-String -Path 'src\GXX.Core\Protocol\Grobal2.Const.g.cs' -Pattern 'RUNGATE
   但测试一律断言**具体槽位下标**或**精确的枚举 Kind**，不依赖 `!= -1`。
 - **§11.5（生成物冲突）**：本车道**未**运行 `tools/audit-coverage.ps1`，未生成/修改
   `docs/并行覆盖审计.md`；映射表为本报告 §2 手工整理（证据取自 grep）。
+
+---
+
+# 第二轮（宿主重启后的续跑）：GateShare.pas 收口 + uFrmMain.pas 纯逻辑切片
+
+> 基线：上一轮 HEAD `e06d90c4`（`GXX.RunGate.Tests` = **1206 例全绿**）
+> 本轮结束：`GXX.RunGate.Tests` = **1535 例全绿**（+329），`dotnet build GXX.slnx -c Debug` = 0 错误
+
+## 9. 本轮 commit
+
+| # | hash | 内容 | 新增用例 |
+|---|---|---|---|
+| 1 | `7fa84159` | `MagicIntervalUtils.pas`（198 LF）**全文件 1:1** + 合并 `uFrmGameSpeedLogic.cs` 的 `TMagicIntervalList` 接缝 | 43 |
+| 2 | `f1aae9cc` | GateShare 容器/地址/全局量族（`TAddressList/Ex`、`TSafeStringList`、`TSafeMemoryStream`、`TProcessBlacklist`、`inet_addr/ntoa`、`IP2Long/Long2IP`、hex 助手） | 78 |
+| 3 | `36696ceb` | GateShare 名单加载/落盘 + 日志 + 进程黑名单重建 | 71 |
+| 4 | `d6aef672` | GateShare 判定谓词/定时/口令/版本/GameCenter + 客户端反外挂加载（暗桩侧） | 85 |
+| 5 | `15bea762` | `uFrmMain.pas` 纯逻辑切片 | 52 |
+
+## 10. 条件编译开关：**复核结论（含一处对上一轮的重要补充）**
+
+本轮逐行复核了 `{$IF}` 用到**全部**开关，结论与上一轮 §1 一致，并新增一条**上一轮遗漏的开关**：
+
+| 开关 | 定义处（**都是 `const`，不是 `{$DEFINE}`**） | 值 | 后果 |
+|---|---|---|---|
+| `CLIENT_ANTIPLUG` | `Grobal2_Ex.pas:10` | 1 | `CheckClientAntiPlugDllChanged`/`LoadClientAntiPlugDll` **是活代码** |
+| **`VERSION_TYPE`** | **`Grobal2_Ex.pas:15`** | **2** | ★ **新增结论**：`GateShare.pas` 三处 `{$IF VERSION_TYPE = 1}` **全为假** → `:436-438`（`CheckInWhiteList` 声明）、`:1479-1536`（`AddToDefFilterSayMsgList` 本体 + `CheckInWhiteList` 实现）、`:1549-1551`（`LoadFilterSayMsgFile` 里的调用）全是**死代码** |
+| `NEED_REGISTER` | `Grobal2_Ex.pas:18` | 1 | 但所有 `WL*` 注册校验体被 `//` 整段注释、替换成 `IsKeyOK := True;` → `IsKeyOK` **恒真** |
+| `REGISTER_TEST` | `Grobal2_Ex.pas:21` | 0 | — |
+| `MultiThreadRunContext` | `Grobal2_Ex.pas:24` | 1 | — |
+| `LOG_PLUG_DATA` | `Grobal2_Ex.pas:26-30` | 0（`NEED_REGISTER <> 0`） | — |
+| `RungateLEG_IOCP` | `Grobal2_Ex.pas:32` | 6 | `FileFlag = $0533BF07`、`Key[8] = A7 45 32 BB 3D 6A 7F 90`、aks1024 私钥 = 脚本抽取的 256-hex |
+| `UseIocpClient` | `Common/IocpCommon.pas:14` | 1 | 上一轮结论成立；并**新增**其在 `uFrmMain.RecallPreAllocatedSize` 的作用：`+ 1MiB × 60` |
+| `USE_SPINLOCK` | `Common/iocp.inc` | **未定义**（`{.$DEFINE USE_SPINLOCK}` 被注释） | 所有 `{$IFDEF USE_SPINLOCK}` 的"带名字参数"被编译掉；活的永远是 `TRTLCriticalSection` 分支 |
+| `SHARE_POOL_MODE` | `Common/iocp.inc` | **已定义** | 共享 `IODataPool`/`TIOCPClientContextPool` |
+
+> **给后续车道的警告**：本轮有一个只做静态扫描的子代理得出过
+> "这些开关在 worktree 里 UNDEFINED → Delphi 按 0 处理"的结论。**那是错的**：
+> Delphi 的 `{$IF}` 表达式可以引用 **`uses` 子句里单元**的 `const`（本仓库所有开关都是这种写法），
+> 不需要 `{$DEFINE}`。判断时必须直接读 `Grobal2_Ex.pas` / `IocpCommon.pas` / `iocp.inc`。
+
+## 11. GateShare.pas（3595 LF）逐段覆盖表
+
+| 行号 | 内容 | 处置 |
+|---|---|---|
+| `:13-26` | `tRunGate`/`GATEMAXSESSION`/`MSGMAXLENGTH`/`SENDCHECKSIZE(Max)`/`sSTATUS_*`/`HALF_SPEED_INTERVALS_COUNT`/`SPEED_INTERVALS_COUNT` | 上一轮已覆盖（`RunGateUtilsProtocol`/`RunGateUtilsHeartbeat`） |
+| `:29-35, 45-115, 117-199, 211-215` | `TSockaddr`/`TAddressList`/`TAddressInfo`/`TAddressListEx`/`TSafeHashStringList`/`TSafeStringList`/`TSafeMemoryStream`/`TProcessInfo`/`TProcessBlacklist`/`TIPSection` 声明 | **本轮 `GateShareContainers.cs`** |
+| `:217-255` | `TBlockIPMethod`/`TFilterSayMsgMode`/`TActionProcessMode`/`TSumActionProcessMode`/`TAntiPlugAction`/`TSpeedIntervals`/`TAntiPlugActionMode` | 上一轮 `uFrmGameSpeedLogic.cs`（`sampOffline` 拼写已核对为照抄） |
+| `:257-418` | `TBaseAction`/`TAntiPlugConfig`/`TGameSpeed`/`TAntiPlugAddData`/`TItemCDTime`/`TEatItemCDConfig`/`TClientAntiPlugIdents` + 接口声明 | 上一轮 + 本轮 `TAntiPlugAddData` |
+| `:447-532` | `GateClass`/`GateName`/`ActionProcessModeNames(2)`/`SumActionProcessModeNames`/`AntiPlugActionModeNames(_2/_3)`/`Sections` 表 | 上一轮 `RunGateConst` |
+| `:535-623` | `TRunGatePlugClientInfo`/`TPlugInitRecord`/插件函数指针 + 反外挂全局量 | 上一轮 `RunGatePluginInterface.cs` + 本轮全局量 |
+| `:625-1066` | `g_DefaultConfig`/`g_Config` 默认值 | 上一轮 `FormGlobals.CreateDefaultConfig` |
+| `:1067-1345` | 其余 `g_*` 全局量 | 上一轮 `FormGlobals` 子集 + **本轮 `GateShareGlobals.cs`**（补齐 60+ 个） |
+| `:1351-1365` | `ActionModeUseSpeedIntervals` | 上一轮 `FormGlobals` |
+| `:1367-1390` | `RebuildSendToClientSpeedIntervalsText` | 上一轮 |
+| `:1392-1432` | `AddTempBlockIP`/`AddBlockIP`/`AddTempBlockMac`/`AddBlockMac` | **本轮 `GateShareLists.cs`** |
+| `:1434-1477` | `AddMainLogMsg`/`AddIOCPLogMsg` | **本轮** |
+| `:1458-1464` | `tick_diff` | 上一轮 + 本轮 `GateShareRuntime.tick_diff` |
+| `:1481-1504` | `AddToDefFilterSayMsgList`（**死代码**，见 §10） | **本轮**（按 1:1 保留 + 不接入活路径） |
+| `:1506-1535` | `CheckInWhiteList`（**死代码**） | **不移植**（登记：需 `DecryString_LF` + 10 条加密串，且 `VERSION_TYPE = 2` 永不可达） |
+| `:1538-1553` | `LoadFilterSayMsgFile` | **本轮** |
+| `:1555-1634` | `ReadFYDenyIPListFile`/`ReadFYPassIPListFile`/`ReadFYDenyMACListFile` | **本轮** |
+| `:1636-1693` | `LoadBlockIPFile`/`SaveBlockIPList`/`LoadBlockMacFile`/`SaveBlockMacList` | **本轮** |
+| `:1695-1775` | `LoadIPSectionList`/`SaveIPSectionList` | **本轮** |
+| `:1777-1803` | `LoadDBAddressTable` | **本轮** |
+| `:1805-1864` | `IsHexString`/`StrToHexEx`/`HexToStrEx` | **本轮 `GateShareAddressUtils.cs`** |
+| `:1866-1979` | `LoadProcessBlacklist`/`RebuildProcessBlacklist`/`SaveProcessBlacklist` | **本轮**（RSA 走接缝） |
+| `:1981-2014` | `LoadNoVerifyChrList` | **本轮** |
+| `:2016-2519` | `CheckClientAntiPlugDllChanged`/`LoadClientAntiPlugDll` | **本轮 `GateShareAntiPlug.cs`**（RSA/DES 走接缝） |
+| `:2523-2534` | `SendGameCenterMsg` | **本轮 `GateShareRuntime.cs`** |
+| `:2538-2704` | `TAddressList` 实现 | **本轮 `GateShareContainers.cs`** |
+| `:2708-2834` | `TAddressListEx` 实现 | **本轮** |
+| `:2838-2969` | `TSafeHashStringList`（复用接缝）/`TSafeStringList`/`TSafeMemoryStream` 实现 | **本轮**（前者的 `IndexOf` 语义已改正，见 §12-6） |
+| `:2971-2990` | `ReverseBytes`/`IP2Long`/`Long2IP` | **本轮 `GateShareAddressUtils.cs`** |
+| `:2992-3198` | `CheckInFYDeny/PassIPList`/`IsBlockIP`/`IsBlockMac`/`IsConnLimited`/`GetAttackCountOfIP`/`GetConnectCountOfIP` | **本轮 `GateShareRuntime.cs`** |
+| `:3200-3224` | `InitIntervals` | **本轮** |
+| `:3261-3374` | `TProcessBlacklist` 实现 | **本轮 `GateShareContainers.cs`** |
+| `:3376-3387` | `InitActionIntervalsFileNames` | **本轮 `GateShareLists.cs`** |
+| `:3389-3473` | `InputPassword`/`InputPasswordEx` | **本轮 `GateShareRuntime.cs`**（自绘对话框走 `MessageBoxSeam` 接缝） |
+| `:3475-3494` | `EncodeRunGateMsg` | 上一轮 `RunGateUtilsProtocol.cs:157-` |
+| `:3496-3502` | `MyGetTickCount` | **本轮** |
+| `:3505-3543` | `GetFileVersionNumber`/`GetFileVersionStr` | **本轮** |
+| `:3545-3592` | `initialization`/`finalization` | **本轮**（`GateShareGlobals.ResetForTest` 承载等价初值；用 exe 目录拼路径的项走 `GateSharePaths` 接缝） |
+
+**结论：`GateShare.pas` 除 `CheckInWhiteList`（死代码，有意不移植）外，已**全部有处置结论**。**
+
+## 12. 本轮新发现的原文缺陷 / 易错点（带 `文件:行`）
+
+1. **`GateShare.pas:1873` + `:1963` 复制粘贴缺陷**：`LoadProcessBlacklist` 与 `SaveProcessBlacklist` 的**第一行都是 `g_DBAddressList.Clear;`** —— 清的是 **DB 地址表**，不是进程黑名单（从 `LoadDBAddressTable:1783` 抄来）。加载/保存进程黑名单会把 DB 地址表清空，进而破坏 `uFrmMain.ServerSocketDBClientConnect` 的地址授权。
+2. **`GateShare.pas:1609-1620` 三份"读名单"的 Clear/FileExists 顺序不一致**：`ReadFYDenyIPListFile:1564-1565` 与 `ReadFYPassIPListFile:1591-1592` 是"先判存在再 Clear"（文件缺失时保留旧数据），而 `ReadFYDenyMACListFile:1617/1620` 是"**先 Clear 再判存在**"（文件缺失也会清空）。
+3. **`GateShare.pas:3382` 条件恒真**：`if Length(g_sActionIntervalsFileNames) > 0 then` 判的是**静态数组长度（恒 27）**而不是元素字符串 → 原本为 `''` 的 7 个槽位会被拼成 **exe 目录路径**（`"C:\...\RunGate\"`）；且该函数**不幂等**（重复调用会叠加前缀）。
+4. **`GateShare.pas:2619/2620` 与 `:2789/2790` 的 `INADDR_NONE` 守卫是死代码**：`nIP: Integer` 收下 `inet_addr` 的 `$FFFFFFFF` 后是 **-1**，而 `INADDR_NONE` 是无类型常量 `$FFFFFFFF`（Delphi 定型为 `Cardinal`）；`Integer = Cardinal` 按 **Int64 提升**比较 → 恒不相等。后果：**非法 IP 字符串也会入名单**，`nIPaddr` 存成 **-1**（即 `255.255.255.255`）→ 落盘时写成 `255.255.255.255`（`SaveBlockIPList`），并且"255.255.255.255"会被判为**重复**。（正是交接纪律里"不要用 -1 当哨兵"的那个坑。）
+5. **`GateShare.pas:1825/1832` `StrToHexEx` 的 `I: Byte` 计数器**：`for I := 1 to Length(S)` 在 `Length(S) > 255` 时 Byte 回绕 → Delphi 侧**死循环**。托管侧用 `int` 计数器（已登记差异 + 差异断言）。
+6. **`uFrmGameSpeedLogic.cs` 接缝的三处语义偏差（本轮已改正）**：
+   - `TSafeHashStringList.IndexOf` 原本用 `List<string>.IndexOf`（**大小写敏感**），而原文类型是 `THashedStringList`（继承 `TStringList`，`CaseSensitive` 默认 **False**）→ `LoadNoVerifyChrList`/`AddBlockMac` 的去重语义会偏离；
+   - `TMagicIntervalList.SaveToFile` 原本用 `TIniFileEx` 写 `[Interval]` 节（**接缝臆造**），原文是 `TStringList` 直写明文 `MagicId=Interval`（`uFrmMain.pas:478` 的文件名也是 `MagicCD.txt` 而非 `.ini`）；
+   - `TProcessBlackList.Add` 漏了原文 `:3301` 的 `UpperCase(ProcessMD5)`，且 `MaxCount` 被做成可写（原文 `:189` 只读）。
+7. **`GateShare.pas:3202-3214` `InitActionIntervals` 只有 25 个初始值、枚举有 27 个成员**：`amSpellConcurrent`(25)/`amMoveConcurrent`(26) 落回 **0**；且 25 行的**行尾注释与下标系统性错位**（例：`:3207` 注释"走路到魔法, 魔法到走路"，下标 8/9 实为 `amRunToHit/amHitToRun`；`:3214` 注释"三个并发"，下标 22/23/24 实为 `amMoveToCutMeat/amCutMeatToMove/amHitConcurrent`）。本实现**只认数组序**。
+8. **`GateShare.pas:2476` vs `:342-348` 反外挂模块"永远加载不上"的推断**：`TAntiPlugAddData` 无 packed、无 `{$A}` 指令 → `SizeOf = 20`；而同函数的 `RSA.KeySize := aks128` 配的模数是 32 hex = **16 字节**，`aks1024` 配的是 256 hex = **128 字节**。若 `DecryptBuffer` 返回与模数同宽的字节数，则 `OutSize = SizeOf(AddData) = 20` **永假** → 两个函数恒返回 False。**标 UNVERIFIED**（`LbRSA.pas` 全树缺失，无法实跑复核）。
+9. **`GateShare.pas:2502` 除零**：`(len + g_ClientAntiPlugDllBlockSize - 1) div g_ClientAntiPlugDllBlockSize`，而 `g_ClientAntiPlugDllBlockSize` 初值 **0**（`:597`）且本函数不校验 → `EDivByZero`。托管侧保留除零语义（`DivideByZeroException`）。
+10. **`GateShare.pas:1552/1655/1687/1747` 的日志等级是 4，而 `g_btShowLogLevel` 默认 3**：`4 <= 3` 为假 → 这 4 条"加载完成"日志**一条都不会进** `g_MainLogStrings`。
+11. **`GateShare.pas:2529` `cbData := Length(sSendMsg) + 1` 是字符数，而负载是字节数**：GBK 下中文 2 字节/字 → `cbData` 小于实际缓冲长度（接收方 `MyMessage` 用 `StrPas` 读到 NUL 为止，功能上无碍，但协议字段口径不一致）。
+12. **`uFrmMain.pas:3449` off-by-one**：`if FSearchIndex >= lvContextProcessListInfo.Items.Count - 1 then FSearchIndex := 0;` 应为 `>= Count` → `FSearchIndex = Count-1`（合法）被重置为 0，"下一个"永远搜不到最后一行。
+13. **`uFrmMain.pas:3429/3458` 空语句**：`ListItem.Selected;` 是**属性读取**（无副作用），应为 `Selected := True`。
+14. **`uFrmMain.pas:3782-3785` 越界读**：早退分支读 `ListItem.SubItems[0]`，当 `SubItems.Count = 0` 且 `ListItem <> nil` 时 Delphi 抛 `EListError`。托管侧安全返回 `""`（已登记差异）。
+15. **`uFrmMain.pas:3630-3633` 模糊匹配用 `Pos(...) > 0`**：大小写**敏感** + 空关键字命中一切（Delphi `Pos('', S) = 1`）；而 `GXX.Core.Rtl.DelphiRTL.Pos("")` 返回 **0** → 本轮的 `RunGateMainLogic.PosDelphi` 显式补偿了这一跨库差异（与前任 §5.25-1 同一问题，第二次踩到）。
+16. **`GateShare.pas:2953(嵌套 UnixDateToDateTime)` 硬编码 UTC+8**（`IncHour(Result, 8)`），PE 时间戳换算无时区接缝。
+17. **`GateShare.pas:1873` 之外还有**：`LoadBlockIPFile:1651`/`LoadBlockMacFile:1682` 都**不先 Clear**（`LoadBlockMacFile` 靠 `LoadFromFile` 内部 `SetTextStr` 的 `Clear` 才等价替换，`LoadBlockIPFile` 则是纯追加）；`LoadBlockIPFile` 还**没有 `IsIpaddr` 过滤**（与同族 `ReadFYDenyIPListFile` 不一致）。
+18. **`uFrmMain.pas:3845` 的 `SizeOf(OVERLAPPEDEx)` = 36**（`OVERLAPPED`20 + `TWSABUF`8 + `TIoType`4 + `AllocSize`4，32 位对齐）—— **推断值**，托管侧登记为 `RunGateMainLogic.OVERLAPPED_EX_SIZE`。
+
+## 13. 本轮留下的接缝（供集成者接管）
+
+| 接缝 | 位置 | 默认行为 | 生产接线需要 |
+|---|---|---|---|
+| `GateSharePaths.ExeDir` / `ParamStr0` | `GateShareLists.cs` | 真实 exe 目录（带尾随分隔符） | 无需接线；测试用 `SetExeDirForTest` |
+| `GateShareLists.IProcessBlacklistCipher` | `GateShareLists.cs` | **恒等 + 计数**（原文 `LbRSA` aks128 公钥加密） | 移植 `LbRSA.pas` 或提供等价 RSA；参数已登记（`597A…`/`CF2C…`） |
+| `GateShareLists.ZlibCompressBuffer` | 同上 | `EDcode.zLibCompressBuffer` | 无需 |
+| `GateShareLists.NowProvider` | 同上 | `DateTime.Now` | 无需 |
+| `GateShareRuntime.TickProvider` | `GateShareRuntime.cs` | `Environment.TickCount` | 若要 `timeGetTime` 的 1ms 精度需另接 |
+| `GateShareRuntime.InputPasswordQuery` | 同上 | `MessageBoxSeam.InputQueryWithValue`（**自绘对话框未复刻**） | 需要"密码掩码 + MaxLength=255 + 默认全选"的对话框 |
+| `GateShareRuntime.FileVersionProvider` | 同上 | `FileVersionInfo` | 无需 |
+| `GateShareRuntime.SendCopyData` | 同上 | 真 `user32!SendMessageW(WM_COPYDATA)` | 无需 |
+| `GateShareAntiPlug.Cipher` | `GateShareAntiPlug.cs` | **RSA 返回 null（安全失败）+ DES 走 `UnitDes.DecryptDes`（Latin-1 key）** | ① 移植 `LbRSA.pas`；② 给 `GXX.Core.Crypto.UnitDes` 加 **`byte[] key` 重载**（现在只有 `string key`，内部按 **GBK** 编码 → 8 字节原始 key 会失真） |
+| `RunGateMainLogic.OVERLAPPED_EX_SIZE` | `uFrmMainLogic.cs` | 36（推断） | 接线真实 Win32 结构尺寸 |
+| `IProcessBlacklistSink`（既有） | `uFrmProcessBlacklist.cs` | 空实现 | **本轮已提供真实实现 `GateShareProcessBlacklistSink`**（见 §17），把它赋给 `ProcessBlacklistUnit.Sink` 即可落盘 |
+| `ISafeFilterHost`（既有） | `uFrmSafeFilter.cs` | `InMemorySafeFilterHost` 只计数 | **本轮未接线**：接口把 `TempIPList`/`BlockIPList` 声明为 `TSafeHashStringList`（字符串表，窗体直接读写并遍历），而原文这两者是 `TAddressList`（只存 `nIPaddr` 数值、不存字符串）。要做成真实实现必须加一层"字符串视图 ↔ TAddressList"的双向同步，属于**会改动 12 个窗体测试**的改动，本轮不做（**已登记为后续事项**，见 §17） |
+
+## 14. 未完成（如实）
+
+### 14.1 `uFrmMain.pas`（4216 LF）**只完成了纯逻辑切片**
+
+本轮把"不依赖缺失接缝"的部分做完了（`uFrmMainLogic.cs`，52 例）：
+`GetSizeString:426-439`、运行时长格式化 `:2188-2207`、`UnixDateToDateTime/ExtractSelfTimeDateStamp:2942-2965`、
+`RecallPreAllocatedSize:3837-3877`、`lblRecommendPreAllocatedCountClick:3885-3899`、
+进程搜索判定 `:3419-3466`、在线搜索判定 `:3612-3766`、`pmProcessListPopup:3777-3794`。
+
+**其余 ~90 个例程未移植**，核心障碍是**三类基础类型在 C# 侧完全不存在**（`GXX.GatewayKit` 是另一套简化设计，不能直接顶替）：
+
+| 缺失的 Delphi 类型 | 声明处 | uFrmMain 里的用法 |
+|---|---|---|
+| `TMirClientContext` / `TIocpClientContextPool` | `MirClientContext.pas`（其它车道）/ `IocpTcpServer.pas` | `Contexts[ID]`、`FSelectContext`（所有右键动作的载体）、`RefreshContextProcessList/StatusText` 的**反向回调** |
+| `TRunGateManager` / `TRunGate` | `RunGateUtils.pas:64/198` | `Create(Handle)`/`Add(port,idx)`/`StartRunGates`/`StopRunGates`/`WorkerThreadCount`/`Send|RecvBlockCount`/`GetOnlineUser` |
+| `TIODataPool` | `IODataPool.pas:11` | 内存统计 5 个计数（上一轮 §2.3 判为"不移植"）。**另外**：DFM 有 **222 个对象 / 221 个已发布字段**（本轮已统计），主窗体 UI 本身也没做 |
+
+→ 建议按**子代理给出的切片计划**做 S1→S8（见 §15），S8（`RunGateServicesLifecycle`）必须最后做，
+且要先裁定 `CLIENT_ANTIPLUG` 构建目标（本轮已钉死为 **1**）。
+
+### 14.2 其它未覆盖
+
+| 项 | 说明 |
+|---|---|
+| `CheckInWhiteList`（`GateShare.pas:1506-1535`） | **死代码**（`VERSION_TYPE = 2`），有意不移植 |
+| `GateShare.pas` 的 `g_Config.LoadConfig` **读取侧** | 属主窗体车道（见 §15 S1） |
+| `GateShare.pas:535-623` 的插件函数指针表 `g_rgp*` | 上一轮已在 `RunGatePluginInterface.cs` 覆盖，本轮只补了全局量 |
+| `uFrmMain.pas` 的 13 个 `_*` stdcall 插件回调（`:854-1073`，全在 `CLIENT_ANTIPLUG` 内） | 未移植（需 `IocpClientContextPool`） |
+| `uFrmMain.pas` 的 `tmrRefreshLogTimer:3012-3130` / `WriteLog:3588-3611` | 未移植（需求 `ILogSink` 接缝） |
+
+## 15. 给 uFrmMain.pas 后续车道的切片计划（子代理产出，已按物理 LF 行号复核）
+
+> 行号一律为**物理 LF 行号**；`Get-Content`/`Select-String` 对该文件会漂移到 **+17**，不要混用。
+> 103 个例程（88 个 `TFrmMain` 方法 + 15 个独立函数）；按可移植性分为 **a=15 纯逻辑 / b=58 壳层 / c=30 纯 UI**。
+
+| # | C# 文件 | Delphi 行号 | 规模 | 接缝需求 |
+|---|---|---|---|---|
+| S1 | `RunGateConfigLoader.cs` | `1076-1507` + `2766-2806` + `2874-2929` | ~440 | `IIniFile`（`IniFilesEx.cs` 已有） |
+| S2 | `RunGateConstsAndGlobals.cs` | §5 缺口（identity/port、`MAX_*`、验证码、退出延时、8 个 tick stamp、20 个名单对象、插件句柄） | ~250 | 无 |
+| S3 | `RunGateDiagnostics.cs` | `426-439`、`3837-3877`、`3885-3899`、`2188-2207`、`2942-2965` | ~180 | `IProcessMemoryInfo`（`2214-2219`）—— **其中前三段本轮已完成** |
+| S4 | `RunGateLogPipeline.cs` | `3012-3130`、`3588-3611`、`1029-1041`、`3131-3158` | ~170 | `ILogSink`/`ILogFileWriter` |
+| S5 | `RunGateOnlineQuery.cs` | `3612-3687`、`3688-3767`、`3413-3438`、`3439-3467`、`3777-3795` | ~230 | 无 —— **本轮已完成** |
+| S6 | `RunGateUserActions.cs` | `3168-3267`、`3268-3295`、`4111-4124`、`3796-3826`、`3159-3167` | ~260 | `IBlockListAdmin`（可直连本轮产物）、`IClipboard`、`IMessageBox`、`IContextHandle` |
+| S7 | `RunGateAdminAccess.cs` | `3993-4047`、`4125-4180`、`4048-4085`、`4181-4215`、`3468-3536` | ~250 | `MD5Util.RivestStr`（**需先移植 `MD5Util.pas:359`**）、`IInputBox`、`IContextFileRequest` |
+| S8 | `RunGateServicesLifecycle.cs` | `440-575`、`576-665`、`666-690`、`691-751`、`752-853`、`1932-2119`、`2986-3011`、`3967-3992`、`2151-2182` | ~400 | `IRunGateManager`/`IRunGate`/`IContextPool`/`IDownloadThreadFactory`/`ITcpListener`/`IGameCenterChannel`/`IWindowsHosting` |
+
+**跨切片公共接缝（≥3 个切片要用，建议先定义）**：`IRunGateUi`（`RefreshContextProcessList`/`RefreshContextStatusText` —— `MirClientContext.pas:2351/2379/2432/2518/2535/2597` 反向调用）、
+`IContextPool`、`IRunGateManager`、`ILogSink`、`IClipboard`、`IShellExecute`、`IWindowsHosting`、`IProcessMemoryInfo`、`IDownloadThread`、`IPlugDllLoader`。
+
+**已统计但未使用的关键数据**：`uFrmMain.dfm` = 2030 LF / **222 个对象**，与 `uFrmMain.pas:41-261` 的 **221 个已发布字段**一一对应；
+按类：`TLabel 91、TMenuItem 33、TCheckBox 17、TSpinEdit 16、TEdit 13、TButton 12、TGroupBox 7、TTabSheet 5、TBevel 4、TTimer 3、TComboBox 3、TPanel 3、TListView 3、TPopupMenu 2、TMemo 2、TSplitter 2、TServerSocket 1、TMainMenu 1、TStatusBar 1、TPageControl 1、TListBox 1`。
+**运行期动态创建（不在 DFM 里）**：`mmMain` 插件菜单 + 6 个子项（`1606-1640`/`1730-1764`）、Gxx 插件菜单（`2443-2457`）、`FTimerSendADText`（`2436`，`VERSION_TYPE = 1`）。
+
+## 16. 本轮发现的两处**跨车道/跨分区**待协调事项
+
+1. **`GXX.Core.Crypto.UnitDes` 需要 `byte[] key` 重载**：`UnitDes.GetKeyData`/`Hash` 用 `EncodingInit.GBK.GetBytes(key)` 把 key 字符串编码成字节，
+   而 `GateShare.pas:2491` 的 `sKey` 是 `Move(Key[0], sKey[1], 8)` 得到的 **8 个原始字节** → 现有 `string key` API 无法无损表达。
+   本车道的 `GateShareAntiPlug` 用 Latin-1 字符串近似并已登记，**生产接线前必须修**（`GXX.Core` 不属本车道分区）。
+2. **`GXX.Core.Rtl.DelphiRTL.Pos("")` 返回 0，而 Delphi 的 `Pos('', S)` 返回 1**（前任 §5.25-1 已登记，本轮在 `uFrmMain.pas:3630-3633` **第二次**踩到）。
+   建议在 `GXX.Core` 侧改名或修正，否则每个新区道都要各自补偿一次。
+## 17. 接缝接线：`GateShareProcessBlacklistSink`（本轮补的最后一块）
+
+上一轮报告 §6.1 登记过"`GateShare.pas` 的落盘类函数以 `ISafeFilterHost`/`IProcessBlacklistSink` 注入，
+默认内存实现只**计数**、未落盘"。本轮提供了 `GateShareSeamAdapters.cs` 的
+**`GateShareProcessBlacklistSink : IProcessBlacklistSink`**，把
+`uFrmProcessBlacklist.pas:155-156 / :189-190` 的两个触发器接到真实实现：
+
+```csharp
+ProcessBlacklistUnit.Sink = new GateShareProcessBlacklistSink();   // 启动时赋值一次
+// 之后 SaveProcessBlacklist → GateShareLists.SaveProcessBlacklist（真写 ExeDir\ProcessBlacklist.txt）
+//      RebuildProcessBlacklist → GateShareLists.RebuildProcessBlacklist（真算 zLib + MD5；RSA 走接缝）
+```
+
+**`ISafeFilterHost` 有意未接线**（原因见 §13 表格）：接口把 `TempIPList`/`BlockIPList` 声明为
+`TSafeHashStringList`（字符串表，窗体直接读写并遍历），而原文这两者是 `TAddressList`
+（只存 `nIPaddr` 数值、不存字符串）→ 真实实现需要一层"字符串视图 ↔ `TAddressList`"双向同步，
+会改动 12 个窗体测试类。**登记为后续事项**，本轮不动。
+## 18. 两条精确交付说明（应集成者要求）
+
+### 18.1 `GateShareProcessBlacklistSink` 的落盘路径与格式（**以及唯一的简化偏差**）
+
+| 项 | 值 |
+|---|---|
+| 落盘路径 | `GateSharePaths.ExeDir + "ProcessBlacklist.txt"`（原文 `GateShare.pas:1874/:1964` 的 `ExtractFilePath(ParamStr(0)) + 'ProcessBlacklist.txt'`；`GateSharePaths.ExeDir` 带尾随目录分隔符） |
+| 编码 / 行尾 | **GBK + CRLF**（`GXX.Core.Util.TStringList.SaveToFile`，与 Delphi `TStrings.SaveToFile` 一致） |
+| 行格式 | `ProcessName + '|' + ProcessMD5`（原文 `GateShare.pas:1971`）。`ProcessMD5` 在 `TProcessBlacklist.Add` 里已 `UpperCase`（原 `:3301`） |
+| 读取 | 同一路径，跳过空行与 `;` 开头行，按**首个** `'|'` 切分；`Length(MD5) = 32 and IsHexString(MD5)` 才收（原 `:1885-1896`） |
+| 空名单 | 写出**空文件**（不是不写） |
+
+**简化偏差（1 处，已登记）**：
+* `SaveProcessBlacklist` **无简化** —— 它本来就只写上面那张明文表；原文的 zLib/RSA/MD5 都在 `RebuildProcessBlacklist` 里，产物是发往 M2 的 `g_ProcessBlacklistStr` / `g_ProcessBlacklistMD5`，**不落盘**。
+* `RebuildProcessBlacklist` 的 **zLib 与 MD5 是真的**（`EDcode.zLibCompressBuffer` / `System.Security.Cryptography.MD5`），
+  **只有 RSA 那一步是"恒等 + 计数"的可注入接缝**（`GateShareLists.ProcessBlacklistCipher`），因为 **`LbRSA.pas` 在本仓库整树不存在**
+  （`Get-ChildItem -Recurse -Filter LbRSA.pas` 零命中）→ 无法 1:1。原文参数已登记为常量供接线：
+  `aks128` / `ModulusAsString = '597A185BA5F22A014F50B453E647C0C5'` / `ExponentAsString = 'CF2C34C6204626E70E493F5B37930363'`（原 `:1939-1941`）。
+  **未接线时 `RebuildProcessBlacklist` 仍会产出"zLib(明文 MD5 串联)"并通过 CRC/MD5 自校验，但那个负载对 M2 是无效的** —— 生产必须接线，否则应视为**未完成**。
+
+### 18.2 `ISafeFilterHost` 的"字符串视图 ↔ `TAddressList` 双向同步"方案（**本轮不实施，留集成者裁定**）
+
+**问题**：`uFrmSafeFilter.cs` 的接口把 4 个名单声明为字符串表：
+
+```csharp
+public interface ISafeFilterHost {
+    TSafeHashStringList TempIPList  { get; }   // 原文 g_TempIPList : TAddressList
+    TSafeHashStringList BlockIPList { get; }   // 原文 g_BlockIPList: TAddressList
+    List<IPSECTION>     IPSectionList { get; } // 原文 g_IPSectionList: TSafeList（元素 TIPSection）
+    TSafeHashStringList TempMacList  { get; }  // 原文 g_TempMacList : TSafeStringList  ✔ 已对齐
+    TSafeHashStringList BlockMacList { get; }  // 原文 g_BlockMacList: TSafeStringList  ✔ 已对齐
+    ...
+}
+```
+
+`TSafeHashStringList` 能承载**字符串**，而 `TAddressList` 只存 `nIPaddr`（`inet_addr` 的小端打包整数），
+**不存原始字符串** → 窗体里 `lstTemp.Items` ↔ `Host.TempIPList` 的往返会丢"原始写法"（`001.002.003.004` 写成 `1.2.3.4`），
+且 `Add` 的失败语义不同（`TSafeHashStringList.Add` 永成功；`TAddressList.Add` 在重复/空串时返回 nil）。
+
+**建议实现（保持 12 个窗体测试类不改）** —— 新增一个**只读投影 + 命令式写入**的适配器，**不实现 `ISafeFilterHost`**，
+而是新增窄接口供 `uFrmSafeFilter` 的二选一接线：
+
+```csharp
+/// 与原文 g_TempIPList/g_BlockIPList 语义一致的门（写走 TAddressList，读走一次 inet_ntoa 投影）
+public interface IAddressListHost {
+    string[] SnapshotTempIPs();      // g_TempIPList → inet_ntoa(nIPaddr) 逐项，顺序 = 容器顺序（原 :2632 顺序遍历）
+    string[] SnapshotBlockIPs();
+    bool AddTempIP(string ip);       // 返回 false = TAddressList.Add 返回 nil（重复或空串）—— 保留原语义
+    bool AddBlockIP(string ip);
+    bool DeleteTempIP(string ip);    // 原 TAddressList.Delete(IP) 无返回值；此处返回是否命中
+    bool DeleteBlockIP(string ip);
+    void ClearTempIPs();             // 原 g_TempIPList.Clear
+    void ClearBlockIPs();
+}
+```
+
+* **写入**：直接落到 `GateShareGlobals.g_TempIPList` / `g_BlockIPList`（本轮产物），
+  并**同时**调用 `GateShareLists.SaveBlockIPList()`（原文 `uFrmSafeFilter.pas:533/553/579/...` 本来就是 Add+Save 成对）。
+* **读取**：`SnapshotXxx()` 用 `GateShareInet.InetNtoa(unchecked((uint)item.nIPaddr))` 逐项投影，
+  **顺序即容器顺序**（原文 `TAddressList.FindIndex` 也是顺序扫描）。
+* **`IPSectionList`**：可直接用本轮的 `GateShareGlobals.g_IPSectionList`（`TIPSection` 已 1:1），
+  但窗体侧的 `IPSECTION` 是另一个类型 → 需要一次字段映射（`nBeginAddr`/`nEndAddr` 同名同型，**零成本**）。
+* **不动的部分**：`TempMacList`/`BlockMacList` 保持 `TSafeStringList`，与原文一致，**无需适配**。
+* **代价**：`uFrmSafeFilter.cs` 的 `Host.TempIPList.Items[...]` 一类调用点需要改成 `Host.SnapshotTempIPs()`；
+  这是**唯一**会触碰 12 个窗体测试的地方，故必须由集成者统一裁定后再做（不在本车道单方面改）。
