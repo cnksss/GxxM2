@@ -618,9 +618,9 @@ public static class ObjMonMeteoriteRainCore
     {
         ("Random(x) = 0", "m_btAntiPoison", "roll-zero means resist fails"),
         ("Random(x) = 0 (guarded)", "m_btAntiPoison + rate", "roll-zero means resist fails"),
-        ("Random(100) < NewValue[N]", "m_WAbil.NewValue", "false means resist fails"),
+        ("Random(100) < NewValue[N]", "m_WAbil.NewValue", "dice property, rerolls each read"),
         ("Random(m_btAntiPoison) = 0", "m_btAntiPoison (in CanStone)", "roll-zero means resist fails"),
-        ("Random(10) >= x", "m_nAntiMagic", "roll-high means hit"),
+        ("Random(10) >= x", "m_nAntiMagic", "fixed 10 faces, threshold compare"),
     };
 
     /// <summary>**四格火圈的坐标偏移（1:1）。**</summary>
@@ -946,18 +946,47 @@ public static class ObjMonMeteoriteRainCore
     public static bool UsesAntiMagicNotAntiPoison()
         => AntiMagicDeclLine == 173;
 
-    /// <summary>**语义方向相反。**</summary>
-    public static bool DirectionIsReversed() => true;
+    /// <summary>**方向与本系列其它判据**相同**（值越大越抗）。**
+    /// <remarks>
+    /// **修正记录**：初版写了 `DirectionIsReversed()`、断言本处"掷得够大即命中"是
+    /// "语义方向相反" —— **这是我把方向想反了。**
+    ///
+    /// **正确的推导**：判据是 `Random(10) >= m_nAntiMagic` ——
+    /// `m_nAntiMagic = 0` 时任何掷骰都满足（必中）、
+    /// `m_nAntiMagic = 10` 时任何掷骰都不满足（必不中）——
+    /// **即躲避值越大越难命中、也就是越**抗**打** ——
+    /// 与其余四种（`Random(antiPoison) = 0` 等、同样是值越大越抗）**方向一致**。
+    ///
+    /// **真正不同的只是**形式**：本处是"固定 10 面 + 比阈值"、
+    /// 而其余是"面数 = 抗性值 + 等于 0"** ——
+    /// **本批（J221）的 `Random(100) >= m_nUnForeverFrozenRate` 与本处同族。**
+    /// </remarks>
+    /// </summary>
+    public static bool SameDirectionAsOthers() => true;
+
+    /// <summary>**只是形式不同（固定面数比阈值）。**</summary>
+    public static bool FormDiffersNotDirection() => true;
 
     /// <summary>**表已提取。**</summary>
     public static bool ResistFormsExtracted()
         => ResistForms[4].Target == "m_nAntiMagic"
-           && ResistForms[4].Direction.Contains("roll-high");
+           && ResistForms[4].Direction.Contains("fixed 10 faces");
 
-    /// <summary>**前四种方向一致。**</summary>
-    public static bool FirstFourSameDirection()
+    /// <summary>**"面数随抗性变"那一族有**三种**（下标 0/1/3）。**
+    /// <remarks>
+    /// **修正记录**：初版名为 `FirstFourSameDirection`、检查下标 0..3 是否都含
+    /// `"resist fails"` —— **修表时把下标 2（`Random(100) < NewValue[N]`）
+    /// 的描述改成了 `"dice property, rerolls each read"`、于是这条断言失败**。
+    /// 复查后确认：下标 2 **本来就不属于**"面数随抗性变 + 等于 0"那一族
+    /// （它是掷骰属性、读一次掷一次），
+    /// 故改为**显式按下标 `{0, 1, 3}`** 检查、并新增对 2 与 4 的归属断言。
+    /// </remarks>
+    /// </summary>
+    public static bool VariableFacesFamilyHasThree()
     {
-        for (int i = 0; i < 4; i++)
+        int[] idx = { 0, 1, 3 };
+
+        foreach (int i in idx)
         {
             if (!ResistForms[i].Direction.Contains("resist fails"))
                 return false;
@@ -965,6 +994,14 @@ public static class ObjMonMeteoriteRainCore
 
         return true;
     }
+
+    /// <summary>**下标 2 是掷骰属性、不属该族。**</summary>
+    public static bool IndexTwoIsDiceProperty()
+        => ResistForms[2].Direction.Contains("dice property");
+
+    /// <summary>**下标 4 是固定面数比阈值。**</summary>
+    public static bool IndexFourIsFixedFaces()
+        => ResistForms[4].Direction.Contains("fixed 10 faces");
 
     /// <summary>抗性判定（1:1：`Random(10) >= antiMagic` 即命中）。</summary>
     public static bool PassesResist(int antiMagic, int roll)
