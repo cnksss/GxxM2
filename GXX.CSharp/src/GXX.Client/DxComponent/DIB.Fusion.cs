@@ -57,9 +57,14 @@ namespace GXX.Client.DxComponent;
 //   6990-7031  TDIB.DoSolorize
 //   7033-7065  TDIB.DoPosterize
 //   7067-7115  TDIB.DoBrightness
-//   --- 以下尚未覆盖（见车道报告"空洞覆盖表"）---
-//   7117-7674  DoResample + 8 个重采样滤波器 + TContributor/TCList/TRGB/TColorRGB
-//   7676-7929  DoColorize（含 InvertBitmap）/ FadeOut / DoZoom / DoBlur / FadeIn / FillDIB8
+//   7676-7776  TDIB.DoColorize（含内嵌 InvertBitmap；接缝 IDibFusionColorizeSeam）
+//   7780-7813  TDIB.FadeOut（内联 asm → 逐字节 max）
+//   7815-7852  TDIB.DoZoom
+//   7854-7868  TDIB.DoBlur
+//   7870-7903  TDIB.FadeIn（内联 asm → 逐字节 min）
+//   7905-7928  TDIB.FillDIB8
+//   --- 7117-7674 见 DIB.Fusion.Filters.cs（DoResample + 8 滤波器 + 4 记录）---
+//   === DIB.pas 4940-7930 全部覆盖（7930 起属 DIB.Tail.cs）===
 //
 // 语义前提（**全部为原文 Delphi 7 语义，不是 C# 默认语义**）：
 //   1. 整型提升：Delphi 7 的 `+ - * div mod shl shr` 在操作数小于 Integer 时**提升到 Integer**
@@ -291,6 +296,59 @@ public static class DibFusionSpot
 {
     /// <summary>未装载 → DoSpotLight 抛 InvalidOperationException。</summary>
     public static IDibFusionSpotSeam Seam;
+}
+
+/// <summary>
+/// 接缝：`TDIB.DoColorize`（DIB.pas 7676-7776）里的 TCanvas/TBitmap 光栅操作序列。
+/// 原文整个 `Colorize` 就是 20 余次画布操作（`Brush`/`FillRect`/`CopyMode`/`CopyRect`/`Pixels`/
+/// `Brush.Bitmap.Assign`）加两次 `InvertBitmap`；没有任何纯像素运算可提取。
+/// 接收者（lTempBitmap / lTempBitmap2 / Src / lDitherBitmap）**显式入参**，以便锁死操作序列。
+/// **未装载 → DoColorize 抛 InvalidOperationException**（§25.2，不静默）。
+/// </summary>
+public interface IDibFusionColorizeSeam
+{
+    /// <summary>Canvas.Brush.Style := bsSolid。</summary>
+    void SetBrushStyleSolid(TDIB Dib);
+
+    /// <summary>Canvas.Brush.Color := Color。</summary>
+    void SetBrushColor(TDIB Dib, int Color);
+
+    /// <summary>Canvas.FillRect(const Rect: TRect)。</summary>
+    void FillRect(TDIB Dib, TDxRect Rect);
+
+    /// <summary>Canvas.CopyMode := Value 或 `bmp.Canvas.CopyMode := Value`。</summary>
+    void SetCopyMode(TDIB Dib, uint Value);
+
+    /// <summary>Canvas.CopyRect(const DestRect: TRect; Canvas: TCanvas; const SourceRect: TRect)。</summary>
+    void CopyRect(TDIB DestDib, TDxRect DestRect, TDIB SrcDib, TDxRect SrcRect);
+
+    /// <summary>Canvas.Pixels[X, Y] := Color。</summary>
+    void SetPixels(TDIB Dib, int X, int Y, int Color);
+
+    /// <summary>Canvas.Brush.Bitmap.Assign(Value)。</summary>
+    void AssignBrushBitmap(TDIB Dib, TDIB Value);
+}
+
+/// <summary>DoColorize 的接缝落点。</summary>
+public static class DibFusionColorize
+{
+    /// <summary>未装载 → DoColorize 抛 InvalidOperationException。</summary>
+    public static IDibFusionColorizeSeam Seam;
+}
+
+/// <summary>DoColorize 用到的 Windows 光栅操作码（Delphi Graphics 的 cm* 常量）。</summary>
+public static class DibFusionRop
+{
+    /// <summary>cmSrcInvert = SRCINVERT = $00660046。</summary>
+    public const uint cmSrcInvert = 0x00660046;
+    /// <summary>cmSrcPaint = SRCPAINT = $00EE0086。</summary>
+    public const uint cmSrcPaint = 0x00EE0086;
+    /// <summary>cmSrcErase = SRCERASE = $00440328。</summary>
+    public const uint cmSrcErase = 0x00440328;
+    /// <summary>cmPatPaint = PATPAINT = $00FB0A09。</summary>
+    public const uint cmPatPaint = 0x00FB0A09;
+    /// <summary>cmDstInvert = DSTINVERT = $00550009。</summary>
+    public const uint cmDstInvert = 0x00550009;
 }
 
 // =============================================================================================
@@ -2911,6 +2969,279 @@ public partial class TDIB
         Assign(BB2);
         BB1.Destroy();
         BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 7676-7776 —— DoColorize
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7676-7776 1:1（`Colorize` + 内嵌 `InvertBitmap`）。
+    /// 原文**没有**任何纯像素运算：整个函数是 20 余次 `TCanvas` 光栅操作
+    /// （`Brush.Style/Color`、`FillRect`、`CopyMode` ∈ {cmSrcInvert, cmSrcPaint, cmSrcErase,
+    /// cmPatPaint, cmDstInvert}、`CopyRect`、`Pixels[X,Y]`、`Brush.Bitmap.Assign`），
+    /// 唯一"逻辑"是各操作的**顺序**与接收者。故收敛到 IDibFusionColorizeSeam，并把顺序照抄，
+    /// 由测试逐条锁死（§2.3 不移植项 4）。
+    /// 原文缺陷（照抄 + 注释）：
+    ///   * 7697 `fColor := iBackColor; ;` —— **连写两个分号**，且 `fColor` 之后从未被读取；
+    ///   * 7688 `fForeDither` 与 7689 `fBmpMade` **从未初始化**（栈上不定值），
+    ///     且 `fBmpMade := True`（7764）之后从未被读取。托管侧 `fForeDither = false`
+    ///     （有意偏离，已登记：Delphi 下为未定义值，本片取"抖色分支不生效"的实测常见取值）；
+    ///   * 7713/7719 `InvertBitmap(Src)` 会**就地改写入参 Src**（它正是 BB1，与 Self 共享像素）。
+    /// </summary>
+    public void DoColorize(int ForeColor, int BackColor)
+    {
+        void InvertBitmap(TDIB bmp)
+        {
+            DibFusionColorize.Seam.SetCopyMode(bmp, DibFusionRop.cmDstInvert);
+            DibFusionColorize.Seam.CopyRect(bmp,
+                TDxRect.Rect(0, 0, bmp.Width, bmp.Height),
+                bmp, TDxRect.Rect(0, 0, bmp.Width, bmp.Height));
+        }
+
+        void Colorize(TDIB Src, TDIB Dst, int iForeColor, int iBackColor)
+        {
+            if (DibFusionColorize.Seam == null)
+                throw new InvalidOperationException(
+                    "TDIB.DoColorize: 绘制接缝（DibFusionColorize.Seam / IDibFusionColorizeSeam）未装载 —— " +
+                    "TCanvas/TBitmap 光栅操作在托管侧无对应物（§25.2：接缝不得静默退化）");
+
+            // {--}   原文如此（DIB.pas:7696）
+            int fColor = iBackColor; ; // 原文如此（DIB.pas:7697）—— 连写两个分号，且 fColor 从未被读取
+            int fForeColor = iForeColor;
+            bool fForeDither = false;  // 原文未初始化（DIB.pas:7688）—— 有意偏离，已登记
+            bool fBmpMade = false;     // 原文未初始化（DIB.pas:7689）；7764 赋值后从未读取
+
+            int w = Src.Width;
+            int h = Src.Height;
+            var lTempBitmap = new TDIB();
+            lTempBitmap.SetSize(w, h, 24);
+            var lTempBitmap2 = new TDIB();
+            lTempBitmap2.SetSize(w, h, 24);
+            TDxRect lCRect = TDxRect.Rect(0, 0, w, h);
+
+            // with lTempBitmap.Canvas do begin
+            DibFusionColorize.Seam.SetBrushStyleSolid(lTempBitmap);
+            DibFusionColorize.Seam.SetBrushColor(lTempBitmap, iBackColor);
+            DibFusionColorize.Seam.FillRect(lTempBitmap, lCRect);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcInvert);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, Src, lCRect);
+            InvertBitmap(Src);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcPaint);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, Src, lCRect);
+            InvertBitmap(lTempBitmap);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcInvert);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, Src, lCRect);
+            InvertBitmap(Src);
+            // end
+
+            // with lTempBitmap2.Canvas do begin
+            DibFusionColorize.Seam.SetBrushStyleSolid(lTempBitmap2);
+            DibFusionColorize.Seam.SetBrushColor(lTempBitmap2, DibFusionSupport.clBlack);
+            DibFusionColorize.Seam.FillRect(lTempBitmap2, lCRect);
+            TDIB lDitherBitmap = null;
+            if (fForeDither)
+            {
+                InvertBitmap(Src);
+                lDitherBitmap = new TDIB();
+                lDitherBitmap.SetSize(8, 8, 24);
+                // with lDitherBitmap.Canvas do
+                for (int X = 0; X <= 7; X++)
+                    for (int Y = 0; Y <= 7; Y++)
+                        if ((X % 2 == 0 && Y % 2 > 0) || (X % 2 > 0 && Y % 2 == 0))
+                            DibFusionColorize.Seam.SetPixels(lDitherBitmap, X, Y, fForeColor);
+                        else
+                            DibFusionColorize.Seam.SetPixels(lDitherBitmap, X, Y, iBackColor);
+                DibFusionColorize.Seam.AssignBrushBitmap(lTempBitmap2, lDitherBitmap);
+            }
+            else
+            {
+                DibFusionColorize.Seam.SetBrushStyleSolid(lTempBitmap2);
+                DibFusionColorize.Seam.SetBrushColor(lTempBitmap2, fForeColor);
+            }
+            if (!fForeDither)
+                InvertBitmap(Src);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap2, DibFusionRop.cmPatPaint);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap2, lCRect, Src, lCRect);
+            if (fForeDither) lDitherBitmap.Destroy();
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap2, DibFusionRop.cmSrcInvert);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap2, lCRect, Src, lCRect);
+            // end
+
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcInvert);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, lTempBitmap2, lCRect);
+            InvertBitmap(Src);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcErase);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, Src, lCRect);
+            InvertBitmap(Src);
+            DibFusionColorize.Seam.SetCopyMode(lTempBitmap, DibFusionRop.cmSrcInvert);
+            DibFusionColorize.Seam.CopyRect(lTempBitmap, lCRect, lTempBitmap2, lCRect);
+            InvertBitmap(lTempBitmap);
+            InvertBitmap(Src);
+            Dst.Assign(lTempBitmap);
+            lTempBitmap.Destroy();
+            fBmpMade = true;
+            _ = fColor; // 原文 fColor/fBmpMade 赋值后从未读取
+            _ = fBmpMade;
+        }
+
+        var BB1 = new TDIB();
+        BB1.SetBitCount(24);
+        BB1.Assign(this);
+        var BB2 = new TDIB();   // 原文 7771-7772 未 SetSize
+        Colorize(BB1, BB2, ForeColor, BackColor);
+        Assign(BB2);
+        BB1.Destroy();
+        BB2.Destroy();
+    }
+
+    // =========================================================================================
+    // DIB.pas 7780-7813 —— FadeOut（内联 asm 逐字节 max）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7780-7813 1:1（`PUSH ESI/EDI` 的 32 位内联汇编逐字节循环）。
+    /// 反汇编语义：`dst[i] = max(Step, src[i])`（`CMP AL,AH; JA @@2` 是**无符号**比较）。
+    /// 计数 = `WidthBytes * Height`（`MOV EAX,H; IMUL EDX` 后取低 32 位）⇒ 覆盖**整块像素缓冲**。
+    /// **原文陷阱**：源行取的是 `Self.ScanLine[DIB2.Height - 1]`（用 **DIB2** 的高度索引 Self 的行），
+    /// 且写向 `DIB2.ScanLine[DIB2.Height - 1]` ⇒ 只有当两张图同尺寸时二者才都等于各自的 FPBits；
+    /// `DIB2.Height > Self.Height` 时先抛 SScanline。原文如此（DIB.pas:7785-7786）。
+    /// </summary>
+    public unsafe void FadeOut(TDIB DIB2, byte Step)
+    {
+        byte* p1 = (byte*)ScanLine(DIB2.Height - 1);
+        byte* P2 = (byte*)DIB2.ScanLine(DIB2.Height - 1);
+        int w = WidthBytes;
+        int h = Height;
+        int count = unchecked(w * h);
+        for (int i = 0; i < count; i++)
+        {
+            byte ah = p1[i];
+            P2[i] = Step > ah ? Step : ah;   // dst = max(Step, src)
+        }
+    }
+
+    // =========================================================================================
+    // DIB.pas 7815-7852 —— DoZoom
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7815-7852 1:1（**逐字节**缩放，不是逐像素）。
+    /// 原文陷阱（照抄 + 注释）：
+    ///   * 外层用**像素**宽度 `Width` 做 `for X := 1 to Width - 1`，而 `P2[X]`/`p1[Trunc(xr)]`
+    ///     是**字节**下标 ⇒ 列方向只缩放了每行前 `Width` 个字节；
+    ///   * `xstep/ystep := ZoomRatio` 是**加性**步进（不是乘性采样）；
+    ///   * 边界判定 `(xr >= 0) and (xr <= w)` / `(yr >= 0) and (yr <= h)` 允许取到 **w / h**
+    ///     —— `xr = w` 时 `p1[w]` 越出行尾 1 字节（不抛）；`yr = h` 时 `ScanLine(h)` 抛 SScanline；
+    ///   * `xr := xstart` 在 Y 循环**末尾**重置（每行重来），`yr` 累加；
+    ///   * `ZoomRatio = 1.0` **不是**恒等：P2[X] ← p1[X-1] 且 P2[Y] ← p1[Y-1]（整体右下移 1）。
+    /// </summary>
+    public unsafe void DoZoom(TDIB DIB2, double ZoomRatio)
+    {
+        int w = WidthBytes;
+        int h = Height;
+        double xstart = (w - (w * ZoomRatio)) / 2;
+
+        double xr = xstart;
+        double yr = (h - (h * ZoomRatio)) / 2;
+        double xstep = ZoomRatio;
+        double ystep = ZoomRatio;
+
+        for (int Y = 1; Y <= this.Height - 1; Y++)
+        {
+            byte* P2 = (byte*)DIB2.ScanLine(Y);
+            if (yr >= 0 && yr <= h)
+            {
+                byte* p1 = (byte*)ScanLine(DibFusionSupport.Trunc(yr));
+                for (int X = 1; X <= this.Width - 1; X++)
+                {
+                    if (xr >= 0 && xr <= w)
+                    {
+                        P2[X] = p1[DibFusionSupport.Trunc(xr)];
+                    }
+                    else
+                    {
+                        P2[X] = 0;
+                    }
+                    xr = xr + xstep;
+                }
+            }
+            else
+            {
+                for (int X = 1; X <= this.Width - 1; X++)
+                {
+                    P2[X] = 0;
+                }
+            }
+            xr = xstart;
+            yr = yr + ystep;
+        }
+    }
+
+    // =========================================================================================
+    // DIB.pas 7854-7868 —— DoBlur
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7854-7868 1:1（十字 5 点均值 `div 5`，**逐字节**，读 Self 写 DIB2）。
+    /// `w := WidthBytes`，故 `p1[X + w]` 是**内存上一行**（图像里的 Y-1 行，因 FNextLine 为负），
+    /// `p1[X - w]` 是下一行（图像里的 Y+1 行）✓ 几何正确。
+    /// 原文缺陷：`Y = Height - 1` 时 `p1[X - w]` 落在 `FPBits - WidthBytes` ⇒ **读出缓冲区之外**
+    /// （原文无边界检查）。故本片只对 `Y &lt;= Height - 2` 的行做精确断言。
+    /// 另：`p1[X + 1]` 在 `X = Width - 1` 时读到行尾填充字节（原文如此）。
+    /// </summary>
+    public unsafe void DoBlur(TDIB DIB2)
+    {
+        int w = WidthBytes;
+        for (int Y = 1; Y <= this.Height - 1; Y++)
+        {
+            byte* p1 = (byte*)ScanLine(Y);
+            byte* P2 = (byte*)DIB2.ScanLine(Y);
+            for (int X = 1; X <= this.Width - 1; X++)
+            {
+                P2[X] = unchecked((byte)((p1[X] + p1[X - 1] + p1[X + 1] + p1[X + w] + p1[X - w]) / 5));
+            }
+        }
+    }
+
+    // =========================================================================================
+    // DIB.pas 7870-7903 —— FadeIn（内联 asm 逐字节 min）
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7870-7903 1:1。与 FadeOut 同构，只有跳转条件由 `JA` 变 `JB`
+    /// ⇒ `dst[i] = min(Step, src[i])`（无符号）。
+    /// </summary>
+    public unsafe void FadeIn(TDIB DIB2, byte Step)
+    {
+        byte* p1 = (byte*)ScanLine(DIB2.Height - 1);
+        byte* P2 = (byte*)DIB2.ScanLine(DIB2.Height - 1);
+        int w = WidthBytes;
+        int h = Height;
+        int count = unchecked(w * h);
+        for (int i = 0; i < count; i++)
+        {
+            byte ah = p1[i];
+            P2[i] = Step < ah ? Step : ah;   // dst = min(Step, src)
+        }
+    }
+
+    // =========================================================================================
+    // DIB.pas 7905-7928 —— FillDIB8
+    // =========================================================================================
+
+    /// <summary>
+    /// DIB.pas 7905-7928 1:1（内联 asm 用 `Color` 填满 `WidthBytes * Height` 字节，
+    /// 起点是 `Self.ScanLine[Height - 1]` = 缓冲区首地址）—— 与位深/调色板无关，纯字节填充。
+    /// </summary>
+    public unsafe void FillDIB8(byte Color)
+    {
+        byte* P = (byte*)ScanLine(this.Height - 1);
+        int w = WidthBytes;
+        int h = Height;
+        int count = unchecked(w * h);
+        for (int i = 0; i < count; i++)
+            P[i] = Color;
     }
 
     // =========================================================================================
