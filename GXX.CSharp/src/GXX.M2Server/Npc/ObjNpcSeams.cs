@@ -401,10 +401,31 @@ public static class NpcSeams
     public static Func<TPlayObject, TUserItem> GetUseItemsWeapon { get; set; } = _ => default;
 
     /// <summary>
-    /// 原文 `TNormNpc.SendCustemMsg`（ObjNpc.pas:9837-9862，本车道未覆盖）—— 供
-    /// `TMerchant.SendCustemMsg`（4235-4238）的 `inherited` 转发。默认无操作。
+    /// 原文 `TNormNpc.SendCustemMsg`（ObjNpc.pas:9837-9862）—— **已由虚方法外壳升级为真实现**
+    /// （见 `ObjNpcVars.cs` / `ObjNpcConversation.cs`），故本委托**已删除**；
+    /// `TMerchant`/`TGuildOfficial` 的 `inherited` 现在直接走 `base.SendCustemMsg(...)`。
     /// </summary>
-    public static Action<TNormNpc, TPlayObject, string> SendCustemMsg { get; set; } = (_, _, _) => { };
+    // (已移除：NpcSeams.SendCustemMsg)
+
+    /// <summary>
+    /// 原文 `g_Config.boSendCustemMsg`（M2Share.pas；ObjNpc.pas:9841 的"喊话"总开关）。
+    /// 接缝：`M2Config` 暂无同名字段。默认 `false`（= 原文默认关闭）。
+    /// </summary>
+    public static bool boSendCustemMsg { get; set; }
+
+    /// <summary>
+    /// 原文 `g_sSendCustMsgCanNotUseNowMsg`（M2Share.pas；ObjNpc.pas:9843 的提示串）。
+    /// 接缝：原文由 `M2Share.LoadString` 从资源载入、源码只有键名 —— 此处为**语义占位，非原文文案**。
+    /// </summary>
+    public static string g_sSendCustMsgCanNotUseNowMsg { get; set; } = "当前无法使用喊话功能";
+
+    /// <summary>
+    /// 原文全局 `g_FilterTexts`（ObjNpc.pas:9847 的敏感词过滤器）。
+    /// 托管侧 `Engine.TFilterTexts`（`Engine/FilterTexts.cs:24`，含 `Filter(string, out string)`）
+    /// 已存在，但**没有单元级全局实例**（唯一实例挂在 `Forms/ViewList2Form.cs:55` 上）→ 接缝。
+    /// 返回 null 表示"无过滤器"（原文的 `g_FilterTexts = nil` 分支）。
+    /// </summary>
+    public static Func<TFilterTexts?> GetFilterTexts { get; set; } = () => null;
 
     // -----------------------------------------------------------------------
     // TMerchant.UpgradeWapon 的嵌套过程 sub_4A0218（ObjNpc.pas:1686-1828）需要的最小宿主面。
@@ -573,7 +594,9 @@ public static class NpcSeams
         sNpcIcons = @"NpcIcons\";
         GetStdItemName = _ => "";
         GetUseItemsWeapon = _ => default;
-        SendCustemMsg = (_, _, _) => { };
+        boSendCustemMsg = false;
+        g_sSendCustMsgCanNotUseNowMsg = "当前无法使用喊话功能";
+        GetFilterTexts = () => null;
         GetItemAddValue = (ref TUserItem _, ref TStdItem _) => { };
         AddGameDataLog = (_, _, _, _, _, _, _, _, _) => { };
         sBlackStone = "黑铁矿";

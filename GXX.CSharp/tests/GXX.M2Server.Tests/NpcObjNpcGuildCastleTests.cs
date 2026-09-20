@@ -80,13 +80,16 @@ public sealed class NpcObjNpcGuildCastleTests : System.IDisposable
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void GuildOfficialSendCustemMsg_ForwardsToBaseSeam()
+    public void GuildOfficialSendCustemMsg_ForwardsToBaseImplementation()
     {
+        // 原文 10386-10389 只有 `inherited;` → 必须真正落到 TNormNpc.SendCustemMsg 的门上。
+        // ★ 切片 15 起基类已为真实现（原来只转发到 NpcSeams.SendCustemMsg，该委托已删除）。
         var g = new TGuildOfficial();
-        string seen = null;
-        NpcSeams.SendCustemMsg = (npc, player, msg) => { Assert.Same(g, npc); seen = msg; };
+        NpcSeams.boSendCustemMsg = false;
+        NpcSeams.g_sSendCustMsgCanNotUseNowMsg = "关";
         g.SendCustemMsg(NewPlayer(), "HELLO");
-        Assert.Equal("HELLO", seen);
+        Assert.Single(_sysMsgs);
+        Assert.StartsWith("关/", _sysMsgs[0]);
     }
 
     // -----------------------------------------------------------------------
@@ -206,16 +209,18 @@ public sealed class NpcObjNpcGuildCastleTests : System.IDisposable
     }
 
     [Fact]
-    public void CastleOfficialSendCustemMsg_DoesNotCallBaseSeam()
+    public void CastleOfficialSendCustemMsg_DoesNotCallBaseImplementation()
     {
         // 原文 10391-10404 **没有** inherited —— 与 TGuildOfficial 版不同。
+        // 证法：把基类的门设成"必然提示"（boSendCustemMsg=false），再放开本覆写的门
+        // （boSubkMasterSendMsg=true + 标志位 false）→ 若调了基类就会出现 SysMsg。
         var c = new TCastleOfficial();
         NpcSeams.boSubkMasterSendMsg = true;
+        NpcSeams.boSendCustemMsg = false;
+        NpcSeams.g_sSendCustMsgCanNotUseNowMsg = "基类提示";
         NpcSeams.GetSendMsgFlag = _ => false;
-        bool baseCalled = false;
-        NpcSeams.SendCustemMsg = (_, _, _) => baseCalled = true;
         c.SendCustemMsg(NewPlayer(), "hi");
-        Assert.False(baseCalled);
+        Assert.Empty(_sysMsgs);
     }
 
     // -----------------------------------------------------------------------

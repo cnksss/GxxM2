@@ -49,10 +49,10 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 10 之后）：Covered 57 / Seam 7 / Missing 48 = 112。
-        Assert.Equal(57, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(7, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
-        Assert.Equal(48, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
+        // 落地口径（切片 15 之后）：Covered 62 / Seam 6 / Missing 44 = 112。
+        Assert.Equal(62, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(6, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        Assert.Equal(44, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
     [Fact]
@@ -76,7 +76,6 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10406, "CheckStrIsVar", "Covered")]
     [InlineData(3272, "GetUserItemPrice", "Covered")]
     [InlineData(6011, "GetVariableText", "Seam")]
-    [InlineData(9837, "SendCustemMsg", "Seam")]
     [InlineData(3052, "LoadNPCData", "Covered")]
     [InlineData(3062, "SaveNPCData", "Covered")]
     [InlineData(3180, "LoadNpcScript", "Covered")]
@@ -91,7 +90,6 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10510, "TBoxMonster.Create", "Covered")]
     [InlineData(10527, "TBoxMonster.Operate", "Covered")]
     [InlineData(10534, "TBoxMonster.Run", "Covered")]
-    [InlineData(10521, "TBoxMonster.Initialize", "Missing")]
     [InlineData(4431, "Click", "Seam")]
     [InlineData(1107, "TCastleOfficial.Click", "Covered")]
     [InlineData(3228, "TMerchant.Click", "Covered")]
@@ -100,7 +98,11 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10364, "TCastleOfficial.Create", "Covered")]
     [InlineData(10386, "TGuildOfficial.SendCustemMsg", "Covered")]
     [InlineData(10391, "TCastleOfficial.SendCustemMsg", "Covered")]
-    [InlineData(10374, "TGuildOfficial.Create", "Missing")]
+    [InlineData(10374, "TGuildOfficial.Create", "Covered")]
+    [InlineData(9789, "SendMsgToUser", "Covered")]
+    [InlineData(9800, "MessageBox", "Covered")]
+    [InlineData(9837, "SendCustemMsg", "Covered")]
+    [InlineData(10521, "TBoxMonster.Initialize", "Covered")]
     [InlineData(10091, "TGuildOfficial.Run", "Missing")]
     [InlineData(5326, "GetBoxItemValue", "Seam")]
     [InlineData(4645, "SetBoxItemValue", "Seam")]

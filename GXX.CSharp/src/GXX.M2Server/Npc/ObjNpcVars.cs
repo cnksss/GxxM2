@@ -507,18 +507,10 @@ public partial class TNormNpc
         return r.Result;
     }
 
-    /// <summary>
-    /// 原文 `procedure SendCustemMsg(PlayObject: TPlayObject; sMsg: string); virtual;`（ObjNpc.pas:9837-9862）。
-    /// <para>本车道只落"虚方法外壳"：本体（含 `g_Config.boSendCustemMsg` 门与 `g_FilterTexts.Filter` 敏感词过滤）
-    /// 未覆盖，经 <see cref="NpcSeams.SendCustemMsg"/> 转发。</para>
-    /// <para>做成虚方法的理由同 <see cref="GetVariableText"/>：`TMerchant.SendCustemMsg`(4235-4238)、
-    /// `TGuildOfficial.SendCustemMsg`(10386-10390)、`TCastleOfficial.SendCustemMsg`(10391-10405)
-    /// 三个覆写都是 `inherited;`。</para>
-    /// </summary>
-    public virtual void SendCustemMsg(TPlayObject PlayObject, string sMsg)
-    {
-        NpcSeams.SendCustemMsg(this, PlayObject, sMsg);
-    }
+    // ★ 切片 15：`TNormNpc.SendCustemMsg`(9837-9862) 的**真实现**已移到
+    //   `ObjNpcConversation.cs`（此处原先的"虚方法外壳 + 接缝"已删除）。
+    //   `Click`(4431-4442) 仍是虚方法外壳（其本体依赖 `ObjPlayer` 的 6 个脚本标签字段，
+    //   托管侧目前只有部分，见报告 §8.6）。
 
     /// <summary>
     /// 原文 `procedure Click(PlayObject: TPlayObject); virtual;`（ObjNpc.pas:4431-4442）。
