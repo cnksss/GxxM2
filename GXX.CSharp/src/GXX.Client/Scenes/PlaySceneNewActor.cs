@@ -500,9 +500,17 @@ public class THeroActor : TActor
 // （源单元 Source\Client-HGE\CustomActor.pas 1,130 行）。此处原为 6 行桩，已删除以免重名。
 
 // ---- wRaceImg 分派表承载类（Class name 与 Delphi 1:1；行为随后续批次深化） ----
+// ★ 车道 p7-client-actor-family：HerbActor.pas 族（TKillingHerb/TMineMon/TBeeQueen/
+//   TCentipedeKingMon/TBigHeartMon/TSpiderHouseMon/TDragonBody）与结构族
+//   （TWallStructure/TNewWallStructure/TCastleDoor）的类头改为 `partial`，
+//   1:1 方法体落在 **本车道自有文件** Scenes/ActorFamilyHerb*.cs
+//   （与 Scenes/ActorFamilyStructures.cs）。**基类关系一并按原文更正** ——
+//   原文层级是 TKillingHerb : TActor，而 TMineMon/TCentipedeKingMon/TBigHeartMon/
+//   TSpiderHouseMon/TDragonBody **都** : TKillingHerb（若继续平铺为 : TActor，
+//   `inherited` 会整段绕过 TKillingHerb 的覆写 —— 属"看起来一样实则不同"的典型）。
 
 public class TSoccerBall : TActor { public override string ActorClass => "TSoccerBall"; }
-public class TKillingHerb : TActor { public override string ActorClass => "TKillingHerb"; }
+public partial class TKillingHerb : TActor { public override string ActorClass => "TKillingHerb"; }
 public class TSkeletonOma : TActor { public override string ActorClass => "TSkeletonOma"; }
 public class TDualAxeOma : TActor { public override string ActorClass => "TDualAxeOma"; }
 public class TGasKuDeGi : TActor { public override string ActorClass => "TGasKuDeGi"; }
@@ -513,15 +521,15 @@ public class TCowFaceKing : TActor { public override string ActorClass => "TCowF
 public class TWhiteSkeleton : TActor { public override string ActorClass => "TWhiteSkeleton"; }
 public class TSuperiorGuard : TActor { public override string ActorClass => "TSuperiorGuard"; }
 public class TScorpionMon : TActor { public override string ActorClass => "TScorpionMon"; }
-public class TCentipedeKingMon : TActor { public override string ActorClass => "TCentipedeKingMon"; }
-public class TBigHeartMon : TActor { public override string ActorClass => "TBigHeartMon"; }
-public class TSpiderHouseMon : TActor { public override string ActorClass => "TSpiderHouseMon"; }
+public partial class TCentipedeKingMon : TKillingHerb { public override string ActorClass => "TCentipedeKingMon"; }
+public partial class TBigHeartMon : TKillingHerb { public override string ActorClass => "TBigHeartMon"; }
+public partial class TSpiderHouseMon : TKillingHerb { public override string ActorClass => "TSpiderHouseMon"; }
 public class TExplosionSpider : TActor { public override string ActorClass => "TExplosionSpider"; }
 public class TFlyingSpider : TActor { public override string ActorClass => "TFlyingSpider"; }
 public class TZombiLighting : TActor { public override string ActorClass => "TZombiLighting"; }
 public class TZombiDigOut : TActor { public override string ActorClass => "TZombiDigOut"; }
 public class TZombiZilkin : TActor { public override string ActorClass => "TZombiZilkin"; }
-public class TBeeQueen : TActor { public override string ActorClass => "TBeeQueen"; }
+public partial class TBeeQueen : TActor { public override string ActorClass => "TBeeQueen"; }
 public class TArcherMon : TActor { public override string ActorClass => "TArcherMon"; }
 public class TSculptureMon : TActor { public override string ActorClass => "TSculptureMon"; }
 public class TSculptureKingMon : TActor { public override string ActorClass => "TSculptureKingMon"; }
@@ -541,14 +549,15 @@ public class TBanyaGuardMon : TActor { public override string ActorClass => "TBa
 public class TPBOMA1Mon : TActor { public override string ActorClass => "TPBOMA1Mon"; }
 public class TPBOMA6Mon : TActor { public override string ActorClass => "TPBOMA6Mon"; }
 public class TStoneMonster : TActor { public override string ActorClass => "TStoneMonster"; }
-public class TMineMon : TActor { public override string ActorClass => "TMineMon"; }
+public partial class TMineMon : TKillingHerb { public override string ActorClass => "TMineMon"; }
 public class TAngel : TActor { public override string ActorClass => "TAngel"; }
 public class TFireDragon : TActor { public override string ActorClass => "TFireDragon"; }
 public class TDragonStatue : TActor { public override string ActorClass => "TDragonStatue"; }
-public class TDragonBody : TActor { public override string ActorClass => "TDragonBody"; }
+public partial class TDragonBody : TKillingHerb { public override string ActorClass => "TDragonBody"; }
 public class TFireDragonGuard : TActor { public override string ActorClass => "TFireDragonGuard"; }
-public class TWallStructure : TActor { public override string ActorClass => "TWallStructure"; }
-public class TCastleDoor : TActor { public override string ActorClass => "TCastleDoor"; }
+public partial class TWallStructure : TActor { public override string ActorClass => "TWallStructure"; }
+public partial class TCastleDoor : TActor { public override string ActorClass => "TCastleDoor"; }
+public partial class TNewWallStructure : TActor { public override string ActorClass => "TNewWallStructure"; }
 public class TMon23_1 : TActor { public override string ActorClass => "TMon23_1"; }
 public class TMon24_4 : TActor { public override string ActorClass => "TMon24_4"; }
 public class TMon26_6 : TActor { public override string ActorClass => "TMon26_6"; }
