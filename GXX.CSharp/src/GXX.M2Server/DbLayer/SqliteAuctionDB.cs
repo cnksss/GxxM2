@@ -799,7 +799,10 @@ public sealed class TSqliteAuctionDB : TAuctionDB
 
                 if (itemGroup != (int)TItemGroup.igAll)
                 {
-                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L785_sm_Sql_P2
+                    // 原文 785：sm.Sql := sm.Sql + ' and (ItemGroup = ' + IntToStr(Integer(ItemGroup)) + ')';
+                    // ★ 抽取出的 _L785_sm_Sql_P2 是**累积快照**的字面段（= 上一状态尾部的 ') ' + 本步新增的
+                    //   ' and (ItemGroup = '），首字符 ')' 属于上一状态，故 Substring(1) 只取本步新增部分。
+                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L785_sm_Sql_P2.Substring(SqliteAuctionDbScripts.DoQueryAllItems_L775_sm_Sql_P2.Length)
                         + IntToStr(itemGroup) + SqliteAuctionDbScripts.DoQueryAllItems_L785_sm_Sql_P4;
                 }
 
@@ -809,14 +812,18 @@ public sealed class TSqliteAuctionDB : TAuctionDB
 
                     if (sColors.Length > 0)
                     {
-                        sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L822_sm_Sql_P4
+                        // 原文 802：sm.Sql := sm.Sql + ' and ItemColor in (' + Copy(sColors,1,Length(sColors)-1) + ')';
+                        // ★ 同上：_P4 的快照字面段以 ')' 开头（那是 ItemGroup 的收尾括号）。
+                        sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L822_sm_Sql_P4.Substring(SqliteAuctionDbScripts.DoQueryAllItems_L785_sm_Sql_P4.Length)
                             + sColors.Substring(0, sColors.Length - 1) + SqliteAuctionDbScripts.DoQueryAllItems_L822_sm_Sql_P6;
                     }
                 }
 
                 if (moneyType > 0)
                 {
-                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L828_sm_Sql_P6
+                    // 原文 808：sm.Sql := sm.Sql + ' and A.CurrencyType = ' + IntToStr(MoneyType - 1);
+                    // ★ 同上：_P6 的快照字面段以 ')' 开头（那是 ItemColor 的收尾括号）。
+                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoQueryAllItems_L828_sm_Sql_P6.Substring(SqliteAuctionDbScripts.DoQueryAllItems_L822_sm_Sql_P6.Length)
                         + IntToStr(moneyType - 1);
                 }
 
@@ -1126,8 +1133,12 @@ public sealed class TSqliteAuctionDB : TAuctionDB
 
                 if (itemGroup != (int)TItemGroup.igAll)
                 {
-                    // 原文 1108：' and ItemGroup = ' + IntToStr(Integer(ItemGroup))
-                    sm.Sql = sm.Sql + " and ItemGroup = " + IntToStr(itemGroup);
+                    // 原文 1108：sm.Sql := sm.Sql + ' and ItemGroup = ' + IntToStr(Integer(ItemGroup));
+                    // ★ _L1108_sm_Sql_P0 是**累积快照**（把基串又内联了一遍），故 Substring(基串长度)
+                    //   只取本步新增的 ' and ItemGroup = '，避免把整条基串再拼一次（也去掉手写 SQL 字面量）。
+                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1108_sm_Sql_P0
+                        .Substring(SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1103_sm_Sql.Length)
+                        + IntToStr(itemGroup);
                 }
 
                 if (itemColors != 0)
@@ -1143,7 +1154,10 @@ public sealed class TSqliteAuctionDB : TAuctionDB
 
                 if (moneyType > 0)
                 {
-                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1151_sm_Sql_P4
+                    // 原文 1130：sm.Sql := sm.Sql + ' and CurrencyType = ' + IntToStr(MoneyType - 1);
+                    // ★ _P4 快照字面段以 ')' 开头（那是 ItemColor 子句的收尾括号；ItemColor 未启用时
+                    //   基串本身也已以 ')' 收尾），故必须 Substring(1)。
+                    sm.Sql = sm.Sql + SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1151_sm_Sql_P4.Substring(SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1145_sm_Sql_P4.Length)
                         + IntToStr(moneyType - 1);
                 }
 

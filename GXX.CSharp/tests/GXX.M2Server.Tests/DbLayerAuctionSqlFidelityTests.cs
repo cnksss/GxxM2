@@ -478,7 +478,7 @@ public class DbLayerAuctionSqlFidelityTests
         string sql = db.For("Auction_QueryAllItems").Sql;
         if (expectFilter)
         {
-            Assert.Contains(") and ItemColor in (", sql, StringComparison.Ordinal);
+            Assert.Contains(")  and ItemColor in (", sql, StringComparison.Ordinal);
             Assert.DoesNotContain(",,", sql, StringComparison.Ordinal);
             Assert.DoesNotContain("(,", sql, StringComparison.Ordinal);
         }
@@ -486,5 +486,163 @@ public class DbLayerAuctionSqlFidelityTests
         {
             Assert.DoesNotContain("ItemColor in (", sql, StringComparison.Ordinal);
         }
+    }
+
+    // ================================================================
+    // 5. ★ 动态拼接的**逐字**对账（本轮抓出 6 个真缺陷后补的守卫）
+    //
+    // 生成器把 `sm.Sql := sm.Sql + '...'` 渲染成**累积快照**常量：`_L<行>_sm_Sql_P<n>` 里的字面段
+    // 既含本步新增的文本，也含上一状态尾部的文本（例如 ") " 或 ")"）。因此"追加式"实现必须
+    // 去掉与上一状态**重叠的那一段**，否则会多出右括号、甚至把整条基串再拼一次。
+    //
+    // 之前这里只做 `Contains` 弱断言 —— 多一个 ')' 照样通过。下面用**手写期望串**（字面量直接
+    // 抄自原文 SqliteAuctionDB.pas:781/785/802/808/813/818/843 与 MySqlAuctionDB.pas:754/765/802/808/813/818/823）
+    // 把基串之后的**整段尾部**逐字钉死，包括空格数量。
+    // ================================================================
+
+    private const string QueryAllItemsExpectedTail =
+        "42)  and (ItemGroup = 5) and ItemColor in (0,0,0) and A.CurrencyType = 2"
+        + " and A.SellingPrice >= 1 and A.SellingPrice <= 9"
+        + " and ((A.ItemDBName like \"%evil%\") or (A.ItemName like \"%evil%\"))"
+        + " order by AuctionID desc limit ? offset ?;";
+
+    private const string PageCountExpectedTail =
+        " and ItemGroup = 5 and ItemColor in (0,0,0) and CurrencyType = 2"
+        + " and SellingPrice >= 1 and SellingPrice <= 9"
+        + " and ((ItemDBName like \"%evil%\") or (ItemName like \"%evil%\"))";
+
+    [Fact]
+    public void Sqlite_QueryAllItems_MaximalFilters_MatchTheOriginalConcatenationVerbatim()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        IsolateSqliteFiles();
+        var db = new FakeSqliteDatabase();
+        var unit = new TSqliteAuctionDB(new FakeDbLayerHost { DataBase = db }, db);
+        unit.DoInit();
+
+        unit.QueryAllItems("evil", 5, "h", 1, 42, 37, 0, false, 3, 1, 9, new TAuctionItemList());
+
+        string sql = db.For("Auction_QueryAllItems").Sql;
+        string prefix = SqliteAuctionDbScripts.DoQueryAllItems_L775_sm_Sql_P0;
+        Assert.StartsWith(prefix, sql, StringComparison.Ordinal);
+        Assert.Equal(QueryAllItemsExpectedTail, sql.Substring(prefix.Length));
+    }
+
+    [Fact]
+    public void MySql_QueryAllItems_MaximalFilters_MatchTheOriginalConcatenationVerbatim()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        var db = new FakeMySqlDatabase();
+        var unit = new TMySqlAuctionDB(new FakeDbLayerHost { DataBase = db }, db);
+        unit.DoInit();
+
+        unit.QueryAllItems("evil", 5, "h", 1, 42, 37, 0, false, 3, 1, 9, new TAuctionItemList());
+
+        string sql = db.For("Auction_QueryAllItems").Sql;
+        string prefix = MySqlAuctionDbScripts.DoQueryAllItems_L754_sm_Sql_P0;
+        Assert.StartsWith(prefix, sql, StringComparison.Ordinal);
+        Assert.Equal(QueryAllItemsExpectedTail, sql.Substring(prefix.Length));
+    }
+
+    [Fact]
+    public void Sqlite_GetAllItemsPageCount_MaximalFilters_MatchTheOriginalConcatenationVerbatim()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        IsolateSqliteFiles();
+        var db = new FakeSqliteDatabase();
+        var unit = new TSqliteAuctionDB(new FakeDbLayerHost { DataBase = db }, db);
+        unit.DoInit();
+
+        unit.GetAllItemsPageCount("evil", 5, 37, 3, 1, 9);
+
+        string sql = db.For("Auction_GetAllItemsCount").Sql;
+        string prefix = SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1103_sm_Sql;
+        Assert.StartsWith(prefix, sql, StringComparison.Ordinal);
+        Assert.Equal(PageCountExpectedTail, sql.Substring(prefix.Length));
+    }
+
+    [Fact]
+    public void MySql_GetAllItemsPageCount_MaximalFilters_MatchTheOriginalConcatenationVerbatim()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        var db = new FakeMySqlDatabase();
+        var unit = new TMySqlAuctionDB(new FakeDbLayerHost { DataBase = db }, db);
+        unit.DoInit();
+
+        unit.GetAllItemsPageCount("evil", 5, 37, 3, 1, 9);
+
+        string sql = db.For("Auction_GetAllItemsCount").Sql;
+        string prefix = MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1082_sm_Sql;
+        Assert.StartsWith(prefix, sql, StringComparison.Ordinal);
+        Assert.Equal(PageCountExpectedTail, sql.Substring(prefix.Length));
+    }
+
+    /// <summary>
+    /// 兜底守卫：动态拼出来的 SQL **不得**含拼接点占位符 `@@…@@`（那说明把生成器的运行时占位常量
+    /// 当字面量拼了进去），也不得出现 `") )"`（快照分片的前导 `)` 被重复拼入）。
+    /// </summary>
+    [Fact]
+    public void DynamicSql_NeverContainsPlaceholdersOrDuplicatedParens()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        IsolateSqliteFiles();
+        var sqliteDb = new FakeSqliteDatabase();
+        var mySqlDb = new FakeMySqlDatabase();
+        var sqlite = new TSqliteAuctionDB(new FakeDbLayerHost { DataBase = sqliteDb }, sqliteDb);
+        var mySql = new TMySqlAuctionDB(new FakeDbLayerHost { DataBase = mySqlDb }, mySqlDb);
+        sqlite.DoInit();
+        mySql.DoInit();
+
+        sqlite.QueryAllItems("evil", 5, "h", 1, 42, 37, 0, false, 3, 1, 9, new TAuctionItemList());
+        sqlite.GetAllItemsPageCount("evil", 5, 37, 3, 1, 9);
+        mySql.QueryAllItems("evil", 5, "h", 1, 42, 37, 0, false, 3, 1, 9, new TAuctionItemList());
+        mySql.GetAllItemsPageCount("evil", 5, 37, 3, 1, 9);
+
+        foreach ((string label, FakeSqliteDatabase d) in new[]
+                 {
+                     ("Auction_QueryAllItems", sqliteDb), ("Auction_GetAllItemsCount", sqliteDb),
+                 })
+        {
+            string sql = d.For(label).Sql;
+            Assert.DoesNotContain("@@", sql, StringComparison.Ordinal);
+            Assert.DoesNotContain(") )", sql, StringComparison.Ordinal);
+        }
+        foreach ((string label, FakeMySqlDatabase d) in new[]
+                 {
+                     ("Auction_QueryAllItems", mySqlDb), ("Auction_GetAllItemsCount", mySqlDb),
+                 })
+        {
+            string sql = d.For(label).Sql;
+            Assert.DoesNotContain("@@", sql, StringComparison.Ordinal);
+            Assert.DoesNotContain(") )", sql, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>只启用 itemGroup 一个过滤条件时，不得把整条基串拼第二遍（原文只追加 ' and ItemGroup = '）。</summary>
+    [Fact]
+    public void ItemGroupOnlyFilter_AppendsTheClauseOnceForBothDialectsAndBothStatements()
+    {
+        var (_, _) = DbLayerTestKit.Isolate();
+        IsolateSqliteFiles();
+        var sqliteDb = new FakeSqliteDatabase();
+        var mySqlDb = new FakeMySqlDatabase();
+        var sqlite = new TSqliteAuctionDB(new FakeDbLayerHost { DataBase = sqliteDb }, sqliteDb);
+        var mySql = new TMySqlAuctionDB(new FakeDbLayerHost { DataBase = mySqlDb }, mySqlDb);
+        sqlite.DoInit();
+        mySql.DoInit();
+
+        sqlite.QueryAllItems("", 5, "", 1, 42, 0, 0, true, 0, 0, 0, new TAuctionItemList());
+        sqlite.GetAllItemsPageCount("", 5, 0, 0, 0, 0);
+        mySql.QueryAllItems("", 5, "", 1, 42, 0, 0, true, 0, 0, 0, new TAuctionItemList());
+        mySql.GetAllItemsPageCount("", 5, 0, 0, 0, 0);
+
+        Assert.Equal("42)  and (ItemGroup = 5) order by AuctionID desc limit ? offset ?;",
+            sqliteDb.For("Auction_QueryAllItems").Sql.Substring(SqliteAuctionDbScripts.DoQueryAllItems_L775_sm_Sql_P0.Length));
+        Assert.Equal(" and ItemGroup = 5",
+            sqliteDb.For("Auction_GetAllItemsCount").Sql.Substring(SqliteAuctionDbScripts.DoGetAllItemsPageCount_L1103_sm_Sql.Length));
+        Assert.Equal("42)  and (ItemGroup = 5) order by AuctionID desc limit ? offset ?;",
+            mySqlDb.For("Auction_QueryAllItems").Sql.Substring(MySqlAuctionDbScripts.DoQueryAllItems_L754_sm_Sql_P0.Length));
+        Assert.Equal(" and ItemGroup = 5",
+            mySqlDb.For("Auction_GetAllItemsCount").Sql.Substring(MySqlAuctionDbScripts.DoGetAllItemsPageCount_L1082_sm_Sql.Length));
     }
 }

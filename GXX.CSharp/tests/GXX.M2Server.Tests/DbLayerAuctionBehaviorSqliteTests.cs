@@ -2819,4 +2819,115 @@ public class DbLayerAuctionBehaviorSqliteTests
         Assert.Equal(0, host.LockCount);
         Assert.Equal(0, host.UnLockCount);
     }
+
+    // ==================================================================
+    // 23★ 补的 2 条边角用例（p3-m2-dbdata 车道追加；未改动上面任何既有用例）
+    // ==================================================================
+
+    /// <summary>SqliteAuctionDB.pas:1292-1346（DoRun 的内嵌过程 IncPlayerGameMoney）——
+    /// <c>if nValue &gt; High(LongWord) then nValue := High(LongWord)</c> 的钳位分支（1305/1314/1332/1341）
+    /// 与随后的 <c>Player.m_nGameXxx := nValue</c>（Int64 → Integer 截断，1307/1316/1334/1343）。
+    /// <para>构造：税率取默认 0 → 原文 1467-1468 的 Prices = LastBidPrice - Round(...) = LastBidPrice；
+    /// 让 LastBidPrice = int.MaxValue 且余额也是 int.MaxValue，得
+    /// nValue = (long)int.MaxValue + int.MaxValue = 4294967294，**恰好比 High(LongWord)=4294967295 小 1**
+    /// → 钳位分支不可达，直接截断成 unchecked((int)4294967294) = -2。
+    /// （若钳位真的命中，结果会是 (int)4294967295 = -1；本用例正是用这个差值锁死"比较是 off-by-one 的死分支"。）</para>
+    /// <para>元宝(0)/游戏点(1)/金刚石(3)/灵符(4) 四条分支各一行，金币(2) 分支另有上限语义
+    /// （g_Config.nHumanMaxGold，1323-1324）不在此列。</para></summary>
+    [Fact]
+    public void Run_IncPlayerGameMoney_HighLongWordClampIsOffByOne_AndTheValueTruncates()
+    {
+        var (unit, db, _, _, _) = NewSqlite();
+        // 原文 1441-1444 的行列序：AuctionID, HumanName, CurrencyType, StartingPrice, SellingPrice,
+        //                          LastBidder, LastBidPrice, DBIndex, MakeIndex。
+        db.For("Auction_QueryAuctionItemSuccess").AddRow(
+            SuccessRow(1, "S0", 0, 1, 2, "B0", int.MaxValue, 1, 1));   // 元宝
+        db.For("Auction_QueryAuctionItemSuccess").AddRow(
+            SuccessRow(2, "S1", 1, 1, 2, "B1", int.MaxValue, 1, 1));   // 游戏点
+        db.For("Auction_QueryAuctionItemSuccess").AddRow(
+            SuccessRow(3, "S2", 3, 1, 2, "B2", int.MaxValue, 1, 1));   // 金刚石
+        db.For("Auction_QueryAuctionItemSuccess").AddRow(
+            SuccessRow(4, "S3", 4, 1, 2, "B3", int.MaxValue, 1, 1));   // 灵符
+        AuctionDbRunSeam.GetStdItem = _ => new FakeAuctionStdItem { Name = "S" };
+        var s0 = new FakeAuctionPlayer { m_nGameGold = int.MaxValue };
+        var s1 = new FakeAuctionPlayer { m_nGamePoint = int.MaxValue };
+        var s2 = new FakeAuctionPlayer { m_nGameDiamond = int.MaxValue };
+        var s3 = new FakeAuctionPlayer { m_nGameGird = int.MaxValue };
+        AuctionDbRunSeam.GetPlayObject = n => n switch
+        {
+            "S0" => s0, "S1" => s1, "S2" => s2, "S3" => s3, _ => null,
+        };
+
+        try
+        {
+            unit.Run();
+        }
+        finally
+        {
+            AuctionDbRunSeam.ResetDefaults();
+        }
+
+        Assert.Equal(-2, s0.m_nGameGold);                 // 1304-1307
+        Assert.Equal(1, s0.GameGoldChangedCount);         // 1309
+        Assert.Equal(-2, s1.m_nGamePoint);                // 1313-1316
+        Assert.Equal(1, s1.GameGoldChangedCount);         // 1318
+        Assert.Equal(-2, s2.m_nGameDiamond);              // 1331-1334
+        Assert.Equal(1, s2.NewGamePointChangedCount);     // 1336
+        Assert.Equal(-2, s3.m_nGameGird);                 // 1340-1343
+        Assert.Equal(1, s3.NewGamePointChangedCount);     // 1345
+        // 四行都走完了到期结算的尾部（原文 1547 的 UpdateAuctionItemSuccess）。
+        Assert.Equal(4, db.For("Auction_UpdateAuctionItemSuccess").StepCount);
+    }
+
+    /// <summary>SqliteAuctionDB.pas:964-1017（DoQueryMyAttentionItems）—— ★ 多行交错时
+    /// <c>FStatementQueryOneItem.Reset</c>（982）在**每一行**都重新武装一次，随后才轮到外层
+    /// <c>FStatementQueryMyAttentionItems.Step</c>（1003）取下一行；finally（1008/1009）再各 Reset 一次。
+    /// <para>断言交错顺序的可观测证据：
+    /// 外层 Reset 2（972 + 1009）、Step 3（976 + 1003×2）；
+    /// 内层 Reset 3（982×2 + 1008）、Step 2（984×2）、Reads 22 条且列号严格是 0..10 重复两遍
+    /// （证明内层被重新武装，而不是连续读完两行）；
+    /// 内层 <c>LastBinds[0]</c> 是**第二个** AuctionID（41），证明它在第一行处理完之后被重新绑定；
+    /// itemList 收到 2 条且两条都拿到内层结果（HumanName = "Only"）
+    /// —— 若内层只 Reset 一次，第二条只会剩 AuctionID。</para></summary>
+    [Fact]
+    public void QueryMyAttentionItems_TwoRows_InterleavesTheInnerResetBeforeEachOuterStep()
+    {
+        var (unit, db, host, _, _) = NewSqlite();
+        // 外层只取 AuctionID（原文 980）。
+        db.For("Auction_QueryAttentionItems").AddRow(31);
+        db.For("Auction_QueryAttentionItems").AddRow(41);
+        // 内层只有一行；靠"每行 Reset 一次"才能被两行复用（原文 982）。
+        db.For("Auction_QueryOneItem").AddRow(
+            OneItemRow("Only", 1700000000, 6, 60, 7, 8, 3, 9, "Bidder", 0, 0));
+        var list = new TAuctionItemList();
+
+        int n = unit.QueryMyAttentionItems("Alice", 1, list);
+
+        Assert.Equal(2, n);
+        Assert.Equal(2, list.Count);
+        Assert.Equal(new[] { 31, 41 }, list.Snapshot().Select(r => r.AuctionID).ToArray());
+        // 两条都拿到了内层完整记录 → 内层在第二次进入循环前被 Reset 过。
+        Assert.Equal(new[] { "Only", "Only" }, list.Snapshot().Select(r => r.HumanName).ToArray());
+        Assert.Equal(7u, list[1]!.StartingPrice);
+        Assert.Equal(new[] { "31/5/0", "41/5/0" }, host.LoadedItems.ToArray());
+
+        var outer = db.For("Auction_QueryAttentionItems");
+        var inner = db.For("Auction_QueryOneItem");
+        // 外层：972 Reset + 1009 finally=Reset → 2；976 首次 Step + 1003 每行末 Step → 3。
+        Assert.Equal(2, outer.ResetCount);
+        Assert.Equal(3, outer.StepCount);
+        // 内层：982 每行 Reset ×2 + 1008 finally → 3；984 每行 Step ×2。
+        Assert.Equal(3, inner.ResetCount);
+        Assert.Equal(2, inner.StepCount);
+        // 内层被重新绑定到**第二行**的 AuctionID（交错顺序证据）。
+        Assert.Equal("int", inner.LastBinds[0].Kind);
+        Assert.Equal(41, Convert.ToInt32(inner.LastBinds[0].Value));
+        // 内层每次 Step 后都从头读 11 列（0..10），重复两遍 → 两轮重新武装。
+        Assert.Equal(22, inner.Reads.Count);
+        Assert.Equal(Enumerable.Range(0, 11).Concat(Enumerable.Range(0, 11)).ToArray(),
+            inner.Reads.Select(r => r.ColumnIndex).ToArray());
+        // 外层每行只读第 0 列（AuctionID），共 2 次。
+        Assert.Equal(2, outer.Reads.Count);
+        Assert.All(outer.Reads, r => Assert.Equal(0, r.ColumnIndex));
+    }
 }
