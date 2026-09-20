@@ -7,13 +7,30 @@
 //   <see cref="HerbActorCoverage"/> 的逐条清单。原因与取舍：
 //
 //   HerbActor.pas 的 14 个类全部派生自 <c>TActor</c>，并 **override** 了
-//   <c>CalcActorFrame</c> / <c>GetDefaultFrame</c>。而已有的 <c>GXX.Client.Scenes</c> 里
-//   <c>TActorCore</c> 的这两个方法是 **非虚的**（<c>public void CalcActorFrame()</c> /
-//   <c>public int GetDefaultFrame(...)</c>），且 <c>GetRaceByPM</c> 读的是
-//   <c>ActorActionTables</c> 的 <c>TMonsterClientAction</c> 而不是原版的
-//   <c>pTMonsterAction</c>（字段名也不完全一致）。
-//   要 1:1 落成"派生类里 override"就必须**修改既有的 Scenes 文件**（改虚、改签名）——
-//   那是别人车道的独占区，本车道无权修改。
+//   <c>CalcActorFrame</c> / <c>GetDefaultFrame</c>。
+//   <para>★ <b>已落地（车道 `p7-client-actor-family`）</b>：本段原先写「<c>TActorCore</c> 的这两个方法是
+//   **非虚的**」—— <b>该表述已过期</b>。车道 `p7-client-virtual` 已把它们改为
+//   <c>public virtual void CalcActorFrame()</c>（ActorCore.cs:250）与
+//   <c>public virtual int GetDefaultFrame(bool)</c>（ActorMotion.cs:192），并在 <c>TActor</c> 上新增了
+//   <c>LoadSurface()</c> / <c>DrawChr(int,int,bool,bool)</c> / <c>RunSound()</c> / <c>RunActSound(int)</c>
+//   四个虚成员；<c>Run(uint)</c> 亦已虚化（ActorCore.cs:344）。其**基类本体**由车道
+//   `p7-client-actor-family` 落在 <c>Scenes/ActorFamilyImpl.cs</c>（<c>LoadSurface(object?)</c> /
+//   <c>DrawChr</c> / <c>RunSound</c> / <c>RunActSound</c>），接缝在 <c>Scenes/ActorFamilyEnv.cs</c>。</para>
+//   <para>⚠ <b>仍未落地</b>的是把本单元这批子类**接成类 `override`**。原因**已不是**"基类非虚"，
+//   而是两个**接缝性**阻塞（逐条登记见 <see cref="HerbActorCoverage"/> 的
+//   <see cref="HerbActorCoverage.SubclassOverrideBlockers"/>）：</para>
+//   <list type="number">
+//   <item>这批子类**没有自己的托管类体** —— 它们的桩类在
+//     <c>Scenes/PlaySceneNewActor.cs:504-551</c>（如 <c>public class TKillingHerb : TActor { … }</c>），
+//     而该文件不在本批次任何车道的独占区，且 <c>:472</c> 的 <c>TActor</c> 声明**未加 partial** ⇒
+//     既不能写 <c>partial class TActor</c>、也不能写同签名成员（CS0260 + CS0111）；</item>
+//   <item>原文的 <c>LoadSurface(Sender:TObject)</c> 与托管侧虚槽位 <c>LoadSurface()</c>（无参）
+//     **签名不同** —— 落成 <c>override</c> 需先在 <c>TActor</c> 上新增带参重载
+//     （<c>ActorFamilyImpl.LoadSurface(TActorCore, object?)</c> 已备好，待接）。</item>
+//   </list>
+//   <para>另：<c>GetRaceByPM</c> 读的是 <c>ActorActionTables</c> 的 <c>TMonsterClientAction</c>，
+//   而原版是 <c>pTMonsterAction</c>（字段名亦不完全一致）—— 该字段面对齐由
+//   <c>GXX.Core.Protocol</c> 的 <c>TMonsterClientAction</c> 承担。</para>
 //
 //   因此本文件按"**把每个子类的判定逻辑抽成可测纯函数**"的规程落地：
 //   框架（<see cref="HerbActorFramework"/>）承载各子类**逐行等价**的决策表，
@@ -600,7 +617,8 @@ public static class HerbActorCoverage
         ("TDragonBody",          132, "部分：CalcActorFrame/DrawEff/LoadSurface 未落地（依赖 TTexture 与 magiceff 接缝）"),
         ("TWallStructure 系列共用常量", 19, "已落地：BEEQUEENBASE/DOORDEATHEFFECTBASE/WALLLEFTBROKENEFFECTBASE/WALLRIGHTBROKENEFFECTBASE"),
         ("TDoorState",           26,  "已落地：枚举三步"),
-        ("Actor 基类虚方法",      28,  "**未落地（受阻）**：GXX.Client.Scenes.ActorCore 的 CalcActorFrame/GetDefaultFrame 非虚且签名不同；要 1:1 落成 override 必须改别人的文件（本车道无权）"),
+        ("Actor 基类虚方法（含本批 7 子类 override）", 28,
+            "未落地：**虚分派阻塞已解除**（ActorCore.cs:250 CalcActorFrame / ActorMotion.cs:192 GetDefaultFrame(bool) 已 virtual；TActor 在 PlaySceneNewActor.cs:474-484 已补 4 个虚成员），且其**基类本体**已由 p7-client-actor-family 落于 Scenes/ActorFamilyImpl.cs。但本批 7 子类仍**不是**类 override，阻塞点：桩类体在 Scenes/PlaySceneNewActor.cs:504-551 且 :472 的 TActor 未加 partial（CS0260 + CS0111）——越区请求，见 docs/并行报告-p7-client-actor-family.md §8"),
     };
 
     /// <summary>未覆盖的原文行区间（供审计工具精确扣除）。</summary>
@@ -611,5 +629,44 @@ public static class HerbActorCoverage
         (763, 1165, "TWallStructure + TNewWallStructure 的绘制与破碎状态机：依赖 TTexture 与图库接缝"),
         (1177, 1216, "TCentipedeKingMon 的 LoadEffect/DrawEff/Finalize/LoadSurface：依赖 TTexture 与 g_WMonImages 接缝"),
         (1244, 1341, "TCentipedeKingMon.Run 与 TDragonBody 的 CalcActorFrame/DrawEff/LoadSurface"),
+    };
+
+    /// <summary>
+    /// ★ 车道 `p7-client-actor-family` 新增：**`Actor.pas` 基类 4 个虚方法本体**的落地登记
+    /// （原文不在本单元，但本单元是它的登记方 —— 因为 `HerbActor.pas` 的 14 个子类全都覆写它们）。
+    /// </summary>
+    public static readonly (string Method, string SourceRange, string LandedAt)[] BaseActorBodies = new[]
+    {
+        ("TActor.LoadSurface(Sender:TObject)", "Actor.pas 5480-5593（115 行）",
+            "Scenes/ActorFamilyImpl.cs `LoadSurface(TActorCore, object?)`（1:1，含九标签 case / 三重判据 / 反向帧双分支 / Finalize 短路）"),
+        ("TActor.DrawChr(dx,dy,blend,boFlag)", "Actor.pas 6067-6129（63 行）",
+            "Scenes/ActorFamilyImpl.cs `DrawChr`（1:1，含方向守卫 / DrawEffSurface / DrawStateEffSurface / 施法层）"),
+        ("TActor.RunSound", "Actor.pas 6788-6901（114 行）",
+            "Scenes/ActorFamilyImpl.cs `RunSound`（1:1，经 ActorSoundDispatch.RunSound 派发）"),
+        ("TActor.RunActSound(frame:Integer)", "Actor.pas 6903-7095（193 行）",
+            "Scenes/ActorFamilyImpl.cs `RunActSound`（1:1；7063-7072 的 appearance=80 与 7076-7092 的 race 202..209 两支为**既有派发层缺失**，已在本体内逐字补齐）"),
+        ("TActor.DrawStateEffSurface（本体依赖）", "Actor.pas 5654-5702（49 行）",
+            "Scenes/ActorFamilyImpl.cs `DrawStateEffSurface`（1:1，三层游标回写）"),
+        ("TActor.SetSound（本体依赖）", "Actor.pas 6454-6786（333 行）",
+            "**未移植**：原文整段被 `if m_btRace in [0,1]` 包住且无 else ⇒ 对怪物族**本就无副作用**，故基类空实现即正确语义；人类族覆写在 THumActor（另一单元）"),
+    };
+
+    /// <summary>★ 承上：本批 7 个子类的 override **仍未接成类 override** 的精确原因。</summary>
+    public static readonly (string ClassName, string Methods, string Blocker)[] SubclassOverrideBlockers = new[]
+    {
+        ("TKillingHerb", "CalcActorFrame / GetDefaultFrame",
+            "桩类在 PlaySceneNewActor.cs:505；原文 CalcActorFrame 157-268 / GetDefaultFrame 270-299 的决策表已在本文件上方落地（PlanKillingHerb / GetDefaultFrameKillingHerb）"),
+        ("TBeeQueen", "CalcActorFrame / GetDefaultFrame",
+            "桩类在 PlaySceneNewActor.cs:524；原文 303-397 / 399-425 已落地（PlanBeeQueen / GetDefaultFrameBeeQueen）"),
+        ("TMineMon", "CalcActorFrame / GetDefaultFrame / Create",
+            "桩类在 PlaySceneNewActor.cs:544；原文 1166-1170 空转调 / 1172-1175 空转调 / 1218-1226 未变身恒 0 —— **本体最小，最适合作为第一个接通的类**"),
+        ("TCentipedeKingMon", "CalcActorFrame / LoadSurface / Run / Finalize / DrawEff",
+            "桩类在 PlaySceneNewActor.cs:516；CalcActorFrame 决策已落地（PlanCentipedeKing）；Run(1244-1284)/LoadEffect(1184-1200)/DrawEff(1177-1182) 依赖 g_WMonImages.Indexs[15] 与 TTexture"),
+        ("TCastleDoor", "CalcActorFrame / LoadSurface / GetDefaultFrame / Run / DrawChr / ActionEnded / Finalize",
+            "桩类在 PlaySceneNewActor.cs:551；ApplyDoorState 的可行走表已落地；其余依赖 TTexture + Map.MarkCanWalk"),
+        ("TWallStructure", "CalcActorFrame / LoadSurface / GetDefaultFrame / DrawChr / Run / Finalize",
+            "桩类在 PlaySceneNewActor.cs:550；CalcActorFrame(763-830)/GetDefaultFrame(914-927)/Run(952-968) 只依赖数值与 Map 接缝，**可落**；LoadSurface(832-912)/DrawChr(929-950) 依赖 TTexture"),
+        ("TDragonBody", "CalcActorFrame / LoadSurface / DrawEff",
+            "桩类在 PlaySceneNewActor.cs:548；CalcActorFrame(1288-1308) 只用数值常量（StartFrame=0/EndFrame=1/FrameTime=400），**可落**；LoadSurface(1317-1339) 依赖 g_WDragonImg"),
     };
 }
