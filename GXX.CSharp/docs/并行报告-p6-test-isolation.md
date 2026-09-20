@@ -3,7 +3,8 @@
 （GXX Delphi7 → C# ｜ 分支 `par/p6-test-isolation` ｜ 工作树 `D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p6-test-isolation`）
 
 > 独占区：`GXX.CSharp/tests/GXX.M2Server.Tests/M2ConfigIsolation*.cs`、`.../TestConfig.cs`、本报告。
-> **没有修改任何既有测试文件，也没有碰任何在飞车道的独占区**（`git diff --name-only main...HEAD` 只有上述 6 个路径）。
+> **没有修改任何既有测试文件，也没有碰任何在飞车道的独占区**：本车道相对开工基线只动 7 个路径
+> （5 个新增 `M2ConfigIsolation*.cs` + `TestConfig.cs` + 本报告），其中前 6 个已被集成方合入 `main`（见 §1）。
 
 ---
 
@@ -28,9 +29,12 @@
 | 1 | `60ae723a` | **WIP-不可合并**（预期红）复现：`M2ConfigIsolationReproTests.cs` 两个顺序的污染复现用例 |
 | 2 | `b65ab679` | 修复：`M2ConfigIsolationFramework/State/Coverage/EngineTests.cs` + `TestConfig.cs` 程序集特性；整工程 7298/0 |
 | 3 | `2576a38b` | 本报告 `GXX.CSharp/docs/并行报告-p6-test-isolation.md` |
-| 4 | `HEAD`（`git log -1` 可查） | 报告补记（把第 3 次提交的 hash 写回本表；本文件自身的 hash 无法自指，故记作 HEAD） |
+| 4 | `429b5db1` | 报告补记 commit hash 与时延抖动说明 |
+| 5 | `HEAD`（`git log -1` 可查） | 报告登记「集成方已合入」这一事实（本文件自身的 hash 无法自指，故记作 HEAD） |
+| — | `bbd64f3b` | **集成方提交**：`integrate par/p6-test-isolation` —— 已把步骤 1+2（6 文件 / 892 行）合入 `main`；此后本车道只剩本报告的 2 次提交 |
 
-> 步骤 1 的提交故意是红的（复现证据），已按纪律在 subject 标注 `WIP-不可合并`；**HEAD 不含 WIP**。
+> 步骤 1 的提交故意是红的（复现证据），已按纪律在 subject 标注 `WIP-不可合并`；**本车道 HEAD 不含 WIP**（`tools/Check-LaneReady.ps1` 对本车道显示 `AHEAD=2, DIRTY=0`，无 WIP 标记）。
+> 集成方在我写报告期间就完成了 `integrate par/p6-test-isolation`（合入的是步骤 2 之后的 HEAD，其时 subject 无 WIP），所以修复已在 `main` 上，本报告是**事后补充的说明材料**。
 
 ---
 
