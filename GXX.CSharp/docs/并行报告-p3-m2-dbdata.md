@@ -349,4 +349,7 @@ dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
 2. **`TM2DataDB` 基类未移植**，故 `AuctionDB`/`UserShopDB`/`StorageDB` 三个属性是"可赋值槽位"而非原文的"基类 Create 里 new"。语义差异已在上文与代码注释中标明。
 3. **`MySqlAuctionDB` 的行为测试**：本轮只写了 SQL 保真 + 方言差异面 + 公开包装层（`DbLayerAuctionSqlFidelityTests`）；`TSqliteAuctionDB` 有 2577 行的行为测试，`TMySqlAuctionDB` 的**逐方法行为测试未单独写**（其 `Do*` 逻辑与 SQLite 姊妹实现高度对称，差异面已被方言差异测试覆盖）。这是本车道最大的剩余量。
 4. **`TSqliteStorageDB` / `TMySqlStorageDB` 的 SQL 常量**未抽取。
-5. 抽取流水线脚本在 `_recon/`（`.git/info/exclude` 忽略，未入库）。报告 §3 记录了完整流水线；**若后续要重跑，需要重建 `_recon/*.mjs`**（已在本报告里说明每一步的输入输出）。
+5. 抽取流水线脚本在 `_recon/`（`.git/info/exclude` 忽略，**未入库**）。按交接纪律已清理派生中间产物
+   （`*.utf8.txt` / `p3-*.json` / `ref-*.json` 等，从 2.17 MB 降到 67 KB），**只保留可复用的 `.mjs` 流水线脚本**：
+   `gbk2utf8.mjs` → `p3-sql.mjs` → `p3-gen.mjs` / `p3-fingerprints.mjs` / `p3-regen-all.mjs`，以及 `p3-consts.mjs` + `p3-gen-createtable.mjs`。
+   中间产物全部可由 repo 内的 GBK 原文重新生成，故不影响可复核性；报告 §3 记录了每步的输入/输出。
