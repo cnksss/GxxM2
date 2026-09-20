@@ -146,6 +146,56 @@ public class TFastIniFile : IDisposable
     public void WriteBool(string section, string key, bool value)
         => WriteString(section, key, value ? "1" : "0");
 
+    /// <summary>
+    /// Delphi <c>TFastIniFile.ReadFixedDateTime(const Section, Ident: string; Default: TDateTime): TDateTime</c>
+    /// （<c>FastIniFile.pas:2953-2971</c>）1:1。
+    ///
+    /// <para>逐分支保真（三条都不可省）：</para>
+    /// <list type="number">
+    /// <item><c>S := ReadString(Section, Ident, '')</c>；<c>I := Pos(' ', S)</c>；
+    ///   <b>没有空格时直接返回 Default —— 连日期段都不解析</b>（<c>:2963-2964</c>）；</item>
+    /// <item>日期段取 <c>Copy(S, 1, Length(FIXED_DATE))</c> = 前 **10** 字符，
+    ///   经 <c>StrToDateDef(..., -1)</c>（把 <c>DateSeparator</c> 临时改成 <c>'-'</c>、
+    ///   <c>ShortDateFormat</c> 改成 <c>'dd-mm-yyyy'</c>）解析，失败得 <c>-1</c> → 返回 Default；</item>
+    /// <item>时间段取 <c>Copy(S, I+1, Length(FIXED_TIME))</c> = 其后 **8** 字符，
+    ///   经 <c>StrToTimeDef(..., 0)</c> 解析。</item>
+    /// </list>
+    ///
+    /// <para>
+    /// ★★ <b>原文缺陷（照抄，勿"修"）</b>：时间段那一句的 Default 传的是 <b>0</b>，而判据写的是
+    /// <c>if (D &lt;&gt; -1) and (T &lt;&gt; -1) then</c> —— 于是**时间解析失败（T = 0）仍被接受**，
+    /// 结果静默变成"当天 00:00:00"。例：<c>'25-12-2023 garbage!'</c> → 2023-12-25 00:00:00。
+    /// </para>
+    ///
+    /// <para>原文依据：<c>FastIniFile.pas:2953-2971</c>；<c>FIXED_*</c> 常量见 <c>:189-194</c>；
+    /// 局部 <c>StrToDateDef/StrToTimeDef</c> 见 <c>:988-1024</c>。</para>
+    /// </summary>
+    public double ReadFixedDateTime(string section, string ident, double defaultValue)
+    {
+        double result = defaultValue;
+        string s = ReadString(section, ident, "");
+        int i = s.IndexOf(' ') + 1;                       // Delphi Pos(' ', S)：1-based，未找到为 0
+        if (i > 0)
+        {
+            double d = TIniFixedDateTime.StrToDateDef(
+                GXX.Core.Rtl.DelphiRTL.Copy(s, 1, TIniFixedDateTime.FIXED_DATE.Length), -1);
+            double t = TIniFixedDateTime.StrToTimeDef(
+                GXX.Core.Rtl.DelphiRTL.Copy(s, i + 1, TIniFixedDateTime.FIXED_TIME.Length), 0);
+            if (d != -1 && t != -1)                       // ← 原文瑕疵：t 的 Default 是 0，故恒真
+                result = d + t;
+        }
+        return result;
+    }
+
+    /// <summary>
+    /// Delphi <c>TFastIniFile.WriteFixedDateTime(const Section, Ident: string; Value: TDateTime)</c>
+    /// （<c>FastIniFile.pas:2985-2989</c>）1:1：
+    /// <c>WriteString(Section, Ident, FormatDateTime(FIXED_DATETIME, Value))</c>，
+    /// 即 <c>'dd-mm-yyyy hh:nn:ss'</c>（<c>'-'</c>/<c>':'</c> 在格式串里是字面量 → 与本地区域设置无关）。
+    /// </summary>
+    public void WriteFixedDateTime(string section, string ident, double value)
+        => WriteString(section, ident, TIniFixedDateTime.FormatFixedDateTime(value));
+
     public void ReadSection(string section, List<string> strings)
     {
         strings.Clear();
@@ -185,4 +235,78 @@ public class TFastIniFile : IDisposable
         => _sections.TryGetValue(section, out var keys) && keys.ContainsKey(key);
 
     public void Dispose() { }
+}
+
+/// <summary>
+/// FastIniFile.pas 的固定格式日期时间常量与解析器（<c>:189-194</c>、<c>:988-1024</c>、
+/// <c>:2985-2989</c>）1:1。
+///
+/// <para>
+/// 为何独立成类：原文里 <c>FIXED_*</c> 是单元级 <c>const</c>、<c>StrToDateDef/StrToTimeDef</c> 是
+/// <c>implementation</c> 段内的单元级函数（不是 <c>TFastIniFile</c> 的成员），托管侧用静态类承载。
+/// </para>
+/// <para>
+/// 迁移记录（车道 p8-m2-itemprop-misc，请求 #2）：本类内容原在
+/// <c>GXX.M2Server/Misc/SellPlayerSeams.cs</c> 的 <c>SellPlayerIni</c> 里（因 SellPlayer.pas:216/:255
+/// 需要而临时落地）。按"<c>GXX.Core</c> 不得反向依赖 <c>GXX.M2Server</c>"的方向约束**整体搬进本文件**，
+/// <c>SellPlayerIni</c> 现只保留转调。
+/// </para>
+/// </summary>
+public static class TIniFixedDateTime
+{
+    /// <summary>FastIniFile.pas:190 <c>FIXED_DS = '-'</c>。</summary>
+    public const char FIXED_DS = '-';
+
+    /// <summary>FastIniFile.pas:191 <c>FIXED_DATE = 'dd-mm-yyyy'</c>（10 字符）。</summary>
+    public const string FIXED_DATE = "dd" + "-" + "mm" + "-" + "yyyy";
+
+    /// <summary>FastIniFile.pas:192 <c>FIXED_TS = ':'</c>。</summary>
+    public const char FIXED_TS = ':';
+
+    /// <summary>FastIniFile.pas:193 <c>FIXED_TIME = 'hh:nn:ss'</c>（8 字符；Delphi 里 <c>nn</c> 才是分钟）。</summary>
+    public const string FIXED_TIME = "hh" + ":" + "nn" + ":" + "ss";
+
+    /// <summary>FastIniFile.pas:194 <c>FIXED_DATETIME = FIXED_DATE + ' ' + FIXED_TIME</c>。</summary>
+    public const string FIXED_DATETIME = FIXED_DATE + " " + FIXED_TIME;
+
+    /// <summary>
+    /// Delphi <c>FormatDateTime('dd-mm-yyyy hh:nn:ss', Value)</c>：<c>'-'</c>/<c>':'</c> 是字面量，
+    /// 故结果与本地区域设置无关（托管侧固定 <c>InvariantCulture</c>）。
+    /// <para>超出 OLE 自动化日期可表示范围的值返回空串（Delphi 侧 <c>FormatDateTime</c> 会抛
+    /// <c>EConvertError</c>；托管侧选择"写空串"而非抛，见报告偏离 D-P8-11）。</para>
+    /// </summary>
+    public static string FormatFixedDateTime(double value)
+    {
+        if (double.IsNaN(value) || value < -657435.0 || value > 2958465.99999999)
+            return "";
+        return DateTime.FromOADate(value).ToString("dd-MM-yyyy HH:mm:ss",
+            System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    /// <summary>
+    /// FastIniFile.pas:988-1007 的局部 <c>StrToDateDef</c> 1:1：临时把
+    /// <c>DateSeparator := '-'</c>、<c>ShortDateFormat := 'dd-mm-yyyy'</c> 再解析，失败返回 Default。
+    /// <para>偏离 D-P8-4：托管侧用 "dd-MM-yyyy" 精确格式解析（不受区域设置影响）；
+    /// Delphi 的 <c>StrToDate</c> 另有若干宽松形态（AM/PM、单数字月日等）不在复刻范围。</para>
+    /// </summary>
+    public static double StrToDateDef(string Value, double Default)
+    {
+        if (DateTime.TryParseExact(Value, "dd-MM-yyyy", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out DateTime dt))
+            return dt.ToOADate();
+        return Default;
+    }
+
+    /// <summary>
+    /// FastIniFile.pas:1009-1024 的局部 <c>StrToTimeDef</c> 1:1：临时把
+    /// <c>TimeSeparator := ':'</c> 再解析，失败返回 Default。
+    /// <para>偏离 D-P8-4 同上（"HH:mm:ss" 精确格式）。</para>
+    /// </summary>
+    public static double StrToTimeDef(string Value, double Default)
+    {
+        if (DateTime.TryParseExact(Value, "HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.None, out DateTime dt))
+            return dt.TimeOfDay.TotalDays;
+        return Default;
+    }
 }

@@ -116,102 +116,58 @@ public static class SellPlayerGlobals
 }
 
 // ---------------------------------------------------------------------------
-// FastIniFile.pas 的两个缺口方法（ReadFixedDateTime / WriteFixedDateTime）
+// FastIniFile.pas 的固定格式日期时间（已回收至 GXX.Core，本类只保留转调）
 // ---------------------------------------------------------------------------
 
 /// <summary>
-/// FastIniFile.pas 的固定格式日期时间读写 1:1（:2947-2989）。
+/// FastIniFile.pas 的固定格式日期时间读写（<c>:189-194</c>、<c>:988-1024</c>、<c>:2947-2989</c>）。
+///
 /// <para>
-/// <c>FIXED_DS = '-'</c>、<c>FIXED_DATE = 'dd-mm-yyyy'</c>、<c>FIXED_TS = ':'</c>、
-/// <c>FIXED_TIME = 'hh:nn:ss'</c>、<c>FIXED_DATETIME = FIXED_DATE + ' ' + FIXED_TIME</c>（:189-194）。
+/// ★ <b>迁移记录（车道 p8-m2-itemprop-misc，请求 #2，已执行）</b>：
+/// 这两份 1:1 实现原先因 <c>SellPlayer.pas:216/:255</c> 的需要临时落在本类里；
+/// 现已按"<c>GXX.Core</c> 不得反向依赖 <c>GXX.M2Server</c>"的方向约束
+/// **整体搬进 <c>GXX.Core.Util.TFastIniFile</c>（方法）与 <c>GXX.Core.Util.TIniFixedDateTime</c>（常量与解析器）**，
+/// 本类降级为**纯转调**（保留 Delphi 单元级函数名，供对照与既有用例使用）。
 /// </para>
 /// <para>
-/// ★ 为何放在本车道：<c>GXX.Core.Util.TFastIniFile</c>（属 GXX.Core/Util，**他方常驻区**）未实现这两个
-/// 方法，而 SellPlayer.pas:216/:255 必须使用它们。已登记越区请求（报告 §6），
-/// 请 GXX.Core 持有方把它们并入 TFastIniFile 后删除本类。
+/// 原文缺陷提醒（照抄，勿"修"）：<c>FastIniFile.pas:2967-2968</c> 里时间段解析的 Default 是 <c>0</c>、
+/// 而判据是 <c>T &lt;&gt; -1</c> ⇒ **坏时间被静默归零**为当天 00:00:00。
 /// </para>
 /// </summary>
 public static class SellPlayerIni
 {
-    /// <summary>FastIniFile.pas:190 <c>FIXED_DS</c>。</summary>
-    public const char FIXED_DS = '-';
+    /// <summary>FastIniFile.pas:190 <c>FIXED_DS</c>（转调 <see cref="TIniFixedDateTime"/>）。</summary>
+    public const char FIXED_DS = TIniFixedDateTime.FIXED_DS;
 
     /// <summary>FastIniFile.pas:191 <c>FIXED_DATE = 'dd-mm-yyyy'</c>。</summary>
-    public const string FIXED_DATE = "dd" + "-" + "mm" + "-" + "yyyy";
+    public const string FIXED_DATE = TIniFixedDateTime.FIXED_DATE;
 
     /// <summary>FastIniFile.pas:192 <c>FIXED_TS</c>。</summary>
-    public const char FIXED_TS = ':';
+    public const char FIXED_TS = TIniFixedDateTime.FIXED_TS;
 
     /// <summary>FastIniFile.pas:193 <c>FIXED_TIME = 'hh:nn:ss'</c>。</summary>
-    public const string FIXED_TIME = "hh" + ":" + "nn" + ":" + "ss";
+    public const string FIXED_TIME = TIniFixedDateTime.FIXED_TIME;
 
     /// <summary>FastIniFile.pas:194 <c>FIXED_DATETIME</c>。</summary>
-    public const string FIXED_DATETIME = FIXED_DATE + " " + FIXED_TIME;
+    public const string FIXED_DATETIME = TIniFixedDateTime.FIXED_DATETIME;
 
-    /// <summary>
-    /// FastIniFile.pas:2953-2971 <c>TFastIniFile.ReadFixedDateTime</c> 1:1。
-    /// <para>逐分支保真（三条都必须保留）：</para>
-    /// <list type="number">
-    /// <item>值里**没有空格**（<c>Pos(' ', S) = 0</c>）→ 直接返回 Default（**连日期都不解析**）；</item>
-    /// <item>日期段取 <c>Copy(S, 1, 10)</c>，解析失败得 <c>-1</c> → 返回 Default；</item>
-    /// <item>时间段取 <c>Copy(S, I+1, 8)</c>，**Default 传的是 0 而判据是 <c>T &lt;&gt; -1</c>**
-    ///   —— 故时间解析失败（T = 0）**仍被接受**，结果 = 当天 00:00:00（原文瑕疵，逐字保留）。</item>
-    /// </list>
-    /// </summary>
+    /// <summary>FastIniFile.pas:2953-2971 <c>TFastIniFile.ReadFixedDateTime</c>（转调）。</summary>
     public static double ReadFixedDateTime(TFastIniFile ini, string section, string ident, double Default)
-    {
-        double Result = Default;                                            // :2961
-        string S = ini.ReadString(section, ident, "");                      // :2962
-        int I = DelphiRTL.Pos(" ", S);                                      // :2963
-        if (I > 0)                                                          // :2964
-        {
-            double D = StrToDateDef(DelphiRTL.Copy(S, 1, FIXED_DATE.Length), -1);   // :2966
-            double T = StrToTimeDef(DelphiRTL.Copy(S, I + 1, FIXED_TIME.Length), 0); // :2967
-            if (D != -1 && T != -1)                                         // :2968
-                Result = D + T;                                             // :2969
-        }
-        return Result;
-    }
+        => ini.ReadFixedDateTime(section, ident, Default);
 
-    /// <summary>FastIniFile.pas:2985-2989 <c>TFastIniFile.WriteFixedDateTime</c> 1:1（FormatDateTime(FIXED_DATETIME, Value)）。</summary>
+    /// <summary>FastIniFile.pas:2985-2989 <c>TFastIniFile.WriteFixedDateTime</c>（转调）。</summary>
     public static void WriteFixedDateTime(TFastIniFile ini, string section, string ident, double Value)
-        => ini.WriteString(section, ident, FormatFixedDateTime(Value));
+        => ini.WriteFixedDateTime(section, ident, Value);
 
-    /// <summary>
-    /// Delphi <c>FormatDateTime('dd-mm-yyyy hh:nn:ss', Value)</c>：'-'/':' 在格式串里是**字面量**，
-    /// 故结果与区域设置无关（托管侧用 InvariantCulture 固定格式）。
-    /// </summary>
+    /// <summary>Delphi <c>FormatDateTime('dd-mm-yyyy hh:nn:ss', Value)</c>（转调）。</summary>
     public static string FormatFixedDateTime(double value)
-    {
-        if (double.IsNaN(value) || value < -657435.0 || value > 2958465.99999999)
-            return "";                       // 超出 OLE 自动化日期可表示范围（Delphi 侧 FormatDateTime 会抛 EConvertError）
-        return DateTime.FromOADate(value).ToString("dd-MM-yyyy HH:mm:ss", CultureInfo.InvariantCulture);
-    }
+        => TIniFixedDateTime.FormatFixedDateTime(value);
 
-    /// <summary>
-    /// FastIniFile.pas:988-1007 的局部 <c>StrToDateDef</c> 1:1：
-    /// 先临时把 <c>DateSeparator := '-'</c>、<c>ShortDateFormat := 'dd-mm-yyyy'</c> 再解析，失败返回 Default。
-    /// <para>偏离 D-P8-4：托管侧用 "dd-MM-yyyy" 精确格式解析（不受区域设置影响），
-    /// Delphi 的 StrToDate 另有若干宽松形态（如 AM/PM、单数字月日）不在本次复刻范围。</para>
-    /// </summary>
+    /// <summary>FastIniFile.pas:988-1007 局部 <c>StrToDateDef</c>（转调）。</summary>
     public static double StrToDateDef(string Value, double Default)
-    {
-        if (DateTime.TryParseExact(Value, "dd-MM-yyyy", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out DateTime dt))
-            return dt.ToOADate();
-        return Default;
-    }
+        => TIniFixedDateTime.StrToDateDef(Value, Default);
 
-    /// <summary>
-    /// FastIniFile.pas:1009-1024 的局部 <c>StrToTimeDef</c> 1:1：
-    /// 先临时把 <c>TimeSeparator := ':'</c> 再解析，失败返回 Default。
-    /// <para>偏离 D-P8-4 同上（"HH:mm:ss" 精确格式；Delphi 的 StrToTime 还接受 AM/PM 等形态）。</para>
-    /// </summary>
+    /// <summary>FastIniFile.pas:1009-1024 局部 <c>StrToTimeDef</c>（转调）。</summary>
     public static double StrToTimeDef(string Value, double Default)
-    {
-        if (DateTime.TryParseExact(Value, "HH:mm:ss", CultureInfo.InvariantCulture,
-                DateTimeStyles.None, out DateTime dt))
-            return dt.TimeOfDay.TotalDays;
-        return Default;
-    }
+        => TIniFixedDateTime.StrToTimeDef(Value, Default);
 }
