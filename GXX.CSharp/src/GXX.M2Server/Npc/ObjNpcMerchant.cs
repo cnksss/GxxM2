@@ -477,6 +477,109 @@ public partial class TMerchant
     }
 
     /// <summary>
+    /// 原文 `TMerchant.ClientSellItem` 内的**嵌套函数** `sub_4A1C84(UserItem: pTUserItem): Boolean`
+    /// （ObjNpc.pas:3800-3811）：`StdMode ∈ {25, 30}` 的物品要求 `Dura &gt;= 4000`
+    /// （原文写成 `if UserItem.Dura &lt; 4000 then Result := False;`，即**耐久不足 4000 就不许卖**）。
+    /// <para>托管侧落为独立方法（原文是嵌套函数，不捕获外层）。</para>
+    /// </summary>
+    public bool sub_4A1C84(TUserItem UserItem)
+    {
+        bool Result = true;
+        TStdItem? StdItem = NpcSeams.GetStdItem(UserItem.wIndex);
+        if ((StdItem != null) && ((StdItem.Value.StdMode == 25) || (StdItem.Value.StdMode == 30)))
+        {
+            if (UserItem.Dura < 4000)
+                Result = false;
+        }
+        return Result;
+    }
+
+    /// <summary>
+    /// 原文 `function ClientSellItem(PlayObject: TPlayObject; UserItem: pTUserItem;
+    /// IsFromTradingDlg: Boolean): Boolean;`（ObjNpc.pas:3798-3867）。
+    /// <para><b>托管侧签名偏差（必需）</b>：原文第一段物品参数是 `pTUserItem`（指针），
+    /// 3830 的 `GetUserItemPrice(UserItem, True)` 会因 `StdMode = 43` **就地改写 `DuraMax`**，
+    /// 故托管侧用 `ref TUserItem` 保住该写回语义。</para>
+    /// <para><b>照抄的原文细节 / 缺陷</b>：</para>
+    /// <list type="bullet">
+    /// <item>3818：`g_OnlineMsgControl.boDisableSell` 为真**直接返回 False**（不发包不提示）。</item>
+    /// <item>3821：禁卖门槛 = `(绑定 ubNoSell 位 且 boIsBind) 或 g_ItemRules.Get(wIndex, 4)`；
+    ///   命中时**只在非交易对话框**才发 `RM_USERSELLITEM_FAIL` + `MessageBox`。</item>
+    /// <item>3835-3838：旧版税收块（`UserCastle.IncRateGold(nPrice)`）整段被 `{ }` 注释 —— 原文如此，保留。</item>
+    /// <item>3847：`g_CastleManager.IncRateGold(g_Config.nUpgradeWeaponPrice)` ——
+    ///   **传的是"升级武器费"而不是本次售价 `nPrice`**（原文缺陷 D33，照抄）。</item>
+    /// <item>3849-3853：**只有**非交易对话框才回 `RM_USERSELLITEM_OK`。</item>
+    /// <item>3855-3856：`StdItem := UserEngine.GetStdItem(wIndex); if StdItem.NeedIdentify = 1 ...`
+    ///   —— **没有 nil 检查**（原文缺陷 D34：物品已移入商品列表后再取一次，为空即 AV）。</item>
+    /// </list>
+    /// </summary>
+    public bool ClientSellItem(TPlayObject PlayObject, ref TUserItem UserItem, bool IsFromTradingDlg)
+    {
+        bool Result = false;
+        if (OnlineMsgControl.g_OnlineMsgControl.boDisableSell)
+            return Result;
+        // 禁止卖
+        if ((NpcSeams.GetUserItemBindValue(UserItem.btBindOption, ObjNpcConst.ubNoSell) && UserItem.boIsBind != 0)
+            || NpcSeams.GetItemRule(UserItem.wIndex, 4))
+        {
+            if (!IsFromTradingDlg)
+            {
+                PlayObject.SendTo(this, Grobal2Const.RM_USERSELLITEM_FAIL, 0, 0, 0, 0, "");
+                MessageBox(PlayObject, NpcSeams.g_sCanotUserSellItem);
+            }
+            return Result;
+        }
+        int nPrice = GetSellItemPrice(GetUserItemPrice(ref UserItem, true));
+        if ((nPrice > 0) && (!bo574) && sub_4A1C84(UserItem))
+        {
+            if (PlayObject.IncGold((uint)nPrice))
+            {
+                // 原文 3835-3838：旧版税收块整段被 `{ }` 注释 —— 原文如此，保留。
+                // {
+                //   if m_boCastle or g_Config.boGetAllNpcTax then
+                //     UserCastle.IncRateGold(nPrice);
+                // }
+                if (m_boCastle || M2Config.boGetAllNpcTax)
+                {
+                    object castle = NpcSeams.GetNpcCastle(this);
+                    if (castle != null)
+                    {
+                        NpcSeams.IncRateGoldOnCastle(castle, nPrice);
+                    }
+                    else if (M2Config.boGetAllNpcTax)
+                    {
+                        // 原文 3847：传的是 **nUpgradeWeaponPrice** 而不是 nPrice（缺陷 D33，照抄）
+                        NpcSeams.IncRateGoldOnCastleManager(M2Config.nUpgradeWeaponPrice);
+                    }
+                }
+                if (!IsFromTradingDlg)
+                {
+                    PlayObject.SendTo(this, Grobal2Const.RM_USERSELLITEM_OK, 0, PlayObject.m_nGold, 0, 0, "");
+                }
+                AddItemToGoodsList(UserItem);
+                TStdItem? StdItem = NpcSeams.GetStdItem(UserItem.wIndex);
+                // ⚠ 原文 3856 **无 nil 检查**：若 GetStdItem 返回 nil，原文 AV、托管抛 InvalidOperationException。
+                if (StdItem.Value.NeedIdentify == 1)
+                {
+                    NpcSeams.AddGameDataLog(ObjNpcConst.LOG_ItemSell, ObjNpcConst.LOG_GoldChange, PlayObject,
+                        StdItem.Value.NameStr, UserItem.MakeIndex, m_sCharName, (int)PlayObject.m_nGold, nPrice,
+                        "NPC卖出 [" + ObjNpcConst.sSTRING_GOLDNAME + "]");
+                }
+                Result = true;
+            }
+            else if (!IsFromTradingDlg)
+            {
+                PlayObject.SendTo(this, Grobal2Const.RM_USERSELLITEM_FAIL, 0, -1, 0, 0, "");
+            }
+        }
+        else if (!IsFromTradingDlg)
+        {
+            PlayObject.SendTo(this, Grobal2Const.RM_USERSELLITEM_FAIL, 0, 0, 0, 0, "");
+        }
+        return Result;
+    }
+
+    /// <summary>
     /// 原文 `function AddItemToGoodsList(UserItem: pTUserItem): Boolean;`（ObjNpc.pas:3869-3892）。
     /// <para><b>照抄的原文细节</b>：`Dura &lt;= 0` 时**只放行"可叠加物品"或 `StdMode ∈ {0,1,3}`**；
     /// 组不存在则新建组并**追加**到 `m_GoodsList` 末尾，但物品总是 `Insert(0, ...)` 插到组首。

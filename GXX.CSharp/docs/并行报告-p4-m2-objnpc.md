@@ -877,3 +877,129 @@ public static long StrToInt64Def(string s, long def)
 
 > 结论：**解锁面比预期大得多** —— `ClientSellItem`(71) 与 `ClientBuyItem`(323) 现在基本可直接做，
 > 只差 `TUserItemView` 的构造/解包桥。若调度方希望，我下一轮从 `ClientSellItem` 起步（最小、可独立验证）。
+---
+
+# 11. 第五轮（切片 17 / 18）★ 本节优先于 §10
+
+## 11.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 17 | `0706c173` | `TMerchant.ClientSellItem`(3798-3867，71 行) + 嵌套 `sub_4A1C84`(3800-3811) 1:1（+21 用例） |
+| 18 | `477e721c` | `TNormNpc.Click`(4431-4442) 由"虚外壳"**收成真实现**（调度方补齐 3 个字段后解锁） |
+| — | `7836d0e2` | `merge main`（吸收 `TPlayObject.PlayerSurface.ScriptFields.cs` 的 3 个字段） |
+
+门禁：`GXX.M2Server.Tests` **8,209 passed / 0 failed**（合并后基线 8,131）。
+
+## 11.2 覆盖口径（★ 以本节为准）
+
+| 口径 | 切片 15 | **切片 18** |
+|---|---|---|
+| Covered 例程 / 112 | 62 | **64** |
+| Seam 例程 / 112 | 6 | **5** |
+| Missing 例程 / 112 | 44 | **43** |
+
+逐行 1:1（含嵌套过程 `sub_4A0218` 143 行 + `sub_4A1C84` 12 行）≈ **2,328 / 10,546 = 22.1%**。
+
+## 11.3 `TNormNpc.Click` 收成真实现（切片 18）
+
+调度方在 `3698e30d` 补齐 `TPlayObject` 的 `m_nScriptGotoCount`(:149) / `m_sRandomString`(:356) /
+`m_sNpcSelectItemName`(:357) 后，本车道按原文 4433-4438 的**行序**落 6 次归零，末尾
+`PlayerSurfaceNpcSeams.GotoLable(this, PlayObject, "@main", false)`（Engine 接缝 `NpcSession.cs:44`；
+原文第 4 个默认参数 `UseParams = False` 由接缝隐含）。
+
+- `NpcSeams.Click` 委托**已删除** → `TMerchant.Click`(3228)/`TGuildOfficial.Click`(10049)/`TCastleOfficial.Click`(1107)
+  三处覆写的 `inherited` 现在**真正落到原文逻辑**（用"6 字段被归零 + GotoLable 收到 `@main`"作为可观测证据，已加用例）。
+- `Click` 在托管侧确认为 **`public virtual`**（台账「基类方法 + 子类 inherited ⇒ 必须虚方法」的规程），已复核。
+
+## 11.4 `ClientSellItem`（切片 17）要点与差异断言
+
+- 嵌套函数 `sub_4A1C84`：`StdMode ∈ {25,30}` 时要求 `Dura >= 4000`（边界 4000 允许，3999 拒绝）。
+- 三段 `RM_USERSELLITEM_FAIL` 的 **`nParam1` 各不相同**，已逐条断言：
+  `禁售 = 0`（3825/3866）、`价格不合理 = 0`（3866）、`IncGold 失败 = -1`（3863）。
+- **D33**：3847 `g_CastleManager.IncRateGold(g_Config.nUpgradeWeaponPrice)` —— 传的是**升级武器费**而不是本次售价；
+  已用 `nUpgradeWeaponPrice = 12345` vs 售价 50 的用例锁死。
+- **D34**：3855-3856 取回 `StdItem` 后**不判 nil** 就读 `NeedIdentify`（原文 AV）。
+- `IsFromTradingDlg = True` 时**所有** FAIL/OK 包都被抑制，但"入商品列表"照做 —— 已断言。
+- 托管签名 `ref TUserItem`（必需）：3830 的 `GetUserItemPrice` 在 `StdMode = 43` 时会**就地改写 `DuraMax`**，
+  已用 `DuraMax: 5000 → 10000` 的用例证明 `ref` 不可省。
+
+## 11.5 ★★ `TUserItem` ↔ `TUserItemView` 的**精确映射需求**（调度方要求 #1）
+
+### 现状（已核实的三处证据）
+
+1. `Engine/AddAbility.cs:64-69` —— `TUserItemView` **只有 3 个成员**：
+   ```csharp
+   public class TUserItemView
+   {
+       public ushort wIndex;
+       public readonly byte[] BtValue = new byte[14];
+       public List<(byte btBindType, byte btPercent, int nValue)> CustomProperties = new();
+   }
+   ```
+2. `Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs:85/88/91/94` —— 因容器元素类型换成 `TUserItemView`，
+   该车道**不得不新增 4 个委托**去读"本该在物品上的字段"：
+   `ItemMakeIndex` / `ItemName` / `ItemDura` / `ItemDuraMax`，且注释已自认
+   （`:82`）：**"接缝：待 `TUserItemView` 补全 `TUserItem` 面（或改用 `TUserItem`）后直接取值。"**
+3. `Engine/ObjBase.cs` 的 `m_ItemList` 现为 `List<TUserItemView>` —— 而 `GXX.Core.Protocol.TUserItem`
+   （`Grobal2.Types6.cs:13`）是**已 1:1 移植的权威记录**（含 `MakeIndex`/`Dura`/`DuraMax`/`boIsBind`/
+   `btBindOption`/`NameStr`/`GetBtValue`/`SetBtValue` 及 DB/wire 布局）。
+
+### ObjNpc.pas 侧对物品的实际字段需求（逐字段核对）
+
+| 原文用法（示例行） | `GXX.Core.Protocol.TUserItem` | `TUserItemView` |
+|---|---|---|
+| `UserItem.wIndex`（3281/3875/1730…） | ✅ | ✅ |
+| `UserItem.btValue[n]`（1787/3327-3334…） | ✅ `GetBtValue/SetBtValue` | ✅ `BtValue[]` |
+| `UserItem.Dura`（1714/3289/3808/3855…） | ✅ | ❌（靠 `PlayerSurfaceItemSeams.ItemDura` 委托） |
+| `UserItem.DuraMax`（3285/3302/3355…，**且被写回**） | ✅ | ❌（靠 `ItemDuraMax` 委托，**只读**，写不回去） |
+| `UserItem.MakeIndex`（1715/1788/3858…） | ✅ | ❌（靠 `ItemMakeIndex` 委托） |
+| `UserItem.Name` / `NameStr`（1787-1790/3858） | ✅ | ❌（靠 `ItemName` 委托） |
+| `UserItem.boIsBind`（3821） | ✅ | ❌ |
+| `UserItem.btBindOption`（3821，配 `GetUserItemBindValue`） | ✅ | ❌ |
+
+**结论**：`TUserItemView` 缺 **6 个 ObjNpc 必需字段**（`Dura`/`DuraMax`/`MakeIndex`/`Name`/`boIsBind`/`btBindOption`），
+其中 `DuraMax` 还是**可写**的（`GetUserItemPrice` 在 `StdMode = 43` 时写回）—— 而 `PlayerSurfaceItemSeams` 的
+4 个委托全是**只读 `Func`**，从类型上就**无法**承载该写回。
+→ 这是 `TMerchant.UserSelect`/`ClientBuyItem`/`UpgradeWapon` 外层体当前**共同的硬阻塞**。
+
+### 需求（请调度方二选一；我**不在** `Npc/` 里另造一套物品类型）
+
+**方案 A（推荐，改动最小）**：`ObjBase.m_ItemList` 的元素类型**改回 `GXX.Core.Protocol.TUserItem`**（权威记录），
+`TUserItemView` 退化为**按需构造的视图**（在 `GetAccessory.Apply` 里从 `TUserItem + TStdItemView` 现造）。
+收益：① `PlayerSurfaceItemSeams` 的 4 个 `ItemXxx` 委托可**全部删除**；② 写回 `DuraMax` 天然可行；
+③ 我的 `sub_4A0218`/`ClientSellItem`/`GetUserItemPrice` **一行不用改**即可接线。
+
+**方案 B**：保留 `List<TUserItemView>`，但把 `TUserItemView` 做成**权威记录的包装**（不复制字段）：
+```csharp
+public class TUserItemView
+{
+    public GXX.Core.Protocol.TUserItem Item;          // ← 权威记录（承载 Dura/DuraMax/MakeIndex/NameStr/boIsBind/btBindOption）
+    public List<(byte btBindType, byte btPercent, int nValue)> CustomProperties = new();
+    public ushort wIndex { get => Item.wIndex; set => Item.wIndex = value; }   // 兼容既有读取点
+    public byte[] BtValue => ...;                     // 或改为转发 GetBtValue/SetBtValue
+    // 再补 Dura / DuraMax（可写）/ MakeIndex / NameStr / boIsBind / btBindOption 的转发属性
+}
+```
+收益同上；代价是要动 `AddAbility.cs` 的既有读取点。
+
+> 无论哪种，**请勿在 `Npc/` 侧要求我加适配器** —— 那会形成"第二套物品表示"，正是本工程已犯 8 次的重复定义模式。
+
+### 附带的一处同型问题（请一并裁定）
+
+`GetItemAddValue`（原文 `ItemUnit.GetItemAddValue(UserItem: pTUserItem; var StdItem: TStdItem)`，ObjNpc.pas:1733）
+在托管侧有**两套标准物品表示**：我用的 `GXX.Core.Protocol.TStdItem`（`Grobal2.Types2.cs:26`，1:1 权威）
+与 `Engine.TStdItemView`（`AddAbility.cs` 顶部，`GetAccessory.Apply` 的入参）。
+→ 接线时需要一层 `TStdItem` ↔ `TStdItemView` 的映射（**字段名还不完全一致**：如 `AniCount` vs `Anicount`、`Name` vs `NameStr`）。
+我的 `NpcSeams.GetItemAddValue(ref TUserItem, ref TStdItem)` 目前按**权威侧**定名，若 Engine 决定以 `TStdItemView`
+为 `GetAccessory` 的正式入参，请告知，我改签名（这是本车道白名单内的文件）。
+
+## 11.6 剩余 43 条：下一轮建议顺序（按 §11.5 解锁后）
+
+1. **`TMerchant.ClientBuyItem`(3367-3689, 323)** —— 依赖 `AddItemToBag`/`IsEnoughBag`/`IsAddWeightAvailable`/`SendAddItem`
+   （均已就绪）+ 物品表示统一（§11.5）。**建议紧接着做**。
+2. **`TMerchant.UpgradeWapon` 外层体**(1830-1901, 76) —— 除 `m_UseItems`（读写）与 `GotoLable` 外均已就绪；
+   `sub_4A0218` 已覆盖。
+3. **`TMerchant.UserSelect`(2087-2900, 814)** 按 `@buy` / `@sell` / `@repair` **分片**推进。
+4. **`TNormNpc.GotoLable`(9263-9574, 312)** —— `m_nVal` ✅、`LableIsCanJmp`/`SetScriptLabel` ✅，
+   主要待与 `HandleNpcCmds` 的条件/动作执行器对接。

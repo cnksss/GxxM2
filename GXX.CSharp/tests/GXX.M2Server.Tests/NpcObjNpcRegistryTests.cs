@@ -49,10 +49,10 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 15 之后）：Covered 62 / Seam 6 / Missing 44 = 112。
-        Assert.Equal(62, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(6, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
-        Assert.Equal(44, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
+        // 落地口径（切片 18 之后）：Covered 64 / Seam 5 / Missing 43 = 112。
+        Assert.Equal(64, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(5, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        Assert.Equal(43, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
     [Fact]
@@ -81,6 +81,7 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(3180, "LoadNpcScript", "Covered")]
     [InlineData(3234, "GetVariableText", "Covered")]
     [InlineData(3869, "AddItemToGoodsList", "Covered")]
+    [InlineData(3798, "ClientSellItem", "Covered")]
     [InlineData(4164, "ClearScript", "Covered")]
     [InlineData(4196, "LoadUpgradeList", "Covered")]
     [InlineData(4241, "ClearData", "Covered")]
@@ -90,7 +91,7 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10510, "TBoxMonster.Create", "Covered")]
     [InlineData(10527, "TBoxMonster.Operate", "Covered")]
     [InlineData(10534, "TBoxMonster.Run", "Covered")]
-    [InlineData(4431, "Click", "Seam")]
+    [InlineData(4431, "Click", "Covered")]
     [InlineData(1107, "TCastleOfficial.Click", "Covered")]
     [InlineData(3228, "TMerchant.Click", "Covered")]
     [InlineData(10049, "TGuildOfficial.Click", "Covered")]
