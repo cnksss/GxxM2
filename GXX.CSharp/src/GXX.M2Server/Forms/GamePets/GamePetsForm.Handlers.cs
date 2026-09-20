@@ -163,7 +163,18 @@ public sealed partial class GamePetsForm
 
         sePetAbilToMasterRate.Value = M2Config.nPetAbilToMasterRate;                     // :361
         chkPetHPToMaster.Checked = M2Config.boPetHPToMaster;                             // :362
-        chkPetDCToMaster.Checked = M2Config.boPetDCToMaster;                             // :363 原文如此（:363 实为 MC，见报告）
+        // ⚠ 原文缺陷（逐字保留，勿"顺手修好"）：
+        //   :363 回填 DC 勾选框时读的是 **MC** 字段，而 :364 回填 MC 勾选框时也读 MC 字段
+        //   → `boPetDCToMaster` 在 DoOpen 里**从未被回填**。
+        //   后果链（三处巧合叠加，本车道实测确认）：
+        //     ① :363 把 chkDC 置为 MC 的值；② 此时 boOpened **仍为 false**（:388 才置 true），
+        //     故 `chkPetDCToMasterClick` 的 `if not boOpened then Exit`（:791-792）**早退**，
+        //     `boPetDCToMaster` 字段保持 INI 原值不变；③ :364 把 chkMC 置为 MC 的值。
+        //   → 若 INI 里 PetDC=true / PetMC=false，则打开窗体后**两个勾选框都显示未勾选**，
+        //     字段里 DC 仍是 true；此后用户一保存，:872 就把 chkDC 的 false 写进 PetDCToMaster
+        //     —— **静默丢掉 PetDCToMaster=true**。
+        //   锁定测试：GamePetsDoOpenTests.DoOpen_DcAndMcCheckboxSeedingIsSwapped_OriginalDefectLocked
+        chkPetDCToMaster.Checked = M2Config.boPetMCToMaster;                             // :363 原文如此（应为 boPetDCToMaster）
         chkPetMCToMaster.Checked = M2Config.boPetMCToMaster;                             // :364
         chkPetSCToMaster.Checked = M2Config.boPetSCToMaster;                             // :365
         chkPetACToMaster.Checked = M2Config.boPetACToMaster;                             // :366
