@@ -572,3 +572,117 @@ public bool MouseMoveed { get => _mouseMoveed; set { if (_mouseMoveed != value) 
 - 全部改动只在独占区新增文件；除裁决授权的 `DxLabel.cs` 一处结构性删除外**未修改任何只读文件**；
   未提交临时探查目录（`_probe_refl` 已删除）。
 
+---
+
+# 续轮（`p2-dxcontrols-rest` 收口 DxComponent 家族）
+
+> 本段是**续轮**追加，不覆盖上面 §0-§7。本轮起点：宿主重启遗留的 2 个未提交文件。
+
+## 8. 遗留产出甄别结论
+
+| 遗留文件 | 体量 | 甄别结论 |
+|---|---|---|
+| `src/GXX.Client/DxComponent/DxMagicBall.cs` | 918 → 947 行 | **保留 + 补齐**（不重写）。已完成度约 93%：结构与全部纯逻辑都在；缺口仅 3 处 —— ① 文件末尾 `PaintMagicBall_AreaCallback_RectIsCenteredPlusPaintRect` 里留了一句 `throw new Exception("CBS: ...")` 调试桩；② `AloneSetting` 的 `ImageType`/`EffectImageType` setter 与两个 `Changed` 路径无用例；③ 文件头第 8 条把原文怪癖记成"754 行"，实际在 **576/578**。 |
+| `tests/GXX.Client.Tests/DxCtrlMagicBallTests.cs` | 1339 → 1444 行 / 96 → 106 例 | **保留 + 补齐**：修掉 1 个抛异常的调试桩（改成真断言），补 5 例。 |
+
+本轮新增测试文件：`DxCtrlAsphyreTimerTests.cs`(1054 行 / 58 例)、`DxCtrlClipboardTests.cs`(921 行 / 52 例)。
+
+**理由**：重写等于把 918 行已核对过的等价实现与 96 个有效用例全部丢弃，且上一轮的原文回读结论（`Round` 银行家舍入、`/` 是浮点除法、四处对齐分支、两处原文怪癖）都还在文件注释里 —— 保留的边际收益远大于重写。
+
+## 9. 本轮提交序列
+
+| 提交 | 内容 | 门禁 |
+|---|---|---|
+| `daa4e93a` | **批次P2D-1**：`DxMagicBall.pas`(808) 全量 + 106 例；跨车道枚举重名收口 | build 0 error / `GXX.Client.Tests` **3590** pass / 0 fail |
+| `38a7ec49` | **批次P2D-2**：`AsphyreTimer.pas`(335) 全量 + 58 例 | build 0 error / **3648** pass / 0 fail |
+| `4b7157c9` | **批次P2D-3**：`StreamClipbrd.pas`(219) + `DxControlClpbrd.pas`(166) + 52 例 | build 0 error / **3700** pass / 0 fail |
+
+基线 3484 → **3700（+216）**，无既有用例回归。
+
+## 10. ★ 跨车道类型重名第 5 次复发：`TMagicBallType` / `TMagicBallValueAlignment`
+
+**现象**：按 1:1 在 `GXX.Client.DxComponent` 声明这两个枚举后，`dotnet build` 立刻报 **6 处 CS0104**
+（`tests/GXX.Client.Tests/LoadDxRecordLayoutTests.cs:362/368`、
+`LoadDxControlLoaderTests.cs:612/615/647/655` —— 这两个文件同时 `using GXX.Client.DxComponent;`
+与 `using GXX.Client.LoadDx;`）。
+
+**成因**：`GXX.Client.LoadDx.GuiRecords.g.cs:92-106` 早已从 `DxComponents.pas:46-47` **生成**过这两个枚举
+（`: byte`，成员名与顺序逐字一致）。与台账 §12.8 记录的 `TDxControlRef`/`TAlignEx`/`TDxImageButton` 同型。
+
+**本轮处置**：`DxMagicBall.cs` 用 `using TMagicBallType = GXX.Client.LoadDx.TMagicBallType;`
+（+ 同名 `ValueAlignment`）引用既有唯一定义，**不重复声明、不越区改文件**。成员名与原文 1:1。
+`LoadDx/**` 对本车道只读，`GuiRecords.g.cs` 是生成物，`tools/**` 是保留区 —— 三处都不在白名单。
+
+**裁定（调度方已回）**：正式归属 = `GXX.Client.DxComponent`（依原文 `DxComponents.pas:46-47`，按台账 §12.8）；
+**根因修复由调度方执行**（改生成器 + 生成物去重 + 6 处 CS0104 随之消解），完成并通知后本车道删除本地别名。
+
+**同轮新增的既有守卫**：`tests/GXX.Client.Tests/LoadDxNamespaceCollisionTests.cs` 断言
+「两个命名空间的公开类型简单名交集必须为空」，并且反向要求
+`TDxMagicBall`/`TDxSexPanel`/`TDxGroupAttackProgress`/`TDxSwitchButton` 等接缝**留在 `LoadDx`**。
+→ 这正是 `TDXMagicBall`（大写 DX）这一拼写的由来：原文声明段写 `TDxMagicBall`、实现段写 `TDXMagicBall`
+（Delphi 大小写不敏感），落地时取实现段拼写以避开与 `LoadDx` 接缝的重名。
+
+## 11. 本轮单元判定表
+
+| 单元 | 行数 | 判定 | 落地文件 | 覆盖行号 |
+|---|---|---|---|---|
+| `DxMagicBall.pas` | 808 | ✅ 完成（保留+补齐） | `DxComponent/DxMagicBall.cs`(947) | 声明 22-178 / 实现 182-806，逐段 |
+| `AsphyreTimer.pas` | 335 | ✅ 完成 | `DxComponent/AsphyreTimer.cs`(564) | 1-43 头 / 51-52 枚举 / 55-113 声明 / 123-125 const / 129-323 实现 / 326-331 init-final |
+| `StreamClipbrd.pas` | 219 | ✅ 完成 | `DxComponent/StreamClipbrd.cs`(536) | 1-5 / 6-14 接口 / 17-51 / 53-76 / 78-99 / 101-123 / 125-145 / 147-167 / 170-171 / 174-193 / 200-217 |
+| `DxControlClpbrd.pas` | 166 | ✅ 完成（转发） | `DxComponent/DxControlClpbrd.cs`(70) | 6-11 声明 / 14-48 / 50-73 / 75-96 / 98-120 / 122-142 / 144-164 |
+| `DxImageButtonEx.pas` | 769 | ⏳ **未做**（预算耗尽；**类型名无冲突，可直接开工**） | — | 顶层类型：`TTokenBase`(26) `TTokenText`(45) `TTokenImage`(66) `TTokenPlayImage`(80) `TTokenLine`(100) `TLineList`(121) `TDxImageButtonEx`(142)；依赖 `MShare`/`ClFunc`/`HUtil32`/`HGEFontEx`/`HGE`/`GameImages` 在本树**均已有 C# 落点** |
+| `DxGroupAttackProgress.pas` | 462 | ⛔ **阻塞（需调度方裁定）** | — | 控制类名 `TDxGroupAttackProgress`（原文 123 行，声明段/实现段拼写一致）与 `LoadDx/DxControlSeams.cs:447` 的接缝同名，且 `LoadDxNamespaceCollisionTests.LoadDx_Own_Seams_Are_Still_Declared_Locally` 要求该名**留在 `LoadDx`** → 直接落地必触发 CS0104 + 守卫变红 |
+| `DxSwitchButton.pas` | 382 | ⛔ **阻塞（需调度方裁定）** | — | 同上：`TDxSwitchButton`（原文 77 行）vs `LoadDx/DxControlSeams.cs:473` |
+| `GuiManage.pas` | 417 | ⛔ **不建议移植** | — | uses 里 `DxBackground`/`DxPageControl`/`DxEdit`/`DxImageGrid`/`DxPopupMenu`/`DxComboBox`/`DxComponents` **均未移植**（`DxMemo` 归 `p3-dx-big`）；且其唯一出口 `LoadFromStream` 与 `LoadDx/GuiComponentLoader.cs` **功能重复**（同一套 `.GUI` 记录），落地会造出第二套加载器 |
+| `LoginDlg.pas` | 162 | ⛔ **不建议移植** | — | VCL 窗体 + **第三方 Raize 控件**（`TRzDialogButtons`/`TRzButtonEdit`/`TRzRadioGroup`/`TRzPanel`）+ `ShlObj` Shell 浏览 + `{$R *.dfm}`；托管侧无等价物，且属登录器（非 DxComponent 家族） |
+
+**统计：4/8 完成（1,528 行 Delphi），2 个阻塞、2 个判定为不建议移植，1 个（769 行）可直接续做。**
+
+## 12. 本轮接缝清单（新增）
+
+| 接缝 | 文件 | 用途 |
+|---|---|---|
+| `using TMagicBallType / TMagicBallValueAlignment` 别名 | `DxMagicBall.cs` 头部 | 引用 `LoadDx` 侧唯一枚举定义（临时，见 §10） |
+| `TQueryPerformanceFrequency` / `TQueryPerformanceCounter` | `AsphyreTimer.cs` | 高精度计时（默认 `Stopwatch`） |
+| `GetTickCountFn` / `SleepExFn` / `TimeBeginPeriodFn` / `SetApplicationOnIdleFn` | `AsphyreTimer.cs` | 计时/等待/空闲钩子；默认不接线、不久睡 |
+| `AttachWinFormsIdle()` / `DetachWinFormsIdle()` | `AsphyreTimer.cs` | 宿主显式接 WinForms `Application.Idle` |
+| `IDxClipboard` + `TDxMemoryClipboard` + `DxClipboardBackend` | `StreamClipbrd.cs` | 全局内存 + 剪贴板；默认**进程内**，零 OS/UI 调用 |
+| `IDxWriter` / `IDxReader` + `DxClipboardBackend.CreateWriter/CreateReader` | `StreamClipbrd.cs` | 承接未移植的 `Classes.TWriter`/`TReader`（未注入时明确抛 `NotSupportedException`） |
+
+## 13. 本轮发现的原文缺陷 / 易错点（带行号）
+
+1. **`StreamClipbrd.pas:78` 的形参窄化会静默丢数据**：`SaveClipboardFormat(fmt: Word; ...)`
+   而 `StreamClipbrd.pas:137` 用 `Clipboard.Formats[i]`（Cardinal）实参调用 → Delphi 隐式窄化为 16 位。
+   **格式 id ≥ 65536 的数据在 `SaveClipboard` 时被完全丢弃**（截断后 `GetAsHandle` 落空 → `ms.Size == 0`
+   → 一项都不写）。已写差异断言锁定（`DxCtrlClipboardTests.SaveClipboard_FormatIdAbove65535_IsSilentlyTruncatedToWord`）。
+2. **`StreamClipbrd.pas:174-193` 与 `17-51` 的三处不对称**：`StreamSaveToClipboard` **不** `Clipboard.Open/Close`、
+   **不** `S.Position := 0`、且异常时 `GlobalFree` —— 与 `CopyStreamToClipboard` 不同。已逐字保留 + 差异断言。
+3. **`StreamClipbrd.pas:186` 用 `Write` 而 `:210` 用 `WriteBuffer`**：同一单元内对"写不满"的处理不一致（已注释）。
+4. **`DxControlClpbrd.pas` 是死代码**：接口段 6-11 与 `StreamClipbrd.pas` 逐字相同、实现段
+   `15-167 ≡ 12-164`（**153 行 0 差异**）；且不在 `GuiEdit.dpr` 的 uses 里、全树无任何单元 `uses` 它，
+   而 `StreamClipbrd` 被 `Main.pas:591/606/629/637/2085/2101`、`Structure.pas:243/253/270` 实际调用。
+5. **`AsphyreTimer.pas:322` 丢弃函数返回值**：`Reset` 里 `RetreiveLatency();` 只取副作用，
+   `LatencyFP` 在 `Reset` 之后**不变**（构造后恒为 0）。写测试时极易误判为"清零"。
+6. **`AsphyreTimer.pas:238` 的 `DeltaLimit` 上限**：`DeltaFP` 被夹到 `32 * FixedHigh`；
+   60fps 下延迟超过约 533ms 就只算 32 帧。我第一版测试没建模这一步，5 个用例同时报错。
+7. **`AsphyreTimer.pas:204-205` 的 Cardinal 回绕 + Int64 提升**：`(CurTime - PrevTime) * FixedHigh`
+   先按 Cardinal 回绕，再提升为 Int64 相乘，最后**截断回 Integer** —— 时钟倒退 100ms 会得到 **-100.0ms**
+   的负延迟；Δ=2048ms 会截断成 `int.MinValue`（-2048.0ms）。已各写一条超界断言。
+8. **`AsphyreTimer.pas:264-280` 的 `Start`/`Stop` 语义与直觉相反**：`Start` 把 `Application.OnIdle` 置 nil，
+   `Stop` 反而装上 `AppIdle`。原文如此，逐字保留。
+9. **`AsphyreTimer.pas:309-313`**：`FixedDelta := FixedDelta and (FixedHigh - 1)` 在
+   `if Assigned(FOnProcess)` **之外** —— 无回调时也会取低 20 位。已写差异断言。
+10. **遗留调试桩**：上一轮 `DxCtrlMagicBallTests.PaintMagicBall_AreaCallback_RectIsCenteredPlusPaintRect`
+    末尾留了 `throw new Exception("CBS: ...")`。**测试期望写错，不是实现写错** —— 按原文 458-465/483-490
+    重算为 `(-5,45,45,85)` / `(45,45,95,85)` 后即通过。
+
+## 14. 本轮未做 / 需调度方协调
+
+- **`DxGroupAttackProgress.pas` / `DxSwitchButton.pas` 阻塞**：控制类名与 `LoadDx` 同名接缝冲突，
+  且 `LoadDxNamespaceCollisionTests` 反向守卫要求这两个名字留在 `LoadDx`。两条可选路径：
+  (A) 调度方在 §10 的根因修复里**一并删除**这两个接缝并同步更新守卫清单，本车道随后用原文名落地；
+  (B) 授权本车道沿用 `TDXMagicBall` 先例（`TDXGroupAttackProgress` / `TDXSwitchButton`）落地，
+  待接缝删除后再改回原文名。**我未擅自选路。**
+- **`DxImageButtonEx.pas`(769)**：唯一"无阻塞但仍未做"的单元，类型名无冲突、依赖均有落点，可直接续做。
+- **`GuiManage.pas` / `LoginDlg.pas`**：判定为不建议移植，理由见 §11。
+
