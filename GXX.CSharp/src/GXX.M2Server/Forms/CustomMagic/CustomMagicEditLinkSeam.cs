@@ -264,15 +264,35 @@ public sealed class TDecAttribPropertyEditLink : TVtEditLinkSeamBase
     /// <inheritdoc/>
     protected override object? GetNodeData(TVirtualNodeSeam node) => FTree?.GetNodeData(node);
 
+    /// <summary>
+    /// 原文缺陷#4（重要）：<c>vstProtectedAddAttrCreateEditor</c>（:4709-4714）
+    /// **复用了** <c>TDecAttribPropertyEditLink</c>，而该链接的
+    /// <c>PrepareEdit</c>/<c>EndEdit</c> 把 <c>FTree.GetNodeData(Node)</c> 当
+    /// <c>PAttackDecAttribData</c> 用 —— 但保护属性树的节点数据其实是 <c>TProtectAddAttribData</c>。
+    /// 原文能跑，是因为两个记录**二进制布局完全相同**（1 字节枚举 + 3 填充 + 4 字节指针），
+    /// 且两个 EditLink 逻辑都**不看** <c>AttribType</c>（只看 <c>Data</c> 指向的
+    /// <c>TMagicChangeAttributesRecord</c>）。
+    /// 托管侧是强类型的，故这里显式做"布局等价重解释"适配：共享同一个 <c>Data</c> 引用，
+    /// 只把 <c>AttribType</c> 按序号搬过去（该字段在两条 EditLink 路径上均未被读取）。
+    /// </summary>
+    private static TAttackDecAttribData AsDecAttribData(object? nodeData) => nodeData switch
+    {
+        TAttackDecAttribData d => d,
+        TProtectAddAttribData p => new TAttackDecAttribData
+        {
+            AttribType = (TMagicAttackDecAttributesType)(int)p.AttribType,
+            Data = p.Data,
+        },
+        _ => throw new InvalidOperationException("PrepareEdit/EndEdit: GetNodeData 不是属性节点数据"),
+    };
+
     /// <summary>原文 <c>function PrepareEdit(...): Boolean; stdcall</c>（:1156-1263）：
     /// 重建编辑器并灌初值；**Result 恒为 True**（原文如此）。</summary>
     public override bool PrepareEdit(IVirtualTreeHost tree, TVirtualNodeSeam node, int column)
     {
         PrepareCommon(tree, node, column);
 
-        if (GetNodeData(node) is not TAttackDecAttribData data)
-            throw new InvalidOperationException("PrepareEdit: GetNodeData 不是 TAttackDecAttribData");
-
+        var data = AsDecAttribData(GetNodeData(node));
         var spec = DecAttribPropertyEditLinkLogic.PrepareEditSpec(column, data);
         if (spec.Kind == TVtEditKind.None)
         {
@@ -292,7 +312,7 @@ public sealed class TDecAttribPropertyEditLink : TVtEditLinkSeamBase
         if (FEdit is null)
             throw new NullReferenceException("EndEdit: FEdit 为 nil（原文此处 AV —— 列未匹配编辑器分支）");
 
-        var data = (TAttackDecAttribData)GetNodeData(FNode!)!;
+        var data = AsDecAttribData(GetNodeData(FNode!));
         var result = ReadEditorResult();
         bool isChanged = DecAttribPropertyEditLinkLogic.ApplyEditorResult(FColumn, data, result);
 
@@ -393,6 +413,13 @@ public sealed class CustomMagicTreeHost : IVirtualTreeHost
     /// 托管侧节点数据是对象引用，故该值只作镜像，不参与分配。</summary>
     public int NodeDataSize { get; set; }
 
+    /// <summary>
+    /// 节点数据工厂：原文 <c>TVirtualStringTree</c> 按 <c>NodeDataSize</c> 为每个节点
+    /// <c>GetMem</c> 一块**已清零**的数据块，<c>GetNodeData</c> 返回其地址（永不为 nil）。
+    /// 托管侧由本工厂造对象来等价表达。
+    /// </summary>
+    public Func<object>? NodeDataFactory { get; set; }
+
     /// <inheritdoc/>
     public TVirtualNodeSeam? FocusedNode { get; set; }
 
@@ -406,7 +433,7 @@ public sealed class CustomMagicTreeHost : IVirtualTreeHost
     public void SetFocus() => Focused = true;
 
     /// <inheritdoc/>
-    public object? Owner { get; }
+    public object? Owner { get; set; }
 
     /// <inheritdoc/>
     public IntPtr Handle { get; set; }
@@ -466,6 +493,8 @@ public sealed class CustomMagicTreeHost : IVirtualTreeHost
     public TVirtualNodeSeam AddChild(TVirtualNodeSeam? parent)
     {
         var node = new TVirtualNodeSeam { Index = _nodes.Count };
+        // 原文：AddChild 时按 NodeDataSize GetMem 并清零
+        node.Data = NodeDataFactory?.Invoke();
         _nodes.Add(node);
         return node;
     }

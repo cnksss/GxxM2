@@ -64,12 +64,21 @@ public static class CustomMagicMainTreeLogic
     ///   else if Sender.Selected[Node] and Sender.Focused then clHighlightText
     ///   else Sender.Font.Color;</c>
     /// <para>注意分支顺序：IsChanged 优先于选中高亮。</para>
+    /// <para>
+    /// <b>原文如此</b>：<c>ConfigNodeData.Config</c> 未做 nil 判定 —— 节点数据存在但
+    /// <c>Config = nil</c> 时原文解引用会 AV。托管侧照抄该边界（抛
+    /// <see cref="NullReferenceException"/>），以便测试锁定"这不是宽容分支"。
+    /// </para>
     /// </summary>
     public static int ResolveFontColor(TMagicConfigNodeData? data, bool selected, bool focused, int fontColor)
     {
         if (data != null)
         {
-            if (data.Config != null && data.Config.IsChanged)
+            if (data.Config is null)
+                throw new NullReferenceException(
+                    "vstCustomMagicDrawText: ConfigNodeData.Config 为 nil（原文此处解引用 AV）");
+
+            if (data.Config.IsChanged)
                 return CustomMagicColors.clRed;
             if (selected && focused)
                 return CustomMagicColors.clHighlightText;
@@ -274,11 +283,20 @@ public static class ElementTreeLogic
     public static int StartEditingMessage(bool senderIsDecElement)
         => senderIsDecElement ? CustomMagicWm.WM_STARTEDITING_DEC_ELEMENT : CustomMagicWm.WM_STARTEDITING_INC_ELEMENT;
 
-    /// <summary>原文 <c>AfterCellPaint</c>（:4468-4488）：提示列按 <c>Integer(Data.ShowHint)</c> 画图标。</summary>
+    /// <summary>原文 <c>AfterCellPaint</c>（:4468-4488）：提示列（**元素树是 9**）按 <c>Integer(Data.ShowHint)</c> 画图标。</summary>
     public static bool TryGetHintIconLayout(int column, TRectSeam cellRect, int imageListWidth, int imageListHeight,
                                             bool showHint, out int x, out int y, out int imageIndex)
-        => DecAttribTreeLogic.TryGetHintIconLayout(column, cellRect, imageListWidth, imageListHeight, showHint,
-                                                   out x, out y, out imageIndex);
+    {
+        x = y = 0;
+        imageIndex = 0;
+        if (column != HintColumn)      // 注意：这里必须是元素树自己的 9，而不是属性树的 12
+            return false;
+
+        imageIndex = showHint ? 1 : 0;
+        x = cellRect.Left + (cellRect.Right - cellRect.Left - imageListWidth) / 2;
+        y = cellRect.Top + (cellRect.Bottom - cellRect.Top - imageListHeight) / 2;
+        return true;
+    }
 
     /// <summary>原文 <c>GetText</c>（:4489-4520）：元素树列文本，无 "-" 占位逻辑。</summary>
     public static string GetText(int column, TMagicElementData data, TMagicAttackChangeElementRecord d)

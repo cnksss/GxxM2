@@ -68,11 +68,23 @@ public partial class TFrmCustomMagic : System.Windows.Forms.Form
     /// </summary>
     private void InitializeComponentSeam()
     {
-        MainTreeHost = new CustomMagicTreeHost(this);
-        TreeHosts["vstCustomMagic"] = MainTreeHost;
+        // 5 棵树的宿主：Owner 指向本窗体（原文 FTree.Owner is TFrmCustomMagic）
+        foreach (var host in new[] { vstCustomMagic, vstAttackDecAttr, vstDecElement, vstProtectedAddAttr, vstAddElement })
+            host.Owner = this;
 
-        foreach (var name in new[] { "vstAttackDecAttr", "vstDecElement", "vstProtectedAddAttr", "vstAddElement" })
-            TreeHosts[name] = new CustomMagicTreeHost(this);
+        // 节点数据工厂（原文按 NodeDataSize GetMem 清零后由 GetNodeData 返回其地址，永不为 nil）
+        vstCustomMagic.NodeDataFactory = () => new TMagicConfigNodeData();
+        vstAttackDecAttr.NodeDataFactory = () => new TAttackDecAttribData();
+        vstDecElement.NodeDataFactory = () => new TMagicElementData();
+        vstProtectedAddAttr.NodeDataFactory = () => new TProtectAddAttribData();
+        vstAddElement.NodeDataFactory = () => new TMagicElementData();
+
+        MainTreeHost = vstCustomMagic;
+        TreeHosts["vstCustomMagic"] = vstCustomMagic;
+        TreeHosts["vstAttackDecAttr"] = vstAttackDecAttr;
+        TreeHosts["vstDecElement"] = vstDecElement;
+        TreeHosts["vstProtectedAddAttr"] = vstProtectedAddAttr;
+        TreeHosts["vstAddElement"] = vstAddElement;
 
         // 原文 DFM：pgcMain 三页、pgcClient 若干页、pgcMagicType 两页
         pgcMain.Pages.Add(tsAttack);
@@ -81,6 +93,11 @@ public partial class TFrmCustomMagic : System.Windows.Forms.Form
         pgcClient.Pages.Add(tsBase);
         pgcClient.Pages.Add(tsEffect);
         pgcClient.ActivePage = tsBase;
+
+        // DFM 值 1:1（uFrmCustomMagic.dfm:6013 Enabled = False；:6053-6055 ilCheck 13×13）
+        btnSave.Enabled = false;
+        ilCheck.Width = 13;
+        ilCheck.Height = 13;
     }
 
     /// <summary>主列表树宿主的便捷访问（<c>Sender</c> = vstCustomMagic）。</summary>
@@ -218,10 +235,12 @@ public partial class TFrmCustomMagic : System.Windows.Forms.Form
     {
         // 原文局部量（:1669-1685）在托管侧内联为循环变量。
 
-        vstAttackDecAttr.NodeDataSize = 0;      // SizeOf(TAttackDecAttribData)（接缝：对象引用）
-        vstDecElement.NodeDataSize = 0;         // SizeOf(TMagicElementData)
-        vstProtectedAddAttr.NodeDataSize = 0;   // SizeOf(TProtectAddAttribData)
-        vstAddElement.NodeDataSize = 0;         // SizeOf(TMagicElementData)
+        // 原文 :1687-1691 用 SizeOf(T...Data)；Delphi 7 下该记录 = 枚举(1) + 填充(3) + 指针(4) = 8 字节。
+        // 托管侧节点数据是对象引用，NodeDataSize 仅作镜像，不参与分配。
+        vstAttackDecAttr.NodeDataSize = 8;      // SizeOf(TAttackDecAttribData)
+        vstDecElement.NodeDataSize = 8;         // SizeOf(TMagicElementData)
+        vstProtectedAddAttr.NodeDataSize = 8;   // SizeOf(TProtectAddAttribData)
+        vstAddElement.NodeDataSize = 8;         // SizeOf(TMagicElementData)
 
         cbbClientLevel.Items.Clear();
         for (int magicPlusLevel = 0; magicPlusLevel < CustomMagicUtils.MagicPlusLevelNames.Length; magicPlusLevel++)
@@ -422,7 +441,11 @@ public partial class TFrmCustomMagic : System.Windows.Forms.Form
 
         if (configNodeData != null)
         {
-            if (configNodeData.Config != null && configNodeData.Config.IsChanged)
+            if (configNodeData.Config is null)
+                throw new NullReferenceException(
+                    "vstCustomMagicDrawText: ConfigNodeData.Config 为 nil（原文此处解引用 AV）");
+
+            if (configNodeData.Config.IsChanged)
                 FontColorMirror = CustomMagicColors.clRed;
             else if (sender.IsSelected(node!) && sender.Focused)
                 FontColorMirror = CustomMagicColors.clHighlightText;
