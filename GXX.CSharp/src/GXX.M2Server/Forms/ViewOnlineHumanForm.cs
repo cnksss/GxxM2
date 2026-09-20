@@ -1,4 +1,4 @@
-﻿using GXX.Core.Rtl;
+using GXX.Core.Rtl;
 using GXX.Core.Protocol;
 using GXX.M2Server.Engine;
 
@@ -399,7 +399,8 @@ public sealed class ViewOnlineHumanForm : System.Windows.Forms.Form
         {
             foreach (var player in _engine.PlayObjects)
             {
-                if (player.m_boOffLine && !M2ShareGlobals.SearchSellPlayer(player.m_sCharName, out int _))
+                // 原文 ViewOnlineHuman.pas:481：if Player.m_boOffLine and (not g_SellPlayerList.Search(Player.m_sCharName, Index)) then
+                if (player.m_boOffLine && !M2ShareGlobals.g_SellPlayerList.Search(player.m_sCharName, out int _))
                     player.MakeGhost();
             }
         }

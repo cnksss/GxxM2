@@ -203,7 +203,8 @@ public sealed class FormViewOnlineHumanTests : IDisposable
         _engine.PlayObjects.Add(offline1);
         _engine.PlayObjects.Add(offline2);
         _engine.PlayObjects.Add(online);
-        M2ShareGlobals.g_SellPlayerList.Add("寄售乙"); // 寄售名单不踢
+        // 原文 g_SellPlayerList 是 TSellPlayerList（M2Share.pas:8416）→ 寄售名单按记录加入
+        M2ShareGlobals.g_SellPlayerList.AddSellPlayer("acc", "寄售乙", "deleg", 0, 1, 0, false, ""); // 寄售名单不踢
 
         StaRunner.New(() =>
         {

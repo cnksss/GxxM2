@@ -701,6 +701,42 @@ public sealed class SellPlayerTests : SellPlayerTestBase
         SellPlayerGlobals.m_AutoLoadSellPlayerList.Clear();
         Assert.True(SellPlayerGlobals.m_boStartAutoLoadSellPlayer);          // 标志只在方法内刷新
     }
+
+    // ------------------------------------------------------------------
+    // g_SellPlayerList 接线：**接缝臆造修正**（M2ShareFuncs.cs，车道 p8-m2-itemprop-misc 请求 #1）
+    //   原文 M2Share.pas:8416 `g_SellPlayerList: TSellPlayerList;`
+    //   原托管实现是 List<string> + SearchSellPlayer（IndexOf 语义）—— 类型不符，已改为本类。
+    // ------------------------------------------------------------------
+
+    [Fact]
+    public void M2ShareGlobals_SellPlayerList_IsTheRealTSellPlayerList()
+    {
+        M2ShareGlobals.g_SellPlayerList.Clear();
+        Assert.IsType<TSellPlayerList>(M2ShareGlobals.g_SellPlayerList);
+    }
+
+    [Fact]
+    public void M2ShareGlobals_SellPlayerList_SupportsRecordAccessAndDeletion()
+    {
+        var list = M2ShareGlobals.g_SellPlayerList;
+        list.Clear();
+        Assert.True(list.AddSellPlayer("acc", "寄售乙", "deleg", 2, 500, 0, false, ""));
+        Assert.True(list.Search("寄售乙", out int index));       // 原文二分查找（= ViewOnlineHuman.pas:481 用法）
+        Assert.Equal("acc", list[index].Account);                // Items[I] 记录访问：List<string> 表达不了
+        list.DeleteByIndex(index);                               // UsrEngn.pas:2331/2840 用法
+        Assert.Equal(0, list.Count);
+    }
+
+    [Fact]
+    public void M2ShareGlobals_SellPlayerList_NoLongerExposesStringListShim()
+    {
+        // 防复发：SearchSellPlayer（IndexOf 语义的替身）必须不存在，字段类型必须是 TSellPlayerList
+        var t = typeof(M2ShareGlobals);
+        Assert.Null(t.GetMethod("SearchSellPlayer"));
+        var field = t.GetField("g_SellPlayerList");
+        Assert.NotNull(field);
+        Assert.Equal(typeof(TSellPlayerList), field!.FieldType);
+    }
 }
 
 /// <summary>
