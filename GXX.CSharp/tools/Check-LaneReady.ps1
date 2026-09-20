@@ -2,7 +2,7 @@
 #
 # WHY THIS EXISTS
 #   A wave was merged that included a lane whose HEAD was deliberately labelled
-#   "WIP-不可合并" (work-in-progress, must not be merged).  The lane followed the
+#   "WIP / do-not-merge" (work-in-progress, must not be merged).  The lane followed the
 #   rule; the integrator did not check.  The gate caught it (the commit did not
 #   compile, CS0246), but only after a full ~3 minute gate run was wasted and the
 #   whole wave had to be aborted and re-merged.
