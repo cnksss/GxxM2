@@ -3,35 +3,62 @@
 **任务**：补齐客户端 actor 基类本体（`TActor` 4 个虚方法） + 移植 7 个原文子类
 **分支**：`par/p7-client-actor-family`
 **工作树**：`D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p7-client-actor-family`
-**基线**（本工作树实跑，改动前）：`build` 0 Error / 157 Warning；`GXX.Client.Tests` **4326** 全绿
+
+| 轮次 | 基线（实跑） | 结果 | commit |
+|---|---|---|---|
+| 第一轮（受限） | build 0 Error / 157 W；`GXX.Client.Tests` **4326** | 4326 → **4386**（+60）；任务1 落成静态核心、任务2 未做（越区阻塞） | `72da453a` `ea380457` `16515c30` |
+| rebase 到 main（`5538f7d0`，已并入 §32 批次） | 基线 **4437** | 4437 → 4534 → **4603** | 见 §1.2 |
+| **第二轮（越区请求全部获批）** | 续上 | **两项任务全部完成**；`GXX.Client.Tests` **4603** 全绿 | 见 §1.2 |
+
+> ★ **本报告 §0 的"未完成"结论已被第二轮推翻**：父 agent 批准了三项越区请求
+> （`PlaySceneNewActor.cs` / `CustomActor.cs` / `ActorSoundDispatch.cs` 加入本车道分区），
+> 故 **`TActor` 4 个本体已接上虚槽位、7 个子类已全部落成真类 `override`**。
+> §0 保留为**第一轮的历史记录**（并已标注其结论的失效），第二轮的完整内容见 **§12**。
 
 ---
 
-## 0. 一句话结论（先说最重要的）
+## 0. 第一轮结论（★ 已被第二轮推翻，保留为历史记录）
 
-**这两件事我都没能真正完成，原因是同一个、且是任务书本身设下的边界**：
+**第一轮这两件事都没能真正完成，原因是同一个、且是当时任务书设下的边界**：
 
 > `TActor` 的 4 个空虚成员声明在 `Scenes/PlaySceneNewActor.cs:474-484`，
 > 而 `:472` 的 `public class TActor : TActorCore` **没有 `partial`**；
 > 7 个目标子类（`TKillingHerb`/`TBeeQueen`/`TMineMon`/`TCentipedeKingMon`/`TCastleDoor`/
 > `TWallStructure`/`TDragonBody`）的**桩类体也全部在同一个文件**（`:504-551`）。
-> 按任务书「⚠ `PlaySceneNewActor.cs` 不在你的分区 —— 若需要动它，请在报告里提出，**不要自行修改**」，
-> 我没有动它 ⇒ **落 `override` 与落 `partial` 均不可能**（`CS0260` + `CS0111`，已实跑确认）。
+> 按当时任务书「⚠ `PlaySceneNewActor.cs` 不在你的分区 —— 若需要动它，请在报告里提出，**不要自行修改**」，
+> 第一轮没有动它 ⇒ **落 `override` 与落 `partial` 均不可能**（`CS0260` + `CS0111`，已实跑确认）。
 
-因此本车道的**实际交付**是：
+第一轮的实际交付是：
 ① 把 4 个本体的 1:1 代码**写成静态核心**（接上虚槽位时**方法体零改动**）；
 ② 60 例回归证据；
 ③ 更新两处过期注释；
-④ **精确到行**的越区请求清单（§8）。
+④ **精确到行**的越区请求清单（§8）——**该清单在第二轮被全部批准并执行**。
 
 ---
 
 ## 1. 全部 commit hash
 
+### 1.1 第一轮（受限轮）
+
 | hash | 说明 |
 |---|---|
 | `72da453a` | 切片1：`ActorFamilyEnv.cs` + `ActorFamilyImpl.cs`（4 个本体 1:1 + 接缝 + 缺失字段）。build 0 Error |
 | `ea380457` | 切片2：`ActorFamilyBaseTests.cs`（60 例）+ `Tail/HerbActor.cs` 两处过期注释与两张登记表。4326 → 4386 全绿 |
+| `16515c30` | docs 报告 + 越区请求清单（**该清单在第二轮被全部批准**） |
+
+> 这三笔已随 main 的 `4a18dc15 integrate par/p7-client-actor-family` **并入 main**。
+
+### 1.2 第二轮（越区请求获批后）
+
+| hash | 说明 |
+|---|---|
+| `802e87ca` | 切片3：4 本体接上虚槽位 + `CustomActor` 7 处 `inherited` 转调 + `ActorSoundDispatch` 源头补齐 |
+| `215775b7` | 切片4：7 个原文子类的 1:1 override 落地 |
+| `ac2e7cd5` | 切片5：子类 override 测试 + 覆盖登记表更新 |
+| （本报告提交） | `docs/并行报告-p7-client-actor-family.md` 第二轮内容 |
+
+> rebase 说明：第二轮开始前把分支 rebase 到 main 的 `5538f7d0`（含 §32 批次），
+> 以便门禁基线取得 main 的真实测试数（**4437**）。
 
 > **本车道没有 `WIP-不可合并` 提交**：两笔提交前都实跑了
 > `dotnet build GXX.slnx -c Debug`（0 Error）与
@@ -411,5 +438,219 @@ dotnet build GXX.slnx -c Debug --nologo
 dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo
 # 只看本车道证据：
 dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo `
-  --filter "FullyQualifiedName~ActorFamilyBaseTests"
+  --filter "FullyQualifiedName~ActorFamily"
 ```
+
+---
+
+# ★ 第二轮（越区请求全部获批后）—— 两项任务全部完成
+
+## 11.1 全部 commit hash（第二轮）
+
+| hash | 说明 |
+|---|---|
+| `9c26fd88` | rebase 到 main（`5538f7d0`）后的报告提交（第一轮 3 笔已被 main 并入 `4a18dc15`） |
+| `802e87ca` | 切片3：4 本体**接上虚槽位** + 越区批准的两处机械改动 + `CustomActor` 的 7 处 `inherited` 转调 + `ActorSoundDispatch` 源头补齐 |
+| `215775b7` | 切片4：**7 个原文子类的 1:1 override 落地** |
+| `ac2e7cd5` | 切片5：69 例子类 override 测试 + 覆盖登记表更新 |
+
+> 三笔提交前都实跑了 build + test；最后一笔后 `git status --porcelain` **为空**。
+
+## 11.2 三项越区请求的执行结果
+
+| 请求 | 批准 | 执行 |
+|---|---|---|
+| ① `PlaySceneNewActor.cs` 加 `partial` + 删 4 个空虚成员 | ✅ | ✅ 已做（`:472` 加 `partial`；`:474-484` 的 4 个空虚成员删除，实体移入 `ActorFamilyBase.cs`） |
+| ② `CustomActor.cs` 的 7 处 `inherited` 转调 + `ActorColorEffect`/`ActorSex` | ✅ | ✅ 已做（见 §11.4） |
+| ③ `ActorSoundDispatch.RunActSoundOther` 缺口 **在源头修** + 删掉我的重复补偿 | ✅ | ✅ 已做（见 §11.5） |
+
+## 11.3 基类 4 本体的最终形态
+
+| 原文方法 | 虚成员（`ActorFamilyBase.cs`） | 1:1 实体 |
+|---|---|---|
+| `TActor.LoadSurface(Sender:TObject)` 5480-5593 | `virtual void LoadSurface(object? sender)` —— **原文签名** | `ActorFamilyImpl.LoadSurface(TActor, object?)` |
+| （同上，`CustomActor.pas` 族的无参形态） | `virtual void LoadSurface()` —— **派生槽位**，如实转调带参重载（传 `null`；原文全文不引用 `Sender`） | 同上 |
+| `TActor.DrawChr` 6067-6129 | `virtual void DrawChr(int,int,bool,bool)` | `ActorFamilyImpl.DrawChr` |
+| `TActor.RunSound` 6788-6901 | `virtual void RunSound()` | `ActorFamilyImpl.RunSound` |
+| `TActor.RunActSound` 6903-7095 | `virtual void RunActSound(int)` | `ActorFamilyImpl.RunActSound` |
+| （依赖）`DrawStateEffSurface` 5654-5702 | `virtual void DrawStateEffSurface(int,int)` | `ActorFamilyImpl.DrawStateEffSurface` |
+| （依赖）`SetSound` 6454-6786 | `virtual void SetSound()` | `ActorFamilyImpl.SetSound`（**空 = 原文对怪物族的语义**，§7.5 已论证） |
+
+**接通成本实测**：`ActorFamilyImpl` 的方法体**一行未改**（只把形参由 `TActorCore` 收紧为 `TActor`，
+以便读到虚接入点）；`PlaySceneNewActor.cs` 只改了 2 处（+1 `partial`、删 4 行）。
+
+## 11.4 `CustomActor.cs` 的改动（请求②）
+
+1. **7 处"前置门为真 → `inherited`"改为真发 `base.*`**：
+   `LoadSurface`（`base.LoadSurface(null)`）/ `DrawChr`（precondition + `"body"` 序位两处）/
+   `RunSound` / `RunActSound(frame)`。
+   > 改动前它们只 `return` —— 基类空实现时"等价"，基类**有本体**后就是
+   > "**门为真时什么都不发生**"，即台账 §24.2 的镜像形态。
+2. **「继承字段消重」（★ 本轮发现的隐藏缺陷）**：`TCustomActor` 曾自建 **11 个**与基类同名的字段
+   （`m_nSpellFrame` / `m_nCurEffFrame` / `m_nEffectFrame` / `m_nEffectEnd` /
+   `m_nStruckWeaponSound` / `m_BodySurface` / `m_dwLoadSurfaceTime` / `m_boLoadSurface` /
+   `m_boRunSound` / `m_dwEffectFrameTime` / `m_dwEffectStartTime`），形成字段隐藏（CS0108）。
+   基类本体读写的是**继承的那一份**，两处永不相等 —— 属"**同一状态两份存储**"的静默缺陷
+   （台账 §25.2 同族）。已全部删除，一律使用继承字段。
+3. `m_ColorEffect` 改为**覆写虚属性** `ActorColorEffect`（基类存储名为 `m_BaseColorEffect`）；
+   3 处读取点随之改用属性。
+4. `SetSound_()` 由**恒空替身**改为如实转调 `base.SetSound()`
+   （后者是"原文对怪物族无副作用"的正当承载，留个恒空替身会把基类语义伪装成本类占位）。
+5. **测试期望更正**：`CustomActorTests.ActorRunSound_BypassGateDoesNotPlayAnything` 原先断言
+   `Assert.False(a.m_boRunSound)` —— 那是"基类尚为空实现"时的产物。原文依据
+   `CustomActor.pas:1112-1114`（门为真即 `inherited RunSound`）+ `Actor.pas:6794`
+   （置真在**基类里**，故子类门之后仍会执行）⇒ 更正为 `Assert.True`，
+   并补上"基类确实被转调"的证据（`SM_DIGUP` 的 appear 音）。已改名为
+   `ActorRunSound_BypassGateDelegatesToBaseRunSound`。
+
+## 11.5 `ActorSoundDispatch.RunActSoundOther` 的源头修复（请求③）
+
+按父 agent 裁定「**不得留两份同义但内容不同的派发实现**」执行：
+
+1. **在源头补齐两支**（逐字，注释带原文行号）：
+   - `7063-7072`：`case m_wAppearance of 80:` → 仅 `SM_NOWDEATH` 且 `frame = 2` 播 `m_nDie2Sound`；
+   - `7076-7092`：`m_btRace in [202..209]` → `SM_TURN→542` / `SM_STRUCK→495` / `SM_NOWDEATH→496`
+     （**三分支都不判 `frame`**）。
+2. **删除我在 `ActorFamilyImpl` 里的重复补偿**，改回转调该权威函数。
+3. **新入参位置**：`m_wAppearance` / `m_nDie2Sound` 追加在 `rand8` **之后**（而非之前），
+   以不破坏既有 8 处调用点的实参顺序；且该顺序在逻辑上也忠于原文流程（7063 在 7051 之后）。
+4. **更正该函数原先"7045-7110ish 的决策部分 1:1"这一与实现不符的注释**
+   （它当时只落了 7051-7062 两段，属"注释自称 1:1、实现不完整"，是台账 §25.2/§31.4 同族形态）。
+5. **`FormJ94Tests` 的处置（父 agent 要求给出结论与依据）**：
+   **结论：原来那 8 处断言没有"锁死错误行为"**，它们只覆盖 7051-7062 段，
+   且传入的 `m_wAppearance` 语义位置当时还不存在 ⇒ 只需补两个中性实参（`0, -1`）即可编译，
+   **不需要改任何期望值**。另**新增 4 例**锁定补齐的两支（含边界 `201/202/209/210`）。
+   > 之所以不需要改期望：原文确有两支（已回读 `Actor.pas:7063-7072` 与 `7076-7092`），
+   > 是**实现缺失**而不是**测试期望错**（两者区别见父 agent 的判定规则）。
+
+## 11.6 7 个原文子类的落地（★ 任务2，本轮完成）
+
+| 类（原文行） | 落地文件 | 覆写的方法（原文行号） |
+|---|---|---|
+| `TKillingHerb`（:28） | `Scenes/ActorFamilyHerb.cs` | `CalcActorFrame` 157-268 · `GetDefaultFrame` 270-299 |
+| `TMineMon`（:37） | 同上 | `CalcActorFrame` 1166-1170 · `GetDefaultFrame` 1218-1226 |
+| `TBeeQueen`（:45） | 同上 | `CalcActorFrame` 303-397 · `GetDefaultFrame` 399-425 |
+| `TCentipedeKingMon`（:52） | 同上 | `CalcActorFrame` 430-514 · `DrawEff` 1177-1182 · `LoadEffect` 1184-1200 · `Finalize` 1202-1206 · `LoadSurface` 1208-1216 · `Run` 1244-1284 |
+| `TBigHeartMon`（:66） | 同上 | `CalcActorFrame` 1230-1234 |
+| `TSpiderHouseMon`（:71） | 同上 | `CalcActorFrame` 1238-1242 |
+| `TCastleDoor`（:76） | `Scenes/ActorFamilyStructures.cs` | `Create` 519-525 · `Finalize` 527-531 · `ApplyDoorState` 533-560 · `LoadSurface` 562-581 · `CalcActorFrame` 583-671 · `GetDefaultFrame` 673-699 · `ActionEnded` 701-709 · `Run` 711-724 · `DrawChr` 726-741 |
+| `TWallStructure`（:94） | 同上 | `Create` 746-754 · `Finalize` 756-761 · `CalcActorFrame` 763-830 · `LoadSurface` 832-912 · `GetDefaultFrame` 914-927 · `DrawChr` 929-950 · `Run` 952-968 |
+| `TNewWallStructure`（:111，**托管侧原先完全缺失**） | 同上 | `Create` 973-981 · `Finalize` 983-988 · `CalcActorFrame` 990-1048 · `LoadSurface` 1050-1106 · `GetDefaultFrame` 1108-1121 · `DrawChr` 1123-1144 · `Run` 1146-1162 |
+| `TDragonBody`（:132） | `Scenes/ActorFamilyDragonBody.cs` | `CalcActorFrame` 1288-1308 · `DrawEff` 1310-1315 · `LoadSurface` 1317-1339 |
+
+### ★ 一处**必须更正的结构事实**（本轮发现）
+
+托管侧原先把这些子类**平铺**为 `: TActor`；而原文层级是：
+
+```
+TKillingHerb : TActor
+TMineMon / TCentipedeKingMon / TBigHeartMon / TSpiderHouseMon / TDragonBody : TKillingHerb
+TBeeQueen : TActor            ← ★ 不是 TKillingHerb
+TCastleDoor / TWallStructure / TNewWallStructure : TActor
+```
+
+若继续平铺，`inherited` 会**整段绕过 `TKillingHerb` 的覆写** ——
+属"看起来一样实则不同"的典型（例如 `TMineMon` 的 `inherited` 本应落到
+`TKillingHerb` 的变身前置段 162-173，平铺后却直接落到 `TActorCore`）。
+已在 `PlaySceneNewActor.cs` 的桩类头**按原文更正基类**，并有
+`SubclassHierarchyMatchesOriginal` 锁定。
+
+### 本轮新增的字面 / 逐字保留项（原文如此）
+
+- **原文本体里被注释掉的写法**逐字保留并注明行号，例如
+  `182/190/329/337/384/391`（方向乘法）、`651/814`（`+ frame - 1`）、
+  `654/817/1043`（`m_nDefFrameCount` 的赋值被注释）、
+  `822`（`m_boHoldPlace := False` 被注释）、`1023/1036`（`m_boUseEffect := True` 被注释）、
+  `869-877 / 894-898`（外观 `>= 904` 的整段被 `{ }` 注释 ⇒ **空分支**）；
+- `605/785/1012`：`m_sUserName := ' '`（**一个空格**，非空串）；
+- `1299`：`TDragonBody` 的 `m_nMaxTick := pm.ActWalk.**ftime**`（不是 `usetick`，原文如此）；
+- `1248-1254`：`TCentipedeKingMon.Run` 的移动族 Exit 列表（`SM_WALK/SM_BACKSTEP/SM_HORSERUN/SM_RUN`）
+  **与基类 `IsMoveAction` 不同** —— 逐字照抄，未合并。
+
+## 11.7 测试与门禁（第二轮）
+
+| 门禁 | 结果 |
+|---|---|
+| `dotnet build GXX.slnx -c Debug --nologo` | **0 Error** |
+| `dotnet test tests\GXX.Client.Tests` | **Passed 4603 / Failed 0 / Skipped 0** |
+
+进度：`4437（rebase 后基线）→ 4534（切片3 +97）→ 4603（切片5 +69）`。
+
+新增两个测试文件：
+- `ActorFamilyBaseTests.cs`（60 例，第一轮）：4 个本体 + 接缝语义；
+- `ActorFamilySubclassTests.cs`（69 例，第二轮）：**7 个子类 override 的行为**，
+  全部以**基类静态类型** `TActor` 持有实例（与场景工厂调用点同形）。
+
+**差异断言（本轮重点，均双向）**：
+
+| # | A 侧 | B 侧 |
+|---|---|---|
+| 1 | `TKillingHerb.SM_HIT` 的 `start` **含** `Dir*(frame+skip)`（= 80） | `TBeeQueen` 同条件 = 30（**不含**） |
+| 2 | `TKillingHerb` 死亡帧**有** `m_boSkeleton` 分支 | `TBeeQueen` **无**该分支（且无方向乘法） |
+| 3 | `TKillingHerb` **有** `SM_DIGUP`/`SM_DIGDOWN` 分支 | `TBeeQueen` **无**（越界动作不改写字段） |
+| 4 | `TCentipedeKingMon.SM_DIGDOWN` **不**清 `m_btDir` | 其 `SM_TURN`/`else` **清** |
+| 5 | `TWallStructure` 的 `else` 有 `SM_TURN → deathframe` 特判 | `TNewWallStructure` **无** |
+| 6 | `TWallStructure.SM_DIGUP` 置 `m_boUseEffect` | `TNewWallStructure` **不置**（1036 被注释） |
+| 7 | `TWallStructure.LoadSurface` 用 `m_wAppearance` 且 `>= 904` 为空分支 | `TNewWallStructure` 用 `m_wAppearance - 904`（无空分支） |
+| 8 | `TDragonBody` **无**变身前置段 | 其余 6 类**都有** |
+| 9 | `TCastleDoor.DrawChr` 主体绘制 **强制** `boFlag = FALSE` | `TWallStructure` **原样传** `boFlag` |
+| 10 | `TCastleDoor.CalcActorFrame` 清 `m_boUseEffect` | 怪物族清 `m_boUseMagic` |
+| 11 | `ApplyDoorState(dsOpen)` = 15 次 MarkCanWalk（末 3 格改回不可走） | `dsClose` = 12 次（前 3 格**无条件可走**） |
+| 12 | `ChangeAppr >= 0`（**0 也算变身**）走基类分支 | `-1` 走自有分支（哨兵值可区分，见测试注释） |
+
+## 11.8 覆盖登记表（第二轮的更正）
+
+`Tail/HerbActor.cs` 的三张表按事实更正：
+
+1. **`Units`**：7 个目标子类由"纯函数抽取"升级为"**类 override（含原文行号）+ 纯函数抽取**"；
+   `TNewWallStructure` 补登记；`Actor 基类虚方法` 一条由"未落地"改为"已落地"。
+2. **`UncoveredRanges`**：原四段（`583-745` / `763-1165` / `1177-1216` / `1244-1341`）**全部覆盖**，
+   改为 `(303,302)` 占位 + 新增 `AllRangesCovered = true` 显式声明。
+   > ★ **不要用 `(0,0)` 作占位**：它满足 `From <= To`，会被既有审计断言
+   > `UncoveredRanges_AreOrderedAndInBounds` 当成**真实区间**而因越界（原文 1..1341）报错
+   > —— 本轮踩过一次，已记入 §11.10。
+3. **`SubclassOverrideBlockers`**：语义由"阻塞原因"变为"落地位置"（表名保留以免动既有断言）。
+4. **`BaseActorBodies`**：`RunActSound` 一条更正为"已在源头补齐 + 删除重复补偿"。
+5. 文件头两处"受阻"说明改为"已落地（第二轮）"。
+
+**既有断言的更正（均注明依据）**：
+- `TailHerbActorTests.CoverageTable_IsSelfConsistent`：由「必须存在一条含"未落地"+"Scenes"的登记」
+  改为「**不再有**任何未落地条目」（依据：4 本体 + 7 子类的落地位置）；
+- `TailHerbActorTests.UncoveredRanges_AreOrderedAndInBounds`：由「必须非空」改为
+  「为空时须由 `AllRangesCovered` 显式声明（**不得静默为空**）」。
+
+## 11.9 剩余量（第二轮结束时）
+
+| 剩余项 | 说明 |
+|---|---|
+| `TActor.SetSound` 本体（333 行 / 60+ 命名音常量） | **未移植**；但对怪物族本就无副作用（§7.5），人类族覆写在 `THumActor` |
+| `THumActor.LoadSurface`（14532-14751）/ `DrawChr`（16501-17420，~900 行） | **未碰**。★ 它们**继承**本轮给 `TActor` 的本体，在自身覆写落地前会走**怪物图集路径** —— 已登记为已知缺口；本轮**未**为掩盖它给基类加特判（父 agent 明确认可这一处理） |
+| `TNpcActor.LoadSurface`（10482）/ `DrawChr`（10297） | 同上 |
+| `TActor.SetSound` 之外的 `Actor.pas` 未移植项 | `LoadNameSurface` / `LoadActorIcons` / `CheckLoadSurface` / `DrawEffSurface` 等（本轮只落了 4 个本体 + 2 个依赖） |
+| **取图/绘制/特效的接缝** | `ActorFamilyHerbEnv` 的 11 个接缝（6 取图 + 5 场景/地图）与 `ActorFamilyEnv` 的 22 个接缝仍未接线到真实图库/地图 —— 这是**接缝层**，不是本体的缺失 |
+| `ActorFamilySubclassTests` 的覆盖面 | 69 例覆盖 7 类的**帧决策 / 地图标记 / 门状态 / 特效游标**；`DrawChr` 的绘制参数只做了"确实画了"级别的断言（`SurfaceDrawOp` 的完整字段比对可再加厚） |
+
+## 11.10 本轮的两处过程失误（如实记录）
+
+1. **警告计数口径**：`--no-incremental` 全量构建的 `Warning(s)` 计数在 157/163 间波动，
+   原因是同一警告会因多项目构建而被**重复计入**（`Sort-Object -Unique` 去重后两次都是 163 行，
+   但 `Warning(s)` 摘要行取的是另一口径）。已核实：**`ActorFamily*` / `CustomActorTests` /
+   `FormJ94Tests` / `TailHerbActorTests` 四个文件贡献的警告为 0 条**，
+   故本轮改动**未引入新警告**；但我**没能**给出"与基线逐条比对完全一致"那种强度的证据
+   （第一轮那条 150 条逐条比对的结论本轮未复现）。**如需要该强度证据，请指示我去 main 上跑一次同口径基线。**
+2. **`(0,0)` 占位踩坑**：我一度把"无未覆盖区间"表达为 `(0,0)`，它满足审计的
+   `From <= To` 过滤条件 ⇒ 被当成真实区间 ⇒ `Assert.InRange(0, 1, 1341)` 失败。
+   已改为既有的 `(303,302)` 约定并加注释警示（见 §11.8-2）。
+
+## 11.11 复现命令（第二轮）
+
+```powershell
+cd D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p7-client-actor-family\GXX.CSharp
+$env:DOTNET_CLI_UI_LANGUAGE='en'
+dotnet build GXX.slnx -c Debug --nologo
+dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo
+# 只看本车道证据（9 个测试类共 174 例）：
+dotnet test tests\GXX.Client.Tests\GXX.Client.Tests.csproj -c Debug --nologo `
+  --filter "FullyQualifiedName~ActorFamily"
+```
+
