@@ -19,6 +19,46 @@ public class SelectClientFrameTests : SelectClientTestBase
         => TDefaultMessage.Make((ushort)ident, 0, (ushort)param, (ushort)tag, (ushort)series);
 
     // =====================================================================================
+    // 生命周期
+    // =====================================================================================
+
+    [Fact]
+    public void 构造_字段初值逐字照抄原文()
+    {
+        DelphiTick.GetTickCount = () => 1234;
+        var c = new TSelectClient();
+
+        Assert.Equal(1234u, c.m_dwKeepAliveTick);                                 // :267
+        Assert.Equal("", c.m_sReceiveText);                                       // :268
+        Assert.Equal("", c.m_sGateaddr);                                          // :269
+        Assert.Equal(1234u, c.m_dwTick10);                                        // :270
+        Assert.Equal(0, c.m_nGateID);                                             // :271
+        Assert.Equal(IntPtr.Zero, c.m_Module);                                    // :272
+        Assert.Equal(1234u, c.m_dwCheckServerTimeMin);                            // :273
+        Assert.Equal(0u, c.m_dwCheckServerTimeMax);                               // :274（不是 GetTickCount）
+        Assert.Equal(1234u, c.m_dwCheckRecviceTick);                              // :275
+        Assert.NotNull(c.SelectCharList);                                         // :276
+        Assert.Equal(1000, c.SelectCharList.Count);
+        Assert.Equal(0, c.SelectCharList.OnLineCount);
+    }
+
+    [Fact]
+    public void Destroy_等价于对会话表做无参Finalize()
+    {
+        var c = new TSelectClient();
+        c.ExecGateBuffers("%O1/1.1.1.1$");
+        var u = c.SelectCharList.OnLineItems(0)!;
+        u.nSessionID = 321;
+
+        c.Destroy();
+
+        Assert.Null(u.Socket);                                                    // 被清
+        Assert.Equal("", u.sConnID);
+        Assert.Equal(321, u.nSessionID);                                          // Finalize 不清会话号
+        Assert.Equal(1, c.SelectCharList.OnLineCount);                            // 也不清上线表
+    }
+
+    // =====================================================================================
     // ExecGateBuffers（string 重载 —— 本配置下真正生效的收包入口）
     // =====================================================================================
 
