@@ -513,16 +513,30 @@ public partial class TNormNpc
     //   托管侧目前只有部分，见报告 §8.6）。
 
     /// <summary>
-    /// 原文 `procedure Click(PlayObject: TPlayObject); virtual;`（ObjNpc.pas:4431-4442）。
-    /// <para>本车道只落"虚方法外壳"：本体（把 `PlayObject` 的 6 个脚本标签字段归零后 `GotoLable(Player,'@main',False)`）
-    /// 未覆盖 —— 那 6 个字段（`m_nScriptGotoCount`/`m_sScriptGoBackLable`/`m_sScriptCurrLable`/`m_sRandomString`/
-    /// `m_sInputData`/`m_sNpcSelectItemName`）在托管侧 `TPlayObject` 上**一个都没有**，属 `ObjPlayer.pas` 面（见报告 §8.6）。</para>
-    /// <para>做成虚方法的理由：`TMerchant.Click`(3228-3232)、`TGuildOfficial.Click`(10049-10053)、
-    /// `TCastleOfficial.Click`(1107-1116) 三个覆写都用 `inherited`。</para>
+    /// 原文 `procedure Click(PlayObject: TPlayObject); virtual; // 0049EC18`（ObjNpc.pas:4431-4442）。
+    /// <para><b>★ 切片 18 起为真实现</b>（调度方补齐 `TPlayObject` 的 3 个脚本字段后解锁）：
+    /// 先把 6 个脚本会话字段归零（`m_nScriptGotoCount` / `m_sScriptGoBackLable` / `m_sScriptCurrLable` /
+    /// `m_sRandomString` / `m_sInputData` / `m_sNpcSelectItemName`），再 `GotoLable(PlayObject, '@main', False)`。</para>
+    /// <para>**顺序照抄**：6 次赋值严格按原文 4433-4438 的行序，跳转在最后。
+    /// `GotoLable`（9263-9574，312 行，本车道未覆盖）经 Engine 自己的
+    /// `PlayerSurfaceNpcSeams.GotoLable` 接缝（`NpcSession.cs:44`，
+    /// 签名 `Func&lt;object, TPlayObject, string, bool, bool&gt;` = `(Npc, Player, sLabel, boExtJmp)`）转发 ——
+    /// 原文第 4 个默认参数 `UseParams = False` 由接缝**隐含**（本调用点传的就是默认值）。</para>
+    /// <para><b>必须是 `virtual`</b>：`TMerchant.Click`(3228)、`TGuildOfficial.Click`(10049)、
+    /// `TCastleOfficial.Click`(1107) 三处覆写都用 `inherited`（见台账「基类方法 + 子类 inherited
+    /// ⇒ 必须落虚方法」的规程）。</para>
     /// </summary>
     public virtual void Click(TPlayObject PlayObject)
     {
-        NpcSeams.Click(this, PlayObject);
+        PlayObject.m_nScriptGotoCount = 0;
+        PlayObject.m_sScriptGoBackLable = "";
+        PlayObject.m_sScriptCurrLable = "";
+        PlayObject.m_sRandomString = "";
+        PlayObject.m_sInputData = "";
+        PlayObject.m_sNpcSelectItemName = "";
+
+        // 原文 4440：`GotoLable(PlayObject, '@main', False);`（UseParams 取默认 False）
+        PlayerSurfaceNpcSeams.GotoLable(this, PlayObject, "@main", false);
     }
 
     /// <summary>

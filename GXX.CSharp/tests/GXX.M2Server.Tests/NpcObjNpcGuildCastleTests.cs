@@ -26,16 +26,28 @@ public sealed class NpcObjNpcGuildCastleTests : System.IDisposable
     private readonly List<string> _sysMsgs = new();
     private readonly List<string> _broadcasts = new();
     private readonly List<TNormNpc> _clicked = new();
+    private readonly List<string> _labels = new();
 
     public NpcObjNpcGuildCastleTests()
     {
         NpcSeams.ResetDefaults();
         NpcSeams.SysMsg = (target, msg, color, type) => _sysMsgs.Add($"{msg}/{color}/{type}");
         NpcSeams.SendBroadCastMsg = (msg, type) => _broadcasts.Add($"{msg}/{type}");
-        NpcSeams.Click = (npc, player) => _clicked.Add(npc);
+        // ★ 切片 18：`NpcSeams.Click` 已删除 —— 改为观测基类真实现的**可观测后果**
+        //   （`TNormNpc.Click` → 6 字段归零 + `GotoLable(npc, player, "@main", false)`）。
+        PlayerSurfaceNpcSeams.GotoLable = (npc, player, label, ext) =>
+        {
+            _clicked.Add((TNormNpc)npc);
+            _labels.Add(label);
+            return true;
+        };
     }
 
-    public void Dispose() => NpcSeams.ResetDefaults();
+    public void Dispose()
+    {
+        NpcSeams.ResetDefaults();
+        PlayerSurfaceNpcSeams.ResetDefaults();
+    }
 
     private static TPlayObject NewPlayer(string name = "P1") => new() { m_sCharName = name };
 
@@ -44,13 +56,30 @@ public sealed class NpcObjNpcGuildCastleTests : System.IDisposable
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void NormNpcClick_ForwardsToSeam()
+    public void NormNpcClick_ClearsScriptFieldsAndGotoMain()
     {
         var npc = new TNormNpc();
         var player = NewPlayer();
+        player.m_nScriptGotoCount = 9;
+        player.m_sScriptGoBackLable = "g";
+        player.m_sScriptCurrLable = "c";
+        player.m_sRandomString = "r";
+        player.m_sInputData = "i";
+        player.m_sNpcSelectItemName = "s";
+
         npc.Click(player);
+
+        // 原文 4433-4438 的 6 次归零（顺序照抄，此处只验结果）
+        Assert.Equal(0, player.m_nScriptGotoCount);
+        Assert.Equal("", player.m_sScriptGoBackLable);
+        Assert.Equal("", player.m_sScriptCurrLable);
+        Assert.Equal("", player.m_sRandomString);
+        Assert.Equal("", player.m_sInputData);
+        Assert.Equal("", player.m_sNpcSelectItemName);
+        // 原文 4440：`GotoLable(PlayObject, '@main', False)`
         Assert.Single(_clicked);
         Assert.Same(npc, _clicked[0]);
+        Assert.Equal("@main", _labels[0]);
     }
 
     // -----------------------------------------------------------------------

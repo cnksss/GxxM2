@@ -85,7 +85,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 4348, EndLine = 4365, Signature = "function TTrainer.Operate(ProcessMsg: pTProcessMessage): Boolean; // 004A38C4", Status = "Missing", Home = "" },
         new() { StartLine = 4366, EndLine = 4382, Signature = "procedure TTrainer.Run;", Status = "Missing", Home = "" },
         new() { StartLine = 4383, EndLine = 4430, Signature = "procedure TNormNpc.ClearScript;", Status = "Covered", Home = "ObjNpcLabels.cs" },
-        new() { StartLine = 4431, EndLine = 4442, Signature = "procedure TNormNpc.Click(PlayObject: TPlayObject); // 0049EC18", Status = "Seam", Home = "NpcSeams.Click + ObjNpcVars.cs 虚方法外壳" },
+        new() { StartLine = 4431, EndLine = 4442, Signature = "procedure TNormNpc.Click(PlayObject: TPlayObject); // 0049EC18", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 4443, EndLine = 4456, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var nValue: Integer);", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 4457, EndLine = 4466, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var sValue: string);", Status = "Covered", Home = "ObjNpcVars.cs" },
         new() { StartLine = 4467, EndLine = 4481, Signature = "procedure TNormNpc.GetVarValue(PlayObject: TPlayObject; sData: string; var sValue: string; var nValue: Integer; var IsBreakParseVar: Boolean);", Status = "Covered", Home = "ObjNpcVars.cs" },

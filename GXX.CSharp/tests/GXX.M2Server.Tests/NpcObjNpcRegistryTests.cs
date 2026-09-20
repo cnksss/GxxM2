@@ -49,9 +49,9 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 17 之后）：Covered 63 / Seam 6 / Missing 43 = 112。
-        Assert.Equal(63, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(6, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        // 落地口径（切片 18 之后）：Covered 64 / Seam 5 / Missing 43 = 112。
+        Assert.Equal(64, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(5, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
         Assert.Equal(43, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
@@ -91,7 +91,7 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(10510, "TBoxMonster.Create", "Covered")]
     [InlineData(10527, "TBoxMonster.Operate", "Covered")]
     [InlineData(10534, "TBoxMonster.Run", "Covered")]
-    [InlineData(4431, "Click", "Seam")]
+    [InlineData(4431, "Click", "Covered")]
     [InlineData(1107, "TCastleOfficial.Click", "Covered")]
     [InlineData(3228, "TMerchant.Click", "Covered")]
     [InlineData(10049, "TGuildOfficial.Click", "Covered")]

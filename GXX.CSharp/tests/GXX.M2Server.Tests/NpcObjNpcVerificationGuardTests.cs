@@ -253,13 +253,31 @@ public sealed class NpcObjNpcVerificationGuardTests : System.IDisposable
     }
 
     [Fact]
-    public void V5_MerchantClickSeamReceivesConcreteNpcInstance()
+    public void V5_MerchantClickReachesBaseRealImplementation()
     {
+        // ★ 切片 18：`TNormNpc.Click` 已是真实现（不再是接缝）→ 用其**可观测后果**证明
+        //   `TMerchant.Click` 的 `inherited` 确实落到了基类（而不是被委托吞掉）。
         TNormNpc seen = null;
-        NpcSeams.Click = (n, p) => seen = n;
-        var m = new TMerchant();
-        m.Click(new GXX.M2Server.Engine.TPlayObject());
-        Assert.Same(m, seen);
+        string seenLabel = null;
+        GXX.M2Server.Engine.PlayerSurfaceNpcSeams.GotoLable = (n, p, label, ext) =>
+        {
+            seen = (TNormNpc)n;
+            seenLabel = label;
+            return true;
+        };
+        try
+        {
+            var m = new TMerchant();
+            var player = new GXX.M2Server.Engine.TPlayObject { m_sInputData = "dirty" };
+            m.Click(player);
+            Assert.Same(m, seen);
+            Assert.Equal("@main", seenLabel);
+            Assert.Equal("", player.m_sInputData);   // 基类已把脚本字段归零
+        }
+        finally
+        {
+            GXX.M2Server.Engine.PlayerSurfaceNpcSeams.ResetDefaults();
+        }
     }
 
     // =======================================================================
