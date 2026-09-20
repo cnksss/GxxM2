@@ -17,19 +17,23 @@ namespace GXX.Client.Scenes;
 //   RunActSound   :1039-1107（虚覆写 TActor.RunActSound）
 //   RunSound      :1108-1130（虚覆写 TActor.RunSound）
 //
-// ★ 贯穿全单元的"三态前置门"（原文出现 6 次，逐字一致）：
+// ★ 贯穿全单元的"三态前置门"（原文出现 7 次，逐字一致）：
 //     if (m_nChangeAppr >= 0) and (m_btRace <> 156) then begin inherited; Exit; end;
 //   出现位置：CalcActorFrame 80-91、LoadSurface 409-412、GetDefaultFrame 590-593、
 //   DrawChr 719-722、Run 804-807、RunActSound 1045-1048、RunSound 1112-1115。
 //   即「自定义怪」身份 = (m_nChangeAppr < 0) or (m_btRace = 156)，此门为假才走本单元逻辑，
 //   为真则整体退回基类 TActor 的同名实现。
+//   （另注：RunActSound 的 `if not m_boRunSound then Exit;`（1043）**先于**该门，
+//     是本单元唯一一处门序例外，已用测试固化。）
 //
 // ★ 虚分派：原文 CalcActorFrame / LoadSurface / GetDefaultFrame / DrawChr / Run /
 //   RunActSound / RunSound 全部带 `override`。托管侧基类 TActorCore 目前只有
 //   GetDefaultFrame(ActorMotion.cs:191) 与 Run(uint)(ActorCore.cs:338) 存在，且**均未标 virtual**；
 //   CalcActorFrame(ActorCore.cs:247) 亦为非虚。故本文件：
 //     - 决策层全部抽为纯静态函数（可在无头环境完整单测，不依赖虚分派）；
-//     - TCustomActor 上的方法以 `new` 显式隐藏并在注释中标注「非真覆写」；
+//     - 基类**已有同名成员**的三个（CalcActorFrame / GetDefaultFrame / Run）用 `new` 显式隐藏
+//       并标注「非真覆写」；基类**没有**同名成员的四个（LoadSurface / DrawChr /
+//       RunSound / RunActSound）是新增重载，故**不加** `new`（加了会报 CS0109）；
 //     - 精确的基类补虚成员请求见 docs/并行报告-p6-client-actor.md。
 //
 // ★ 未移植（接缝）：所有画布绘制调用（GameCanvas.Draw*/GetCachedImage）、

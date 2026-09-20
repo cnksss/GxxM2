@@ -1720,7 +1720,97 @@ public sealed class CustomActorTests : IDisposable
         a.RunActSound(3);
         Assert.Empty(played);
     }
+    // ===================== 退回基类的落点（前置门为真）=====================
 
+    [Fact]
+    public void ActorCalcActorFrame_BypassGateDelegatesToBaseAndRewritesAttackToHit()
+    {
+        var cfg = MakeCfg();
+        var a = new TCustomActor(cfg)
+        {
+            m_nChangeAppr = 0,          // >= 0
+            m_btRace = 99,              // <> 156  → 门为真
+            m_nCurrentAction = CustomActorAttackActions.SM_ATTACK02,
+            m_nDefFrameCount = 12345,   // 基类分支会改写它
+        };
+
+        a.CalcActorFrame();
+
+        // 80-87：改写为 SM_HIT；门内不写 FClientAction（保持 -1）
+        Assert.Equal(TActorCore.SM_HIT, a.m_nCurrentAction);
+        Assert.Null(a.ClientAction);
+    }
+
+    [Fact]
+    public void ActorGetDefaultFrame_BypassGateDelegatesToBaseTable()
+    {
+        var cfg = MakeCfg();
+        var a = new TCustomActor(cfg)
+        {
+            m_nChangeAppr = 0,          // 门为真
+            m_btRace = 50,              // 通用动作表 race
+            m_btDir = 1,
+            m_nCurrentDefFrame = -1,
+        };
+
+        var pm = ActorActionTables.GetRaceByPM(50, 0)!.Value;
+        Assert.Equal(pm.ActStand.start + 1 * (pm.ActStand.frame + pm.ActStand.skip),
+            a.GetDefaultFrame(false));
+        // 基类分支会写 m_nDefFrameCount（自定义怪分支不写）
+        Assert.Equal(pm.ActStand.frame, a.m_nDefFrameCount);
+    }
+
+    [Fact]
+    public void ActorRunSound_BypassGateDoesNotPlayAnything()
+    {
+        var cfg = MakeSoundCfg();
+        var a = new TCustomActor(cfg)
+        {
+            m_nChangeAppr = 0, m_btRace = 99,
+            m_nCurrentAction = TActorCore.SM_DIGUP,
+        };
+        a.m_boRunSound = false;
+
+        var played = new List<string>();
+        CustomActorEnv.PlaySoundFn = s => played.Add(s);
+
+        a.RunSound();
+
+        Assert.Empty(played);
+        Assert.False(a.m_boRunSound);   // 1117 在门**之后**，故不置真
+    }
+
+    [Fact]
+    public void ActorRun_BypassGateDelegatesToBaseRun()
+    {
+        var cfg = MakeCfg();
+        var a = new TCustomActor(cfg)
+        {
+            m_nChangeAppr = 0, m_btRace = 99,
+            m_nCurrentAction = TActorCore.SM_TURN,
+            m_nCurrentFrame = 5, m_nStartFrame = 5, m_nEndFrame = 9,
+            m_dwStartTime = 0, m_dwFrameTime = 50,
+        };
+
+        // 门为真 → base.Run(now) 推进帧；自定义怪分支不会走
+        a.Run(1000);
+        Assert.Equal(6, a.m_nCurrentFrame);
+    }
+
+    [Fact]
+    public void ActorLoadSurface_BypassGateSkipsSeam()
+    {
+        var cfg = MakeCfg();
+        var a = new TCustomActor(cfg) { m_nChangeAppr = 0, m_btRace = 99 };
+
+        int fetches = 0;
+        CustomActorEnv.FetchSurfaceFn = (_, _, _, _, _) => { fetches++; return null; };
+
+        a.LoadSurface(null);
+        Assert.Equal(0, fetches);
+    }
+
+    // ===================== 常量核对 =====================
     // ===================== 常量核对 =====================
 
     [Fact]
