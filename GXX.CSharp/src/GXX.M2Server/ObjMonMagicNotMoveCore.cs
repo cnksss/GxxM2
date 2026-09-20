@@ -369,10 +369,10 @@ public static class ObjMonMagicNotMoveCore
         + CallLines + RunLines;
 
     /// <summary>**本类全部五方法行数（含 J221 的 `AttackTarget`）。**</summary>
-    public const int ClassTotalLines = 368;
+    public const int ClassTotalLines = 367;   // 更正：原记 368（连带上一处差 1）
 
     /// <summary>**留待 J221 的 `AttackTarget` 行数。**</summary>
-    public const int J221AttackLines = 277;
+    public const int J221AttackLines = 276;   // 更正：原记 277（把方法后的空行算进去了）
 
     /// <summary>**`AttackTarget` 起始行。**</summary>
     public const int AttackStart = 6604;

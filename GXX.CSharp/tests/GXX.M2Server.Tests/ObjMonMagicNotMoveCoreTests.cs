@@ -33,8 +33,8 @@ public sealed class ObjMonMagicNotMoveCoreTests
         Assert.Equal(6926, ObjMonMagicNotMoveCore.RunEnd);
         Assert.Equal(46, ObjMonMagicNotMoveCore.RunLines);
         Assert.Equal(91, ObjMonMagicNotMoveCore.TotalLines);
-        Assert.Equal(368, ObjMonMagicNotMoveCore.ClassTotalLines);
-        Assert.Equal(277, ObjMonMagicNotMoveCore.J221AttackLines);
+        Assert.Equal(367, ObjMonMagicNotMoveCore.ClassTotalLines);
+        Assert.Equal(276, ObjMonMagicNotMoveCore.J221AttackLines);
         Assert.Equal(6604, ObjMonMagicNotMoveCore.AttackStart);
         Assert.Equal(6880, ObjMonMagicNotMoveCore.AttackEnd);
 
