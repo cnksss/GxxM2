@@ -55,6 +55,42 @@ public static class ObjNpcConst
 }
 
 // ---------------------------------------------------------------------------
+// M2Definition.pas:215-230 —— ObjNpc.pas 通过 `m_ScriptList` 使用的两个记录。
+// 该单元尚未移植。按「不顺手移植依赖」原则只落 ObjNpc.pas 用得到的最小面。
+// 接缝：待 M2Definition.pas 移植后由该单元接管。
+// ---------------------------------------------------------------------------
+
+/// <summary>接缝：原文 `TQuestInfo = record wFlag: Word; btValue: Byte; nRandRage: Integer; end;`
+/// （M2Definition.pas:215-219）。</summary>
+public struct TQuestInfo
+{
+    /// <summary>原文 `wFlag: Word;`（M2Definition.pas:216）。</summary>
+    public ushort wFlag;
+    /// <summary>原文 `btValue: Byte;`（M2Definition.pas:217）。</summary>
+    public byte btValue;
+    /// <summary>原文 `nRandRage: Integer;`（M2Definition.pas:218）。</summary>
+    public int nRandRage;
+}
+
+/// <summary>
+/// 接缝：原文 `TScript = record boQuest: Boolean; QuestInfo: array[0..9] of TQuestInfo;
+/// nQuest: Integer; RecordList: TList; end;`（M2Definition.pas:223-228）。
+/// ObjNpc.pas 只使用 `RecordList`（4383-4429 的 ClearScript、9996-10017 的 DoSort）。
+/// `TList` → 托管 `List&lt;object&gt;`。
+/// </summary>
+public class TScript
+{
+    /// <summary>原文 `boQuest: Boolean;`（M2Definition.pas:224）。</summary>
+    public bool boQuest;
+    /// <summary>原文 `QuestInfo: array [0 .. 9] of TQuestInfo;`（M2Definition.pas:225）。</summary>
+    public TQuestInfo[] QuestInfo = new TQuestInfo[10];
+    /// <summary>原文 `nQuest: Integer;`（M2Definition.pas:226）。</summary>
+    public int nQuest;
+    /// <summary>原文 `RecordList: TList;`（M2Definition.pas:227）。</summary>
+    public List<object> RecordList = new();
+}
+
+// ---------------------------------------------------------------------------
 // M2Definition.pas:60-77 —— ObjNpc.pas 通过 uses M2Definition 使用这四个类型。
 // 该单元尚未移植到 M2Server（`GXX.M2Server.Plugins.PluginInterfaceSeams.cs:298`
 // 另有一份**不同用途**的 `TDynamicVar` 接缝，命名空间不同，不冲突）。
