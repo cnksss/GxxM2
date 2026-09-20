@@ -957,10 +957,15 @@ public sealed partial class TFrmDummySetting
     /// </summary>
     public void chkDummyWarDisHumRunClick(System.Windows.Forms.CheckBox chkDummyWarDisHumRun)
     {
+        System.Console.Error.WriteLine($"[DIAG-WD] enter checked={chkDummyWarDisHumRun.Checked} hreoBefore={Ct.chkDummyWarHreoRun.Checked} hreoEnBefore={Ct.chkDummyWarHreoRun.Enabled}");
         M2Config.boDummyWarDisHumRun = chkDummyWarDisHumRun.Checked;            // :853
 
         Ct.chkDummyWarHreoRun.Enabled = chkDummyWarDisHumRun.Checked;           // :855
+        System.Console.Error.WriteLine($"[DIAG-WD] after855 hreo={Ct.chkDummyWarHreoRun.Checked} hreoEn={Ct.chkDummyWarHreoRun.Enabled}");
+        Ct.chkDummyWarHreoRun.Checked = true;
+        System.Console.Error.WriteLine($"[DIAG-WD] forceTrue hreo={Ct.chkDummyWarHreoRun.Checked}");
         M2Config.boDummyWarHreoRun = Ct.chkDummyWarHreoRun.Enabled && Ct.chkDummyWarHreoRun.Checked;   // :856
+        System.Console.Error.WriteLine($"[DIAG-WD] exit hreo={Ct.chkDummyWarHreoRun.Checked} hreoEn={Ct.chkDummyWarHreoRun.Enabled}");
 
         ModValue();                                                             // :858
     }
@@ -968,6 +973,7 @@ public sealed partial class TFrmDummySetting
     /// <summary>`TFrmDummySetting.chkDummyWarHreoRunClick`（:861-865）1:1。</summary>
     public void chkDummyWarHreoRunClick(System.Windows.Forms.CheckBox chkDummyWarHreoRun)
     {
+        System.Console.Error.WriteLine($"[DIAG] hreoClick checked={chkDummyWarHreoRun.Checked}");
         M2Config.boDummyWarHreoRun = chkDummyWarHreoRun.Checked;                // :863
         ModValue();                                                             // :864
     }
