@@ -13,10 +13,49 @@
 |---|---|---|---|
 | 1 | `865932d1` | 接缝层 + 骨架/生命周期/消息队列/发送族（**该提交编译不过**，存档性质） | ❌ 被集成门禁挡下 |
 | 2 | `760c85f3` | `Run` / `DoCheckRecvBuffer` / 消息族 1:1 移植 + 93 例测试（**修复 #1 的编译错误**） | ✅ build 0 error，1299/1299 |
+| 3 | `63430f46` | 本报告（`docs/并行报告-p4-rungate-mirclient.md`） | ✅ |
+| 4 | `cd287320` | **修跨车道重名（第 8 次）+ 吸收 main 增量文件 + `CheckUsePlugin` 切片 1** | ✅ build 0 error，1459/1459 |
 
-**HEAD = `760c85f3`**。集成时请以 `760c85f3` 为准（`865932d1` 之后没有任何"已知坏状态"残留）。
+**HEAD = `cd287320`**（除 #1 外每个提交都编译+测试全绿；#1 的编译错误由 #2 修复覆盖）。
+
+### 1.1 吸收 main 增量的记录（`cd287320`）
+
+我的开工基线 `76eb613d` 早于 main 后续提升的若干提交，导致两条分支各自可编译、**合并才炸**（CS0101/CS0111）。
+`cd287320` 里按「先落地并已提升者为准」（台账 §12.8）做了两件事：
+
+**(a) 删除本接缝层里 main 已有的重复定义**（第 8 次跨车道重名事故）：
+
+| 类型 / 全局量 | main 上的权威定义 | 本车道处置 |
+|---|---|---|
+| `TAddressInfo` | `GateShareContainers.cs:71` | 删除自持副本，直接用 main |
+| `TAddressListEx` | `GateShareContainers.cs:227` | 同上 |
+| `TSafeStringList` | `GateShareContainers.cs:316` | 同上 |
+| `TSafeMemoryStream` | `GateShareContainers.cs:407` | 同上（缺 `Clear`/`Size` → 用扩展方法补齐，见 §6.2-R7） |
+| 26 个 `g_*` 全局量 | `GateShareGlobals.cs` | 删除自持副本，改为**只转发**（`=> GateShareGlobals.g_X`），存储唯一 |
+| `TMagicInterval` / `TMagicIntervalList` | `GateShareMagicIntervalUtils.cs:62/:139` | 删除 `MagicIntervalUtilsSeam`，调用点直调真实现（`Find(unchecked((ushort)…))`） |
+
+**(b) 吸收 main 的增量文件**（内容与 main **逐字节相同** → 合并时该路径为 no-op）：
+
+- `src/GXX.RunGate/`：`GateShareAddressUtils.cs`、`GateShareContainers.cs`、`GateShareGlobals.cs`、`GateShareMagicIntervalUtils.cs`（新增）；
+  `uFrmGameSpeedLogic.cs`、`uFrmMagicCD.cs`、`uFrmProcessBlacklist.cs`（改动）
+- `tests/GXX.RunGate.Tests/`：`GateShareContainerTests.cs`、`GateShareMagicIntervalTests.cs`（新增）；
+  `RunGateUtilsFormAddProcessBlackTests.cs`、`RunGateUtilsFormProcessBlacklistTests.cs`、`RunGateUtilsFormMagicCDTests.cs`（改动）
+
+> 不吸收这 3 个 `uFrm*.cs` 就会与新搬入的 `GateShareMagicIntervalUtils.cs` 重复定义 `TMagicInterval`；
+> 不吸收 3 个测试文件则测试工程编不过（main 已把 `TProcessBlackList` → `TProcessBlacklist`、
+> `MaxCount` → `MaxCountForTest`）。这是本分支上已有先例的 "absorb main" 操作（见 `767ab38d`），
+> **不是** rebase / merge。
+
+**防复发（本车道实际执行的检查）** —— 凡新增一个类型作为接缝/替身，先查 main：
+
+```powershell
+git grep -l -E "(class|struct|enum|interface|delegate) +(partial +)?<TypeName>\b" main -- 'GXX.CSharp/src/GXX.RunGate/*.cs'
+```
+
+`cd287320` 提交前对**全部 27 个**本车道声明的类型跑过该命令 → ✅ 无重复定义。
 
 ---
+
 
 ## 2. 逐方法族判定表（含行号）
 
@@ -48,7 +87,14 @@
 | 21 | `GetSpeedText` | 3410-3416 | **已完成** | 同上 |
 | 22 | `ContinuousSpeed` | 3418-3455 | **已完成** | 同上 |
 | 23 | `ProcessAssasinate` | 3457-3463 | **已完成** | 同上 |
-| 24 | **`CheckUsePlugin`** | **3465-9688** | **未覆盖**（仅前导段 3465-3520 + 兜底） | `MirClientContext.CheckUsePlugin.cs` |
+| 24 | **`CheckUsePlugin`** | **3465-9688** | **部分覆盖**（见 §8 分派表） | `MirClientContext.CheckUsePlugin.cs` |
+| 24a | ├ 局部常量 + 前导段 | 3467-3472、3505-3519 | **已完成** | 同上 |
+| 24b | ├ `CM_DROPITEM` 分支 | 9474-9487 | **已完成** | 同上 |
+| 24c | ├ `CM_PICKUP` 分支 | 9492-9505 | **已完成** | 同上 |
+| 24d | ├ `else` 分支 | 9506-9516 | **已完成** | 同上 |
+| 24e | ├ **公共收尾**（所有分支共用） | **9521-9681** | **已完成**（提取为 `CheckUsePluginPostlude`，逐行等价） | 同上 |
+| 24f | ├ 异常兜底 | 9682-9686 | **已完成** | 同上 |
+| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **未覆盖**（显式早退 `UnportedIdentFamilies`，见 §8.2） | 同上 |
 | 25 | `GetConcurrentPacketCount` | 9689-9708 | **已完成** | `MirClientContext.cs` |
 | 26 | `ClearConcurrentPacket` | 9710-9735 | **已完成** | 同上 |
 | 27 | `SendWarnMsg` | 9737-9745 | **已完成** | 同上 |
@@ -98,28 +144,32 @@
 
 | 文件 | 行数 | 对应原文行号范围 |
 |---|---|---|
-| `src/GXX.RunGate/MirClientContext.cs` | 1,723 | 1-301（声明/字段/记录）、308-412（单元级三函数）、416-470、473-679、1888-1918、2947-3120、3123-3463、9689-9965、10023-10249、10892-10896 |
+| `src/GXX.RunGate/MirClientContext.cs` | 1,724 | 1-301（声明/字段/记录）、308-412（单元级三函数）、416-470、473-679、1888-1918、2947-3120、3123-3463、9689-9965、10023-10249、10892-10896 |
 | `src/GXX.RunGate/MirClientContext.Run.cs` | 1,322 | 681-1886（`Run` 全文） |
-| `src/GXX.RunGate/MirClientContext.Messages.cs` | 1,789 | 1920-2945（`DoCheckRecvBuffer` 全文）、10453-10797、10799-10890、10899-11064、11069-11120；**10251-10451 为接缝空实现** |
-| `src/GXX.RunGate/MirClientContext.CheckUsePlugin.cs` | 122 | 3465-3520（忠实前导段 + 兜底）；**3521-9681 未覆盖** |
-| `src/GXX.RunGate/MirClientContextSeams.cs` | 919 | 接缝层（见 §6） |
-| `tests/GXX.RunGate.Tests/MirClientContextTests.cs` | 1,230 | 93 例测试 |
+| `src/GXX.RunGate/MirClientContext.Messages.cs` | 1,805 | 1920-2945（`DoCheckRecvBuffer` 全文）、10453-10797、10799-10890、10899-11064、11069-11120；**10251-10451 为接缝空实现** |
+| `src/GXX.RunGate/MirClientContext.CheckUsePlugin.cs` | 395 | 3467-3472、3505-3519、**9474-9516**、**9521-9681**、9682-9686；**3528-9473 未覆盖** |
+| `src/GXX.RunGate/MirClientContextSeams.cs` | 880 | 接缝层（见 §6） |
+| `tests/GXX.RunGate.Tests/MirClientContextTests.cs` | 1,230 | 93 例 |
+| `tests/GXX.RunGate.Tests/MirClientContextCheckUsePluginTests.cs` | 460 | 39 例 |
+
+另**吸收** main 的 4 个源文件 + 3 个改动源文件 + 5 个测试文件（见 §1.1，非本车道产出）。
 
 ### 3.1 阅读覆盖率（按物理 LF）
 
 | 口径 | 行数 | 占比 |
 |---|---|---|
 | 原文总 LF | 11,125 | 100% |
-| **已 1:1 覆盖** | **≈ 5,442** | **≈ 48.9%** |
+| **已 1:1 覆盖** | **≈ 5,603** | **≈ 50.4%** |
 | 接缝空实现（4 个方法） | 201 | 1.8% |
-| **未覆盖 `CheckUsePlugin` 分派体** | **6,161** | **55.4%** |
+| **未覆盖 `CheckUsePlugin` 的 6 个 ident 族** | **5,472** | **49.2%** |
 | 有意不移植（`Dissconnect` 9967-10021 + `CM_RUNGATEDOOR` 2662-2740） | 134 | 1.2% |
 | 原文整段被注释（§2.1） | 231 | 2.1% |
-| 其余（条件编译死分支、`SE_*` 常量声明等） | ≈ 0 | — |
 
-> 覆盖 5,442 + 未覆盖 6,161 + 接缝 201 + 不移植 134 + 注释段 231 ≈ 12,169 > 11,125，因为 §2.1 的注释段与接缝/未覆盖在两侧都计入了；净口径以"未覆盖 6,161 行（55%）+ 有意不移植 134 行"为准。
+> 已覆盖包含 `CheckUsePlugin` 的公共收尾 161 行（原以为它随分支未覆盖，切片 1 已落地）。
+> 净口径：**唯一的功能缺口是 5,472 行的 6 个 ident 族分派体**（占原文 49.2%）。
 
 ---
+
 
 ## 4. 测试用例数 + build/test 结果
 
@@ -133,9 +183,9 @@ dotnet test  tests\GXX.RunGate.Tests\GXX.RunGate.Tests.csproj -c Debug --nologo
 | 项 | 结果 |
 |---|---|
 | `dotnet build GXX.slnx -c Debug` | **0 Error(s)**（112 warning，均为既有 xUnit 分析器告警） |
-| `dotnet test GXX.RunGate.Tests` | **Failed: 0 / Passed: 1299 / Skipped: 0 / Total: 1299** |
-| 本车道新增用例 | **93** |
-| 基线 1206 例 | **全部保留通过**（0 新增失败） |
+| `dotnet test GXX.RunGate.Tests` | **Failed: 0 / Passed: 1459 / Skipped: 0 / Total: 1459** |
+| 本车道新增用例 | **132**（93 + 39） |
+| 基线 | main 侧 1366 例**全部保留通过**（0 新增失败） |
 
 测试类（全部挂 `[Collection("RunGateFormLane")]`，与窗体族共享静态全局量，必须串行）：
 
@@ -144,12 +194,14 @@ dotnet test  tests\GXX.RunGate.Tests\GXX.RunGate.Tests.csproj -c Debug --nologo
 | `MirClientContextUnitTests` | 17 | `SubStringOccurences`（含"空子串在 Delphi 死循环、托管侧不死"的差异断言）、`UpdateLockUserList`/`GetUserLockTime`（保存开关、余秒、夹到 `nLockTime`、0/负值） |
 | `MirClientContextVersionTests` | 6 | `GetExVersionNO` 的 0/负/阈值/多步/退一步/`int.MaxValue`（**溢出分支不可达**） |
 | `MirClientContextCoreTests` | 70 | Create/DoReset、`CheckRecvPacketSize` 4 种 `g_BlockMethod`、消息队列 7 例、并发包计数（含恒返回 0 差异）、发送族 8 例、`FilterSayMsg` 全部 5 种模式 + 边界、`ContinuousSpeed`/`ProcessAssasinate`、`AddServerMsg/AddServerText` 超限、`DoConnect`/`DoDisconnect`/`CloseContextSocket`、包堆积拦截 |
+| `MirClientContextCheckUsePluginTests` | 39 | 未覆盖族的**差异断言**（10 个 ident 参数化）、自定义技能区间边界、`CM_DROPITEM`/`CM_PICKUP`/`else`、环形缓冲回绕、公共收尾的 `ProcessMode` 六态、`SumProcessMode` 锁定/掉线、`boSpeedClearData`、`ClearConcurrentPacket` 恒 0 的连锁影响 |
 
 **测试替身**（测试文件内定义，不改 csproj、不加 AssemblyInfo）：
 `CapturingTransport : IIocpTransportSeam`（捕获 `PostSendText`/`PostSendBuffer`/`Close`）、
 `FakeTcpClient : ITcpClientSeam`（捕获 `SendServerMsg` 的 6 个形参）、`FakeFrmMain : IFrmMainSeam`。
 
 ---
+
 
 ## 5. 发现的原文缺陷 / 易错点（带 `文件:行`）
 
@@ -283,15 +335,15 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
 | S2 | `Grobal2_Ex.pas:262`（= `GateShare.pas:258`） | `enum TBaseAction { baOther..baCutMeat }` | main 上没有；`RecordActionArr[].Action` 用 |
 | S3 | `Common/IocpCommon.pas:73` | `class TIocpCriticalSection`（`Lock/UnLock/TryLock`） | `USE_SPINLOCK` 未定义 → 无字符串形参（偏差 D1） |
 | S4 | `Common/IocpCommon.pas:56` | `class TSafeList`（`Count/this[]/Add/Insert/Delete/Clear/IndexOf/Remove/Lock/UnLock`） | 存 `PClientMsg` → 托管侧 `object` |
-| S5 | `GateShare.pas:133` | `class TSafeStringList`（含 `Text`、`Strings`） | `ProcessList` |
-| S6 | `GateShare.pas:117` | `class TSafeHashStringListEx : TSafeStringList`（`Objects[]/AddObject`） | `uFrmGameSpeedLogic.cs:834` 的 `TSafeHashStringList` **没有** `Objects`，且该文件只读 → 加 `Ex` 后缀派生（偏差 D2） |
-| S7 | `GateShare.pas:149` | `class TSafeMemoryStream : MemoryStream`（`Size`/`Clear`/`Lock`/`UnLock`） | 截图流 / 客户端文件流 |
+| S5 | `GateShare.pas:133` | `TSafeStringList` | **已删**：main 的 `GateShareContainers.cs:316` 是权威定义（`Count/this[]/Add/Clear/IndexOf/Delete/Text/Lines/SaveToFile/LoadFromFile/Lock/UnLock`），本车道直接用 |
+| S6 | `GateShare.pas:117` | `class TSafeHashStringListEx`（`Count/this[]/Add/AddObject/GetObject/SetObject/Objects/Delete/Clear/IndexOf/Strings/Lock/UnLock`） | 需要 `Objects[]` 的 `g_LockUserList`/`g_LoginMACPlayerList` 用；**自包含**（不继承任何既有类型）。main 的 `uFrmGameSpeedLogic.cs:834` `TSafeHashStringList` 无 Objects → 见 §6.2-R7 |
+| S7 | `GateShare.pas:149` | `TSafeMemoryStream` + 扩展方法 `ClearStream()`/`StreamSize()` | **类型已删**（用 main 的 `GateShareContainers.cs:407`）；它缺 `Clear`/`Size` → 用扩展方法补，不改非本分区文件 |
 | S8 | `GateShare.pas:308` | `class TGameSpeed`（含 `Clear()`） | 原文 record + `FillChar(…,0)` → 托管侧引用类型 + `Clear()`（偏差 D5） |
-| S9 | `GateShare.pas:82/93` | `class TAddressInfo` / `TAddressListEx` | `g_CurrIPList` |
+| S9 | `GateShare.pas:82/93` | `TAddressInfo` / `TAddressListEx` | **已删**：main 的 `GateShareContainers.cs:71/:227` 是权威定义，字段/成员完全够用 |
 | S10 | `Common/IocpTcpServer.pas:33` | `abstract class TIocpClientContext`（`ContextID/RemoteAddr/Socket/IocpCore/IsPostedCloseQuest/IsWaitingGiveBack/LastRecvDataTick/PostSendText/PostSendBuffer/Close/CloseContextSocket/DoConnect/DoDisconnect/DoReset/DoCheckRecvBuffer`） | socket/线程本体按 §2.3 不移植 |
 | S11 | `Common/IocpTcpServer.pas:119` | `class TIocpTcpServer { object BindObject }` | `GetRunGate`（`:9749-9752`）用 |
 | S12 | `RunGateUtils.pas:60/151` | `interface ITcpClientSeam { bool Active; void SendServerMsg(int nIdent, ushort wSocketIndex, int nSocket, int nUserListIndex, byte[] buffer, int bufferLen); }` + `class TRunGate { TcpClient; OnlineUser; nMaxOnlineUserCount; dwCurDefenseLevel; nTotalAttackCount; dwClearTempTick; dwResotreDefenseTick; SendServerMsg(...) }` | `TRunGate` 的 socket 壳未 1:1（p2 报告 §6.1） |
-| S13 | `GateShare.pas` 全局量 | `g_LockUserList`、`g_VerifyFailUserList`、`g_CurrIPList`、`g_LoginMACPlayerList`、`g_VerifyCodeMapList`、`g_LoadNoVerifyChrList`、`g_dwClientAccumulateMaxSize`、`g_nClientCloseDelay`、`g_nClientLogoutDelay`、`g_boOpenVerifyCode`、`g_nVerifyCodeErrCount`、`g_nVerifyCodeRefreshCount`、`g_nVerifyCodeWaitTime`、`g_dwVerifyCodeInterval1/2`、`g_dwVerifySuccessAddInterval`、`g_boVerifyFailTriggerScript`、`g_boVerifyFailLoginVerify`、`g_boVerifyCodeExcludeMap`、`g_boLogoutNoResendAntiplugStream`、`g_boOneMACLimitePlayer`、`g_nOneMACLimitePlayerCount`、`g_boDelayCloseDisableMove/Spell/Attack/UseItem`、`g_boBreakClientCloseHint`、`g_sBreakClientCloseHint`、`g_boBreakClientLogoutHint`、`g_sBreakClientLogoutHint`、`g_boCheckClientPassword`、`g_sClientPassWord`、`g_sLogClientPacketDir`、`g_sReplaceWord`、`g_sDisableSayMsg`、`g_sDisableSayMsgBegin`、`g_ScreenshotPath`、`g_ClientAntiPlugVersion`、`g_ClientAntiPlugDllStringCRC`、`g_ClientAntiPlugDllSize`、`g_ClientAntiPlugDllString`、`g_ClientAntiPlugDllBlockSize`、`g_ClientAntiPlugDllBlockCount`、`g_boAntiplugAllLog`、`g_RunGatePlugDllHandle`、`g_rgpRecvPacket`、`g_rgpStartContext`、`g_rgpEndContext`、`g_CSRunGatePlug` | 这些在 `uFrmGameSpeedLogic.cs` 的 `FormGlobals` 里**没有**，而该文件只读 → 落在接缝层 |
+| S13 | `GateShare.pas` 全局量 | **26 个只转发到 `GateShareGlobals`**（`g_CurrIPList`、`g_ScreenshotPath`、`g_sLogClientPacketDir`、`g_sReplaceWord`、`g_ClientAntiPlug*`、`g_RunGatePlugDllHandle`、`g_boOpenVerifyCode`、`g_nVerifyCode*`、`g_dwVerifyCode*`、`g_dwVerifySuccessAddInterval`、`g_boVerifyFail*`、`g_boVerifyCodeExcludeMap`、`g_VerifyCodeMapList`、`g_LoadNoVerifyChrList`、`g_VerifyFailUserList`、`g_boOneMACLimitePlayer`、`g_nOneMACLimitePlayerCount`）<br>**22 个自持**（main 上确实没有）：`g_dwClientAccumulateMaxSize`、`g_nClientCloseDelay`、`g_nClientLogoutDelay`、`g_boDelayCloseDisable*`(4)、`g_boBreakClient*`/`g_sBreakClient*`(4)、`g_boCheckClientPassword`、`g_sClientPassWord`、`g_sDisableSayMsg`、`g_sDisableSayMsgBegin`、`g_boLogoutNoResendAntiplugStream`、`g_boAntiplugAllLog`、`g_rgpRecvPacket`、`g_rgpStartContext`、`g_rgpEndContext`、`g_CSRunGatePlug`<br>**2 个自持且带 Objects**：`g_LockUserList`、`g_LoginMACPlayerList`（§6.2-R7） | 单一真源：转发后存储唯一，且调用点仍可用原文裸名 |
 | S14 | `IocpCommon.pas:112` + SysUtils | `MyGetTickCount()`（可注入 `MyGetTickCountProvider`）、`Randomize()`、`Random(n)`（可注入 `RandomSink`） | `timeGetTime` 与 `GetTickCount` **不是同一个 API**（精度 1ms vs 15.6ms），故独立提供 |
 | S15 | `GateShare.pas` 回调 | `AddMainLogMsg(msg, nLevel)`、`AddBlockIP(ip)`、`AddTempBlockIP(ip)`、`IsBlockMac(mac)`、`CloseAllUser()`、`AppendTextLine(file, line)`（可注入 sink） | GateShare/uFrmMain 未覆盖 |
 | S16 | `MD5Util.pas:29/346` | `MD5Match(byte[] d1, byte[] d2)` | main 上没有 |
@@ -312,52 +364,40 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
 
 | # | 目标文件 | 需要的精确签名 | 用途 | 优先级 |
 |---|---|---|---|---|
-| R1 | `src/GXX.RunGate/uFrmGameSpeedLogic.cs`（**只读**） | 把 `public class TSafeHashStringList` 增加 `public object[] Objects { get; }` + `public int AddObject(string s, object o)` + `public object GetObject(int i)` + `public void SetObject(int i, object v)` | 让 `g_*` 全局量能用原文类型名 `TSafeHashStringList` 而不是我的 `TSafeHashStringListEx`（消除偏差 D2） | 低（现方案可用） |
-| R2 | `src/GXX.RunGate/uFrmGameSpeedLogic.cs`（**只读**） | 把 `FormGlobals` 里的 `g_dwClientAccumulateMaxSize` / `g_nClientCloseDelay` / `g_nClientLogoutDelay` / `g_LockUserList` 等 §6.1-S13 的全局量**搬进 `FormGlobals`** | 与原文声明位置（`GateShare.pas`）对齐，消掉本车道接缝层里最大的一块 | 中 |
-| R3 | `src/GXX.RunGate/GateShareMagicIntervalUtils.cs`（**integration 上新增**） | 确认 `TMagicIntervalList.Find` 的最终形参是 `ushort`；若是 `int` 请告知，我改回无 cast 形式 | 我当前用 `unchecked((ushort))` 对两版都安全，但需要一次权威确认 | **高（阻塞性确认）** |
-| R4 | 后续 `Grobal2_Ex.pas` 车道 | `TClientMagic`（含 `TMagic_C` 与 `string[ITEM_NAME_LEN]`）、`TClientItem`（含 `TStdItem`）的 packed 布局 | 让 §2 的 #35-#38 四个接缝方法能 1:1 落地 | 中 |
+| R7 | `src/GXX.RunGate/uFrmGameSpeedLogic.cs` 的 `public class TSafeHashStringList`（**只读**） | 增加 `public object[] Objects { get; }`、`public int AddObject(string s, object o)`、`public object GetObject(int index)`、`public void SetObject(int index, object value)`（并让 `Add/Delete/Clear` 同步维护 Objects 槽） | 消掉本车道最后 2 个「同名但自持」的全局量：`g_LockUserList`、`g_LoginMACPlayerList`。原文 `MirClientContext.pas:336/:346/:377`（锁定时长秒数）与 `:2195/:2181/:10070/:10079`（单机登录计数）都需要 `Objects[Index]` 存取 **int**。**替代方案**：把 `GateShareGlobals.g_LockUserList`/`g_LoginMACPlayerList` 的类型换成带 Objects 的版本亦可。补齐后我会删掉 `TSafeHashStringListEx` 并把这两个量改成转发 | **中（不阻塞合并；阻塞"完全消掉接缝"）** |
+| R8 | `src/GXX.RunGate/GateShareGlobals.cs` 的 `g_ClientAntiPlugDllString`（**只读**） | 由 `string` 改为 `byte[]`（原文该量承载反外挂模块**二进制**，`PChar` + `Length` 是字节口径；`GateShare.pas` 的赋值来自 `EncryptUnit` 加密后的缓冲） | 现在按 GBK 取字节（`GbkBytes`/`AnsiLen`）。GBK 是非满射映射，模块二进制含非法序列时往返会失真 → `SendAntiPlugStream` 分包内容可能被改写 | 低 |
+| R1 | `src/GXX.RunGate/uFrmGameSpeedLogic.cs`（**只读**） | 见 R7（本条与 R7 合并） | — | — |
+| R2 | `src/GXX.RunGate/GateShareGlobals.cs`（**只读**） | 把 §6.1-S13 里"自持的 22 个"搬进 `GateShareGlobals`（与原文声明位置 `GateShare.pas` 对齐） | 消掉接缝层里最后一块自持全局量 | 低 |
+| R3 | `src/GXX.RunGate/GateShareMagicIntervalUtils.cs`（main 新增） | **已确认**：`TMagicIntervalList.Find` 形参为 `ushort`；本车道统一写 `Find(unchecked((ushort)MagicID))`，对 `Find(int)`/`Find(ushort)` 两版都安全 | — | ✅ 已关闭 |
+| R4 | 后续 `Grobal2_Ex.pas` 车道 | `TClientMagic`（含 `TMagic_C` 与 `string[ITEM_NAME_LEN]`）、`TClientItem`（含 `TStdItem`）的 packed 布局 | 让 §2 的 #35-#38 四个接缝方法能 1:1 落地。**精确布局需求见 §9** | 中 |
 | R5 | 后续 `uFrmMain.pas` 车道 | 把 `IFrmMainSeam` 的实现接到真实主窗体（`FrmMainSeam.FrmMain = …`） | 让 `DoCheckRecvBuffer` 的进程列表/状态文本真的刷新 | 低 |
-| R6 | 后续 `GateShare.pas` 车道 | 把 `GateShareSeam` 的 51 个全局量与 6 个函数回调**改名为不冲突**并接管（或直接把 `GateShareSeam` 整体并入 `GateShare.cs`） | 消掉接缝层 | 低 |
+| R6 | 后续 `GateShare.pas` 车道 | 把 `GateShareSeam` 的 22 个自持全局量与 6 个函数回调**改名为不冲突**并接管（或直接把 `GateShareSeam` 整体并入 `GateShare.cs`） | 消掉接缝层 | 低 |
 
 ---
 
 ## 7. 诚实说明：未完成部分与剩余量
 
-### 7.1 完全未完成（**6,161 行，占原文 55%**）
+### 7.1 唯一的功能缺口：`CheckUsePlugin` 的 6 个 ident 族（**5,472 行，占原文 49.2%**）
 
-**`CheckUsePlugin`（3465-9688）的分派体 3521-9681 未移植。**
-`MirClientContext.CheckUsePlugin.cs` 只有：
-- 原文 `:3465-3472` 的 5 个局部常量（`DEBUG_LEVEL` / `MAX_REPAIR_TIME` / `TIME_INACCURACY` /
-  `DELAY_TIME_ADD` / `DROP_CONCURRENT_RATE`）；
-- 忠实前导段 `:3505-3519`（`Result := False` … `AntiPlugAction := nil`）；
-- 异常兜底 `:9682-9686` 的形状。
+原文 **3528-9473** 未移植。当前行为：这些 ident 由 `UnportedIdentFamilies(ident)` 命中后
+**显式早退 `return false`**（= 不判定 = 放行），**不写入 `RecordActionArr`、不进入公共收尾**。
 
-**当前行为**：对所有 `Ident` 都返回 `false` = "未检测到外挂" = 放行（与原文"无匹配 `Ident` 时 `Result := False`"一致，
-但**未覆盖的 `Ident` 本该被检测/限速/锁定却不会**）。
-**这是本车道最大的功能缺口**，必须由后续车道补。文件头已写清接管者需要的：
-- 分派键 `DefMsg.Ident`（`NEED_REGISTER = 1` 的活分支走 `if DefMsg.Ident = CM_WALK then …` 链，不是 `case`）；
-- 用到的本类状态（`dwCollectIntervalArr` / `nCollectIntervalIndexArr` / `RecordActionArr` / `nRecordActionIndex` /
-  `SumSpeedProcessArr` / `nCompensationArr` / `LastLockAntiPlugActionMode` / `FLastAction` / `GameSpeed` /
-  `nMoveSpeed` / `nAttackSpeed` / `nSpellSpeed` / `MagicUseTickList`）；
-- 用到的全局量（`g_Config.ActionList[*]` / `g_wActionSpeedIntervals` / `g_MagicCDList` / `g_sMagicCDMsgText` /
-  `LastEatingItemTick` / `LastHeroEatingItemTick` / `HumBagItems` / `HeroBagItems`）；
-- **可直接复用的既有纯判定内核**：`RunGateUtilsClientStat`（多数表决）、`RunGateForwardClassifier`、
-  `RunGateTiming.TickDiff`、`uFrmGameSpeedLogic.cs` 的 `TAntiPlugActionMode`/`TAntiPlugAction`/`TAntiPlugConfig`/
-  `RunGateConstants.AntiPlugActionModeNames*`/`FormGlobals.g_wActionSpeedIntervals`/`ActionModeUseSpeedIntervals`。
-
-**跨语言易错点（已核实，写入文件头）**：调用点 `:1820` 写的是 `CheckUsePlugin(@ProcessMsg.DefMessage)`，
-而形参声明是 `Msg: PProcessMsg` —— **类型不匹配的指针双关**。它能工作是因为 `TProcessMsg` 的前两个字段
-恰好是 `DefMessage`（偏移 0，16 字节）与 `dwTimeTick`（偏移 16）。C# 侧 `TProcessMsg` 是引用类型，
-**直接传整个 `ProcessMsg` 与原文语义完全等价**，故 `Run` 里写 `CheckUsePlugin(ProcessMsg)`。
+> **为什么不干脆让它们落进 `else`**：原文 `else`（9506-9516）会把
+> `RecordActionArr[nRecordActionIndex].Action` 写成 `baOther`，而走路/跑步/转向/攻击/魔法各自要写
+> `baWalk`/`baRun`/`baTurn`/`baHit`/`baSpell`；更严重的是公共收尾（9543-9547、9680）会对**每个**走路/攻击包
+> 执行 `GameSpeed.boContinueSpeed` 状态迁移，直接破坏"连续超速"状态机。
+> 因此"整族不处理（零副作用）"严格优于"错写状态"。
+> **删除条件**：某族移植完成后，把 `UnportedIdentFamilies` 里对应的一行删掉即可（其它族不受影响）。
 
 ### 7.2 部分完成 / 接缝（201 行）
 
 `ProcesssSendToClientSendMyMagic` / `SendAddMagic` / `BagItems` / `AddItem` 四个方法**空实现**，
 原因：依赖 `Grobal2_Ex.pas` 的 packed record `TClientMagic`（含 `TMagic_C` 与 `string[ITEM_NAME_LEN]` 短串）
-与 `TClientItem`（含 `TStdItem`）。本车道**不定义**这些类型 —— 跨车道类型重名事故本工程已发生 4 次，
+与 `TClientItem`（含 `TStdItem`）。本车道**不定义**这些类型 —— 跨车道类型重名事故本工程已发生 **8 次**，
 且这些类型属 `Grobal2_Ex.pas` 车道的类型面。
 四个方法的原文语义已在文件注释里写清（压缩流长度校验 → `g_MagicCDList.Find` 覆写 `dwInterval`/`dwRealInterval`
 → 回写 `AddServerMsg`；背包按 `s.StdMode in [0,2,3]` 填 `MakeIndex/StdMode/Shape/AC1/MAC1`）。
+**精确布局需求见 §9。**
 
 ### 7.3 有意不移植（134 行，§2.3）
 
@@ -366,13 +406,100 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
 ### 7.4 未做的验证
 
 - **无端到端回归**：`Run` / `DoCheckRecvBuffer` 的 socket 侧走接缝，没有真实客户端↔网关↔M2 的回环测试。
-- **`Run` 只做了分支级单测**，没有覆盖全部 30+ 个 `Ident` 分派分支（例如 `CM_SAY` 的
-  `GetValidStr3` + `FilterSayMsg` 串联、`CM_QUERYBAGITEMS` 的 `LockUser(GetUserLockTime)` 链路、
-  魔法 CD 超速放行的 `MagicCDSpeed[10]` 环形窗口 —— 这几处已在实现里逐行落地，但缺测试）。
-- **`DoCheckRecvBuffer` 的进程列表/截图/客户端文件落盘三条路径**只做了代码级落地，未做 IO 级测试
-  （`FrmMainSeam` 与文件落地都是可注入接缝，未接线真实实现）。
-- **GBK 承载的保真风险**：`sData`/`sDataMsg`（原始二进制 AnsiString）在托管侧用 `string` 承载，
-  经 GBK 解码/编码往返。6-bit 编码体是 ASCII 安全的，但 `sDataMsg` 的附加负载含任意字节时
-  GBK 往返**可能不无损**（非法序列 → 替换字符）。已在 `MirClientContext.Messages.cs` 文件头
-  以偏差 D3 登记；若要 100% 字节保真，需把这两个局部量改为 `byte[]` 并把
-  `ArrestStringEx_Ansi` 换成字节版（属 `HUtil32` 车道）。
+- **`Run` 只做了分支级单测**，未覆盖全部 30+ 个 `Ident` 分派分支（`CM_SAY` 的 `GetValidStr3`+`FilterSayMsg` 串联、
+  `CM_QUERYBAGITEMS` 的 `LockUser(GetUserLockTime)` 链路、魔法 CD 超速放行的 `MagicCDSpeed[10]` 环形窗口
+  已在实现里逐行落地，但缺测试）。
+- **`DoCheckRecvBuffer` 的进程列表/截图/客户端文件落盘三条路径**只做了代码级落地，未做 IO 级测试。
+- **`CheckUsePlugin` 的 `FLastAction = baSpell` 补帧分支**：`FLastAction` 是 private，公开探针只读，
+  因此测试只能反向固定"baOther 时不补帧"（帧数 1 而不是 2）。若要正向覆盖，需在接缝层加 `LastActionForTest` 可写探针。
+- **GBK 承载的保真风险**：`sData`/`sDataMsg`（原始二进制 AnsiString）在托管侧用 `string` 承载，经 GBK 往返。
+  6-bit 编码体是 ASCII 安全的，但 `sDataMsg` 的附加负载含任意字节时可能不无损。已在
+  `MirClientContext.Messages.cs` 文件头以偏差 D3 登记。
+
+---
+
+## 8. `CheckUsePlugin` 分派表（原文 3465-9688）
+
+### 8.1 结构
+
+原文 `:3521-3529` 是：
+
+```pascal
+{$IF NEED_REGISTER = 0}
+  case DefMsg.Ident of
+{$IFEND}
+{$IF NEED_REGISTER = 0}
+    CM_WALK:
+{$ELSE}
+    if DefMsg.Ident = CM_WALK then
+{$IFEND}
+```
+
+活分支 **`NEED_REGISTER = 1`**（`Grobal2_Ex.pas:18`）→ **顶层是 if / else-if 链，不是 `case`**。
+顶层只有 **9 个分支**（实测）：
+
+| # | 分派键 | 起始行 | 结束行 | 行数 | 语义一句话 | 本车道 |
+|---|---|---|---|---|---|---|
+| 1 | `CM_WALK` (3011) | 3528 | 4696 | 1,169 | 走路：记录 `baWalk`；走路并发/走路限速 + 转向→走路 等模式判定 | **未覆盖** |
+| 2 | `CM_RUN` (3013) | 4697 | 5857 | 1,161 | 跑步：与走路同构（`baRun`、跑步限速、走路→跑步） | **未覆盖** |
+| 3 | `CM_TURN` (3010) | 5858 | 6689 | 832 | 转向：记录 `baTurn`；转向并发/转向到移动/移动到转向 | **未覆盖** |
+| 4 | 攻击族（`CM_HIT`=3014 … `CM_115HIT` + `CM_CUSTOM_HIT001..+300`） | 6690 | 7888 | 1,199 | 记录 `baHit`；攻击并发 + 20 种攻击动作各自的前后摇间隔判定（7809-7847 是"动作名→日志文本"的二级 if 链） | **未覆盖** |
+| 5 | `CM_SPELL` (3017) | 7889 | 8999 | 1,111 | 记录 `baSpell`；魔法并发 + `SkillId` 维度判定 + 技能 CD 超速 | **未覆盖** |
+| 6 | `CM_SITDOWN` (3012) | 9000 | 9473 | 474 | 记录 `baCutMeat`（注释写"挖肉"）；**暗杀检测**（环形缓冲 `RecordActionArr` 回溯，`nAssasinate >= 3` → `ProcessAssasinate`）+ "移动到挖肉"限速（采集池 `dwCollectIntervalArr`） | **未覆盖** |
+| 7 | `CM_DROPITEM` (1000) | 9474 | 9487 | 14 | 记录 `baOther`、`FLastAction := baOther` | ✅ 已完成 |
+| 8 | `CM_PICKUP` (1001) | 9492 | 9505 | 14 | 同 7 | ✅ 已完成 |
+| 9 | `else` | 9506 | 9516 | 11 | 其它全部 ident：记录 `baOther` | ✅ 已完成 |
+| — | **公共收尾（所有分支共用）** | **9521** | **9681** | **161** | 发超速提示 → `AntiPlugAction` 非空则：调脚本(`CM_SENDUSERSPEEDING`)、置 `boContinueSpeed`、累计超速门限(`nSumSpeedMaxCount`)→`LockUser`/`DelayClose`、`boSpeedClearData` 清队列、按 `ProcessMode` 六态决定 `Result` 与副作用 | ✅ 已完成 |
+| — | 异常兜底 | 9682 | 9686 | 5 | `AddMainLogMsg('…CheckUsePlugin Error, Code = …')` | ✅ 已完成 |
+
+> 注：`:9471-9475` / `:9489-9493` / `:9517-9519` 是 `{$IF NEED_REGISTER = 0}` 的 case 标签 / `end; // end case`
+> 包裹行（死分支），活分支下等价展开。
+
+### 8.2 未覆盖族的显式早退（本车道唯一结构性偏差）
+
+`MirClientContext.CheckUsePlugin.cs` 的 `UnportedIdentFamilies(ushort ident)` 命中上表 #1-#6 的 ident →
+`return false`。**删除条件**：移植完某族后删掉对应行。
+
+### 8.3 接管 #1-#6 需要的既有资产（**不必重写**）
+
+- 纯判定内核：`RunGateUtilsClientStat`（多数表决）、`RunGateForwardClassifier`、`RunGateTiming.TickDiff`、
+  `IocpUtilsPolicy`。
+- 配置/枚举：`uFrmGameSpeedLogic.cs` 的 `TAntiPlugActionMode` / `TAntiPlugAction` / `TAntiPlugConfig` /
+  `TActionProcessMode` / `TSumActionProcessMode` / `RunGateConst.AntiPlugActionModeNames(2/3)` /
+  `FormGlobals.g_wActionSpeedIntervals` / `ActionModeUseSpeedIntervals`。
+- 本类已就绪的状态：`dwCollectIntervalArr` / `nCollectIntervalIndexArr` / `RecordActionArr` /
+  `nRecordActionIndex` / `SumSpeedProcessArr` / `nCompensationArr` / `LastLockAntiPlugActionMode` /
+  `FLastAction` / `GameSpeed` / `nMoveSpeed` / `nAttackSpeed` / `nSpellSpeed` / `MagicUseTickList` /
+  `LastEatingItemTick` / `LastHeroEatingItemTick` / `HumBagItems` / `HeroBagItems`。
+- 本类已就绪的方法：`GetConcurrentPacketCount` / `ClearConcurrentPacket` / `ContinuousSpeed` /
+  `ProcessAssasinate` / `SendMessaggeToClient` / `DelayClose` / `SendActionRet` / `AddServerMsg` /
+  `CheckUsePluginPostlude`（公共收尾已提取，各族**只需**产出 `AntiPlugAction`/`sSendMsg`/`nDelayTime`/
+  `IsDropConcurrent` 后调用它）。
+
+---
+
+## 9. 给 `Grobal2_Ex.pas` 车道的 packed record 布局需求（R4，精确）
+
+`ProcesssSendToClient*` 四个接缝方法需要下列类型；本车道**不越区定义**，只登记需求。
+以下行号来自 `Source/RunGate/Grobal2_Ex.pas`（只读抽取；`ITEM_NAME_LEN` / `MAX_FLUTE_COUNT` /
+`ITEM_PROP_COUNT` / `ITEM_PROP_VALUES_COUNT` 需在该单元确认后再定偏移）：
+
+| 类型 | 原文行号 | 本车道用到的字段 | 备注 |
+|---|---|---|---|
+| `TMagic_C` | `Grobal2_Ex.pas:307-321` | `wMagicId: Word` | `packed record`，含 `sMagicName: string[ITEM_NAME_LEN]` |
+| `TClientMagic` | `Grobal2_Ex.pas:323-333` | `Def: TMagic_C`（用 `Def.wMagicId`）、`dwInterval: LongWord`、`dwRealInterval: LongWord` | 大小即 `SizeOf(TClientMagic)`（`10267/10315` 用它做长度校验） |
+| `TStdItem` | `Grobal2_Ex.pas:350-399` | `StdMode: Byte`、`Shape: Word`、`AC1: Integer`、`MAC1: Integer` | `packed record`，含 `Name/DBName: string[ITEM_NAME_LEN]` |
+| `TClientItem` | `Grobal2_Ex.pas:441-464` | `s: TStdItem`（用 `s.StdMode/Shape/AC1/MAC1`）、`MakeIndex: Integer` | `SizeOf(TClientItem)` 用于 `10355/10417` 的长度校验 |
+
+**用到的语义**（照抄原文，无需改设计）：
+- `ProcesssSendToClientSendMyMagic`(10251-10303)：`zLibDecompressBuffer` 后长度 = `SizeOf(TClientMagic) * DefMsg.Series`
+  → 逐条 `g_MagicCDList.Find(Def.wMagicId)` 覆写 `dwInterval`+`dwRealInterval`，有改动则 `zLibCompressBuffer` 回写 +
+  `DefMsg.Param := 压缩后长度` + `AddServerMsg`。
+- `ProcesssSendToClientSendAddMagic`(10305-10340)：`MsgLen = SizeOf(TClientMagic)` 时对单条做同样覆写 + `AddServerMsg`。
+- `ProcesssSendToClientBagItems`(10342-10407)：`MsgLen = DefMsg.Param` 且解压后长度 = `DefMsg.Series * SizeOf(TClientItem)`
+  → 先 `Clear` 再按 `s.StdMode in [0,2,3]` 填 `MakeIndex/StdMode/Shape/AC1/MAC1`（`Inc(ClientItem)` 步进）。
+- `ProcesssSendToClientAddItem`(10409-10451)：`MsgLen = SizeOf(TClientItem)` 时同上，**不 Clear**。
+
+> 本车道刻意**不**移植 `string[ITEM_NAME_LEN]` 的 `ShortString` 处理 —— `GXX.Core.Protocol.ShortStr` 已有
+> 1:1 实现（`ShortStr.cs:11-75`），接管者应直接复用，不要另写。
+
