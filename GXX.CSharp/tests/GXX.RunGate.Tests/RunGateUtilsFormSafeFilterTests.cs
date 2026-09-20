@@ -16,7 +16,7 @@ namespace GXX.RunGate.Tests;
 ///   * 6 组右键菜单的使能规则（sort/clear/addAll 与单项两项）；
 ///   * `ValidateIPSection` 的三条分支（**结束=起始也允许**）；
 ///   * `AddAllToBlockWithBug` —— 原文 :544 用 `Items[ItemIndex]` 而非 `Items[I]`（D1 缺陷）；
-///   * `btnOKClick` 的 27 个 INI 键（含 `MaxClientMsgCount` 用全局常量而非 g_nMaxClientPacketCount）；
+///   * `btnOKClick` 的 27 个 INI 键（含 `MaxClientMsgCount` 用可变全局量而非 g_nMaxClientPacketCount）；
 ///   * `ShowFrmSafeFilter` 判 `ShowModal = mrOk` 而 `btnOKClick` 只 `Close`（D10 缺陷 → 恒返回 False）。
 /// </summary>
 [Collection("RunGateFormLane")]
@@ -822,7 +822,7 @@ public class RunGateUtilsFormSafeFilterTests : IDisposable
             "BlockMethod=0\r\n" +
             "MaxClientPacketSize=200\r\n" +
             "MaxClientPacketCount=4\r\n" +
-            "MaxClientMsgCount=5\r\n" +                     // ★ 原 :740 用全局常量 nMaxClientMsgCount=5
+            "MaxClientMsgCount=100\r\n" +                   // ★ 原 :740 写的是可变全局量 nMaxClientMsgCount（GateShare.pas:1226 初值 100）
             "KickOverPacket=1\r\n" +
             "CheckClientPacketLegal=1\r\n" +
             "CheckClientPacketCount=6\r\n" +
@@ -872,7 +872,7 @@ public class RunGateUtilsFormSafeFilterTests : IDisposable
         f.btnOK_Click(f, EventArgs.Empty);
 
         Assert.Contains("MaxClientPacketCount=99\r\n", IniText, StringComparison.Ordinal);
-        Assert.Contains("MaxClientMsgCount=5\r\n", IniText, StringComparison.Ordinal);      // 与 99 无关
+        Assert.Contains("MaxClientMsgCount=100\r\n", IniText, StringComparison.Ordinal);    // 与 99 无关
         Assert.DoesNotContain("MaxClientMsgCount=99", IniText, StringComparison.Ordinal);
     }
 
