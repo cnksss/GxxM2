@@ -19,7 +19,7 @@ p2b-m2-dblayer	GXX.CSharp/src/GXX.M2Server/DbLayer/**;GXX.CSharp/tests/GXX.M2Ser
 p2b-m2-plugins	!GXX.CSharp/docs/并行报告-p2b-m2-plugins.md;GXX.CSharp/src/GXX.M2Server/Plugins/**;GXX.CSharp/tests/GXX.M2Server.Tests/Plugins*/**;GXX.CSharp/tests/GXX.M2Server.Tests/Plugins*
 p2c-common-crypto	GXX.CSharp/src/GXX.Core/Crypto/AESUtils*.cs;GXX.CSharp/src/GXX.Core/Crypto/DesUnit*.cs;GXX.CSharp/src/GXX.Core/Util/HashUnit.cs;GXX.CSharp/src/GXX.Core/Util/HashObjList.cs;GXX.CSharp/src/GXX.Core/Util/CheckUnit.cs;GXX.CSharp/src/GXX.Core/Compress/ZipUnit.cs;GXX.CSharp/src/GXX.Core/Compress/CompressUnit.cs;GXX.CSharp/src/GXX.Core/UpdateCommon.cs;GXX.CSharp/src/GXX.Core/Stubs/MemoryModule.cs;GXX.CSharp/src/GXX.Core/Stubs/MemoryModuleDef.cs;GXX.CSharp/tests/GXX.Core.Tests/CryptoAes*;GXX.CSharp/tests/GXX.Core.Tests/CryptoDesUnit*;GXX.CSharp/tests/GXX.Core.Tests/HashUnit*;GXX.CSharp/tests/GXX.Core.Tests/CommonTail*;GXX.CSharp/docs/并行报告-p2c-common-crypto.md
 p2c-client-tail	GXX.CSharp/src/GXX.Client/Tail/**;GXX.CSharp/tests/GXX.Client.Tests/Tail*;GXX.CSharp/docs/并行报告-p2c-client-tail.md
-p3-m2-dbdata	!GXX.CSharp/src/GXX.M2Server/DbLayer/**;!GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerTestKit.cs;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerM2Data*;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerAuction*;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerFingerprints*;!GXX.CSharp/docs/并行报告-p3-m2-dbdata.md
+p3-m2-dbdata	!GXX.CSharp/src/GXX.M2Server/DbLayer/**;!GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerTestKit.cs;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerM2Data*;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerAuction*;GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerFingerprints*;!GXX.CSharp/tests/GXX.M2Server.Tests/DbLayerSqlFidelityTests.cs;!GXX.CSharp/docs/并行报告-p3-m2-dbdata.md
 p3-dx-big	GXX.CSharp/src/GXX.Client/DxComponent/Dib*.cs;GXX.CSharp/src/GXX.Client/DxComponent/DxMemo*.cs;!GXX.CSharp/src/GXX.Client/DxComponent/DxControls.cs;GXX.CSharp/tests/GXX.Client.Tests/DxCtlDib*;GXX.CSharp/tests/GXX.Client.Tests/DxCtlMemo*;GXX.CSharp/docs/并行报告-p3-dx-big.md
 p3-m2-sweep	GXX.CSharp/src/GXX.M2Server/Sweep/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep*;GXX.CSharp/docs/并行报告-p3-m2-sweep.md
 # ---- P4 wave (2026-09-20): the four unowned giants ----
@@ -28,3 +28,7 @@ p4-m2-objnpc	!GXX.CSharp/src/GXX.M2Server/Npc/**;GXX.CSharp/tests/GXX.M2Server.T
 # ---- P5 wave: 最后一个无人认领的巨型单元 ----
 p5-client-mirreturn	GXX.CSharp/src/GXX.Client/GUI/GameConfig/MirReturn*.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirReturn*;GXX.CSharp/docs/并行报告-p5-client-mirreturn.md
 p5-m2-custommagic	GXX.CSharp/src/GXX.M2Server/Forms/CustomMagic/**;GXX.CSharp/tests/GXX.M2Server.Tests/CustomMagic*;GXX.CSharp/docs/并行报告-p5-m2-custommagic.md
+# ---- P6 wave: (a)-class units found by the 30-unit verification (see ledger 18) ----
+# ParadoxDataSet.pas exists byte-identical in RunGate and GameCenter -> ported ONCE into GXX.Core.
+p6-core-paradox	GXX.CSharp/src/GXX.Core/Paradox/**;GXX.CSharp/tests/GXX.Core.Tests/ParadoxDataSet*;GXX.CSharp/docs/并行报告-p6-core-paradox.md
+p6-m2-pets	GXX.CSharp/src/GXX.M2Server/Forms/GamePets/**;GXX.CSharp/tests/GXX.M2Server.Tests/GamePets*;GXX.CSharp/docs/并行报告-p6-m2-pets.md
