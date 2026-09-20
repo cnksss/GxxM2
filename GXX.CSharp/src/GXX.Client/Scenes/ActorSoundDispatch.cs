@@ -254,13 +254,38 @@ public static class ActorSoundDispatch
     }
 
     /// <summary>
-    /// `RunActSound` 非武器种族 else 分支（7045-7110ish）的**决策部分** 1:1。
-    /// 7046-7047：`m_btRace = 50` 时是**空实现**（既不播音也不消费随机数）。
+    /// `RunActSound` 非武器种族 else 分支（**7045-7093**）的**决策部分** 1:1。
+    ///
+    /// <para><b>结构（四段，注意嵌套层级）</b>：</para>
+    /// <list type="number">
+    /// <item><b>7046-7047</b>：`m_btRace = 50` → **空实现**（既不播音、也**不消费随机数**），且
+    ///   **连带跳过 7076-7092 的 Mon36 段**（该段在 7074 的 `end;` **之后**，仍属 7045 的
+    ///   `else begin`，故 race 50 走不到它 —— race 50 与 `[202..209]` 本就无交集，但结构如此）。</item>
+    /// <item><b>7051-7056</b>：`SM_TURN` 且 `frame = 1` 且 `Random(8) = 1` → 播 `m_nNormalSound`。</item>
+    /// <item><b>7057-7062</b>：`SM_HIT` 且 `frame = 3` 且 `m_nAttackSound &gt;= 0` → 播 `m_nWeaponSound`。
+    ///   ★ 与上一条是**两个独立 `if`**（不是 `else if`）。</item>
+    /// <item><b>7063-7072</b>：`case m_wAppearance of 80:` —— **仅 `SM_NOWDEATH` 且 `frame = 2`** →
+    ///   播 `m_nDie2Sound`（原文唯一的 appearance 分支）。</item>
+    /// <item><b>7076-7092</b>：`m_btRace in [202..209]`（Mon36_X 族）—— 三个动作各播**硬编码音**
+    ///   （`SM_TURN→542` / `SM_STRUCK→495` / `SM_NOWDEATH→496`），且**三个分支都不判 `frame`**。</item>
+    /// </list>
+    ///
+    /// <para><b>★ 车道 `p7-client-actor-family` 的更正记录</b>：本函数**原先只落了 7051-7062 两段**，
+    /// 漏掉 7063-7072 与 7076-7092；而本函数的 XML 注释当时自称是"7045-7110ish 的决策部分 1:1"
+    /// —— 即**注释与实现不符**。已按原文**逐字补齐这两段**（父 agent 裁定：在**源头**修，
+    /// 不允许在别处留第二份"同义但内容不同"的派发实现，台账 §25.2/§26.2/§31.4）。
+    /// 改动前后行为差异：`m_wAppearance = 80` 的死亡音与 Mon36_X 族的三种音
+    /// **从"静默丢失"变为正常播放**。</para>
+    ///
+    /// <para><b>参数位置说明</b>：<paramref name="m_wAppearance"/> 与 <paramref name="m_nDie2Sound"/>
+    /// 是本次补齐所需的两个新增入参，为**不破坏既有调用点**而追加在 <paramref name="rand8"/> **之后**
+    /// （它们的原文使用点 7063-7072 在逻辑上也位于 7051-7062 **之后**，故这个顺序同样忠于原文流程）。</para>
     /// </summary>
     public static List<SoundCue> RunActSoundOther(
         int m_btRace, int m_nCurrentAction, int frame,
         int m_nNormalSound, int m_nAttackSound, int m_nWeaponSound,
         Func<int> rand8,
+        int m_wAppearance, int m_nDie2Sound,
         out bool closeRunSound)
     {
         var cues = new List<SoundCue>();
@@ -289,6 +314,42 @@ public static class ActorSoundDispatch
             {
                 cues.Add(new SoundCue(m_nWeaponSound, "HitWeapon"));
                 close = true;
+            }
+        }
+
+        // 7063-7072：appearance 80 专用死亡音（原文唯一的 appearance 分支）
+        //   case m_wAppearance of 80: if m_nCurrentAction = SM_NOWDEATH then if (frame = 2) ...
+        if (m_wAppearance == 80)
+        {
+            if (m_nCurrentAction == TActorCore.SM_NOWDEATH)
+            {
+                if (frame == 2)
+                {
+                    cues.Add(new SoundCue(m_nDie2Sound, "Die2"));   // 7067
+                    close = true;                                   // 7068
+                }
+            }
+        }
+
+        // 7076-7092：Mon36_X 族（race 202..209）—— 三分支**都判 action 而不判 frame**
+        if (m_btRace is >= 202 and <= 209)
+        {
+            if (m_nCurrentAction == TActorCore.SM_TURN)             // 7080
+            {
+                cues.Add(new SoundCue(542, "Mon36Turn"));           // 7081
+                close = true;                                       // 7082
+            }
+
+            if (m_nCurrentAction == TActorCore.SM_STRUCK)           // 7084
+            {
+                cues.Add(new SoundCue(495, "Mon36Struck"));         // 7085
+                close = true;                                       // 7086
+            }
+
+            if (m_nCurrentAction == TActorCore.SM_NOWDEATH)         // 7088
+            {
+                cues.Add(new SoundCue(496, "Mon36NowDeath"));       // 7089
+                close = true;                                       // 7090
             }
         }
 

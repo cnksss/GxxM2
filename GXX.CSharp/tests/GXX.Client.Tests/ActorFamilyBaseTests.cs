@@ -49,8 +49,9 @@ public sealed class ActorFamilyBaseTests : IDisposable
     // 构造工具
     // ══════════════════════════════════════════════════════════════════════
 
-    /// <summary>最小的 TActorCore 实例（用现成的 THumActor 实例作载体，避免新造类型）。</summary>
-    private static TActorCore NewActor() => new THumActor();
+    /// <summary>最小的 TActor 实例（用现成的 THumActor 作载体，避免新造类型）。
+    /// ★ 车道 p7-client-actor-family：本体已接上虚槽位，故返回类型由 TActorCore 收紧为 <see cref="TActor"/>。</summary>
+    private static TActor NewActor() => new THumActor();
 
     private static TMonsterClientAction Act(int start, int play, int empty, int actionFile = -1)
         => new()

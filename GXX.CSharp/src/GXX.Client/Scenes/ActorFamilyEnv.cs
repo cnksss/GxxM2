@@ -224,14 +224,15 @@ public partial class TActorCore
     /// </summary>
     public object? m_BodySurface;
 
-    /// <summary>基类那一份 `m_ColorEffect`（原文 5558/5574/5582 的三分支依据）。见类注释的避让说明。</summary>
-    public TColorEffect m_BaseColorEffect;
-
     /// <summary>
-    /// `m_ColorEffect` 的**非虚读取**（供“虚转调层”与静态实现共用）。
-    /// <para><b>接缝：待 <c>TCustomActor</c> 把它的 <c>m_ColorEffect</c> 接到此处（报告 §8 请求 3）。</b></para>
+    /// 基类那一份 `m_ColorEffect`（原文 5558/5574/5582 的三分支依据）。
+    /// <para><b>字段名冲突已被本车道消解</b>：<c>TCustomActor</c> 曾在 <c>CustomActor.cs:1628</c>
+    /// 自建一份同名字段而形成字段隐藏（CS0108）—— 那会把"同一外观颜色状态"变成**两份不同步的存储**
+    /// （台账 §25.2 的静默缺陷形态）。本车道已**删除**那份重复声明，改由 <c>TCustomActor</c>
+    /// 覆写虚属性 <c>TActor.ActorColorEffect</c> 读本字段 ⇒ 全继承链只有**一份存储**。
+    /// 本字段保留 <c>m_BaseColorEffect</c> 之名，以免与历史引用混淆。</para>
     /// </summary>
-    public TColorEffect ActorColorEffectEffective => m_BaseColorEffect;
+    public TColorEffect m_BaseColorEffect;
 
     /// <summary>`m_nState` 的 `STATE_STONE_MODE` 位（原文 5512 的石化门）。</summary>
     public bool StateStoneMode => (m_nState & (int)ActorStates.STATE_STONE_MODE) != 0;
