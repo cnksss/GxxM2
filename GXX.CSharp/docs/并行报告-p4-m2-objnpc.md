@@ -781,3 +781,99 @@ public static long StrToInt64Def(string s, long def)
    端到端仍不可运行（见 §7.3）。
 4. `GetVariableText`(3,252 行)、`SetValNameValue`(391)、`Get/SetBoxItemValue`(654) 四条 **Seam 例程本身未经复核**
    （它们只有外壳 + 接缝，没有可复核的实现体）。
+---
+
+# 10. 第四轮（切片 14 / 15）：吸收 `p6-m2-playersurface` 后**去接缝化 + 解锁增量** ★ 本节优先于 §9
+
+> 前置：`merge main`（main 已含 `p6-m2-playersurface` 的 95 个成员 + 集成方补的三处 Engine 解锁点）。
+> 合并后本工作树门禁：**8,101 例全绿**（与调度方给的数字一致，无破窗）。
+
+## 10.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 14 | `93fbf900` | **去接缝化 / 去重**：删 8 个已落地委托；`GetStdItem`/`GetStdItemName` 改为**转发单一存储**；`GetCastleNameList` 接真实现；`SendMsgToClient` 按命名裁定改名 `SendTo`（扩展方法）；`m_ZVal` 去掉冗余 `?? ""` |
+| 15 | `bf92c74c` | **解锁增量 5 例程**：`SendMsgToUser`(9789) `MessageBox`(9800) `SendCustemMsg`(9837，真实现) `TBoxMonster.Initialize`(10521) `TGuildOfficial.Create`(10374) + 21 用例 |
+
+## 10.2 覆盖口径（★ 以本节为准）
+
+| 口径 | 切片 10 | **切片 15** |
+|---|---|---|
+| Covered 例程 / 112 | 57 | **62** |
+| Seam 例程 / 112 | 7 | **6** |
+| Missing 例程 / 112 | 48 | **44** |
+| **逐行 1:1（含嵌套 `sub_4A0218` 143 行）** | 2,187 | **2,245 / 10,546 = 21.3%** |
+
+门禁：`GXX.M2Server.Tests` **8,122 passed / 0 failed**；`Npc*` 子集 348 例。
+
+## 10.3 去接缝化明细（删掉的接缝 —— 重新引入即为回退）
+
+| 原接缝 | 现状 |
+|---|---|
+| `GetMyHero` / `GetCurrTarget` / `GetLastHiter` / `GetPoseCreate` | **删除**，改为直读 `TPlayObject.m_MyHero` / `TCreature.m_CurrTarget` / `m_LastHiter` / `GetPoseCreate()` |
+| `GetPlayerPVal` / `GetPlayerSString` / `GetPlayerTVal` / `GetPlayerArrayListValue` | **删除**，改为直读 `m_nVal` / `m_sString` / `m_TVal` / `m_ArrayList`（L$ 分支按原文 5837-5845 展开三分支） |
+| `GetStdItem` / `GetStdItemName` | 保留名字但改为**转发属性**到 `Engine.PlayerSurfaceMsgSeams.*` —— 三个名字**一个后备存储**（Engine 侧 `PlayerSurfaceItemSeams` 也转发到同一处） |
+| `GetCastleNameList` | 默认实现改为 `CastleState.g_CastleManager.GetCastleNameList(list)`（**真实现**，只留可注入点给单测） |
+| `SendMsgToClient` | 按裁定**改名 `SendTo`**，并以**扩展方法** `ObjNpcSendToExtensions.SendTo(this TCreature, ...)` 暴露；注释里写明"为什么不能叫 `SendMsg`"（`Engine.TCreature.SendMsg` 是语义不同的入队版） |
+| `SendCustemMsg`（委托） | **删除** —— `TNormNpc.SendCustemMsg` 已是真实现，三个子类覆写的 `inherited` 直接走 `base` |
+| `m_ZVal` 的 `?? ""` | **去掉**（Engine 已按原文把元素默认值修为 `''`，归一反而掩盖语义） |
+
+> **收益**：原先 8 个"默认恒返回 null"的委托会把"字段语义错"伪装成"分支没命中"；直读真成员后，
+> `GetLevelBaseObject*` 的 4 个目标级别分支第一次真正接到了 Engine 的字段上。
+
+## 10.4 切片 15 的 5 例程要点
+
+| 原文行号 | 例程 | 照抄要点 |
+|---|---|---|
+| 9789-9798 | `SendMsgToUser` | `g_OnlineMsgControl.boDisableUseNpc` 为真**直接退出**；`boShowNPCName` 时拼 `m_sCharName + '/'`（**斜杠**） |
+| 9800-9805 | `MessageBox` | 消息体先过 `GetLineVariableText`；`wIdent = RM_MENU_OK`(20118)，**`nParam1` 传 `NativeInt(Self)`** → 托管 `m_nRecogId`；**无** online-msg 门 |
+| 9837-9862 | `SendCustemMsg` | 三关门：`boSendCustemMsg` 总开关 → `g_FilterTexts`（**仅当非 nil 且 sMsg 非空**才过滤，过滤后为空则退出）→ `m_boSendMsgFlag` 单次放行；广播体用 `m_sCharName + ': '`（**冒号**）、类型 `t_Cust` |
+| 10521-10525 | `TBoxMonster.Initialize` | **先** `m_btDirection := Random(3)`（只取 0..2）**再** `inherited` |
+| 10374-10379 | `TGuildOfficial.Create` | `m_btRaceImg := RC_MERCHANT`(50) + `m_wAppr := 8`（**`TCastleOfficial.Create` 只 inherited，两者不一致** —— D30 差异断言） |
+
+## 10.5 依调度方提示做的复核
+
+- **`m_TVal`/`m_ZVal`/`m_sString` 默认值**：Engine 已在 `TPlayObject` 构造时 `MigrateStringVarDefaults` → 元素默认 `''`。
+  本车道**去掉**了 `m_ZVal[n] ?? ""`（原来是在兜旧缺陷），并把注释改为"Engine 已补齐"。原 `GetValNameValue_ZValNullElement_TreatedAsEmptyString` 用例仍绿（语义不变）。
+- **`m_ItemList` 由 `List<TUserItem>` 改为 `List<TUserItemView>`**：对本车道**无影响** ——
+  `sub_4A0218` 只把该列表当**参数**收（`List<object>`），不直接引用 Engine 字段。⚠ 但**接线时**要注意：
+  真实 `m_ItemList` 的元素类型是 `TUserItemView`，而 `sub_4A0218` 内按 `TUserItem` 解包 —— 这处**异型**已登记为待处理（见 §10.6）。
+- **`GetScriptLabel` 原文坏**（`ObjPlayer.pas:15216`，调度方提示）：本车道**不碰**该路径，也不需要"修"它；
+  `TNormNpc.UserSelect`/`GotoLable` 未移植，故无按"标签应当能跳转"写用例的风险。该结论已记入本报告备查。
+- **`m_sScriptParams` 不存在（是 `GotoLable` 的过程级局部）**、**`SendFirstMsg` 全仓 0 命中**：已从 §8.6 的缺口清单中**剔除**，不再寻找。
+
+## 10.6 ★ 仍需 Engine 侧补的**精确**缺口（供 `p6-m2-playersurface` 后续批次；本车道不自行声明替身）
+
+用脚本逐个核对后的现状（✅ 已有 / ❌ 缺）：
+
+| 原文需求 | 现状 | 阻塞的例程 |
+|---|---|---|
+| `TPlayObject.m_nScriptGotoCount` | ❌（只在 `Engine.TScriptPlayer` 上有，`NpcScriptState.cs:31`） | `TNormNpc.Click`(4431) |
+| `TPlayObject.m_sRandomString` | ❌（同上，`NpcScriptState.cs:32`） | `TNormNpc.Click` |
+| `TPlayObject.m_sNpcSelectItemName` | ❌ | `TNormNpc.Click` |
+| `TPlayObject.m_sScriptGoBackLable` / `m_sScriptCurrLable` / `m_sInputData` | ✅（`NpcSession.cs:96/93/120`） | — |
+| `TBaseObject.m_boObMode` | ❌ | `TNormNpc.GetShowName`(9609) |
+| `FilterShowName(...)`（单元级） | ❌ | `TNormNpc.GetShowName` |
+| `m_nWalkSpeed` / `m_nInitWalkSpeed` | ❌ | `TNormNpc.Initialize`(9864) |
+| `TPlayObject.m_boSendMsgFlag` | ❌（本车道暂用 `NpcSeams.GetSendMsgFlag`/`ClearSendMsgFlag`） | 已绕过 |
+| `g_Config.boSendCustemMsg` / `g_sSendCustMsgCanNotUseNowMsg` / `g_FilterTexts` | ❌（本车道暂用同名列接缝） | 已绕过 |
+| `TPlayObject.m_UseItems`（装备格数组） | ❌（本车道暂用 `NpcSeams.GetUseItemsWeapon`，**只读**；`UpgradeWapon` 还要写回） | `UpgradeWapon` 外层体、`TMerchant.GetVariableText` 已用只读接缝绕过 |
+| `TPlayObject.m_MyGuild` | ❌（Engine 走 `PlayerSurfaceItemSeams.MyGuild` 委托） | 已绕过 |
+| `TCreature.m_ItemList` 元素类型 | ⚠ `List<TUserItemView>` vs 本车道 `sub_4A0218` 按 `TUserItem` 解包 —— **异型待统一** | 接线时必处理 |
+
+> **一句话**：`TNormNpc.Click` 只差 **3 个字段**（`m_nScriptGotoCount`/`m_sRandomString`/`m_sNpcSelectItemName`）
+> 就能从"虚外壳"升级为真实现；补上后 `TMerchant.Click`/`TGuildOfficial.Click`/`TCastleOfficial.Click` 三处覆写的
+> `inherited` 才真正落到原文逻辑上。这是当前**投产比最高**的一处。
+
+## 10.7 仍被阻塞的四优先方法（更新后的缺口）
+
+| 方法 | 仍缺（❌） |
+|---|---|
+| `TNormNpc.GotoLable`(9263-9574, 312) | `m_nVal` ✅ 已有；仍缺 `m_sScriptParams` 已确认**不存在**（局部变量）；`LableIsCanJmp`/`SetScriptLabel` ✅ 已在 `NpcSession.cs`；需与 `HandleNpcCmds` 侧的条件/动作执行器对接 |
+| `TMerchant.ClientBuyItem`(3367, 323) | `m_nGold` ✅、`AddItemToBag` ✅（`TUserItemView` 版）、`IsEnoughBag` ✅、`IsAddWeightAvailable` ✅、`SendAddItem` ✅ → **基本具备**，只差 `TUserItem`↔`TUserItemView` 的构造桥 |
+| `TMerchant.ClientSellItem`(3798, 71) | `m_nGold` ✅、`IncGold` ✅ → **具备** |
+| `TMerchant.UpgradeWapon` 外层体(1830-1901, 72) | `m_nGold` ✅、`DecGold` ✅、`GoldChanged` ✅、`SendDelItem` ✅、`RecalcAbilitys` ✅、`FeatureChanged` ✅、`CheckItems` ✅ → 仍缺 `m_UseItems`（**读写**）与 `GotoLable` |
+| `TMerchant.UserSelect`(2087, 814) | 大批成员已落地；仍缺 `m_sAutoSendMsg` 等少数；建议**分片**推进（按 `@buy`/`@sell`/`@repair` 切） |
+
+> 结论：**解锁面比预期大得多** —— `ClientSellItem`(71) 与 `ClientBuyItem`(323) 现在基本可直接做，
+> 只差 `TUserItemView` 的构造/解包桥。若调度方希望，我下一轮从 `ClientSellItem` 起步（最小、可独立验证）。
