@@ -131,7 +131,19 @@ foreach ($d in $Dir) {
 
         $mapped = $e1 -or $e2
         $lines = 0
-        try { $lines = (Get-Content -LiteralPath $f.FullName -Encoding Default | Measure-Object -Line).Lines } catch { }
+        # PHYSICAL line count (count of LF + 1 if the file does not end with LF).
+        # The previous implementation used `... | Measure-Object -Line`, which skips
+        # blank lines and therefore UNDERCOUNTED every unit that has blank lines --
+        # measured on this tree the error ran 1.04x .. 1.19x (e.g. MirClientContext.pas
+        # 9,758 vs 11,126 actual), i.e. units looked up to a fifth smaller than they
+        # are.  Lane p2-rungate-impl caught this.  Reading bytes through the latin1
+        # (byte-transparent) codec also makes the count independent of the source's
+        # GBK encoding and robust to the CRLF/bare-LF mixtures in this tree.
+        try {
+            $txt = [System.IO.File]::ReadAllText($f.FullName, $latin1)
+            $lines = ($txt -split "`n").Count
+            if ($txt.EndsWith("`n")) { $lines-- }
+        } catch { }
 
         # E4 = the unit is explicitly assigned to a parallel lane, i.e. in flight,
         # NOT finished. It must never be counted as mapped.
