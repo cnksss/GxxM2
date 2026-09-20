@@ -59,6 +59,21 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `LOG_ItemDisappear = 09`（M2Share.pas:96）。
     /// 注：`GXX.LogDataServer.LogManage.cs:28` 有一份同值常量，但**跨工程**（M2Server 未引用 LogDataServer），故此处按原文值独立声明。</summary>
     public const byte LOG_ItemDisappear = 9;
+
+    /// <summary>接缝：原文 `LOG_ItemSell = 10; // 卖出物品`（M2Share.pas:97）。</summary>
+    public const byte LOG_ItemSell = 10;
+
+    /// <summary>接缝：原文 `LOG_GoldChange = 50; // 金币改变`（M2Share.pas:116）。</summary>
+    public const byte LOG_GoldChange = 50;
+
+    /// <summary>接缝：原文 `sSTRING_GOLDNAME = '金币'`（M2Share.pas:210）。</summary>
+    public const string sSTRING_GOLDNAME = "金币";
+
+    /// <summary>
+    /// 接缝：原文 `TUserItemBindValueType` 的 `ubNoSell { 禁止出售 }`（M2Share.pas:395；
+    /// 枚举序 `ubNoDrop=0, ubNoDeal=1, ubNoStorage=2, ubNoRepair=3, ubNoSell=4`）。
+    /// </summary>
+    public const int ubNoSell = 4;
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +545,51 @@ public static class NpcSeams
         list => CastleState.g_CastleManager.GetCastleNameList(list);
 
     /// <summary>
+    /// 原文 `GetUserItemBindValue(UserItem, ubNoSell)`（M2Share.pas:395 的绑定位判定）。
+    /// <para><b>★ 去重</b>：转发到 DbLayer 车道已建的唯一实现
+    /// `GXX.M2Server.DbLayer.DbLayerRunSeam.GetUserItemBindValue(bindOption, bit)`
+    /// （`DbLayerSeams.cs:69`）—— 本属性只是 Npc 侧的别名，**单一后备存储**。</para>
+    /// </summary>
+    public static Func<int, int, bool> GetUserItemBindValue
+    {
+        get => GXX.M2Server.DbLayer.DbLayerRunSeam.GetUserItemBindValue;
+        set => GXX.M2Server.DbLayer.DbLayerRunSeam.GetUserItemBindValue = value;
+    }
+
+    /// <summary>
+    /// 原文 `g_ItemRules.Get(wIndex, 4)`（物品规则第 4 项 = 禁止出售）。
+    /// <para><b>★ 去重</b>：转发到 `GXX.M2Server.DbLayer.DbLayerRunSeam.GetItemRule(wIndex, idx)`
+    /// （`DbLayerSeams.cs:72`）。</para>
+    /// </summary>
+    public static Func<ushort, int, bool> GetItemRule
+    {
+        get => GXX.M2Server.DbLayer.DbLayerRunSeam.GetItemRule;
+        set => GXX.M2Server.DbLayer.DbLayerRunSeam.GetItemRule = value;
+    }
+
+    /// <summary>
+    /// 原文 `g_sCanotUserSellItem`（M2Share.pas:7928，默认 `'此物品禁止出售!'`，
+    /// 由 `:21441-21443` 的 `StringConf` 覆盖）。ObjNpc.pas:3826 的提示串。
+    /// 接缝：待 M2Share 的 StringConf 接入；默认值即原文默认值（**不是**语义占位）。
+    /// </summary>
+    public static string g_sCanotUserSellItem { get; set; } = "此物品禁止出售!";
+
+    /// <summary>
+    /// 原文 `TUserCastle(m_Castle).IncRateGold(nGold)`（Castle.pas；ObjNpc.pas:3843 的税收上账）。
+    /// 接缝：`Engine.TUserCastle.IncRateGold(int)` 已存在，但本车道手上的 `m_Castle` 是 `object`
+    /// （见 <see cref="GetNpcCastle"/>），故仍需一层委托。
+    /// </summary>
+    public static Action<object, int> IncRateGoldOnCastle { get; set; } = (_, _) => { };
+
+    /// <summary>
+    /// 原文 `g_CastleManager.IncRateGold(nGold)`（Castle.pas 的**管理器级**税收上账；
+    /// ObjNpc.pas:3847/1874 调用）。注意与 <see cref="IncRateGoldOnCastle"/>（`TUserCastle` 实例级）
+    /// **是两个不同的方法** —— 托管侧 `TUserCastle.IncRateGold(int)` 已存在（`Castle.cs:367`），
+    /// 但 `TCastleManager` 上没有同名方法，故此处单独接缝。
+    /// </summary>
+    public static Action<int> IncRateGoldOnCastleManager { get; set; } = _ => { };
+
+    /// <summary>
     /// 原文 `g_Config.boSubkMasterSendMsg`（M2Share.pas；ObjNpc.pas:10393 的"城主喊话"开关）。
     /// 接缝：待 M2Share 的 g_Config 接入（`M2Config` 暂无同名字段）。
     /// </summary>
@@ -613,6 +673,11 @@ public static class NpcSeams
         ClearSendMsgFlag = _ => { };
         SendBroadCastMsg = (_, _) => { };
         GetCastleNameList = list => CastleState.g_CastleManager.GetCastleNameList(list);
+        GetUserItemBindValue = (bindOption, bit) => (bindOption & (1 << bit)) != 0;
+        GetItemRule = (_, _) => false;
+        g_sCanotUserSellItem = "此物品禁止出售!";
+        IncRateGoldOnCastle = (_, _) => { };
+        IncRateGoldOnCastleManager = _ => { };
         boSubkMasterSendMsg = false;
         g_sSubkMasterMsgCanNotUseNowMsg = "当前无法使用城主喊话功能";
     }

@@ -70,7 +70,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 3690, EndLine = 3752, Signature = "procedure TMerchant.ClientGetDetailGoodsList(PlayObject: TPlayObject; sItemName: string; nInt: Integer; IsFromTradingDlg: Boolean);", Status = "Missing", Home = "" },
         new() { StartLine = 3753, EndLine = 3792, Signature = "procedure TMerchant.ClientQuerySellPrice(PlayObject: TPlayObject; UserItem: pTUserItem; IsFromTradingDlg: Boolean; WaitSetIndex: Integer);", Status = "Missing", Home = "" },
         new() { StartLine = 3793, EndLine = 3797, Signature = "function TMerchant.GetSellItemPrice(nPrice: Integer): Integer;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
-        new() { StartLine = 3798, EndLine = 3868, Signature = "function TMerchant.ClientSellItem(PlayObject: TPlayObject; UserItem: pTUserItem; IsFromTradingDlg: Boolean): Boolean;", Status = "Missing", Home = "" },
+        new() { StartLine = 3798, EndLine = 3868, Signature = "function TMerchant.ClientSellItem(PlayObject: TPlayObject; UserItem: pTUserItem; IsFromTradingDlg: Boolean): Boolean;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 3869, EndLine = 3893, Signature = "function TMerchant.AddItemToGoodsList(UserItem: pTUserItem): Boolean;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 3894, EndLine = 4029, Signature = "procedure TMerchant.ClientMakeDrugItem(PlayObject: TPlayObject; sItemName: string);", Status = "Missing", Home = "" },
         new() { StartLine = 4030, EndLine = 4064, Signature = "procedure TMerchant.ClientQueryRepairCost(PlayObject: TPlayObject; UserItem: pTUserItem);", Status = "Missing", Home = "" },
