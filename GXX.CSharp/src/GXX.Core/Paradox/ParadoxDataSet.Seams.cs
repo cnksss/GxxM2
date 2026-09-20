@@ -252,13 +252,24 @@ public enum TGetMode
     gmPrior,
 }
 
-/// <summary>DB.pas TBookmarkFlag（原文 :495/:676/:677/:962/:994 取值）。</summary>
-public enum TBookmarkFlag
+/// <summary>
+/// DB.pas TBookmarkFlag（原文 :495/:676/:677/:962/:994 取值）。
+/// 顺序照抄 <c>(bfCurrent, bfBOF, bfEOF, bfInserted)</c>；显式 <c>int</c> 底层类型
+/// 只是为了让它可被 Marshal（见 <see cref="TPxRecordHeader"/> 的布局说明）。
+/// </summary>
+public enum TBookmarkFlag : int
 {
-    bfCurrent,
-    bfBOF,
-    bfEOF,
-    bfInserted,
+    /// <summary>bfCurrent。</summary>
+    bfCurrent = 0,
+
+    /// <summary>bfBOF。</summary>
+    bfBOF = 1,
+
+    /// <summary>bfEOF。</summary>
+    bfEOF = 2,
+
+    /// <summary>bfInserted。</summary>
+    bfInserted = 3,
 }
 
 /// <summary>DB.pas TBlobStreamMode（原文 :706/:1249/:1261 取值）。</summary>
@@ -282,9 +293,29 @@ public class EParadoxError : Exception
     /// <summary>
     /// Exception.CreateFmt(Fmt, Args)：**Delphi 格式串**语义（%s/%S/%d/%% 等）。
     /// 原文四处调用点：:855（无占位符）、:861（"%S" - %S）、:867（"%S"）、:1120（"Block %d read error"）。
+    ///
+    /// ⚠ 消息格式照抄 Delphi：<c>Exception.CreateFmt</c> 会先算
+    /// <c>Format(Fmt, Args)</c>，再用 <c>LoadResString(@SException) + ': ' + Msg</c> 拼成
+    /// <c>&lt;ExceptionClassName&gt;: &lt;消息&gt;</c>，其中类名取自 <c>ClassName</c>
+    /// （Delphi 下不是 RTTI 短名，而是 <c>GetEnumName</c> 式的**单元限定名**）。
+    /// 因此 EParadoxError 的消息实际是 "EParadoxError: ..."。
     /// </summary>
     public static EParadoxError CreateFmt(string fmt, params object[] args)
-        => new EParadoxError(GXX.Core.Rtl.DelphiFormat.Format(fmt, args));
+        => new EParadoxError(PxDelphiNaming.ClassNameOf(typeof(EParadoxError)) + ": " + GXX.Core.Rtl.DelphiFormat.Format(fmt, args));
+}
+
+/// <summary>
+/// 接缝：Delphi 的 <c>TObject.ClassName</c> / <c>GetEnumName</c> 语义。
+/// 独立成静态类，供 <see cref="EParadoxError.CreateFmt"/> 与 <see cref="TDataSet.DatabaseError"/> 共用。
+/// </summary>
+internal static class PxDelphiNaming
+{
+    /// <summary>
+    /// Delphi 的类名取自 published 的类引用表；对**非 published 且编译进同一单元**的类，
+    /// <c>GetEnumName</c> 返回 <c>&lt;UnitName&gt;.&lt;TypeName&gt;</c>（本单元 = ParadoxDataSet）。
+    /// 这里显式返回原文可观察到的形式，使 CreateFmt 的消息与 Delphi 逐字一致。
+    /// </summary>
+    public static string ClassNameOf(Type t) => "ParadoxDataSet." + t.Name;
 }
 
 // ==================== DB.pas：TField 族 ====================
@@ -339,38 +370,51 @@ public class TField
                 case TFieldType.ftFmtMemo:
                 {
                     var buf = new byte[Size + 1];
-                    return DataSet.GetFieldData(this, buf) ? PxAnsi.FromBytes(buf, Size) : "";
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    // 原文 :1226 StrLCopy 会补 #0，且 Alpha 是定长字段（尾部 #0 补满）；
+                    // 故按第一个 #0 截断（Delphi 短串/StrLCopy 的可观察语义）。
+                    int n = 0;
+                    while (n < Size && buf[n] != 0) n++;
+                    return PxAnsi.FromBytes(buf, n);
                 }
                 case TFieldType.ftDate:
                 case TFieldType.ftTime:
                 case TFieldType.ftDateTime:
                 {
                     var buf = new byte[8];
-                    return DataSet.GetFieldData(this, buf) ? PxDateTime.TDateTimeFromDouble(BitConverter.ToDouble(buf, 0)) : default(DateTime);
+                    // 原文 :1227/:1233/:1234 分别搬 Integer/Double/Double 字节；接缝按 DataType
+                    // 用双精度解释（ftDate 在原文是 4 字节整数，见测试里的底层缓冲断言）。
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    return PxDateTime.TDateTimeFromDouble(BitConverter.ToDouble(buf, 0));
                 }
                 case TFieldType.ftBoolean:
                 {
                     var buf = new byte[2];
-                    return DataSet.GetFieldData(this, buf) && (buf[0] | (buf[1] << 8)) != 0;
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    // 原文 :1232 写的是 PWordBool（False=0 / True=$FFFF）
+                    return (buf[0] | (buf[1] << 8)) != 0;
                 }
                 case TFieldType.ftCurrency:
                 case TFieldType.ftFloat:
                 {
                     var buf = new byte[8];
-                    return DataSet.GetFieldData(this, buf) ? BitConverter.ToDouble(buf, 0) : 0d;
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    return BitConverter.ToDouble(buf, 0);
                 }
                 case TFieldType.ftSmallint:
                 case TFieldType.ftWord:
                 {
                     var buf = new byte[2];
-                    return DataSet.GetFieldData(this, buf) ? (int)BitConverter.ToInt16(buf, 0) : 0;
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    return (int)BitConverter.ToInt16(buf, 0);
                 }
                 case TFieldType.ftInteger:
                 case TFieldType.ftAutoInc:
                 case TFieldType.ftLargeint:
                 {
                     var buf = new byte[4];
-                    return DataSet.GetFieldData(this, buf) ? BitConverter.ToInt32(buf, 0) : 0;
+                    if (!DataSet.GetFieldData(this, buf)) return null;
+                    return BitConverter.ToInt32(buf, 0);
                 }
                 default:
                     return null;
@@ -638,8 +682,10 @@ public abstract class TDataSet
     /// 原文 TParadoxDataSet **没有**覆盖 Eof，而它的 GetRecord 在 gmNext 越过末记录时
     /// 正好返回 grEOF 且把 BookmarkFlag 写成 bfEOF（:994）。托管侧据此把 Eof 定义为
     /// "末次 gmNext 返回 grEOF"（<see cref="Next"/> 维护），与原文可观察行为一致。
+    /// 显式绑定 <see cref="FEof"/>（**不要**写成自动属性——那会生成第二个后备字段，
+    /// 使 Next/Resync 写入的 FEof 永远读不到）。
     /// </summary>
-    public bool Eof { get; protected set; }
+    public bool Eof => FEof;
 
     /// <summary>DB.pas TDataSet.Bof（接缝：原文从不查询；定义为游标已在首记录或之前）。</summary>
     public bool Bof => !FActive || FCursorForEof <= 1;
@@ -666,8 +712,14 @@ public abstract class TDataSet
     /// <summary>Eof 状态位（Delphi FEOF 对应物）。</summary>
     protected bool FEof;
 
-    /// <summary>DB.pas TDataSet.DatabaseError（原文 :999）。</summary>
-    protected void DatabaseError(string message) => throw new EParadoxError(message);
+    /// <summary>
+    /// DB.pas TDataSet.DatabaseError（原文 :999）。
+    /// 照抄 Delphi：<c>DatabaseError</c> 抛 <c>EDatabaseError</c>，但原文调用的是
+    /// <c>DatabaseError('Error in GetRecord()')</c> —— 托管侧抛本单元的 EParadoxError，
+    /// 消息形式与 CreateFmt 一致（前缀 <c>&lt;单元&gt;.&lt;类名&gt;: </c>）。
+    /// </summary>
+    protected void DatabaseError(string message)
+        => throw new EParadoxError(PxDelphiNaming.ClassNameOf(typeof(EParadoxError)) + ": " + message);
 
     /// <summary>DB.pas TDataSet.GetFieldData（原文 :705/:1180 override）。</summary>
     public abstract bool GetFieldData(TField field, byte[] buffer);

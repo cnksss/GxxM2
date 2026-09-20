@@ -26,39 +26,59 @@ if (-not (Test-Path -LiteralPath $src)) { throw "source not found: $src" }
 
 $lines = [System.IO.File]::ReadAllLines($src, [System.Text.Encoding]::GetEncoding(936))
 
-# --- locate 'PxLangTable: array[1..118] of TPxLang =' then the entry lines ---
+# --- locate 'PxLangTable: array[1..118] of TPxLang =' ---
 $start = -1
 for ($i = 0; $i -lt $lines.Length; $i++) {
   if ($lines[$i] -match '^\s*PxLangTable\s*:\s*array\s*\[\s*1\s*\.\.\s*118\s*\]\s*of\s+TPxLang') { $start = $i; break }
 }
 if ($start -lt 0) { throw 'PxLangTable declaration not found' }
 
-# Delphi 1-based index == declaration order.
+# Delphi 1-based index == declaration order. Entry lines look like:
+#   ((Name: 'X';   SortOrder: 1;  CodePage: 1252; SortOrderID: 'Y'),
+# The array is closed by the LAST entry line, which additionally ends with '));'
+# instead of '),' (source line 638). The entry regex must therefore be tried first
+# and the terminator test applied only when the line still has the entry shape.
 $RE_ENTRY = "^\s*\(+Name:\s*'(?<name>(?:[^']|'')*)';\s*SortOrder:\s*(?<so>-?\d+);\s*CodePage:\s*(?<cp>-?\d+);\s*SortOrderID:\s*'(?<sid>(?:[^']|'')*)'\)"
+$TERM = [string]([char]39 + [char]41 + [char]41 + [char]59)   # '));
 
 $entries = New-Object System.Collections.ArrayList
 $lastEntryLine = 0
+$termLine = 0
 for ($i = $start + 1; $i -lt $lines.Length; $i++) {
   $l = $lines[$i]
-  # Stop at the first non-entry, non-blank line after the array (source line 639 is
-  # blank and 640 is 'type'); the entry count assertion below pins the exact shape.
-  if ($l.Trim() -eq '') { if ($entries.Count -gt 0) { break } else { continue } }
   $m = [regex]::Match($l, $RE_ENTRY)
-  if (-not $m.Success) {
-    if ($l.Trim() -eq '') { continue }
-    throw "unparsed PxLangTable line $($i + 1): $l"
+  if ($m.Success) {
+    $lastEntryLine = $i + 1
+    [void]$entries.Add([pscustomobject]@{
+      Name = $m.Groups['name'].Value.Replace("''", "'")
+      SO   = [int]$m.Groups['so'].Value
+      CP   = [int]$m.Groups['cp'].Value
+      SID  = $m.Groups['sid'].Value.Replace("''", "'")
+      Line = $i + 1
+    })
+    if ($l.Trim().EndsWith($TERM)) { $termLine = $i + 1; break }
+    continue
   }
-  $lastEntryLine = $i + 1
-  [void]$entries.Add([pscustomobject]@{
-    Name = $m.Groups['name'].Value.Replace("''", "'")
-    SO   = [int]$m.Groups['so'].Value
-    CP   = [int]$m.Groups['cp'].Value
-    SID  = $m.Groups['sid'].Value.Replace("''", "'")
-    Line = $i + 1
-  })
+  if ($l.Trim() -eq '') { continue }
+  throw "unparsed PxLangTable line $($i + 1): $l"
 }
+
 if ($entries.Count -ne 118) { throw "expected 118 entries, got $($entries.Count)" }
 if ($lastEntryLine -ne 638) { throw "expected last entry on source line 638, got $lastEntryLine" }
+if ($termLine -ne 638) { throw "expected array terminator on source line 638, got $termLine" }
+# Hard check: entry N must come from source line 520+N (Delphi index == order == line offset).
+for ($n = 0; $n -lt $entries.Count; $n++) {
+  $want = 520 + ($n + 1)
+  if ($entries[$n].Line -ne $want) {
+    throw "entry index $($n + 1) came from line $($entries[$n].Line), expected $want"
+  }
+}
+
+# Print anchors for manual cross-check against the source text.
+foreach ($a in @(1, 2, 24, 58, 74, 92, 118)) {
+  $e = $entries[$a - 1]
+  Write-Host ("  anchor[{0}] line={1} Name='{2}' SO={3} CP={4} SID='{5}'" -f $a, $e.Line, $e.Name, $e.SO, $e.CP, $e.SID)
+}
 
 # --- C# escaping for a double-quoted literal ---
 function CsStr([string]$s) {

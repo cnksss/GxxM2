@@ -25,9 +25,11 @@
 // 详见 docs/并行报告-p6-core-paradox.md）：
 //  D1  :809-816 / :837-844 的 repeat/until 只在 B<>0 时写入 ⇒ 文件截断时**死循环**
 //      （Delphi 下 FFileStream.Read(B,1) 读不到不改 B）。
-//  D2  :826-835 的 P 分支：未加密时 `P := FFileHeader.NumFields * 2`（**覆盖**了 :797/:800-803
-//      算出的字段名区终点），:835 再以 soFromCurrent 相对定位 ⇒ 落点取决于 NumFields，
-//      与"字段名区之后"无关。
+//  D2  :797 先把 P 加上"字段信息区之后"的尺寸，:800-803 又加上 TableName 区尺寸（261/79），
+//      然后 :805 用**已经加过 TableName 区尺寸的 P** 去读字段名 —— 即字段名被读到了
+//      TableName 区**之后**（该位置按 Paradox 布局本该是表名）。原文如此，照抄。
+//  D2b :826-835 之后又用 `P := FFileHeader.NumFields * 2` **覆盖** P，:835 以 soFromCurrent
+//      相对定位读 SortOrderID —— 落点与"字段名区之后"无关，只与当前位置差 N*2 有关。
 //  D3  :866 `not (FileType in [0, 2])` ⇒ **FileType=1（.PX 主索引）也会被拒**；
 //      .DB 无索引表是 2。
 //  D4  :969-978 的块遍历按 `AddDataSize div RecordSize` 累加 ⇒ **RecordSize=0 时除零异常**；
@@ -257,17 +259,13 @@ public sealed partial class TParadoxDataSet : TDataSet
     /// <summary>原文 :676/:755 GetBookmarkFlag。</summary>
     protected override unsafe TBookmarkFlag GetBookmarkFlag(IntPtr Buffer)
     {
-        return ((TPxRecordHeader*)Buffer)->BookmarkFlag;
+        return PxRecordHeaderOps.GetBookmarkFlag(Buffer);
     }
 
     /// <summary>原文 :677/:760 SetBookmarkFlag。</summary>
-    protected override void SetBookmarkFlag(IntPtr Buffer, TBookmarkFlag Value)
+    protected override unsafe void SetBookmarkFlag(IntPtr Buffer, TBookmarkFlag Value)
     {
-        unsafe
-        {
-            var p = (TPxRecordHeader*)Buffer;
-            p->BookmarkFlag = Value;
-        }
+        PxRecordHeaderOps.SetBookmarkFlag(Buffer, Value);
     }
 
     /// <summary>原文 :679/:765 InternalHandleException → Application.HandleException(Self)。</summary>
@@ -507,7 +505,7 @@ public sealed partial class TParadoxDataSet : TDataSet
             unsafe
             {
                 ((TPxRecordHeader*)Buffer)->RecordIndex = FCursor;
-                ((TPxRecordHeader*)Buffer)->BookmarkFlag = TBookmarkFlag.bfCurrent; // GJK
+                PxRecordHeaderOps.SetBookmarkFlag(Buffer, TBookmarkFlag.bfCurrent); // GJK
             }
 
             // Находим позицию записи в файле
@@ -531,7 +529,7 @@ public sealed partial class TParadoxDataSet : TDataSet
                 Marshal.SizeOf<TDataBlock>();
 
             FFileStream.Seek(nSeekPos, 0 /*soFromBeginning*/);
-            P = Buffer + Marshal.SizeOf<TPxRecordHeader>();
+            P = Buffer + PxRecordHeaderOps.Size;
             unsafe
             {
                 FFileStream.Read((void*)P, FFileHeader.RecordSize);
@@ -540,11 +538,11 @@ public sealed partial class TParadoxDataSet : TDataSet
         else
         {
             // This prevents garbage in datagrid when the last record was deleted
-            P = Buffer + Marshal.SizeOf<TPxRecordHeader>();      // GJK
+            P = Buffer + PxRecordHeaderOps.Size;      // GJK
             PxBuffer.FillChar(P, FFileHeader.RecordSize, 0);      // GJK
             unsafe
             {
-                ((TPxRecordHeader*)Buffer)->BookmarkFlag = TBookmarkFlag.bfEOF; // GJK
+                PxRecordHeaderOps.SetBookmarkFlag(Buffer, TBookmarkFlag.bfEOF); // GJK
             }
         }
 
@@ -559,7 +557,7 @@ public sealed partial class TParadoxDataSet : TDataSet
     /// <summary>原文 :686/:1003 AllocRecordBuffer。</summary>
     protected override IntPtr AllocRecordBuffer()
     {
-        return Marshal.AllocHGlobal(Marshal.SizeOf<TPxRecordHeader>() + FFileHeader.RecordSize);
+        return Marshal.AllocHGlobal(PxRecordHeaderOps.Size + FFileHeader.RecordSize);
     }
 
     /// <summary>原文 :687/:1008 FreeRecordBuffer。</summary>
@@ -586,9 +584,9 @@ public sealed partial class TParadoxDataSet : TDataSet
     }
 
     /// <summary>原文 :692/:1028 InternalSetToRecord（FCursor := PPxRecordHeader(Buffer)^.RecordIndex）。</summary>
-    protected override unsafe void InternalSetToRecord(IntPtr Buffer)
+    protected override void InternalSetToRecord(IntPtr Buffer)
     {
-        FCursor = ((TPxRecordHeader*)Buffer)->RecordIndex;
+        FCursor = PxRecordHeaderOps.GetRecordIndex(Buffer);
     }
 
     /// <summary>原文 :694/:1033 GetCanModify（恒 False）。</summary>
@@ -606,7 +604,7 @@ public sealed partial class TParadoxDataSet : TDataSet
     }
 
     /// <summary>原文 :699/:1050 GetRecNo。</summary>
-    protected override unsafe int GetRecNo => ((TPxRecordHeader*)ActiveBuffer)->RecordIndex;
+    protected override int GetRecNo => PxRecordHeaderOps.GetRecordIndex(ActiveBuffer);
 
     // ---- 原文 :700-709 public ----
 
@@ -614,6 +612,9 @@ public sealed partial class TParadoxDataSet : TDataSet
     public TParadoxDataSet()
     {
         // inherited Create(AOwner)（原文 :1170）
+        // 接缝：Delphi 的 string 字段初值为 nil（= ''），托管 string 默认 null ⇒ 显式置空，
+        // 使原文 :854 `if TableName = '' then raise` 的判定在未赋值时成立。
+        FTableName = "";
         FCodepage = ParadoxConvSeam.GetCodepage();   // 原文 :1171
         FEncodingMemo = true;                        // 原文 :1172
     }
@@ -640,7 +641,7 @@ public sealed partial class TParadoxDataSet : TDataSet
         var P = new byte[FFields[Field.FieldNo - 1].FieldSize];
         IntPtr Src;
 
-        Src = ActiveBuffer + Marshal.SizeOf<TPxRecordHeader>() + FFieldOffsets[Field.FieldNo - 1];
+        Src = ActiveBuffer + PxRecordHeaderOps.Size + FFieldOffsets[Field.FieldNo - 1];
 
         bool IsNull = true;
         byte ftype = FFields[Field.FieldNo - 1].FieldType;
@@ -750,7 +751,7 @@ public sealed partial class TParadoxDataSet : TDataSet
         TMemoryStream Result = null;
         if ((Mode != TBlobStreamMode.bmRead)) return Result;
 
-        Src = ActiveBuffer + Marshal.SizeOf<TPxRecordHeader>() + FFieldOffsets[Field.FieldNo - 1];
+        Src = ActiveBuffer + PxRecordHeaderOps.Size + FFieldOffsets[Field.FieldNo - 1];
 
         Header = Src + Field.Size - Marshal.SizeOf<TPxBlob>();
         Blob = *(TPxBlob*)Header;
