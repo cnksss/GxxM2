@@ -1212,3 +1212,73 @@ Select-String -Path (all src/tests *.cs) -Pattern 'm_ItemList' | ? { 非注释�
 按裁定顺序：`ClientBuyItem`(323) → `UpgradeWapon` 外层体 → `UserSelect` 的 `@buy`/`@sell`/`@repair` 分片。
 **新增前置**：§13.5 的"背包写回入口"（若 `ClientBuyItem`/`UpgradeWapon` 需要就地改背包物品）——
 到时我会先只申请这一个成员，再动手。
+---
+
+# 14. 第八轮（切片 24 / 25）：`AniCount` 重复字段修复 + **D35 偏差正式登记** + `SetBagItem` 入口 ★ 本节优先于 §13
+
+## 14.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 24 | `2d51be7f` | `TStdItemView.AniCount` 由**重复字段**改为**转发属性**（同一 Delphi 字段被拆成两处、各被一侧消费） |
+| 25 | （本节随附） | **D35 偏差正式登记**（报告 + 两处代码注释）+ `SetBagItem` 写回入口 + 5 例 |
+
+门禁：`GXX.M2Server.Tests` **8,281 passed / 0 failed**。
+
+> ⚠ **分区表滞后提示**：调度方已在本轮消息中**直接授权** `Engine/AddAbility.cs`，但 main 的
+> `tools/lane-zones.tsv` 里**尚未出现该路径**（`git show main:GXX.CSharp/tools/lane-zones.tsv | grep AddAbility` 为空）。
+> 本车道按**直接授权**执行，并在此显著登记 —— 请集成方补一条 `!...Engine/AddAbility.cs`，
+> 否则 `verify-lanes.ps1` 会把它报成 OUT-OF-ZONE。
+> 另已核实：**全仓无任何调用方依赖"字段"语义**（对 `AniCount`/`Anicount` 无 `ref`/`out`/`GetField`/`nameof` 用法），
+> 故改为属性**零破坏**，测试**无需改动**（对象初始化器与属性初始化器等价）。
+
+## 14.2 `AniCount` 修复的实质（属台账 §29「沉默中性值」故障同族）
+
+`TStdItemView`（`Engine/AddAbility.cs`）原先把**同一个** Delphi 字段 `TStdItem.AniCount` 拆成两个托管字段：
+
+| 字段 | 用途 | 消费点 |
+|---|---|---|
+| `Anicount`（:41，小写 c） | **特戒代码开关** | `Engine/RecalcChain.cs:55` `self.ApplySpecialItemCode(std.Anicount)` |
+| `AniCount`（:60，大写 C） | **封号令判定** | `Engine/GroupItems.cs:476` `stdItem.AniCount == 0`（写：`tests/FormJ57Tests.cs:384/438/439` 对象初始化器） |
+
+**危害**：任何构造 `TStdItemView` 的地方（如 `RecalcChain.cs:47` 的 `StdItemResolver`）**只填其一**时，
+另一侧**静默读到 0** —— "默认值看起来合法，于是错误被伪装成'分支没命中'"。
+**修法**：`:60` 改为 `public ushort AniCount { get => Anicount; set => Anicount = value; }` → 两处消费共享同一份数据。
+
+## 14.3 ★★ 正式偏差 **D35**：值语义 vs 指针语义
+
+| 项 | 内容 |
+|---|---|
+| **编号** | **D35** |
+| **位置** | `Engine/ObjBase.cs`（`m_ItemList` 声明）+ `Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs`（`BagItems`/`AddToBag`/`SetBagItem`） |
+| **偏离点** | `m_ItemList` 的元素类型由原文的 `pTUserItem` **指针**改为 `TUserItem?` **可空值类型** |
+| **原文行为** | `TList` 存指针 → `BagItems.Items[I]^.X := v` 与"调用方手上那件"是**同一对象**，**改一处两处都变**（别名共享）。`ObjNpc.pas:1710/4254` 等处的 `if UserItem = nil` 判空也因此有意义 |
+| **托管行为** | `Add`/`SetBagItem` 都是**值复制** → 改本地副本**不影响**背包；必须**显式写回槽位**才生效 |
+| **为什么必须偏离** | `GXX.Core.Protocol.TUserItem` 是 `struct`（`Grobal2.Types6.cs:13`，1:1 的 wire/DB 权威布局）。值类型**无法表达**"共享同一实例"。可空（`TUserItem?`）是为了保住原文的**空槽**语义，但保住空槽 ≠ 保住别名 |
+| **触发面（真实代码路径）** | ① `ObjNpc` 侧 `GetUserItemPrice(ref TUserItem, ...)` 在 `StdMode = 43` 时**就地改写** `DuraMax`（`:3302-3303`）——传 `BagItems[i]` 会**编译不过**（`List<T>` 索引器不可 `ref`）；② `UpgradeWapon` 的 `User.m_UseItems[U_WEAPON].wIndex := 0`（`:1886`）；③ `ClientBuyItem`/`UserSelect` 的"取出→改→放回"模式 |
+| **调用方契约（强制，已写入两处代码注释）** | `var t = BagItems[i]!.Value; ...改 t...; SetBagItem(i, t);` 或 `var t = BagItems[i]!.Value; GetUserItemPrice(ref t, ...); SetBagItem(i, t);` |
+| **为什么要"台账条目 + 唯一编号"而不是只写注释** | 这类差别**编译过、多数单测过**，只在"改了一处、另一处没变"时暴露 —— 与 §25.2/§26.2/§29 那些"假完成/沉默中性值"同族；只写注释会被后来人当成实现细节而"顺手简化"掉 |
+| **若将来要恢复别名语义** | 唯一途径 = 回到**方案 B**：让 `TUserItemView` **持有 `TUserItem` 的引用**（包装类），使 `BagItems` 的元素成为引用类型。届时 D35 可**注销** |
+
+**已被迫改写的用例（唯一一处真语义变更）**：
+`PlayerSurfaceItemsTests.AddItemToBag_KeepsReferenceSemantics_LikeOriginalPointerList`
+—— 原断言 `it.wIndex = 999` 后背包读到 999（**别名共享**）；现断言背包仍读到复制进去的 `5`（**值复制**）。
+用例名与注释已同步改写并把 D35 指出来，**不是静默适配**。
+
+## 14.4 `SetBagItem`（方案 A 的必要补充入口，已获批准）
+
+```csharp
+public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不静默忽略）
+```
+**原文依据**：Delphi `TList.Items[Index]` 是**可写属性**
+（`property Items[Index: Integer]: Pointer read Get write Put`）→ 原文完全允许 `BagItems.Items[I] := UserItem;`。
+托管侧 `Bag` 是 `IReadOnlyList`（只读）、`AddToBag` 只能追加 → **必须**补一个等价写入口，
+否则 D35 契约里的"写回槽位"根本无路可走。
+
+**用例 5 例**：正常写回生效 / `-1` 越界 / 恰好在 `Count` 处越界 / 空背包任意下标 / 写 `null` 清空槽
+（末例对应原文 `pTUserItem` 槽可为 nil）。
+
+## 14.5 下一轮
+
+按裁定顺序做 **`ClientBuyItem`(3367-3689, 323 行)** —— 前置（`m_nGold`/`AddItemToBag`/`IsEnoughBag`/
+`IsAddWeightAvailable`/`SendAddItem` + `SetBagItem`）**现在全部就绪**。随后 `UpgradeWapon` 外层体 → `UserSelect` 分片。
