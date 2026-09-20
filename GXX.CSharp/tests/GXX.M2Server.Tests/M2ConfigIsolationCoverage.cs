@@ -10,15 +10,18 @@
 //      M2Config 417 处、M2Forms 139、GameConfigState 10、DropLimitGlobals 7、InterServerState 7、
 //      M2ShareAbilConfig 6、ViewList2State 5、M2ShareLimits 4、DbLayerGlobals 3、SndaShopEnv 2、
 //      ViewListGroups 2、GHeroDBConfig 1、M2ShareState 1（外加 `using static` 写法）；
-//   3. 同类的静态全局配置/状态持有者（同一机制顺手纳入，零额外成本）。
+//   3. 同类的静态全局配置/状态持有者（同一机制顺手纳入，零额外成本）；
+//   4. **src 侧的静态接缝**（`NpcSeams` / `AuctionDbRunSeam` / `DbLayerRunSeam`）—— 由上级裁定纳入：
+//      这几个「静态委托持有者」正是跨测试污染的典型载体；各车道虽然都写了 `ResetDefaults()`，
+//      但那是**靠自觉**，而本机制的整个立论就是「不能靠自觉」。类型在 src 里，引用它们不修改
+//      任何在飞车道的文件。
 //
 // 明确**排除**的（理由见 docs/并行报告-p6-test-isolation.md）：
 //   * 纯常量/查找表类（DropLimitConsts / ObjNpcConst / NpcCmdCodes / DataItemTypes /
 //     SqliteCodes / Sqlite*Sql / MySql*Sql / GameCommandTables / ItemSetAddValueTables …）——
 //     只有 const / static readonly，没有可赋值静态状态；
-//   * 测试自己的接缝类（NpcSeams / AuctionDbRunSeam / CustomMagicFormGlobals /
-//     CustomMagicMessageBoxSeam / TVtEditorFactory / DbLayerTestKit …）—— 属于各在飞车道
-//     的独占文件，且它们的测试基类已经自己 Reset（本车道无权改，也不应越界覆盖）；
+//   * **测试工程自己定义**的接缝类（CustomMagicFormGlobals / CustomMagicMessageBoxSeam /
+//     TVtEditorFactory / DbLayerTestKit …）—— 不属于 `GXX.M2Server` 程序集，不归本机制管；
 //   * 静态窗体注册表（M2Forms 已单独纳入，M2FormRegistry 一类持有的是窗体实例而不是配置值）。
 // ============================================================================
 
@@ -27,6 +30,7 @@ using GXX.M2Server.DbLayer;
 using GXX.M2Server.Engine;
 using GXX.M2Server.Forms;
 using GXX.M2Server.GameCenter;
+using GXX.M2Server.Npc;
 
 namespace GXX.M2Server.Tests;
 
@@ -63,5 +67,10 @@ internal static class M2ConfigIsolationCoverage
         typeof(CustomHeroMagicState),
         typeof(PluginManagerState),
         typeof(M2ServerLog),
+
+        // --- 4. src 侧静态接缝（静态委托持有者；上级裁定纳入，不依赖各车道自觉 Reset） ---
+        typeof(NpcSeams),            // GXX.M2Server.Npc：ObjNpc 侧接缝（测试里 200 处引用）
+        typeof(AuctionDbRunSeam),    // DbLayer：拍卖/UserShop 侧接缝（测试里 50 处引用）
+        typeof(DbLayerRunSeam),      // DbLayer：DbLayer 运行期接缝
     };
 }
