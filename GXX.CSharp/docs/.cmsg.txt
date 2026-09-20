@@ -1,0 +1,48 @@
+p3-dx-big：DIB 遗留 34 例测试全部修绿（GXX.Client.Tests 3642/3642）+ 补「.NET ≠ Delphi 语义」清单
+
+门禁（最终实测）：
+  dotnet build GXX.slnx -c Debug      → Build succeeded, 0 Error(s)          ✅
+  dotnet test tests\GXX.Client.Tests  → Passed: 3642, Failed: 0, Total: 3642  ✅
+  （基线 3484 → 3642，无新增失败；本分支现已可并入 main）
+
+## 实现缺陷修复 4 处（上一轮真缺陷，非测试问题）
+DXConsts 的常量是 **Delphi** 格式串（'...(%d)'，DXConsts.pas:46/107），.NET string.Format
+无法替换 %d，会原样输出 "%d"。改用 GXX.Core.Rtl.DelphiFormat.Format
+（GXX.Core/Rtl/DelphiRTL.cs:193）。涉及：
+  DIB.SharedImage.cs NewImage 未知位深消息
+  DIB.SharedImage.cs NewImage 分配失败消息（SCannotMade）
+  DIB.Core.cs GetScanLine 越界消息
+  DIB.Core.cs GetScanLineReadOnly 越界消息
+
+## 测试期望修正（逐处注明依据 DIB.pas:<行>）
+- DSin：原文 DIB.pas:507 为浮点除，DSin(128)=0.999995291（非 1.0）
+- Pixels_24bpp / ConvertBitCount_8到24：原文约定 GetPixel = R|G<<8|B<<16
+  （DIB.pas:2004-2005）+ 24bpp 内存 [B,G,R]（DIB.pas:1219）
+- ConvertBitCount_24到16：原文 DIB.pas:2273-2295 把 8:8:8 传给 16bpp 校验 → 必抛；
+  即原文 24→16 转换本身不可用（改为断言抛错 + 断言先设 5:6:5 后可工作）
+- RetAlphaChannel：32bpp 像素 A 在**高**字节（DIB.pas:2036），测试原写 0x000000AB 使 A=0
+- NewImage_退化尺寸：原文不校验宽高（DIB.pas:811-934），(0,0) 与 (-3,-4) 均抛 EOutOfMemory
+- 重复Destroy / Duplicate_空源 / ReadData_空流：原文 Destroy(DIB.pas:1491-1509)、
+  Create(802-809)、Duplicate(936-941) 均不重置 FSize/FBitCount
+- SetImage：FSize = WidthBytes*Height = 4*2 = 8（DIB.pas:847-849），非 16
+- Compress_已压缩源：c1=8、c2=4（Duplicate 内 NewImage 按位深算），二者本不相等
+- RLE4/RLE8 解码：原文行地址用 FWidthBytes 而 GetPixel 用 FNextLine（DIB.pas:1247/1272/
+  1315/1320 vs 2002、848），行序相反；RLE4 编码模式始终取高半字节（DIB.pas:1274-1286）
+- RLE4 往返：原文 4bpp 编解码只用低半字节，往返不保真（已改为断言实际丢失像素）
+- RLE8编码_绝对模式：实测 00 04 01 02 03 04 00 00 00 01，ImgSize=10
+- MakeDIBPixelFormat_RShift：删除自相矛盾的错断言（DIB.pas:515-529）
+- RGBQuad 互转 / Pixels_4bpp / ConvertBitCount_8bppHalftone：删除互相矛盾的断言、
+  按实测值改正（0xC0 / ct16.rgbRed=36）
+- ReadData_8bpp / 4bpp：调色板按 RGBQUAD 字段顺序逐字节搬运（DIB.pas:1418-1430）
+- AssignAlphaChannel_源8bpp：实测落点 bits[11]=0x40、bits[7]=0x80
+
+## 测试基础设施缺陷 2 处
+- BuildDib 未按 4 字节行对齐补足像素数据 → LoadRGB 越界并**崩溃 testhost**
+  （新增 padPixels 开关，默认补齐；ReadData_截断像素数据抛异常 显式关掉以保留原意）
+- Compress_Decompress_TDIB层：MkImage(4,2,8) 却只 LoadBits(8 字节) 且把半行当整行比对
+  （已改为 4x1 + 断言 ImgSize=6）
+
+## 报告
+docs/并行报告-p3-dx-big.md 新增 §12「.NET 用法 ≠ Delphi 语义」排查清单（13 条，均带
+DIB 全族实测命中实例：格式串 %d/%s、整数除法、无符号移位、行跨距正负、故意越界写入、
+位域字段名≠内存序、调色板字节序、TColor 打包方向等）+ §13 收尾状态 + §15/§16 交接。

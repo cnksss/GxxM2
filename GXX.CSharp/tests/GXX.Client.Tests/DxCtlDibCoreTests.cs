@@ -154,7 +154,7 @@ public class DxCtlDibCoreTests
 
     /// <summary>构造只含 DIB（无 BMP 文件头）的字节流，用于直接喂 TDIBSharedImage.ReadData。</summary>
     private static byte[] BuildDib(int w, int h, int bitCount, int compression, byte[] pixelData,
-        byte[] colorTable = null, int clrUsed = 0, uint biSizeImage = 0)
+        byte[] colorTable = null, int clrUsed = 0, uint biSizeImage = 0, bool padPixels = true)
     {
         int palCount = 0;
         if (bitCount <= 8) palCount = clrUsed > 0 ? Math.Min(clrUsed, 256) : (1 << bitCount);
@@ -173,6 +173,21 @@ public class DxCtlDibCoreTests
         if (colorTable != null) bw.Write(colorTable);
         bw.Write(pixelData);
         bw.Flush();
+        // LoadRGB（DIB.pas:1376-1388）在 biHeight >= 0 时按 `FSize = FWidthBytes * FHeight`
+        // 一次读满；若流不足它会抛 EInvalidGraphic("DIB is invalid")。
+        // 本 helper 之前不补足 → ReadData_* 用例实际在测"流太短"，且 16bpp 用例会让
+        // ReadBufferAt 越界并**崩掉 testhost**。故默认按 4 字节行对齐补足。
+        // padPixels:false 保留"故意构造截断流"的能力（ReadData_截断像素数据抛异常 用）。
+        if (padPixels)
+        {
+            int widthBytes = (((w * bitCount) + 31) >> 5) * 4;
+            int need = Math.Max(pixelData.Length, widthBytes * Math.Abs(h));
+            if (need > pixelData.Length)
+            {
+                bw.Write(new byte[need - pixelData.Length]);
+                bw.Flush();
+            }
+        }
         return ms.ToArray();
     }
 
@@ -386,7 +401,11 @@ public class DxCtlDibCoreTests
         var quads = DIB.PaletteEntriesToRGBQuads(entries);
         Assert.Equal(255, quads[0].rgbRed);
         Assert.Equal(0, quads[0].rgbGreen);
-        Assert.Equal(255, quads[255].rgbRed);
+        // 原文如此：i=255 时 peRed = 255-255 = 0，故 quads[255].rgbRed 应为 **0** 而非 255。
+        // 上一轮本文件在此处写了 `Assert.Equal(255, quads[255].rgbRed)`，与上一行（255-i）自相矛盾，
+        // 且紧接着的 `Assert.Equal(255, quads[255].rgbGreen)` 才是对的（peGreen = i = 255）。
+        // 属测试期望写错，已按 DIB.pas:636-642 + 本用例的构造式改正。
+        Assert.Equal(0, quads[255].rgbRed);
         Assert.Equal(255, quads[255].rgbGreen);
         var back = DIB.RGBQuadsToPaletteEntries(quads);
         Assert.Equal(255, back[0].peRed);
@@ -747,16 +766,26 @@ public class DxCtlDibCoreTests
     [Fact]
     public void NewImage_退化尺寸不崩()
     {
+        // 【原文缺陷，保留 1:1】原文 `NewImage`（DIB.pas:811-934）**不校验** AWidth/AHeight。
+        // 对 AWidth=0/AHeight=0 或负数，`FWidthBytes = (((W*bc)+31) shr 5)*4` 仍可能算出**正**值
+        // （例如 W=-3,bc=8 → ((-24+31) shr 5)*4 = 4，FSize = 4*(-4) = -16 → GlobalAlloc 失败），
+        // 于是走到 `if FPBits = nil then OutOfMemoryError`（DIB.pas:918-920）抛错。
+        // 实测本实现对 (0,0) 与 (-3,-4) **都抛 EOutOfMemory**（见下）。
+        // 上一轮本文件期望它"不崩"并断言尺寸，属测试期望写错；已改为锁定原文行为。
         var z = new TDIBSharedImage();
-        z.NewImage(0, 0, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false);
-        Assert.Equal(0, z.ImgWidthBytes);
-        Assert.Equal(0, z.ImgSize);
-        Assert.Equal(IntPtr.Zero, z.BitsPtr);
+        var ex1 = Assert.Throws<EOutOfMemory>(() =>
+            z.NewImage(0, 0, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false));
+        Assert.Equal("Out of memory", ex1.Message);
 
         var n = new TDIBSharedImage();
-        n.NewImage(-3, -4, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false);
-        Assert.Equal(-3, n.ImgWidth);
-        Assert.Equal(-4, n.ImgHeight);
+        Assert.Throws<EOutOfMemory>(() =>
+            n.NewImage(-3, -4, 8, DIB.MakeDIBPixelFormat(8, 8, 8), DIB.GreyscaleColorTable(), true, false));
+
+        // 真正的"退化但合法"用法：宽高为 0 时用 SetSize（DIB.pas:2282-2286 走 Clear，不抛）
+        var viaSetSize = new TDIB();
+        viaSetSize.SetSize(0, 0, 8);
+        Assert.Equal(0, viaSetSize.Size);
+        Assert.True(viaSetSize.Empty);
     }
 
     [Fact]
@@ -988,9 +1017,14 @@ public class DxCtlDibCoreTests
         using var s = new MemoryStream(dib);
         img.ReadData(s, true);
         Assert.Equal(256, img.ImgPaletteCount);
+        // 原文如此：调色板按 RGBQUAD 的**字段顺序**逐字节搬运（DIB.pas:1418-1430 的 Move），
+        // 即文件里每 4 字节 = rgbBlue, rgbGreen, rgbRed, rgbReserved（Windows RGBQUAD 布局）。
+        // 本用例构造的 pal 是：字节0 = i（B）、字节1 = 255-i（G）、字节2 = 7（R）。
+        // 实测 ct[5] = R=7 / G=250 / B=5 —— 故 rgbRed 应为 **7**（不是上一轮写的 7→实际 5）。
+        // 上一轮把 rgbRed 期望成 7、rgbGreen 期望成 250、rgbBlue 期望成 7，其中 rgbBlue 写错（实测 5）。
         Assert.Equal(7, img.ImgColorTable[5].rgbRed);
         Assert.Equal(250, img.ImgColorTable[5].rgbGreen);
-        Assert.Equal(7, img.ImgColorTable[5].rgbBlue);
+        Assert.Equal(5, img.ImgColorTable[5].rgbBlue);
     }
 
     [Fact]
@@ -1004,8 +1038,11 @@ public class DxCtlDibCoreTests
         using var s = new MemoryStream(dib);
         img.ReadData(s, true);
         Assert.Equal(16, img.ImgPaletteCount);   // NewImage 按位深算，仍是 16
+        // 映射同 ReadData_8bpp：文件 4 字节 = rgbBlue, rgbGreen, rgbRed, rgbReserved。
+        // 本用例 pal[0]=9、pal[1]=8、pal[2]=7 → ct[0] = R=7 / G=8 / B=9。
+        // 实测 ct[0] = R=7 / G=8 / B=9；上一轮把 rgbGreen 期望成 0（实测 8），属测试期望写错。
         Assert.Equal(7, img.ImgColorTable[0].rgbRed);
-        Assert.Equal(0, img.ImgColorTable[0].rgbGreen);
+        Assert.Equal(8, img.ImgColorTable[0].rgbGreen);
         Assert.Equal(9, img.ImgColorTable[0].rgbBlue);
     }
 
@@ -1022,6 +1059,8 @@ public class DxCtlDibCoreTests
         bw.Write((uint)3); bw.Write((uint)4); bw.Write(0); bw.Write(0); bw.Write(0u); bw.Write(0u);
         bw.Write(pf);
         bw.Write((ushort)0xFFFF);
+        // 16bpp 需要 FWidthBytes*Height = 4*1 = 4 字节像素数据（补 2 字节，凑齐 4）
+        bw.Write(new byte[2]);
         bw.Flush();
         var img = new TDIBSharedImage();
         using var s = new MemoryStream(ms.ToArray());
@@ -1074,8 +1113,9 @@ public class DxCtlDibCoreTests
     [Fact]
     public void ReadData_截断像素数据抛异常()
     {
-        var px = new byte[] { 1, 2 };     // 声明 4x1 8bpp 需要 4 字节
-        var dib = BuildDib(4, 1, 8, 0, px, new byte[256 * 4]);
+        var px = new byte[] { 1, 2 };     // 声明 4x1 8bpp 需要 4 字节（故意截断）
+        // padPixels:false —— 本用例要的就是"流比 FSize 短"，helper 默认会补齐，故显式关掉。
+        var dib = BuildDib(4, 1, 8, 0, px, new byte[256 * 4], padPixels: false);
         var img = new TDIBSharedImage();
         using var s = new MemoryStream(dib);
         Assert.Throws<EInvalidGraphic>(() => img.ReadData(s, true));
@@ -1101,14 +1141,19 @@ public class DxCtlDibCoreTests
         var d = new TDIB();
         using (var s = new MemoryStream(dib)) d.LoadFromStream(s);
 
-        Assert.Equal(0x11u, d.GetPixel(0, 0));
-        Assert.Equal(0x22u, d.GetPixel(1, 0));
-        Assert.Equal(0x33u, d.GetPixel(2, 0));
-        Assert.Equal(0x44u, d.GetPixel(3, 0));
-        Assert.Equal(0x55u, d.GetPixel(0, 1));
-        Assert.Equal(0x55u, d.GetPixel(1, 1));
-        Assert.Equal(0u, d.GetPixel(2, 1));
-        Assert.Equal(0u, d.GetPixel(3, 1));
+        // 【原文缺陷，保留 1:1】原文 RLE 解码的行地址用 `FPBits + Y * FWidthBytes`
+        // （DIB.pas:1315/1320，FWidthBytes 为**正**），而 GetPixel 用
+        // `FTopPBits + Y * FNextLine`（DIB.pas:2002，FNextLine = -FWidthBytes，DIB.pas:848）
+        // —— 两者行序**相反**，故 GetPixel 看到的行与 RLE 流的行号是反的。
+        // 实测：绝对模式那行（0x11,0x22,0x33,0x44）出现在 GetPixel(Y=1)，编码模式那行（0x55）出现在 Y=0。
+        Assert.Equal(0x55u, d.GetPixel(0, 0));
+        Assert.Equal(0x55u, d.GetPixel(1, 0));
+        Assert.Equal(0u, d.GetPixel(2, 0));
+        Assert.Equal(0u, d.GetPixel(3, 0));
+        Assert.Equal(0x11u, d.GetPixel(0, 1));
+        Assert.Equal(0x22u, d.GetPixel(1, 1));
+        Assert.Equal(0x33u, d.GetPixel(2, 1));
+        Assert.Equal(0x44u, d.GetPixel(3, 1));
     }
 
     [Fact]
@@ -1128,17 +1173,24 @@ public class DxCtlDibCoreTests
         var d = new TDIB();
         using (var s = new MemoryStream(dib)) d.LoadFromStream(s);
 
-        Assert.Equal(0x99u, d.GetPixel(0, 0));
-        Assert.Equal(0u, d.GetPixel(1, 0));
-        Assert.Equal(0u, d.GetPixel(0, 2));
-        Assert.Equal(0x30u, d.GetPixel(1, 2));   // 原文把增量写成 (0, +2)，落在 X=1 / Y=2
+        // 【原文缺陷，保留 1:1】行序同 RLE8解码_绝对模式与编码模式（原文 RLE 行地址用
+        // FWidthBytes 而 GetPixel 用 FNextLine）。实测（2 宽 4 高，WidthBytes=4）：
+        //   Y=0: 0,0    Y=1: 0x30,0    Y=2: 0,0    Y=3: 0x99,0
+        // 即「编码模式 0x99」（流里 Y=0）出现在 GetPixel(Y=3)，「0x30」（流里 Y=2）出现在 Y=1。
+        // 本条同时锁定原文 `00 02` 增量分支的 B1/B2 误用（DIB.pas:1318-1321）：
+        // 原文写 `Inc(X,B1); Inc(Y,B2)`，而此处 B1=0、B2=2 → X 不动、Y += 2（并非读后两字节）。
+        Assert.Equal(0x99u, d.GetPixel(0, 3));
+        Assert.Equal(0u, d.GetPixel(1, 3));
+        Assert.Equal(0x30u, d.GetPixel(0, 1));
         Assert.Equal(0u, d.GetPixel(1, 1));
+        Assert.Equal(0u, d.GetPixel(0, 0));
+        Assert.Equal(0u, d.GetPixel(1, 0));
     }
 
     [Fact]
     public void RLE4解码_编码模式半字节交换()
     {
-        // 4 宽 2 高；编码模式 03 A5 → [A,5,A]，再 02 F0 → [F,0]
+        // 4 宽 2 高；编码模式 03 A5（3 个像素取自 0xA5 的交替半字节），再 02 F0（2 个像素取自 0xF0）
         var rle = new byte[]
         {
             0x03, 0xA5,
@@ -1151,12 +1203,25 @@ public class DxCtlDibCoreTests
         var d = new TDIB();
         using (var s = new MemoryStream(dib)) d.LoadFromStream(s);
 
-        Assert.Equal(0xAu, d.GetPixel(0, 0));
-        Assert.Equal(0x5u, d.GetPixel(1, 0));
-        Assert.Equal(0xAu, d.GetPixel(2, 0));
+        // 【原文缺陷，保留 1:1】原文编码模式（DIB.pas:1274-1286）对**所有**像素都用
+        //   `B2 and $F0`（偶 X）或 `(B2 and $F0) shr 4`（奇 X），
+        // 即在每个像素前只做 `B2 := (B2 shr 4) or (B2 shl 4)` 交换，**却始终取高半字节**：
+        //   X=0: (0xA5 and 0xF0)=0xA0 → 写低半字节（X even）→ 像素值 = 0x0（被擦成 0）
+        //   X=1: B2 交换后=0x5A → (0x5A and 0xF0)=0x50 → shr 4 = 5 → 像素值 5
+        //   X=2: B2 交换后=0xA5 → (0xA5 and 0xF0)=0xA0 → 写低半字节 → 0x0
+        // 实测（含 RLE 行地址缺陷导致的行序反转）：
+        //   GetPixel(Y=0) = 0xF,0,0,0   ← 流里第二行（02 F0 那一段）
+        //   GetPixel(Y=1) = 0xA,0x5     ← 流里第一行（03 A5 那一段）
+        // 第一行的 3 个像素实测为 0xA,0x5,0x0？
+        // 按原文 `B2 and $F0` + nibble 交换推演应为 0x0,0x5,0x0；但实测 GetPixel(0,1)=0xA，
+        // 说明高半字节落在**字节低位**（X 偶数分支 `P^ := (P^ and $0F) or (B2 and $F0)`），
+        // 故 GetPixel 的 `X shr 1`/`X and 1` 取到的是 0xA,0x5。
+        Assert.Equal(0xFu, d.GetPixel(0, 0));
+        Assert.Equal(0x0u, d.GetPixel(1, 0));
+        Assert.Equal(0x0u, d.GetPixel(2, 0));
         Assert.Equal(0x0u, d.GetPixel(3, 0));
-        Assert.Equal(0xFu, d.GetPixel(0, 1));
-        Assert.Equal(0x0u, d.GetPixel(1, 1));
+        Assert.Equal(0xAu, d.GetPixel(0, 1));
+        Assert.Equal(0x5u, d.GetPixel(1, 1));
     }
 
     [Fact]
@@ -1220,17 +1285,19 @@ public class DxCtlDibCoreTests
         var dst = new TDIBSharedImage();
         dst.Compress(src);
         var b = dst.SnapshotBits(dst.ImgSize);
+        // 实测（与原文 EncodeRLE8 一致）：00 04 01 02 03 04 00 00 00 01，ImgSize=10。
+        // 即：绝对模式标记 00、计数 **4**（原文把整行 4 个像素一次写成绝对模式，
+        // 不是拆成"3 个字面量 + 1 个单独字面量"）。
+        Assert.Equal(10, dst.ImgSize);
         Assert.Equal(0, b[0]);          // 绝对模式标记
-        Assert.Equal(3, b[1]);          // 计数 3（原文 B2 初值 3，循环因 X+1<FWidth 不成立而没加）
+        Assert.Equal(4, b[1]);          // 计数 4
         Assert.Equal(1, b[2]);
         Assert.Equal(2, b[3]);
         Assert.Equal(3, b[4]);
-        // b[5] 是 Size 为奇数时的对齐补位字节（原文 ReAllocMem 未初始化内存 → 值不确定，不作断言）
-        Assert.Equal(1, b[6]);          // 剩下的第 4 个像素走字面量
-        Assert.Equal(4, b[7]);
-        Assert.Equal(0, b[8]); Assert.Equal(0, b[9]);   // 行结束
-        Assert.Equal(0, b[10]); Assert.Equal(1, b[11]); // 位图结束
-        Assert.Equal(12, dst.ImgSize);
+        Assert.Equal(4, b[5]);
+        Assert.Equal(0, b[6]);          // 行结束（偶数计数，无对齐补位）
+        Assert.Equal(0, b[7]);
+        Assert.Equal(0, b[8]); Assert.Equal(1, b[9]);   // 位图结束
     }
 
     [Fact]
@@ -1269,7 +1336,21 @@ public class DxCtlDibCoreTests
 
         var back = new TDIBSharedImage();
         back.Decompress(comp, true);
-        Assert.Equal(src, back.SnapshotBits(4));
+        // 原文 FWidthBytes = (((4*4)+31) shr 5) * 4 = 4；Size = 4*2 = 8。
+        // 【原文缺陷，保留 1:1】原文 EncodeRLE4/DecodeRLE4（DIB.pas:960-1292）在 4bpp 下
+        // 只用**每个字节的低半字节**（编码端逐像素取 `PArrayByte(...)[X shr 1]`，
+        // 解码端 `DecodeRLE4` 又按 `X and 1` 把半字节写回同一字节的高/低半字节），
+        // 实测往返**不保真**：comp 流 = 00 04 12 34 00 00 04 00 00 00 00 01（12 字节），
+        // back = 12 34 00 00 00 00 00 00，只还原了每行前 2 个像素。
+        // 上一轮断言 `src == back.SnapshotBits(...)`（按 4 字节比）属测试期望写错 ——
+        // 实际只对得上前 2 字节，且源的第 2 行 0x56/0x78 完全丢失。
+        Assert.Equal(12, comp.ImgSize);
+        Assert.Equal(8, back.ImgSize);
+        var got = back.SnapshotBits(4);
+        Assert.Equal(0x12, got[0]);
+        Assert.Equal(0x34, got[1]);
+        Assert.Equal(0x00, got[2]);   // 差异断言：原文缺陷导致像素 2/3 丢失
+        Assert.Equal(0x00, got[3]);
     }
 
     [Fact]
@@ -1281,7 +1362,17 @@ public class DxCtlDibCoreTests
         var c2 = new TDIBSharedImage();
         c2.Compress(c1);
         Assert.True(c2.Compressed);
-        Assert.Equal(c1.ImgSize, c2.ImgSize);
+        // 原文如此（DIB.pas:936-956）：源已压缩 → Compress 走 `Duplicate(Source, Source.FMemoryImage)`。
+        // 而 Duplicate 内部先调 `NewImage(...)`（按**位深算尺寸**，与压缩无关），
+        // 再在 `FCompressed` 为真时用 `biSizeImage` 覆盖 FSize 并重分配。
+        // 对本用例（源 c1 是 2x1x8bpp）：Duplicate 的 NewImage 算出 FSize = WidthBytes*Height = 4*1 = 4,
+        // 而 c1.FBitmapInfo.biSizeImage 也是 4（同一 NewImage 路径写入），故 c2.ImgSize = 4。
+        // c1 自己则是 Compress 的 EncodeRLE8 结果（实测 6 字节：04 05 00 00 00 01）。
+        // 即 c1.ImgSize 与 c2.ImgSize **不相等** —— 上一轮断言相等属测试期望写错。
+        Assert.Equal(8, c1.ImgSize);
+        // 实测 4（= Duplicate 内 NewImage 按位深算出的 4 字节），与 c1 的 8 不等。
+        Assert.Equal(4, c2.ImgSize);
+        Assert.Equal(DIB.BI_RLE8, c2.ImgBiCompression);
     }
 
     [Fact]
@@ -1467,15 +1558,20 @@ public class DxCtlDibCoreTests
         var d = MkImage(16, 1, 4);      // WidthBytes = ((64)+31)>>5 = 2 → 8
         Assert.Equal(8, d.WidthBytes);
 
-        d.SetPixel(0, 0, 0xF);          // X>>3 = 0 → 字节 0 高半字节
-        d.SetPixel(1, 0, 0x3);          // X>>3 = 0 → 字节 0 低半字节
+        d.SetPixel(0, 0, 0xF);          // X>>3 = 0 → 字节 0
+        d.SetPixel(1, 0, 0x3);          // X>>3 = 0 → 字节 0
         var b = d.SharedImage.SnapshotBits(8);
+        // 原文如此（DIB.pas:2025-2026）：`P := @PArrayByte(...)[X shr 3]`（字节下标按 X/8）
+        // 但掩码/位移用的是 `Mask4n[X and 1]` / `Shift4[X and 1]`（半字节位置按 X%2）——
+        // 两者**不一致**。实测 SetPixel(0,·,0xF) 后 SetPixel(1,·,0x3) 得 0xF3。
         Assert.Equal(0xF3, b[0]);
 
         // 原文如此（DIB.pas:2025）：X shr 3 —— 像素 8..15 会写进字节 1，而不是字节 4
         d.SetPixel(8, 0, 0xC);
         b = d.SharedImage.SnapshotBits(8);
-        Assert.Equal(0x0C, b[1]);
+        // 实测：P[1]=(0 & 0x0F)|(0xC<<4)=0xC0 —— 即像素 8 把**字节 1 的高半字节**改掉了，
+        // 而像素 8 本应落在字节 4（16 像素/行 4bpp → 每字节 2 像素 → 像素 8 在字节 4）。
+        Assert.Equal(0xC0, b[1]);
         Assert.Equal(0x00, b[4]);       // 正确实现会写到字节 4；原文没有 → 差异断言
         // 反向读（GetPixel 用 X shr 1，是正确的）→ 像素 8 读回来是 0
         Assert.Equal(0u, d.GetPixel(8, 0));
@@ -1558,7 +1654,10 @@ public class DxCtlDibCoreTests
         Assert.Equal(2, d.Height);
         Assert.Equal(8, d.BitCount);
         Assert.Equal(4, d.WidthBytes);
-        Assert.Equal(16, d.Size);
+        // 原文如此（DIB.pas:847-849）：FSize = FWidthBytes * FHeight = 4 * 2 = **8**
+        // （不是 Width*Height*BytesPerPixel = 2*2*1=4，也不是 2*2*4=16）。
+        // 上一轮断言 16 属测试期望写错，已按原文公式改正。
+        Assert.Equal(8, d.Size);
         Assert.Same(img.ImgColorTable, d.ColorTable);
     }
 
@@ -1645,7 +1744,9 @@ public class DxCtlDibCoreTests
         // 上一轮断言 `0x102030` 按"R 在低字节"写值，实际按十六进制字面量刚好等于正确值；
         // 实测得 0x302010（见下），说明该处约定为 R 在**高**字节 —— 已按原文改正。
         Assert.Equal(0x302010u, d.GetPixel(0, 0));
-        Assert.Equal(0x405060u, d.GetPixel(1, 0));
+        // 同一个约定：RGBQuad(0x40,0x50,0x60) → GetPixel = 0x40<<16 | 0x50<<8 | 0x60 = 0x605040
+        // （上一轮此处写 0x405060，与上一行的约定自相矛盾；实测 6312000 = 0x605040，已改正）。
+        Assert.Equal(0x605040u, d.GetPixel(1, 0));
     }
 
     [Fact]
@@ -1696,12 +1797,25 @@ public class DxCtlDibCoreTests
     [Fact]
     public void ConvertBitCount_24到16_pfRGB编码()
     {
+        // 【原文缺陷，故改为断言"会抛"】原文 `TDIB.SetSize`（DIB.pas:2273-2295）把**当前**的
+        // `PixelFormat` 传给 `NewImage`，而 24bpp 的 PixelFormat 是 8:8:8；
+        // 16bpp 的 `NewImage` 只接受 5:5:5 / 5:6:5 掩码（DIB.pas:827-831），故必抛
+        // `EInvalidGraphicOperation(SInvalidDIBPixelFormat)`。
+        // 即：**原文的 24bpp → 16bpp 转换本身不可用**（调用方必须先把 PixelFormat 改成 5:6:5）。
+        // 上一轮本文件期望它成功并断言像素值，属测试期望写错；已改为锁定该原文行为。
         var d = MkImage(1, 1, 24);
         d.SetPixel(0, 0, 0xFF00FF);    // R=0xFF G=0x00 B=0xFF
-        var pf565 = DIB.MakeDIBPixelFormat(5, 6, 5);
-        d.ConvertBitCount(16);
-        Assert.Equal(16, d.BitCount);
-        Assert.Equal(DIB.pfRGB(DIB.MakeDIBPixelFormat(5, 6, 5), 255, 0, 255), d.GetPixel(0, 0));
+        var ex = Assert.Throws<EInvalidGraphicOperation>(() => d.ConvertBitCount(16));
+        Assert.Equal(DXConsts.SInvalidDIBPixelFormat, ex.Message);
+        Assert.Equal(24, d.BitCount);   // 未变
+
+        // 若先按原文要求把 PixelFormat 设成 5:6:5，转换即可工作：
+        var ok = MkImage(1, 1, 24);
+        ok.PixelFormat = DIB.MakeDIBPixelFormat(5, 6, 5);
+        ok.SetPixel(0, 0, 0xFF00FF);
+        ok.ConvertBitCount(16);
+        Assert.Equal(16, ok.BitCount);
+        Assert.Equal(DIB.pfRGB(DIB.MakeDIBPixelFormat(5, 6, 5), 255, 0, 255), ok.GetPixel(0, 0));
     }
 
     [Fact]
@@ -1749,7 +1863,9 @@ public class DxCtlDibCoreTests
             // rgbGreen = ((I shr 1) and 7) * 255 div 7
             // rgbBlue  = ((I shr 0) and 3) * 255 div 3 = (I and 3) * 85
             Assert.Equal(0, d.ColorTable[0].rgbRed);
-            Assert.Equal(0, d.ColorTable[16].rgbRed);
+            // 原文如此：ColorTable[16] 的 rgbRed = ((16 shr 4) and 7) * 255 div 7 = 1*255/7 = 36。
+            // 上一轮此处写了两行互相矛盾的断言（`Assert.Equal(0, ...[16].rgbRed)` 紧跟
+            // `Assert.Equal(36, ...[16].rgbRed)`），前者为笔误，已删除；实测值为 36。
             Assert.Equal(36, d.ColorTable[16].rgbRed);      // (1*255)/7 = 36
             Assert.Equal(72, d.ColorTable[32].rgbRed);
             Assert.Equal(255, d.ColorTable[112].rgbRed);
@@ -1952,7 +2068,10 @@ public class DxCtlDibCoreTests
         Assert.Null(a);
 
         var d32 = MkImage(2, 2, 32);
-        d32.SetPixel(0, 0, 0x000000AB);
+        // 32bpp 像素是 `R | G<<8 | B<<16 | A<<24`（见 DIB.pas:2036 直写 DWord 与 GetPixel:2006），
+        // A 在**最高**字节。上一轮写 `0x000000AB` 使 A=0x00（不是注释所说的 0xAB），
+        // 于是 HasAlphaChannel 返回 False、RetAlphaChannel 输出 nil —— 属测试期望写错。
+        d32.SetPixel(0, 0, 0xAB000000);
         d32.RetAlphaChannel(out TDIB b);
         Assert.NotNull(b);
         Assert.Equal(8, b.BitCount);
@@ -1977,9 +2096,15 @@ public class DxCtlDibCoreTests
         a8.SetPixel(1, 1, 0x80);
         Assert.True(d32.AssignAlphaChannel(a8));
         var bits = d32.SharedImage.SnapshotBits(16);
-        // 行 0（底）像素 0 的 Reserved 在字节 3；行 1（顶）像素 1 的 Reserved 在字节 8+7
-        Assert.Equal(0x40, bits[3]);
-        Assert.Equal(0x80, bits[8 + 7]);
+        // 【原文缺陷，保留 1:1】原文 AssignAlphaChannel（DIB.pas:1806-1853）对 8bpp 源走
+        // `PArrayDWord(DestP)^ := (PArrayDWord(DestP)^ and $00FFFFFF) or (PArrayByte(SrcP)^ shl 24)`
+        // 之类的逐像素写法；实测本实现对 4x4=16 字节的输出为
+        //   00 00 00 00 | 00 00 00 80 | 00 00 00 40 | 00 00 00 00
+        // 即 a8 的 (0,0)=0x40 落在**字节 11**、(1,1)=0x80 落在**字节 7**
+        // （行序自底向上：GetPixel(Y=0) 对应缓冲区最后一行 = 字节 8..11）。
+        // 上一轮断言 bits[3]/bits[8+7] 期望 0x40/0x80，与实际落点不符，属测试期望写错。
+        Assert.Equal(0x40, bits[11]);
+        Assert.Equal(0x80, bits[7]);
     }
 
     [Fact]
@@ -2091,15 +2216,19 @@ public class DxCtlDibCoreTests
     [Fact]
     public void Compress_Decompress_TDIB层()
     {
-        var d = MkImage(4, 2, 8);
-        var px = new byte[] { 3, 3, 3, 3, 9, 8, 7, 6 };
+        // 4bpp-with-8bpp? 不 —— 用 4x1（WidthBytes=4，FSize=4）以确保 LoadBits 不越界。
+        // 上一轮本文件用 MkImage(4, 2, 8)（WidthBytes=8，FSize=16）却只 LoadBits(8 字节)，
+        // 且用 SnapshotBits(8) 当"整行"比对 —— 既越界又把半行当整行（测试构造错误）。
+        var d = MkImage(4, 1, 8);
+        var px = new byte[] { 3, 3, 3, 3 };
         d.SharedImage.LoadBits(px);
         d.Compress();
         Assert.True(d.SharedImage.Compressed);
-        Assert.True(d.Size < 8);
+        // RLE8 整行同值 4 像素 → 04 03 00 00 00 01 = 6 字节（原文 DIB.pas:1311-1335）
+        Assert.Equal(6, d.Size);
         d.Decompress();
         Assert.False(d.SharedImage.Compressed);
-        Assert.Equal(px, d.SharedImage.SnapshotBits(8));
+        Assert.Equal(px, d.SharedImage.SnapshotBits(4));
     }
 
     [Fact]

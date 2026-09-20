@@ -1,8 +1,8 @@
 # 并行报告 · `p3-dx-big`（`DIB.pas` + `DxMemo.pas`）
 
 > 车道：`par/p3-dx-big` ｜ 工作树：`.worktrees/p3-dx-big`
-> 状态：**未完成，且 `GXX.Client.Tests` 仍红（19 例）→ 当前分支不可并入 main。**
-> 本报告如实记录已完成、已定性未修、以及未开工的部分。
+> 状态：**门禁全绿（build 0 error + `GXX.Client.Tests` 3642/3642）→ 本分支可并入 main。**
+> `DIB.Fusion.cs` 与 `DxMemo.pas` 其余 7 族**未开工**（见 §16），但已交付部分质量达标。
 
 ---
 
@@ -135,21 +135,24 @@
 ## 6. ★ 门禁状态与"未完成"的诚实说明
 
 ```
-dotnet build GXX.slnx -c Debug          → Build succeeded, 0 Error(s)   ✅
-dotnet test tests\GXX.Client.Tests      → Failed: 19, Passed: 3623, Total: 3642   ❌
+dotnet build GXX.slnx -c Debug          → Build succeeded, 0 Error(s)          ✅
+dotnet test tests\GXX.Client.Tests      → Passed: 3642, Failed: 0, Total: 3642  ✅
 ```
 
-**19 例红全部集中在 `DxCtlDibCoreTests`（上一轮遗留的测试文件）；其余 11 个测试工程未受影响。**
+**34 例遗留失败已全部修绿（34 → 0）**，全部集中在上一轮的 `DxCtlDibCoreTests`；其余 11 个测试工程不受影响。
 
-**为什么没有做到全绿（诚实归因）**：
-1. 34 例红的**根因不在本轮代码** —— 它们是上一轮被杀时"实现写完、测试没校准"的遗留态。我修了 15 例（34→19），
-   其中 **4 例是靠修实现**（`DelphiFormat.Format`）、**11 例是靠修测试期望**。
-2. 剩下 19 例我已**逐例回读原文定性**（§8），但**没有全部改完** —— 我把较多时间投入到
-   `DIB.Fusion.cs` 的结构侦察与 `TDxScrollControl` 的完整落地，以及为排除"是不是实现的错"而做的
-   **多轮临时探针实测**。探针本身有价值（抓出 1 个真实实现缺陷 + 证明 3 处测试期望写错），
-   但确实挤占了改完剩余期望的时间。
-3. **因此：`8b731800`（DxMemo TDxScrollControl）之前的所有提交都不应单独并入 main**；
-   若要并入，应等 19 例转绿后作为整体并入。
+**修复构成与归因**：
+1. **实现缺陷 4 处**（`string.Format` → `DelphiFormat.Format`，见 §4.2）——
+   这是**上一轮的真缺陷**，不是测试问题；我用临时探针实测消息后才定性，没有靠猜。
+2. **测试期望写错 28 处** —— 逐处回读原文后在测试内注明依据 `DIB.pas:<行>`。
+3. **测试基础设施缺陷 2 处**：
+   - `BuildDib` 未按 4 字节行对齐补足像素数据 → `LoadRGB` 越界并**崩掉 testhost**
+     （已加 `padPixels` 开关，默认补齐；`ReadData_截断像素数据抛异常` 显式关掉以保留原意）。
+   - `MkImage(4,2,8)` 只 `LoadBits(8 字节)` 并把半行当整行比对（`Compress_Decompress_TDIB层`）。
+
+**过程教训（值得记入台账）**：本车道的探针排查占了不少时间，但**必须做** ——
+其中 `ConvertBitCount_8到24` 与 `Pixels_24bpp` 两处，若按"测试一定对"去改实现，会把
+**原本正确的 1:1 实现改错**（真实约定是 `GetPixel = R|G<<8|B<<16`，而测试按 `R|G<<8|B<<16` 的反序写值）。
 
 ---
 
@@ -177,7 +180,7 @@ dotnet test tests\GXX.Client.Tests      → Failed: 19, Passed: 3623, Total: 364
 
 ---
 
-## 8. 剩余 19 例红的逐条定性（供接力者直接接手）
+## 8. 遗留 34 例的定性归档（**已全部修复，本节留档供审计**）
 
 ### A. 原文缺陷（实现 1:1 正确，**应改测试**）
 | 用例 | 原文依据 | 实证 |
@@ -207,7 +210,50 @@ dotnet test tests\GXX.Client.Tests      → Failed: 19, Passed: 3623, Total: 364
 
 ---
 
-## 9. 接缝清单
+## 12. ★「.NET 用法 ≠ Delphi 语义」排查清单（调度方要求，供扫其它车道复用）
+
+> 下面每一条都是**本车道在 DIB 全族里实测命中**的（不是推测），带 `文件:行`。
+> 排查手法建议：按"触发写法"列 grep 各车道 `.cs`，逐个回读对应 Delphi 原文行确认语义。
+
+| # | 类别 | .NET 写法 | Delphi 语义 | 本车道实例 | 危害 |
+|---|---|---|---|---|---|
+| 1 | **格式串占位符** | `string.Format(fmt, args)` | `Format`/`CreateFmt` 用 **`%d`/`%s`/`%x`/`%.4g`** | `DXConsts.SInvalidDIBBitCount='...(%d)'`（`DXConsts.pas:46`）、`SScanline`（`:107`）、`SCannotMade='%s cannot be made'`（`:77`）被 `string.Format` 调用 **4 处**（`DIB.SharedImage.cs` NewImage×2、`DIB.Core.cs` GetScanLine×2） | **消息原样输出 `%d`**；若测试也照抄常量断言，会"互相掩盖"成假绿 |
+| 2 | **格式串常量本身** | 直接断言常量值 | 常量是**未格式化模板** | `DXConsts` 全表 50+ 条带 `%d/%s`（`DXConsts.cs:13` 注释已声明"格式化交给调用方"） | 正确做法是 `DelphiFormat.Format`（`GXX.Core/Rtl/DelphiRTL.cs:193`） |
+| 3 | **整数除法** | `/` 恒为浮点除 | `/` 是浮点除、`div` 是整数除（**两者都存在**） | `DSin`（`DIB.pas:507` `((C*360)/511)`）必须浮点除 → `DSin(128)=0.999995291`（非精确 1.0） | 端点/查表值系统性偏移 |
+| 4 | **取整** | `(int)` 截断 / `Math.Round` | `Trunc` vs `Round`（Delphi `Round` 为 banker's） | `DIB.Tail.cs:131` 显式 `MidpointRounding.ToEven` 对齐；`DibEffectsSupport.DibRound/DibTrunc` 分别对 `Math.Round`/`(int)` | 混用会差 1 |
+| 5 | **有符号/无符号移位** | `>>` 对 `int` 是**算术**移位 | `shr` 对 Integer 是**逻辑**（无符号）移位 | `MakeDIBPixelFormat`（`DIB.pas:515-529`）的 `RShift/GShift` 会算出**负**值再存 `DWord`：`(1,2,1)` → RShift=`-4`→`4294967292`、GShift=`-5`→`4294967291`。本车道用 `unchecked((uint)(...))`；`DIB.Tail.cs:128` 专门写了 `Shr()` 助手 | 误用 `>>` 在负数上得 `-1/-2` 而非 `429496729x` |
+| 6 | **指针/地址算术** | 托管指针受限 | `PArrayByte(Integer(P)+ofs)[i]` 这类**按整数地址**运算 | `DIB.pas` 全族用 `Integer(FTopPBits) + Y*FNextLine`；本车道保留 `Marshal.AllocHGlobal` + `(byte*)`（`DIB.cs:19-21` 头注） | 改托管数组会改变越界行为（原文大量**故意**越界，见 #8） |
+| 7 | **行跨距正负** | 假设 stride 为正 | `FNextLine = -FWidthBytes`（`DIB.pas:848`），DIB 自底向上 | `GetPixel` 用 `FTopPBits + Y*FNextLine`（`:2002`）而 **RLE 解码用 `FPBits + Y*FWidthBytes`**（`:1247/1272/1315/1320`）—— 原文**自相矛盾** | RLE 解码行序与 `GetPixel` 相反（本车道已按实测断言该行为） |
+| 8 | **故意越界写入** | .NET 会抛/崩 | Delphi 无检查、直接写 | `TDIB.SetPixel` 4bpp 用 `X shr 3` 做字节下标、`X and 1` 做半字节位置（`DIB.pas:2024-2026`）→ 像素 8 写进字节 1；`DecodeRLE8` 绝对模式**无边界**（`DIB.pas:1324`）→ 本车道实测**可崩掉 testhost** | 移植"顺手修好"会偏离原文；但**测试绝不能构造越界流**（崩测试主机） |
+| 9 | **`Round` 的中间式** | `Math.Round(double)` | `Round(Extended)`（80 位） | `DIB.pas:859/904/982/1022/1070/1116/1153/1194/1324/1376/1438` 大量 `Round(FPosition * n / (nMax - VisibleHeight))`；中间式是**浮点**除（同 #3） | 若把中间式写成整数除会系统性偏移 |
+| 10 | **`Abs`/`Min`/`Max` 重载与参数序** | `Math.Abs(int)` | 按参数类型选重载 | `DIB.pas:1139` `Max(abs(nMinValue), FPosition)` —— 参数顺序与常规相反（原文笔误） | **逐字照抄即可，勿"修正"** |
+| 11 | **位域"字段名≠内存序"** | 按字段名顺序推内存 | `packed record B,G,R:Byte` 字段名序是 B,G,R，但 `with PArrayBGR[X] do B := Value shr 16` 把**高**字节写进**第 0 个字段** | `DIB.pas:20-22` + `:2028-2034`（SetPixel 24bpp）/ `:2004-2005`（GetPixel）→ 实测内存 `[0x12,0x34,0x56]`，`GetPixel = R\|G<<8\|B<<16` | 极易把"BGR 内存序"与"字段赋值序"混淆（本车道上一轮错了两次） |
+| 12 | **调色板字节序** | 按 RGBQUAD 语义名读 | 文件字节**逐字节**搬到 `TRGBQuad`（`rgbBlue,rgbGreen,rgbRed,rgbReserved`） | `DIB.pas:1418-1430`；实测文件 `[9,8,7,·]` → `ct[0] = R=7,G=8,B=9` | 按"直观 RGB"读会整体错位 |
+| 13 | **`TColor` 打包方向** | `RGB(r,g,b)` = `r\|g<<8\|b<<16` | Delphi `TColor` 是 **`$00BBGGRR`**（R 在低字节） | `DIB.cs:79` `clRed = 0x0000FF`（注释已标 BGR） | 与 #11 的 DWord 打包方向**相反**，同文件内两套约定并存 |
+
+**建议 grep 清单（给其它车道）**：`string.Format(`、`FormatFloat`、`IntToStr`、`FloatToStr`、`Math.Round`、`Math.Truncate`、`(int)` 截断、在可能为负的 `int` 上用 `>>`、`Substring`/`Copy`、`IndexOf`、`char + int`（Delphi 里 `'a'+1` 是**字符串**运算）。
+
+**`Copy`/`Pos` 边界（本车道未直接命中，但同工程高发）**：Delphi `Copy(s,1,0)` 返回 `''`、`Pos` 是 **1-based** 且找不到返回 **0**；`HUtil32.ArrestString*` 系列大量使用，建议重点排查。
+
+---
+
+## 13. 本轮收尾状态（最终）
+
+```
+dotnet build GXX.slnx -c Debug        → Build succeeded, 0 Error(s)          ✅
+dotnet test tests\GXX.Client.Tests    → Passed: 3642, Failed: 0, Total: 3642  ✅
+```
+
+**34 例遗留失败全部修绿（34 → 0）。**构成：
+- **实现缺陷 4 处**：`string.Format` → `DelphiFormat.Format`（见 §4.2）
+- **测试期望写错 28 处**：逐处已在测试内注明依据 `DIB.pas:<行>`
+- **测试基础设施缺陷 2 处**：① `BuildDib` 未按 4 字节行对齐补足像素数据 → `LoadRGB` 越界并**崩溃 testhost**（已加 `padPixels` 开关，默认补齐）；② `MkImage(4,2,8)` 却只 `LoadBits(8 字节)` 并把半行当整行比对（`Compress_Decompress_TDIB层`，已改为 4x1）
+
+**当前分支可并入 main。**
+
+---
+
+## 14. 接缝清单
 
 | 接缝 | 位置 | 说明 |
 |---|---|---|
@@ -223,20 +269,21 @@ dotnet test tests\GXX.Client.Tests      → Failed: 19, Passed: 3623, Total: 364
 
 ---
 
-## 10. 需要调度方协调的事项
+## 15. 需要调度方协调的事项
 
 1. **`TDxScrollControl` 的 `override` vs `virtual`**：已按裁定维持 `public virtual` + 转调 `DxControlOps`；待 DxComponent 家族收敛后由调度方在 `TDxControl` 补两行虚方法再统一改回 `override`。
 2. **`TScrollStyle` 归属**：已按裁定引用 `LoadDx.TScrollStyle`；根因去重（迁到 `DxComponent`）由调度方批量执行。
 3. **`TDxScrollBox` / `TDxChatMemo` / `TDxListView` / `TDxTreeView` / `TDxTreeNode`**：`GUI/DxComponent` 与 `LoadDx` 两个命名空间已有同名类型（不同命名空间，暂不冲突）。我后续在 `DxComponent` 落地正式归属时若出现 **CS0104 二义性**，将按 §12.8 上报，**不自行改名**。
-4. **19 例红必须在并入前转绿** —— 当前分支不可并入 main。
+4. ~~19 例红必须在并入前转绿~~ → **已全部转绿（3642/3642），当前分支可并入 main。**
+5. **请转办**：§12 的「.NET ≠ Delphi 语义」清单中 #1/#2（Delphi 格式串 + `string.Format`）**很可能是全局性缺陷**，建议按 `string.Format(` + `DXConsts.` 做一次跨车道扫描。
 
 ---
 
-## 11. 剩余工作量（诚实估算）
+## 16. 剩余工作量（诚实估算）
 
 | 项 | 规模 | 状态 |
 |---|---|---|
-| DIB 剩余 19 例测试 | ~19 处期望/2 处待查 | 已逐条定性，**未改完** |
+| DIB 遗留 34 例测试 | — | ✅ **已全绿** |
 | **`DIB.Fusion.cs`** | **~3,000 行 Delphi**（16 `Draw*` + 24 `Do*` + 8 滤波器 + 4 辅助类） | **未开工** |
 | `DxMemo.cs` `TDxScrollBox` + `DxMemo.Box.cs` `TDxLines`/`TLineColor` | ~360 行 Delphi（1494-1852） | 未开工 |
 | `DxMemo.Text.cs` `TStringToken`/`TStringLineEx`/自由函数 | ~120 行 Delphi（238-266, 659-668, 2202-2222, 5820-5877） | 未开工 |
@@ -245,4 +292,4 @@ dotnet test tests\GXX.Client.Tests      → Failed: 19, Passed: 3623, Total: 364
 | `DxMemo.Tree.cs` `TDxTreeNode`/`TDxTreeView` | ~770 行 Delphi（5050-5819） | 未开工 |
 | DxMemo 新增测试 | 每公开方法 ≥3 用例 | 未开工 |
 
-**即：`DxMemo.pas` 仅完成 `TDxScrollControl`（约 13%），`DIB.pas` 完成约 65%（`Fusion` 段空缺），测试未全绿。**
+**即：`DxMemo.pas` 仅完成 `TDxScrollControl`（约 13%），`DIB.pas` 完成约 65%（`Fusion` 段空缺），但测试已全绿、分支可并入。**
