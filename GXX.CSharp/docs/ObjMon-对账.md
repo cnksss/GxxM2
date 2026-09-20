@@ -1,0 +1,139 @@
+# `ObjMon.pas` 声明 ↔ 实现 对账表（批次J239）
+
+> **本文件的用途**：在 J238 到达 `ObjMon.pas` 末尾（第 9501 行 `end.`）之后，
+> 把"按实现顺序线性推进"改为**按类对账**。
+> 全表由脚本从 `_analysis/utf8_mirror/M2Engine/ObjMon.pas` 直接抽取，
+> **不依赖任何人工记忆**，故可随时重跑复核。
+
+---
+
+## 1. 脚本与口径
+
+**声明抽取**：`^\s*(T\w+)\s*=\s*class\s*(\(\s*(\w+)\s*\))?`
+**实现抽取**：`^\s*(function|procedure|constructor|destructor)\s+(T\w+)\.(\w+)`
+
+**统计结果**
+
+| 项 | 值 |
+|---|---|
+| 全单元行数 | **9502**（第 9501 行 `end.`） |
+| 类声明条数（脚本直接匹配） | **56** |
+| **扣除 `(* *)` 注释里的那一份后的实数** | **55** |
+| **没有实现段的类** | **0** |
+| 方法实现条目数（含重复计数） | **213** |
+| **去重后的方法数** | **206** |
+
+**关键结论：这个单元里**没有任何一个类是"只声明不实现"的** ——
+即"剩余工作"是**真实存在、可枚举**的，不是"声明了但没写"。
+
+---
+
+## 2. 重名排查：**一处真、两处假**（本表的第一轮自查）
+
+### 2.1 真的那一处：被 `(* *)` 注掉的重复类声明
+
+`TElfWarriorMonster` 出现了两次，**而第一次是在 Pascal 的 `(* … *)` 块注释里**：
+
+```
+471:  // 修正神兽攻击
+472:  (*
+473:    TElfWarriorMonster = class(TATMonster)
+      …
+487:    end;
+488:  *)
+489:  TElfWarriorMonster = class(TSpitSpider)
+```
+
+—— 即 **L473 那一份是被注释掉的旧版**（基类 `TATMonster`）、
+**L489 是现行的新版**（基类 `TSpitSpider`）——
+**这是形态⑩"同一名字定义两次、第一次在块注释里"第一次出现在**类声明**上****
+（此前 J220 记的是方法）。
+
+**附带两个"第一次"**：
+1. **`(* … *)` 这种 Pascal 注释形式在本系列是第一次见** ——
+   此前所有 66 处块注释都是 `{ … }`；
+2. 注释上方写着 `// 修正神兽攻击` —— 即**这次改变基类是有意的、并留了说明**。
+
+### 2.2 两处**假**的（我的脚本误报，已排除）
+
+| 名字 | 两处位置 | 真相 |
+|---|---|---|
+| `TMonster.Run` | **L934**（**有缩进**）与 **L1121**（列 0） | **前者是类体内的声明、后者是实现** —— 不是重复 |
+| `TDevilkingMonster.GotoTargetXY` | **L601**（**有缩进**）与 **L639**（列 0） | 同上 |
+
+**教训**：只按"`procedure T<类>.<方法>`"抽取会把**声明**与**实现**都抓进来 ——
+**必须用缩进或"是否在 `implementation` 之后"来区分这两者**。
+本表已据此把这两条从"重名"里剔除。
+
+### 2.3 计数修正
+
+- 声明条数 **56** → **实为 55**（`TElfWarriorMonster` 那一份在 `(* *)` 里、不应计入）；
+- 实现条目 **213** → **去重后 206**；
+  多出的 7 条正是 `TElfWarriorMonster` 被 `$decls` **重复计数**所致
+  （同一名字在 `$decls` 里出现两次、故 `$impls` 被累加两次）。
+
+---
+
+## 3. 尚未移植的类（脚本判定 14 个 / 62 条方法实现）
+
+**按声明行排列**（`sub_*` 是反编译名）：
+
+| 声明行 | 类 | 基类 | 方法实现 |
+|---|---|---|---|
+| 327 | `TGasAttackMonster` | `TATMonster` | `Create,Destroy,sub_4A9C78,AttackTarget` |
+| 335 | `TCowMonster` | `TATMonster` | `Create,Destroy` |
+| 341 | `TMagCowMonster` | `TATMonster` | `Create,Destroy,sub_4A9F6C,AttackTarget` |
+| 350 | `TCowKingMonster` | `TATMonster` | `Create,Attack,Initialize,Run` |
+| 368 | `TElectronicScolpionMon` | `TMonster` | `Create,Destroy,LightingAttack,RefreshAppr,Run` |
+| 380 | `TLightingZombi` | `TMonster` | `Create,Destroy,LightingAttack,Run` |
+| 389 | `TDigOutZombi` | `TMonster` | `Create,Destroy,sub_4AA8DC,Run` |
+| 398 | `TZilKinZombi` | `TATMonster` | `Create,Destroy,Die,Run` |
+| 409 | `TWhiteSkeleton` | `TATMonster` | `Create,Destroy,RecalcAbilitys,Run,sub_4AAD54` |
+| 444 | `TGasMothMonster` | `TGasAttackMonster` | `Create,Destroy,sub_4A9C78,Run` |
+| 452 | `TGasDungMonster` | `TGasAttackMonster` | `Create,Destroy` |
+| 458 | `TElfMonster` | `TMonster` | `AppearNow,Create,Destroy,RecalcAbilitys,ResetElfMon,Run` |
+| **489** | **`TElfWarriorMonster`** | **`TSpitSpider`** | `AppearNow,Create,Destroy,RecalcAbilitys,ResetElfMon,AttackTarget,Run` |
+
+> **注**：`TElfWarriorMonster` 只列**一次**（L489）。
+> L473 那一份在 `(* *)` 注释里、**不是**有效声明（见 §2.1）。
+
+**可成批的分组**（便于下一批选题）：
+
+- **毒气/蛛网族**：`TGasAttackMonster` + `TGasMothMonster` + `TGasDungMonster`（后者继承前者、
+  且 `sub_4A9C78` 在三者间共用）
+- **牛族**：`TCowMonster` + `TMagCowMonster` + `TCowKingMonster`
+- **僵尸/骷髅族**：`TElectronicScolpionMon` + `TLightingZombi` + `TDigOutZombi` + `TZilKinZombi` + `TWhiteSkeleton`
+- **精灵族**：`TElfMonster` + `TElfWarriorMonster`（`AppearNow` / `ResetElfMon` / `RecalcAbilitys` 同位）
+
+---
+
+## 4. ⚠️ **本表的口径限制（必须随表一起读）**
+
+本表第 3 节的"尚未移植"判定，用的是
+**"类名是否以词边界出现在我写的任何 `ObjMon*Core.cs` 里"** 这一启发式。
+
+**它会把"只在注释里被提到"误判为"已移植"** —— 已实测到确证的两个假阳性：
+
+| 类 | 被哪个文件提到 | 性质 |
+|---|---|---|
+| `TScultureMonster`（L420） | `ObjMonIcePeakCore.cs` | **仅在注释里作同类参照**、**并未移植** |
+| `TScultureKingMonster`（L431） | `ObjMonIcePeakCore.cs`、`ObjMonMagicNotMoveCore.cs` | 同上、**并未移植** |
+
+**故**：
+
+- 脚本给出的 "已移植 42 / 未移植 14" **是一个上界估计**；
+- **真实的已移植数**应 **≤ 42**、**未移植数 ≥ 14**；
+- **权威口径**只能来自"每个 C# 文件 ↔ 它对应的 Delphi 类"的显式映射，
+  而不是名字出现与否。
+
+> **下一批应先建立那张显式映射表**（文件名 → Delphi 类 → 方法清单），
+> 再据此产出真实的覆盖率；本表第 3 节在映射表建立前**只作选题索引**使用。
+
+---
+
+## 5. 与既有台账的关系
+
+- `docs/Checklist.md` 的 §4 计数表按**测试项数**统计（M2Server 等），
+  与**本表的"方法实现条数"不是同一口径**，两者不可直接相除。
+- 本表只覆盖 `ObjMon.pas` **一个单元**；
+  `AxeMon.pas`（9456 行）、`MirConfigDlg.pas`（7442 行）等尚未进入对账。
