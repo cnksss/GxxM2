@@ -578,16 +578,34 @@ public static class HUtil32
 
     // ---------------- 比较辅助 ----------------
 
+    // 原文 HUtil32.pas:1981-1995 CompareLStr / :2010-2032 CompareBackLStr：
+    //   Result := False;
+    //   if (compn <= 0) or (Length(Src) < compn) or (Length(targ) < compn) then Exit;
+    //   ... for I := 1 to compn do if UpCase(Src[I]) <> UpCase(targ[I]) then ...False
+    // 两处**必须**照抄的语义（旧实现两处都错，由车道 p4-m2-objnpc 报出）：
+    //   1) `compn <= 0` 直接 False。旧实现缺这条守卫 → compn==0 时 string.CompareOrdinal(...,0)
+    //      返回 0 → 错判为**相等**；compn<0 时更会抛 ArgumentOutOfRangeException。
+    //   2) 逐字符 `UpCase` 比较 → **大小写不敏感**。旧实现用 string.CompareOrdinal 是**大小写敏感**的。
+    // 逐字符 UpCase 用 char.ToUpperInvariant（区域性无关；与 Engine 侧既有 1:1 实现
+    // MonGenParseCore.CompareLStr 完全一致，避免同一函数两种语义）。
     public static bool CompareLStr(string src, string targ, int compn)
     {
-        if (src.Length < compn || targ.Length < compn) return false;
-        return string.CompareOrdinal(src, 0, targ, 0, compn) == 0;
+        if (compn <= 0 || src.Length < compn || targ.Length < compn) return false;
+        for (int i = 0; i < compn; i++)
+            if (char.ToUpperInvariant(src[i]) != char.ToUpperInvariant(targ[i])) return false;
+        return true;
     }
 
     public static bool CompareBackLStr(string src, string targ, int compn)
     {
-        if (src.Length < compn || targ.Length < compn) return false;
-        return string.CompareOrdinal(src, src.Length - compn, targ, targ.Length - compn, compn) == 0;
+        if (compn <= 0 || src.Length < compn || targ.Length < compn) return false;
+        // 原文 1-based：Src[slen - I]，I=0..compn-1 → 末字符向前数；0-based 即 Length-1-i
+        for (int i = 0; i < compn; i++)
+        {
+            if (char.ToUpperInvariant(src[src.Length - 1 - i])
+                != char.ToUpperInvariant(targ[targ.Length - 1 - i])) return false;
+        }
+        return true;
     }
 
     public static bool CompareBuffer(byte[] p1, byte[] p2, int len)
