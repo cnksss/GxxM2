@@ -24,7 +24,7 @@ public sealed class NpcObjNpcSub4A0218Tests : IDisposable
         NpcSeams.ResetDefaults();
         NpcSeams.AddGameDataLog = (a1, a2, actor, item, makeIdx, target, d1, d2, desc) =>
             _logs.Add($"{a1}/{a2}/{item}/{makeIdx}/{desc}");
-        NpcSeams.SendMsgToClient = (sender, target, ident, wParam, p1, p2, p3, sMsg) =>
+        NpcSeams.SendTo = (sender, target, ident, wParam, p1, p2, p3, sMsg) =>
             _sent.Add($"{ident}:{p1}:{sMsg}");
     }
 

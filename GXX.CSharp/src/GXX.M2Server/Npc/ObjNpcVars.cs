@@ -346,7 +346,7 @@ public partial class TNormNpc
             if (n01 is >= 0 and <= 999)
             {
                 // P
-                nValue = NpcSeams.GetPlayerPVal(PlayObject, n01);
+                nValue = PlayObject.m_nVal[n01];
                 sValue = DelphiRTL.IntToStr(nValue);
                 Result = true;
             }
@@ -395,7 +395,7 @@ public partial class TNormNpc
             else if (n01 is >= 7000 and <= 7999)
             {
                 // S
-                sValue = NpcSeams.GetPlayerSString(PlayObject, n01 - 7000);
+                sValue = PlayObject.m_sString[n01 - 7000];
                 nValue = (int)DelphiRTL.StrToInt64Def(sValue, nValue);
                 Result = true;
             }
@@ -409,7 +409,7 @@ public partial class TNormNpc
             // 私有变量 T-字符串型 chongchong 2014-10-18
             else if (n01 is >= 8500 and <= 8999)
             {
-                sValue = NpcSeams.GetPlayerTVal(PlayObject, n01 - 8500);
+                sValue = PlayObject.m_TVal[n01 - 8500];
                 nValue = (int)DelphiRTL.StrToInt64Def(sValue, nValue);
                 Result = true;
             }
@@ -423,9 +423,9 @@ public partial class TNormNpc
             // 私有变量 Z-字符串型(1天1清) chongchong 2014-10-18
             else if (n01 is >= 9500 and <= 9999)
             {
-                // ⚠ Engine.TPlayObject.m_ZVal 是 string[]，元素默认 **null**；
-                //   原文是 ShortString，默认 **''**。取 '' 以贴合原文（差异已登记）。
-                sValue = PlayObject.m_ZVal[n01 - 9500] ?? "";
+                // Engine 已按原文补齐默认值：`TPlayObject` 构造时调用 `MigrateStringVarDefaults`，
+                // `m_ZVal` 元素默认 `''`（原文 ShortString 语义）—— 故此处**不再需要** `?? ""` 归一。
+                sValue = PlayObject.m_ZVal[n01 - 9500];
                 nValue = (int)DelphiRTL.StrToInt64Def(sValue, nValue);
                 Result = true;
             }
@@ -441,7 +441,18 @@ public partial class TNormNpc
                 sData = HUtil32.GetValidStr3(sData, ref arySIndex, new[] { ']' });
             }
 
-            sValue = NpcSeams.GetPlayerArrayListValue(PlayObject, DelphiRTL.UpperCase(sName));
+            // 原文 5837-5845（L$ 数组变量）：
+            //   `n01 := PlayObject.m_ArrayList.GetIndex(UpperCase(sName));`
+            //   `if n01 >= 0 then sValue := PlayObject.m_ArrayList.Strings[n01] else sValue := '';`
+            n01 = PlayObject.m_ArrayList.GetIndex(DelphiRTL.UpperCase(sName));
+            if (n01 >= 0)
+            {
+                sValue = PlayObject.m_ArrayList.Strings[n01];
+            }
+            else
+            {
+                sValue = "";
+            }
             nValue = (int)DelphiRTL.StrToInt64Def(sValue, 0);
             Result = true;
         }

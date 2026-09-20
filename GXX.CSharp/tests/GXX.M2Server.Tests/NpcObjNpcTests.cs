@@ -252,7 +252,7 @@ public sealed class NpcObjNpcTests : IDisposable
         var npc = new TNormNpc();
         var player = NewPlayer();
         var hero = NewCreature();
-        NpcSeams.GetMyHero = p => ReferenceEquals(p, player) ? hero : null;
+        player.m_MyHero = hero;   // ★ 已去接缝：直读 TPlayObject.m_MyHero（PlayerSurface.Hero.cs:31）
 
         var con = new TQuestConditionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_1 } };
         var act = new TQuestActionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_1 } };
@@ -265,7 +265,7 @@ public sealed class NpcObjNpcTests : IDisposable
     {
         var npc = new TNormNpc();
         var player = NewPlayer();
-        NpcSeams.GetMyHero = _ => null;
+        player.m_MyHero = null;
         var con = new TQuestConditionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_1 } };
         Assert.Null(ObjNpcUnitFuncs.GetLevelBaseObjectCondition(npc, player, con));
     }
@@ -303,9 +303,13 @@ public sealed class NpcObjNpcTests : IDisposable
         var target = NewCreature();
         var hiter = NewCreature();
         var pose = NewCreature();
-        NpcSeams.GetCurrTarget = o => ReferenceEquals(o, player) ? target : null;
-        NpcSeams.GetLastHiter = o => ReferenceEquals(o, player) ? hiter : null;
-        NpcSeams.GetPoseCreate = o => ReferenceEquals(o, player) ? pose : null;
+        // ★ 已去接缝：直读 TCreature.m_CurrTarget / m_LastHiter / GetPoseCreate()
+        player.m_CurrTarget = target;
+        player.m_LastHiter = hiter;
+        // `GetPoseCreate()` 原文 = `GetFrontPosition` + `m_PEnvir.GetMovingObject(...)`，
+        // 托管侧经 Engine 自己的 `PlayerSurfaceBaseSeams.GetMovingObject` 接缝返回（Engine 层已有）。
+        player.m_PEnvir = new TEnvirnoment();
+        PlayerSurfaceBaseSeams.GetMovingObject = (_, _, _, _, _) => pose;
 
         Assert.Same(target, ObjNpcUnitFuncs.GetLevelBaseObjectCondition(npc, player,
             new TQuestConditionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_3 } }));
@@ -323,7 +327,7 @@ public sealed class NpcObjNpcTests : IDisposable
         NpcSeams.g_nKey_HeroExt = 0;
         var npc = new TNormNpc();
         var player = NewPlayer();
-        NpcSeams.GetMyHero = _ => null;
+        player.m_MyHero = null;
 
         Assert.Same(player, ObjNpcUnitFuncs.GetLevelBaseObjectCondition(npc, player,
             new TQuestConditionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_7 } }));
@@ -339,8 +343,8 @@ public sealed class NpcObjNpcTests : IDisposable
         var player = NewPlayer();
         var hero = NewCreature();
         var heroTarget = NewCreature();
-        NpcSeams.GetMyHero = p => ReferenceEquals(p, player) ? hero : null;
-        NpcSeams.GetCurrTarget = o => ReferenceEquals(o, hero) ? heroTarget : null;
+        player.m_MyHero = hero;
+        hero.m_CurrTarget = heroTarget;
 
         Assert.Same(heroTarget, ObjNpcUnitFuncs.GetLevelBaseObjectCondition(npc, player,
             new TQuestConditionInfo { ScriptCmd = new[] { ObjNpcConst.CMD_RACE_7 } }));
@@ -596,7 +600,7 @@ public sealed class NpcObjNpcTests : IDisposable
     {
         var npc = new TNormNpc();
         var player = NewPlayer();
-        NpcSeams.GetPlayerPVal = (p, i) => i + 100;
+        player.m_nVal[3] = 103;   // 原文 `PlayObject.m_nVal[n01]`（n01 = 3）
         string sValue = "";
         int nValue = 0;
         Assert.True(npc.GetValNameValue(player, "P3", ref sValue, ref nValue));
@@ -660,7 +664,7 @@ public sealed class NpcObjNpcTests : IDisposable
     {
         var npc = new TNormNpc();
         var player = NewPlayer();
-        NpcSeams.GetPlayerArrayListValue = (p, name) => name == "L$ARR" ? "66" : "";
+        player.m_ArrayList.Add("L$ARR", "66");
         string sValue = "";
         int nValue = 0;
         Assert.True(npc.GetValNameValue(player, "L$ARR", ref sValue, ref nValue));
@@ -674,12 +678,10 @@ public sealed class NpcObjNpcTests : IDisposable
         // 原文 5831-5834：带 `[i]` 时先用 GetValidStr3 剥掉下标，再按**剩余名字**查表。
         var npc = new TNormNpc();
         var player = NewPlayer();
-        string captured = null;
-        NpcSeams.GetPlayerArrayListValue = (p, name) => { captured = name; return "7"; };
+        player.m_ArrayList.Add("L$ARR", "7");
         string sValue = "";
         int nValue = 0;
         Assert.True(npc.GetValNameValue(player, "L$ARR[3]", ref sValue, ref nValue));
-        Assert.Equal("L$ARR", captured);
         Assert.Equal(7, nValue);
     }
 
