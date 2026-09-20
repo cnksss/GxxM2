@@ -313,6 +313,103 @@ public static class NpcSeams
     /// </summary>
     public static Func<int, int> Random { get; set; } = _DelphiRandom;
 
+    // -----------------------------------------------------------------------
+    // TMerchant 价格族（1446-1511 / 1630-1681 / 2052-2086 / 3160-3178 / 3272-3365）
+    // 需要的宿主面。
+    // -----------------------------------------------------------------------
+
+    /// <summary>
+    /// 原文 `UserEngine.GetStdItem(wIndex): pTStdItem`（UsrEngn.pas）。
+    /// ObjNpc.pas:1481 / 1665 / 3284 处调用。`TStdItem` 在托管侧是值类型结构 → 用 `Nullable` 表达 nil。
+    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// </summary>
+    public static Func<int, TStdItem?> GetStdItem { get; set; } = _ => null;
+
+    /// <summary>
+    /// 原文 `FrmDB.SaveGoodPriceRecord(Self, m_sScript + '-' + m_sMapName)`（LocalDB.pas 全局 FrmDB；
+    /// ObjNpc.pas:1454 调用）。接缝：待 LocalDB.pas 移植后接入。
+    /// </summary>
+    public static Action<TMerchant, string> SaveGoodPriceRecord { get; set; } = (_, _) => { };
+
+    /// <summary>
+    /// 原文 `TBaseObject.m_Castle`（ObjBase/ObjGame 基类字段，托管侧 Engine.TCreature 尚未声明）。
+    /// ObjNpc.pas:2068-2079 的城堡价分支使用。返回 null 表示 `m_Castle = nil`。
+    /// </summary>
+    public static Func<TNormNpc, object?> GetNpcCastle { get; set; } = _ => null;
+
+    /// <summary>
+    /// 原文 `TUserCastle(m_Castle).IsMasterGuild(TGUild(PlayObject.m_MyGuild))`
+    /// （Castle.pas；ObjNpc.pas:2071 调用）。接缝：待 Castle.pas 的 TUserCastle 接入。
+    /// </summary>
+    public static Func<object, TPlayObject, bool> IsMasterGuild { get; set; } = (_, _) => false;
+
+    // -----------------------------------------------------------------------
+    // FrmDB（LocalDB.pas 全局）落盘/读盘接口 —— ObjNpc.pas 的脚本/图标/商品/升级武器
+    // 四类存取全走它。LocalDB.pas 整单元未移植，故全部接缝。
+    // -----------------------------------------------------------------------
+
+    /// <summary>原文 `FrmDB.LoadGoodRecord(Self, sFile)`（ObjNpc.pas:3057）。接缝。</summary>
+    public static Action<TMerchant, string> LoadGoodRecord { get; set; } = (_, _) => { };
+
+    /// <summary>原文 `FrmDB.SaveGoodRecord(Self, sFile)`（ObjNpc.pas:3067）。接缝。</summary>
+    public static Action<TMerchant, string> SaveGoodRecord { get; set; } = (_, _) => { };
+
+    /// <summary>原文 `FrmDB.LoadGoodPriceRecord(Self, sFile)`（ObjNpc.pas:3058）。接缝。</summary>
+    public static Action<TMerchant, string> LoadGoodPriceRecord { get; set; } = (_, _) => { };
+
+    /// <summary>原文 `FrmDB.LoadUpgradeWeaponRecord(sFile, m_UpgradeWeaponList)`（ObjNpc.pas:4207）。接缝。</summary>
+    public static Action<string, List<object>> LoadUpgradeWeaponRecord { get; set; } = (_, _) => { };
+
+    /// <summary>原文 `FrmDB.SaveUpgradeWeaponRecord(sFile, m_UpgradeWeaponList)`（ObjNpc.pas:1678）。接缝。</summary>
+    public static Action<string, List<object>> SaveUpgradeWeaponRecord { get; set; } = (_, _) => { };
+
+    /// <summary>原文 `FrmDB.LoadNpcScript(Self, sPath, sName)`（ObjNpc.pas:9583/9589）。接缝。</summary>
+    public static Action<TNormNpc, string, string> LoadNpcScriptFile { get; set; } = (_, _, _) => { };
+
+    /// <summary>原文 `FrmDB.LoadScriptFile(Self, sPath, sName, True)`（ObjNpc.pas:3201）。接缝。</summary>
+    public static Action<TMerchant, string, string> LoadScriptFile { get; set; } = (_, _, _) => { };
+
+    /// <summary>
+    /// 原文 `FrmDB.LoadIconFile(Self, @m_ActorIcons, sNpcIcons, sName)`（ObjNpc.pas:3202/3225/9584/9600）。
+    /// <para>接缝签名**吞掉了 `@m_ActorIcons`**：该字段原文在 `TBaseObject`（ObjBase/ObjGame）上，
+    /// 托管侧 `Engine.TCreature` 尚无 —— 与本车道已上报的 6 个 Engine 成员同性质（见报告 §6.1-C）。
+    /// 由接入方在其实现内自行取该数组，故本接缝只暴露 (npc, sNpcIcons, sName) 三元组。</para>
+    /// </summary>
+    public static Action<TNormNpc, string, string> LoadIconFile { get; set; } = (_, _, _) => { };
+
+    // -----------------------------------------------------------------------
+    // M2Share.pas:378-381 的目录常量（原文以 const 形式被 ObjNpc.pas 直接引用）。
+    // 用可替换属性而非 const：M2Share 移植后此处一处改接。
+    // -----------------------------------------------------------------------
+
+    /// <summary>接缝：原文 `sMarket_Def = 'Market_Def\'`（M2Share.pas:378）。</summary>
+    public static string sMarket_Def { get; set; } = @"Market_Def\";
+
+    /// <summary>接缝：原文 `sNpc_def = 'Npc_def\'`（M2Share.pas:379）。</summary>
+    public static string sNpc_def { get; set; } = @"Npc_def\";
+
+    /// <summary>接缝：原文 `sNpcIcons = 'NpcIcons\'`（M2Share.pas:381）。</summary>
+    public static string sNpcIcons { get; set; } = @"NpcIcons\";
+
+    /// <summary>
+    /// 原文 `UserEngine.GetStdItemName(wIndex): string`（UsrEngn.pas）。
+    /// ObjNpc.pas:1712（升级材料名比较）与 3259（`$USERWEAPON`）调用。
+    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// </summary>
+    public static Func<int, string> GetStdItemName { get; set; } = _ => "";
+
+    /// <summary>
+    /// 原文 `TPlayObject.m_UseItems[U_WEAPON]`（ObjPlayer.pas 装备格数组）。
+    /// ObjNpc.pas:3257/3259 只**读**该格。接缝：待 ObjPlayer.pas 移植后接入。
+    /// </summary>
+    public static Func<TPlayObject, TUserItem> GetUseItemsWeapon { get; set; } = _ => default;
+
+    /// <summary>
+    /// 原文 `TNormNpc.SendCustemMsg`（ObjNpc.pas:9837-9862，本车道未覆盖）—— 供
+    /// `TMerchant.SendCustemMsg`（4235-4238）的 `inherited` 转发。默认无操作。
+    /// </summary>
+    public static Action<TNormNpc, TPlayObject, string> SendCustemMsg { get; set; } = (_, _, _) => { };
+
     private static readonly System.Random _Rnd = new();
 
     private static int _DelphiRandom(int range)
@@ -354,5 +451,23 @@ public static class NpcSeams
         GetBoxItemValue = (_, _) => (false, "");
         SetBoxItemValue = (_, _, _, _) => false;
         Random = _DelphiRandom;
+        GetStdItem = _ => null;
+        SaveGoodPriceRecord = (_, _) => { };
+        GetNpcCastle = _ => null;
+        IsMasterGuild = (_, _) => false;
+        LoadGoodRecord = (_, _) => { };
+        SaveGoodRecord = (_, _) => { };
+        LoadGoodPriceRecord = (_, _) => { };
+        LoadUpgradeWeaponRecord = (_, _) => { };
+        SaveUpgradeWeaponRecord = (_, _) => { };
+        LoadNpcScriptFile = (_, _, _) => { };
+        LoadScriptFile = (_, _, _) => { };
+        LoadIconFile = (_, _, _) => { };
+        sMarket_Def = @"Market_Def\";
+        sNpc_def = @"Npc_def\";
+        sNpcIcons = @"NpcIcons\";
+        GetStdItemName = _ => "";
+        GetUseItemsWeapon = _ => default;
+        SendCustemMsg = (_, _, _) => { };
     }
 }
