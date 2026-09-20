@@ -378,8 +378,11 @@ public class RunGateUtilsFormMagicCDTests : IDisposable
 
         Assert.True(File.Exists(CdListFile));
         string cdText = File.ReadAllText(CdListFile, System.Text.Encoding.GetEncoding(936));
-        Assert.Contains("[Interval]\r\n", cdText, StringComparison.Ordinal);
-        Assert.Contains("11=1234\r\n", cdText, StringComparison.Ordinal);
+        // ★ 更正（本轮）：原文 `MagicIntervalUtils.pas:168-186 SaveToFile` 是 `TStringList` 直写
+        //   明文 `MagicId=Interval`，**没有 INI 节头**；`uFrmMain.pas:478` 的落盘文件名也是
+        //   `MagicCD.txt`。此前窗体接缝误用 `TIniFileEx` 写 `[Interval]` 节，本条断言随之错误。
+        Assert.DoesNotContain("[Interval]", cdText, StringComparison.Ordinal);
+        Assert.Equal("11=1234\r\n", cdText);
     }
 
     // ---------------- ComputeDefaultMagicDbPath（原 :278-279）----------------
