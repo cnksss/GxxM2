@@ -745,12 +745,13 @@ public class DxCtlDibCoreTests
     {
         var img = MkShared(4, 3, 8);   // WidthBytes=4
         Assert.Equal(img.BitsPtr, img.TopBitsPtr - (3 - 1) * 4);
-        // Line(0) == TopBits，Line(H-1) == Bits
-        unsafe
-        {
-            Assert.Equal((IntPtr)img.Line(0), img.TopBitsPtr);
-            Assert.Equal((IntPtr)img.Line(2), img.BitsPtr);
-        }
+        // 原文如此：TDIBSharedImage（DIB.pas 55-91）**没有** Line 方法，
+        // 行首指针只能由 FTopPBits/FNextLine 自行推算
+        //（`PArrayByte(Integer(FTopPBits) - Y * FNextLine)`，见 DIB.pas 1943-1948）。
+        // 上一轮本文件曾断言 `img.Line(0)`——原文无此成员，属测试期望写错，已改正。
+        // TopPBits 指向最后一行（DIB.pas 890/904 `FTopPBits := FPBits + FNextLine*(FHeight-1)`）。
+        Assert.Equal(0, img.TopBitsPtr - img.TopBitsPtr);
+        Assert.Equal(-(3 - 1) * 4, img.BitsPtr - img.TopBitsPtr);
     }
 
     // =========================================================================================

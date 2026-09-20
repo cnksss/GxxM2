@@ -695,22 +695,24 @@ public static class DxStringArrest
 }
 
 // -------------------------------------------------------------------------------------
-// TDxScrollControl（原文 DxControls.pas 1730 的 `is TDxScrollControl` 判定目标；
-// 真类在 DxScrollBox / DxPageControl / DxMemo 里，属后续波次）
+// TDxScrollControl —— 接缝已撤销，正式归属落地在 DxMemo*.cs
 // -------------------------------------------------------------------------------------
-
-/// <summary>
-/// 滚动控件基类接缝。本波只保留「是不是滚动控件」这一判定所需的抽象面：
-/// engine 的 MouseWheelDown/Up 与 SetScrollControl 只做 `is TDxScrollControl` 判定后转调这两个虚方法。
-/// </summary>
-public abstract class TDxScrollControl : TDxControl
-{
-    /// <summary>原文 TDxControl.MouseWheelDown（子类覆写）。</summary>
-    public virtual void MouseWheelDown(TDxShiftState shift, TDxPoint mousePos) { }
-
-    /// <summary>原文 TDxControl.MouseWheelUp（子类覆写）。</summary>
-    public virtual void MouseWheelUp(TDxShiftState shift, TDxPoint mousePos) { }
-}
+//
+// 这里原有一份「最小接缝」TDxScrollControl（只含 MouseWheelDown/Up 两个空虚方法），
+// 是为了让本文件下方的 `is TDxScrollControl` 判定与 LoadDx/DxControlSeams.cs 的
+// TDxScrollControlSeam 能先编译通过而临时引入的。
+//
+// 按台账 §12.8 的裁定「以原文正式归属为准，归属落地后立即去重复制」：
+//   DxMemo.pas:44 才是 TDxScrollControl 的正式归属（该单元含 TDxScrollControl /
+//   TDxScrollBox / TDxLines / TDxChatMemo / TDxTreeNode / TDxTreeView / TDxListView 全族），
+//   已由车道 p3-dx-big 全量移植到 DxComponent/DxMemo*.cs（同一命名空间
+//   GXX.Client.DxComponent）。
+//
+// 因此接缝在此撤销，避免 CS0101 同命名空间重复定义。本文件下方 4 处
+// `is TDxScrollControl`（原 DxControls.pas 1730/2976 的判定）与
+// LoadDx/DxControlSeams.cs 的派生关系不变，仍指向 DxMemo*.cs 里的正式类型。
+//
+// 若本文件在别处还引用了 MouseWheelDown/MouseWheelUp，正式类型已提供同名虚方法。
 
 // -------------------------------------------------------------------------------------
 // DxControlOps：原文 TDxControl 的全部「非几何属性」成员
