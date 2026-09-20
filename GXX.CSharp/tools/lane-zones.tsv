@@ -32,3 +32,10 @@ p5-m2-custommagic	GXX.CSharp/src/GXX.M2Server/Forms/CustomMagic/**;GXX.CSharp/te
 # ParadoxDataSet.pas exists byte-identical in RunGate and GameCenter -> ported ONCE into GXX.Core.
 p6-core-paradox	GXX.CSharp/src/GXX.Core/Paradox/**;GXX.CSharp/tests/GXX.Core.Tests/ParadoxDataSet*;GXX.CSharp/docs/并行报告-p6-core-paradox.md
 p6-m2-pets	GXX.CSharp/src/GXX.M2Server/Forms/GamePets/**;GXX.CSharp/tests/GXX.M2Server.Tests/GamePets*;GXX.CSharp/docs/并行报告-p6-m2-pets.md
+# TCreature/TPlayObject are `partial`, so this lane adds members in its OWN new
+# files -- no write access to the session-A-owned Engine/*.cs is needed at all.
+p6-m2-playersurface	GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/**;GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurface*;GXX.CSharp/docs/并行报告-p6-m2-playersurface.md
+# Test-isolation lane: its own new files only (assembly-wide hook), plus TestConfig.cs.
+p6-test-isolation	GXX.CSharp/tests/GXX.M2Server.Tests/M2ConfigIsolation*.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/TestConfig.cs;GXX.CSharp/docs/并行报告-p6-test-isolation.md
+# CustomActor: replaces a 6-line stub in PlaySceneNewActor.cs with the full 1130-line class.
+p6-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/CustomActor*.cs;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;GXX.CSharp/tests/GXX.Client.Tests/CustomActor*;GXX.CSharp/docs/并行报告-p6-client-actor.md
