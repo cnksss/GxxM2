@@ -27,7 +27,13 @@ public class EConvException : Exception
     }
 
     private static string DelphiFormatString(string fmt, params string[] args)
-        => string.Format(fmt.Replace("%S", "{0}"), args);
+        // 原文 ParadoxConv.pas 用 Delphi `Format(fmt, [args])` 做**按序**替换。
+        // 这里曾写成 `string.Format(fmt.Replace("%S", "{0}"), args)` —— 那是错的：
+        // 该格式串实为 "Can't convert from %S to %S symbol %S"（**三个**占位符），
+        // 全部 Replace 成 `{0}` 后三个位置都会打印第一个参数（source 三次），
+        // dest/sym 被静默丢弃。改走专为 Delphi 格式串实现的 DelphiFormat（按序消费实参，
+        // 且 %S/%s 等价、支持 %d/%x/%f 等），见 GXX.Core/Rtl/DelphiRTL.cs:193。
+        => GXX.Core.Rtl.DelphiFormat.Format(fmt, args);
 }
 
 /// <summary>ParadoxConv.pas:49 TEncoding（Delphi 枚举顺序/PascalCase 保留）。</summary>
