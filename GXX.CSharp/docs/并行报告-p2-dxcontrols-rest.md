@@ -630,13 +630,13 @@ public bool MouseMoveed { get => _mouseMoveed; set { if (_mouseMoveed != value) 
 | `AsphyreTimer.pas` | 335 | ✅ 完成 | `DxComponent/AsphyreTimer.cs`(564) | 1-43 头 / 51-52 枚举 / 55-113 声明 / 123-125 const / 129-323 实现 / 326-331 init-final |
 | `StreamClipbrd.pas` | 219 | ✅ 完成 | `DxComponent/StreamClipbrd.cs`(536) | 1-5 / 6-14 接口 / 17-51 / 53-76 / 78-99 / 101-123 / 125-145 / 147-167 / 170-171 / 174-193 / 200-217 |
 | `DxControlClpbrd.pas` | 166 | ✅ 完成（转发） | `DxComponent/DxControlClpbrd.cs`(70) | 6-11 声明 / 14-48 / 50-73 / 75-96 / 98-120 / 122-142 / 144-164 |
-| `DxImageButtonEx.pas` | 769 | ⏳ **未做**（预算耗尽；**类型名无冲突，可直接开工**） | — | 顶层类型：`TTokenBase`(26) `TTokenText`(45) `TTokenImage`(66) `TTokenPlayImage`(80) `TTokenLine`(100) `TLineList`(121) `TDxImageButtonEx`(142)；依赖 `MShare`/`ClFunc`/`HUtil32`/`HGEFontEx`/`HGE`/`GameImages` 在本树**均已有 C# 落点** |
+| `DxImageButtonEx.pas` | 889 | ✅ **完成**（`b83b2dea` + `193b1539`） | `DxComponent/DxImageButtonEx.cs`(1235) | 声明 24-140 / 142-156；实现 160-161 / 165-741 / 743-887 逐段 |
 | `DxGroupAttackProgress.pas` | 462 | ⛔ **阻塞（需调度方裁定）** | — | 控制类名 `TDxGroupAttackProgress`（原文 123 行，声明段/实现段拼写一致）与 `LoadDx/DxControlSeams.cs:447` 的接缝同名，且 `LoadDxNamespaceCollisionTests.LoadDx_Own_Seams_Are_Still_Declared_Locally` 要求该名**留在 `LoadDx`** → 直接落地必触发 CS0104 + 守卫变红 |
 | `DxSwitchButton.pas` | 382 | ⛔ **阻塞（需调度方裁定）** | — | 同上：`TDxSwitchButton`（原文 77 行）vs `LoadDx/DxControlSeams.cs:473` |
 | `GuiManage.pas` | 417 | ⛔ **不建议移植** | — | uses 里 `DxBackground`/`DxPageControl`/`DxEdit`/`DxImageGrid`/`DxPopupMenu`/`DxComboBox`/`DxComponents` **均未移植**（`DxMemo` 归 `p3-dx-big`）；且其唯一出口 `LoadFromStream` 与 `LoadDx/GuiComponentLoader.cs` **功能重复**（同一套 `.GUI` 记录），落地会造出第二套加载器 |
 | `LoginDlg.pas` | 162 | ⛔ **不建议移植** | — | VCL 窗体 + **第三方 Raize 控件**（`TRzDialogButtons`/`TRzButtonEdit`/`TRzRadioGroup`/`TRzPanel`）+ `ShlObj` Shell 浏览 + `{$R *.dfm}`；托管侧无等价物，且属登录器（非 DxComponent 家族） |
 
-**统计：4/8 完成（1,528 行 Delphi），2 个阻塞、2 个判定为不建议移植，1 个（769 行）可直接续做。**
+**统计：5/8 完成（2,417 行 Delphi；`DxImageButtonEx.pas` 已于 §15 收口），2 个阻塞（等调度方去重批次）、2 个由调度方登记为待裁定。**
 
 ## 12. 本轮接缝清单（新增）
 
@@ -683,6 +683,83 @@ public bool MouseMoveed { get => _mouseMoveed; set { if (_mouseMoveed != value) 
   (A) 调度方在 §10 的根因修复里**一并删除**这两个接缝并同步更新守卫清单，本车道随后用原文名落地；
   (B) 授权本车道沿用 `TDXMagicBall` 先例（`TDXGroupAttackProgress` / `TDXSwitchButton`）落地，
   待接缝删除后再改回原文名。**我未擅自选路。**
-- **`DxImageButtonEx.pas`(769)**：唯一"无阻塞但仍未做"的单元，类型名无冲突、依赖均有落点，可直接续做。
-- **`GuiManage.pas` / `LoginDlg.pas`**：判定为不建议移植，理由见 §11。
+- **`DxImageButtonEx.pas`(889)**：已于 `b83b2dea` / `193b1539` 两切片**完成**（见 §15）。
+- **`GuiManage.pas` / `LoginDlg.pas`**：本条为**我方初判**；调度方已登记为"待裁定"（不写进不移植清单），见 §15.4。
+
+---
+
+## 15. 续轮（二）：`DxImageButtonEx.pas` 收口
+
+### 15.1 提交
+
+| 提交 | 内容 | 门禁 |
+|---|---|---|
+| `b83b2dea` | **批次P2D-5**：token 模型（6 个类型）+ `ProcessButtonText` + 全部接缝 + 83 例 | `GXX.Client.Tests` **3783** pass / 0 fail |
+| `193b1539` | **批次P2D-6**：`TDxImageButtonEx` 落地 + 29 例 | **3812** pass / 0 fail |
+
+基线 3700 → **3812（+112）**。
+
+### 15.2 接缝（新增，全部无头安全）
+
+`DxImageButtonExEnv`（12 个原文全局）：`Painter`(GameCanvas) / `FindFont`(TextureFonts) /
+`TextWidth` / `TextHeight` / `GetImageInfos` / `CurFontName`(g_sCurFontName) /
+`CurrentFont` / `CurrentFontHeight`(g_CurrentFontHeight) / `GetRGB`(MShare) /
+`EffectImageList`(g_EffectImageList) / `BagItemLooks` / `DnItemLooks` / `StateItemLooks` / `NewopUIImages`。
+另有 `IDxImageList`+`TDxImageListStub`、`IDxImageLibraryCached`+`DxImageLibraryExt.GetCachedImage`
+（承接 `TGameImages.GetCachedImage` 的缓存内偏移；未实现时退化偏移 0 —— 与 DxImageButton 既有处置同源）。
+
+### 15.3 ★ 唯一一处对只读外的"加词"改动（请复核）
+
+`DxImageButton.cs` 的 `DoDrawCaptionV2()` 由 `public void` 改为 **`public virtual void`**（一处加词）。
+理由：原文 `TDxImageButtonEx.DoDrawCaption` 是 `override`（原文 148），而托管侧的
+`TDxControl` 虚方法表里**没有** `DoDrawCaption`（上一波把 `TDxImageButton.DoDrawCaption`
+落成了非虚公开方法 `DoDrawCaptionV2`）。不加 `virtual` 就只能用 `new` 隐藏，
+而 `TDxImageButton.PaintImageButton`（原文 996 行处的调用点）内部调用 `DoDrawCaptionV2()`
+将**不会**派发到子类 —— 与原文语义不符。该文件在本车道独占区内，且 `p3-dx-big`
+只动 `Dib*.cs`/`DxMemo*.cs`，冲突面为零。
+
+同理，`SetCaptionA`/`SetCaptionV` 的原文覆写点在托管侧无虚方法可覆写，按本车道既有约定
+落成 `SetCaptionAV2` / `SetCaptionVV2` 公开方法（调用方显式调用）。
+
+### 15.4 ★ 本轮新发现的原文缺陷 / 易错点（带行号）
+
+1. **纯图片标签的标题永远画不出来**（原文 834 + 781）：`SetCaptionA` 用
+   `ProcessButtonText` 的返回值当新 Caption，而纯 `<Img:...>` 的处理结果是 `''`
+   → `DoDrawCaption` 第一句 `if Caption = '' then Exit` 直接返回，
+   构造期建好的图片 token **一次也不会被绘制**。已写差异断言
+   （`DoDrawCaptionV2_TagOnlyCaption_PaintsNothing_Differential`）。
+2. **`SetCaptionA` 的 `SL.Delimiter := '\'` 是死代码**（原文 773）：Delphi 的
+   `TStrings.SetTextStr`（`Text` 的 setter）**只按 CR/LF 断行**，`Delimiter` 只影响
+   `DelimitedText`。故 `\` **不是**行分隔符，多行标题必须用真换行。已写差异断言
+   （`SetCaptionAV2_BackslashIsNotASeparator_Differential`）。
+3. **`TTokenPlayImage.Initialize` 的 `inherited` 指向抽象方法**（原文 287 ← 35）：
+   `TTokenLine.RecalSize`（371-379）对**每个** token 无条件调 `Initialize`，而
+   `<PlayImg:...>` 在客户端确有使用（`ClMain.pas` / `SerialWindowsDlg.pas` / `NPCFormDeBug.pas`）
+   → 原文若真抛 `EAbstractError` 该功能早已不可用。托管侧按"抽象父类无实现 = 无操作"落地
+   （**不复刻该 inherited**），并写了一条"含 PlayImg token 的 RecalSize 不得抛"的用例。
+   这是本单元唯一一处对原文的语义判断，已在源文件头第 8 条登记。
+4. **`TTokenImage.Paint` 忽略自己的 `FDrawBlend`**（原文 256-269），
+   而 `TTokenPlayImage.Paint` 的同名属性**是生效的**（307-310）。已写差异断言。
+5. **`Initialize` 找不到资源时不清零**（原文 186-207 / 242-254）：`FWidth/FHeight`
+   保持上一次的值。已写差异断言。
+6. **`DoDrawCaption` 的两轮绘制不对称**（原文 855-867 vs 869-886）：非文本 token 一律
+   画在 `vtRect` **左上原点、不参与居中**，文本 token 才逐行居中。已写差异断言。
+7. `TTokenPlayImage` 帧推进用**严格大于**（原文 314）、且在 `if Texture <> nil` **之外**
+   （313-319）；`CurTick - FDrawTick` 是 Cardinal 回绕语义。各有断言。
+8. `ProcessButtonText` 只检查 `Pos('{')`/`Pos('}')` > 0，**不检查后者大于前者**
+   （原文 480-489）→ `a}b{c` 会得到 `a}b` + `{}` + `b{c`。已写差异断言。
+9. `_drawTick`/`FDrawIndex`/`FStartIndex` 在 tokenizer 里被直接写（原文 583-588），
+   而 `TTokenPlayImage` 只公开了 `StartIndex/DrawCount/DrawTime/DrawBlend` 四个只读属性
+   —— 托管侧补了一个只读 `DrawIndex`（原文 88 的 `FDrawIndex` 无公开属性），
+   以便帧推进可断言。**这是本单元唯一新增的公开成员**，已在成员注释上登记。
+
+### 15.5 剩余量与状态
+
+- ✅ 已完成：`DxMagicBall` / `AsphyreTimer` / `StreamClipbrd` / `DxControlClpbrd` / `DxImageButtonEx`
+  = **5 个单元 / 2,417 行 Delphi / +328 个用例**（3484 → 3812）。
+- ⛔ 阻塞（等调度方的「DxComponent ↔ LoadDx 去重批次」，**裁定为 (A)，不用变通名**）：
+  `DxGroupAttackProgress.pas`(462) / `DxSwitchButton.pas`(382)。
+- ⏸ 调度方登记为"待裁定"（我未动手、未删）：`GuiManage.pas`(417) / `LoginDlg.pas`(162)。
+- 本轮**未触碰**：`LoadDx/**`、`tools/**`、`Dib*.cs`、`DxMemo*.cs`、`GXX.slnx`、`*.csproj`、
+  `Directory.Build.props`、`Checklist.md`；除 §15.3 的一处 `virtual` 加词外未改任何既有 `.cs`。
 
