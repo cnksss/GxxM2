@@ -17,6 +17,13 @@
 //    · UI **取值/写回规则**抽成 `ModValue` / `uModValue` / `ApplyDisableDummyRun` /
 //      `ApplyWarDisHumRun` / `AddSelectedMaps` / `AddSelectedMons` 等纯逻辑（见 Handlers）。
 //    · `SetFocus`（:353 / :438 / :446）无头不可断言 → `SetFocusProbe` 决策镜像。
+//
+//  ★ 勘误（本车道审计自查）：早期版本的本文件与 `TFrmDummySetting.Handlers.cs` /
+//    `DummySettingControls.cs` 注释曾声称「`edtDummyHomeMapChange` 在 DFM 里没有绑定
+//    OnChange ⇒ 永不触发」。**该结论是错的**：回读 `uFrmDummySetting.dfm:154-163`
+//    确认 DFM :162 确有 `OnChange = edtDummyHomeMapChange`。原文处理器本体是**空体**
+//    （:408-411 只有一行 `//`），故行为不受影响；绑定事实已照 DFM 1:1 保留
+//    （`TFrmDummySetting.Components.cs` 绑定 `TextChanged`）。
 // ============================================================================
 
 using System;
