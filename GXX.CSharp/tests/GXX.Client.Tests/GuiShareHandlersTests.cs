@@ -924,6 +924,133 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 切片 5：交易 / 挑战的"守卫 + 转发"族
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice5RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice5Count);
+    }
+
+    [Fact]
+    public void DBotTradeClickSharesTheQueryTickThrottle()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendDealTryHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+
+        frm.DBotTradeClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                     // 18916
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 18915：+3000
+
+        // 与 DGDHomeClick 共享同一计数器 ⇒ 立刻再点不触发
+        frm.DBotTradeClick(null, 0, 0);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void BotChallengeClickForwardsAndRearms()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendChallengeTryHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 10_000;   // 与当前 tick 相等 ⇒ 严格 `>` 不成立
+
+        frm.BotChallengeClick(null, 0, 0);
+        Assert.Equal(0, calls);                                     // 边界：相等不触发
+        Assert.Equal(10_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 未重装
+
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        frm.BotChallengeClick(null, 0, 0);
+        Assert.Equal(1, calls);                                     // 18908
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);
+    }
+
+    [Fact]
+    public void DDealCloseClickForwardsAndDoesNotRearmTheDealTick()
+    {
+        var frm = NewForm();
+        int cancels = 0;
+        FStateClMainSeam.SendCancelDealHandler = () => cancels++;
+        FStateMShareSeam.g_dwDealActionTick = 9_999;
+
+        // 17536 的 CloseDDealDlg 仍是 throw 壳 ⇒ 抛点在被转发方（且发生在发送之前）
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DDealCloseClick(null, 0, 0));
+        Assert.Contains("CloseDDealDlg", ex.Message);
+        Assert.Equal(0, cancels);                                   // 17537 未执行（前一行先抛）
+
+        // 差异断言：本条**不**重装 g_dwDealActionTick（原文 17535 的守卫体内没有赋值）
+        Assert.Equal(9_999u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    [Fact]
+    public void DealZeroGoldRequiresBothFlagsAndRearmsByFourThousand()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendChangeDealGoldHandler = g => sent.Add(g);
+
+        // not g_boDealEnd = False ⇒ 不触发
+        FStateMShareSeam.g_boDealEnd = true;
+        FStateMShareSeam.g_nDealGold = 5;
+        frm.DealZeroGold();
+        Assert.Empty(sent);
+
+        // g_boDealEnd = False 但 g_nDealGold = 0 ⇒ 不触发（`> 0` 严格）
+        FStateMShareSeam.g_boDealEnd = false;
+        FStateMShareSeam.g_nDealGold = 0;
+        frm.DealZeroGold();
+        Assert.Empty(sent);
+
+        // 两个都成立 ⇒ 发 0 + 重装 +4000
+        FStateMShareSeam.g_nDealGold = 1;
+        frm.DealZeroGold();
+        Assert.Single(sent);
+        Assert.Equal(0, sent[0]);                                   // 17750：SendChangeDealGold(0)
+        Assert.Equal(14_000u, FStateMShareSeam.g_dwDealActionTick); // 17749：+4000
+    }
+
+    [Fact]
+    public void ChallengeZeroGoldMirrorsDealZeroGold()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendChangeChallengeGoldHandler = g => sent.Add(g);
+
+        FStateMShareSeam.g_boChallengeEnd = false;
+        FStateMShareSeam.g_nChallengeGold = 3;
+        frm.ChallengeZeroGold();
+
+        Assert.Single(sent);
+        Assert.Equal(0, sent[0]);                                       // 20793
+        Assert.Equal(14_000u, FStateMShareSeam.g_dwChallengeActionTick); // 20792：+4000
+
+        // 挑战/交易两条走**各自**的时间戳（差异证据）
+        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    [Fact]
+    public void DChallengeCloseClickUsesItsOwnTickAndForwards()
+    {
+        var frm = NewForm();
+        int cancels = 0;
+        FStateClMainSeam.SendCancelChallengeHandler = () => cancels++;
+        FStateMShareSeam.g_dwChallengeActionTick = 9_999;
+
+        // CloseDChallengeDlg 仍是 throw 壳 ⇒ 抛在被转发方
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DChallengeCloseClick(null, 0, 0));
+        Assert.Contains("CloseDChallengeDlg", ex.Message);
+        Assert.Equal(0, cancels);
+
+        // 差异证据：本条只看挑战时间戳，交易时间戳不参与
+        Assert.Equal(9_999u, FStateMShareSeam.g_dwChallengeActionTick);
+        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 

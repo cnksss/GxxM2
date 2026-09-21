@@ -592,6 +592,24 @@ public static class FStateMShareSeam
     /// </summary>
     public static uint g_dwQueryMsgTick;
 
+    /// <summary>MShare.pas `g_dwDealActionTick:LongWord`（交易动作节流时间戳；原文 17535 判据）。</summary>
+    public static uint g_dwDealActionTick;
+
+    /// <summary>MShare.pas `g_dwChallengeActionTick:LongWord`（挑战动作节流时间戳；原文 20815 判据）。</summary>
+    public static uint g_dwChallengeActionTick;
+
+    /// <summary>MShare.pas `g_boDealEnd:Boolean`（交易已结束；原文 17748 判据，**先判它**）。</summary>
+    public static bool g_boDealEnd;
+
+    /// <summary>MShare.pas `g_nDealGold:Integer`（交易中的金币数；原文 17748 判据）。</summary>
+    public static int g_nDealGold;
+
+    /// <summary>MShare.pas `g_boChallengeEnd:Boolean`（挑战已结束；原文 20791 判据）。</summary>
+    public static bool g_boChallengeEnd;
+
+    /// <summary>MShare.pas `g_nChallengeGold:Integer`（挑战中的金币数；原文 20791 判据）。</summary>
+    public static int g_nChallengeGold;
+
     /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
@@ -599,6 +617,12 @@ public static class FStateMShareSeam
         g_ExtBagOpenItemCount = 0;
         g_SelDeleteHumanInfo_sChrName = "";
         g_dwQueryMsgTick = 0;
+        g_dwDealActionTick = 0;
+        g_dwChallengeActionTick = 0;
+        g_boDealEnd = false;
+        g_nDealGold = 0;
+        g_boChallengeEnd = false;
+        g_nChallengeGold = 0;
     }
 }
 
@@ -885,6 +909,42 @@ public static class FStateClMainSeam
     /// <summary>ClMain.pas frmMain.SendGuildMemberList（原文 17887 调用）。</summary>
     public static void SendGuildMemberList() => SendGuildMemberListHandler?.Invoke();
 
+    /// <summary>ClMain.pas `frmMain.SendCancelDeal`（原文 17537 调用，无参）。</summary>
+    public static Action SendCancelDealHandler;
+
+    /// <summary>ClMain.pas frmMain.SendCancelDeal（原文 17537 调用）。</summary>
+    public static void SendCancelDeal() => SendCancelDealHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChangeDealGold(nGold:Integer)`（原文 17750 调用）。</summary>
+    public static Action<int> SendChangeDealGoldHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChangeDealGold（原文 17750 调用）。</summary>
+    public static void SendChangeDealGold(int nGold) => SendChangeDealGoldHandler?.Invoke(nGold);
+
+    /// <summary>ClMain.pas `frmMain.SendCancelChallenge`（原文 20817 调用，无参）。</summary>
+    public static Action SendCancelChallengeHandler;
+
+    /// <summary>ClMain.pas frmMain.SendCancelChallenge（原文 20817 调用）。</summary>
+    public static void SendCancelChallenge() => SendCancelChallengeHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChangeChallengeGold(nGold:Integer)`（原文 20793 调用）。</summary>
+    public static Action<int> SendChangeChallengeGoldHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChangeChallengeGold（原文 20793 调用）。</summary>
+    public static void SendChangeChallengeGold(int nGold) => SendChangeChallengeGoldHandler?.Invoke(nGold);
+
+    /// <summary>ClMain.pas `frmMain.SendDealTry`（原文 18916 调用，无参）。</summary>
+    public static Action SendDealTryHandler;
+
+    /// <summary>ClMain.pas frmMain.SendDealTry（原文 18916 调用）。</summary>
+    public static void SendDealTry() => SendDealTryHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChallengeTry`（原文 18908 调用，无参）。</summary>
+    public static Action SendChallengeTryHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChallengeTry（原文 18908 调用）。</summary>
+    public static void SendChallengeTry() => SendChallengeTryHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -905,6 +965,12 @@ public static class FStateClMainSeam
         TakeHorseHandler = null;
         SendGuildHomeHandler = null;
         SendGuildMemberListHandler = null;
+        SendCancelDealHandler = null;
+        SendChangeDealGoldHandler = null;
+        SendCancelChallengeHandler = null;
+        SendChangeChallengeGoldHandler = null;
+        SendDealTryHandler = null;
+        SendChallengeTryHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

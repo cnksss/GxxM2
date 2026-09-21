@@ -628,6 +628,93 @@ public partial class TFrmDlg
     {
         OpenDFriendDlg();                                   // 18895
     }
+
+    // ==========================================================================================
+    // 切片 5：交易 / 挑战的"守卫 + 转发"族
+    //
+    // 与切片 4 同源，但守卫用的是**各自**的动作时间戳，且 `*ZeroGold` 两条多一个 `not *End` 前置判据。
+    // 全部可完整断言（时钟注入）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:18912-18918 procedure TFrmDlg.DBotTradeClick。
+    /// 守卫 `Now &gt; g_dwQueryMsgTick` → 重装 `+3000` → 转 `frmMain.SendDealTry`。
+    /// </summary>
+    public virtual void DBotTradeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18914
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
+            FStateClMainSeam.SendDealTry();             // 18916
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:18904-18910 procedure TFrmDlg.BotChallengeClick（注意：原文**无 D 前缀**）。
+    /// 与 DBotTradeClick 同形，转发 `frmMain.SendChallengeTry`。
+    /// </summary>
+    public virtual void BotChallengeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18906
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
+            FStateClMainSeam.SendChallengeTry();        // 18908
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17533-17539 procedure TFrmDlg.DDealCloseClick。
+    /// 守卫 `Now &gt; g_dwDealActionTick` → 关交易对话框 → 转 `frmMain.SendCancelDeal`；
+    /// **不动** g_dwDealActionTick（原文如此：这里不重装，重装在 DealZeroGold）。
+    /// </summary>
+    public virtual void DDealCloseClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwDealActionTick)   // 17535
+        {
+            CloseDDealDlg();                            // 17536
+            FStateClMainSeam.SendCancelDeal();          // 17537
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17746-17752 procedure TFrmDlg.DealZeroGold。
+    /// 前置判据 `not g_boDealEnd and (g_nDealGold &gt; 0)`（**两个都成立才**）→
+    /// 重装 `g_dwDealActionTick := Now + 4000` → 转 `frmMain.SendChangeDealGold(0)`。
+    /// </summary>
+    public virtual void DealZeroGold()
+    {
+        if (!FStateMShareSeam.g_boDealEnd && FStateMShareSeam.g_nDealGold > 0)   // 17748
+        {
+            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
+            FStateClMainSeam.SendChangeDealGold(0);     // 17750
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20813-20819 procedure TFrmDlg.DChallengeCloseClick。
+    /// 与 DDealCloseClick 同形，守卫用 `g_dwChallengeActionTick`，转 `frmMain.SendCancelChallenge`。
+    /// </summary>
+    public virtual void DChallengeCloseClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChallengeActionTick)   // 20815
+        {
+            CloseDChallengeDlg();                       // 20816
+            FStateClMainSeam.SendCancelChallenge();     // 20817
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20789-20795 procedure TFrmDlg.ChallengeZeroGold。
+    /// 与 DealZeroGold 同形（挑战侧的镜像），重装 `+4000`，转 `SendChangeChallengeGold(0)`。
+    /// </summary>
+    public virtual void ChallengeZeroGold()
+    {
+        if (!FStateMShareSeam.g_boChallengeEnd && FStateMShareSeam.g_nChallengeGold > 0)   // 20791
+        {
+            FStateMShareSeam.g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
+            FStateClMainSeam.SendChangeChallengeGold(0);    // 20793
+        }
+    }
 }
 
 /// <summary>
@@ -751,9 +838,22 @@ public static class TFrmDlgPortLedger
         new PortedMember("DBotUserShopClick",          "20565-20568"),
     };
 
+    /// <summary>
+    /// 切片 5 落地的成员（6 条）：交易/挑战的"守卫 + 转发"族。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice5 = new[]
+    {
+        new PortedMember("DDealCloseClick",            "17533-17539"),
+        new PortedMember("DealZeroGold",               "17746-17752"),
+        new PortedMember("BotChallengeClick",          "18904-18910"),
+        new PortedMember("DBotTradeClick",             "18912-18918"),
+        new PortedMember("ChallengeZeroGold",          "20789-20795"),
+        new PortedMember("DChallengeCloseClick",       "20813-20819"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -767,8 +867,12 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 4 的真实现成员数。</summary>
     public static int Slice4Count => Slice4.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..4）。</summary>
-    public static int LaneCount => Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count;
+    /// <summary>切片 5 的真实现成员数。</summary>
+    public static int Slice5Count => Slice5.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..5）。</summary>
+    public static int LaneCount =>
+        Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)

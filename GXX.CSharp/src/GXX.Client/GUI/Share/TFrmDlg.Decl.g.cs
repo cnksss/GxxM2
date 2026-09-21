@@ -558,15 +558,6 @@ public partial class TFrmDlg
     /// <summary>Source line 583 : procedure DDealOkClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DDealOkClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DDealOkClick: not ported yet (FState.pas:583)");
-    /// <summary>Source line 584 : procedure DDealCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DDealCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DDealCloseClick: not ported yet (FState.pas:584)");
-    /// <summary>Source line 585 : procedure DBotTradeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotTradeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotTradeClick: not ported yet (FState.pas:585)");
-    /// <summary>Source line 586 : procedure BotChallengeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void BotChallengeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.BotChallengeClick: not ported yet (FState.pas:586)");
     /// <summary>Source line 587 : procedure DDealRemoteDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DDealRemoteDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DDealRemoteDlgDirectPaint: not ported yet (FState.pas:587)");
@@ -693,9 +684,6 @@ public partial class TFrmDlg
     /// <summary>Source line 648 : procedure DealItemReturnBag(mitem:TClientItem);</summary>
     public virtual void DealItemReturnBag(TClientItem mitem)
         => throw new NotSupportedException("TFrmDlg.DealItemReturnBag: not ported yet (FState.pas:648)");
-    /// <summary>Source line 649 : procedure DealZeroGold;</summary>
-    public virtual void DealZeroGold()
-        => throw new NotSupportedException("TFrmDlg.DealZeroGold: not ported yet (FState.pas:649)");
     /// <summary>Source line 650 : procedure OpenSoundOption(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void OpenSoundOption(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.OpenSoundOption: not ported yet (FState.pas:650)");
@@ -1491,15 +1479,9 @@ public partial class TFrmDlg
     /// <summary>Source line 973 : procedure DChallengeItemReturnBag(mitem:TClientItem);</summary>
     public virtual void DChallengeItemReturnBag(TClientItem mitem)
         => throw new NotSupportedException("TFrmDlg.DChallengeItemReturnBag: not ported yet (FState.pas:973)");
-    /// <summary>Source line 974 : procedure ChallengeZeroGold;</summary>
-    public virtual void ChallengeZeroGold()
-        => throw new NotSupportedException("TFrmDlg.ChallengeZeroGold: not ported yet (FState.pas:974)");
     /// <summary>Source line 975 : procedure DChallengeOkClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DChallengeOkClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DChallengeOkClick: not ported yet (FState.pas:975)");
-    /// <summary>Source line 976 : procedure DChallengeCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DChallengeCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DChallengeCloseClick: not ported yet (FState.pas:976)");
     /// <summary>Source line 977 : procedure DDChallengeGoldClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DDChallengeGoldClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DDChallengeGoldClick: not ported yet (FState.pas:977)");
