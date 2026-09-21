@@ -232,6 +232,33 @@ public static class NpcSeams
     /// </summary>
     public static Func<TNormNpc, bool> IsFunctionOrMissionNpc { get; set; } = _ => false;
 
+    // -----------------------------------------------------------------------
+    // g_FunctionNPC / g_ManageNPC / g_MissionNPC 的**身份判定**（ObjNpc.pas:2572/2581/2590）
+    //
+    // 原文这三处是 `Self = g_FunctionNPC` / `Self = g_ManageNPC` / `Self = g_MissionNPC`
+    // （**对象同一性**比较，不是"是不是某类 NPC"）。
+    //
+    // ★ 为什么默认值是 `false` 而**不是**抛异常（与偏差 D37 的 `GetCastleUnderWar` 区别）：
+    //   这三个是 `M2Share.pas` 的**未初始化全局 = nil** ⇒ 原文在服务器初始化前
+    //   `Self = g_FunctionNPC` **本来就恒为 false**。故 `_ => false` 是**忠实**表达，
+    //   不是"静默中性值"占位（D37 那种情况是"真值不可知"，才必须抛）。
+    //   `g_ManageNPC` 目前**全仓未移植**（连全局都没有），但它同样等价于 nil。
+    //
+    // ★ 删除条件（可执行）：当 `g_FunctionNPC`/`g_ManageNPC`/`g_MissionNPC` 三个全局
+    //   在托管侧落地时，删除本组接缝，改为 `Self == G_NpcGlobals.g_FunctionNPC` 之类的直读。
+    //   判据：`grep -n 'g_FunctionNPC\|g_ManageNPC\|g_MissionNPC' src/GXX.M2Server/`
+    //   出现**赋值**（`=` 左侧）而非仅注释。
+    // -----------------------------------------------------------------------
+
+    /// <summary>原文 `Self = g_FunctionNPC`（ObjNpc.pas:2572/2581/2590）。见上方说明。</summary>
+    public static Func<TNormNpc, bool> IsFunctionNpc { get; set; } = _ => false;
+
+    /// <summary>原文 `Self = g_ManageNPC`（ObjNpc.pas:2572）。该全局**全仓未移植**，等价于 nil。</summary>
+    public static Func<TNormNpc, bool> IsManageNpc { get; set; } = _ => false;
+
+    /// <summary>原文 `Self = g_MissionNPC`（ObjNpc.pas:2572/2581/2590）。</summary>
+    public static Func<TNormNpc, bool> IsMissionNpc { get; set; } = _ => false;
+
     /// <summary>原文 `MainOutMessage(sMsg)`（M2Share.pas，ObjNpc.pas:5945 调用）。</summary>
     public static Action<string> MainOutMessage { get; set; } = _ => { };
 
@@ -718,6 +745,9 @@ public static class NpcSeams
         //   八个委托已删除（改为直读 Engine 成员），故此处不再复位。
         IsCopyMon = _ => false;
         IsFunctionOrMissionNpc = _ => false;
+        IsFunctionNpc = _ => false;
+        IsManageNpc = _ => false;
+        IsMissionNpc = _ => false;
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);
