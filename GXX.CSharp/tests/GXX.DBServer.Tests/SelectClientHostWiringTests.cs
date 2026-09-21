@@ -93,9 +93,22 @@ public class SelectClientHostWiringTests : TempDirTest
     {
         using var srv = new DBServerService(Path2("host.db"));
 
-        Assert.Null(IDSocCliSeam.FrmIDSoc);
-        var ex = Assert.Throws<NotSupportedException>(() => IDSocCliSeam.Require);
-        Assert.Contains("IDSocCli.pas", ex.Message);
+        // ★ 本轮起 `TFrmIDSoc` 已移植并接线 ⇒ 不再是 nil；未接线的换成它内部的**宿主设施** seam。
+        Assert.NotNull(IDSocCliSeam.FrmIDSoc);
+        Assert.IsType<TFrmIDSoc>(IDSocCliSeam.FrmIDSoc);
+        Assert.Null(IDSocCliSeam.IDSocket);                                       // JSocket/TClientSocket 仍未移植
+        var ex = Assert.Throws<NotSupportedException>(() => IDSocCliSeam.RequireIDSocket);
+        Assert.Contains("JSocket.pas", ex.Message);
+    }
+
+    [Fact]
+    public void 定时器接缝_未接线_访问即抛NotSupportedException()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+
+        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.Timer1Enabled(true));
+        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.KeepAliveTimerEnabled(true));
+        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.GetSelectCharCount());
     }
 
     [Fact]
@@ -153,23 +166,65 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Theory]
-    [InlineData(Grobal2Const.CM_QUERYCHR)]
-    [InlineData(Grobal2Const.CM_RANDOMNAME)]
-    [InlineData(Grobal2Const.CM_NEWCHR)]
-    [InlineData(Grobal2Const.CM_DELCHR)]
-    [InlineData(Grobal2Const.CM_SELCHR)]
-    public void 依赖IDSocCli的五条命令_目前抛NotSupportedException(int ident)
+    [InlineData(Grobal2Const.CM_QUERYCHR, Grobal2Const.SM_QUERYCHR_FAIL)]        // 无 `sAccount <> ''` 门 ⇒ QueryChr 自己的失败分支
+    [InlineData(Grobal2Const.CM_RANDOMNAME, Grobal2Const.SM_OUTOFCONNECTION)]
+    [InlineData(Grobal2Const.CM_NEWCHR, Grobal2Const.SM_OUTOFCONNECTION)]
+    [InlineData(Grobal2Const.CM_DELCHR, Grobal2Const.SM_OUTOFCONNECTION)]
+    [InlineData(Grobal2Const.CM_SELCHR, Grobal2Const.SM_OUTOFCONNECTION)]
+    public void 依赖会话校验的五条命令_不再抛_而是因会话表为空被拒(int ident, int expectedReply)
     {
+        // ★ 本轮起 `TFrmIDSoc` 已移植接线 ⇒ `CheckSession` 走**真实会话表**（纯逻辑，不需要 socket）。
+        //   会话表为空（`IDSocket` 未接线 ⇒ 收不到 LoginSrv 的 SS_OPENSESSION 推送）⇒ `CheckSession` 返回 **False**
+        //   ⇒ 命令**被拒绝**（fail-closed），**不是**被放行。方向是刻意的：宁拒不放。
+        //
+        // ★ 两条不同的拒绝路径（原文如此，不是实现选择）：
+        //   · CM_QUERYCHR 没有 `(sAccount <> '') and CheckSession(...)` 那道门 ⇒ 直接进 QueryChr，
+        //     由 QueryChr 的 else 分支回 **SM_QUERYCHR_FAIL(527)** 并 CloseUser；
+        //   · 其余四条走 `(sAccount <> '') and CheckSession(...)` 的 else ⇒ **SM_OUTOFCONNECTION(528)**。
         using var srv = new DBServerService(Path2("host.db"));
-        var c = AttachAndOpenSlot(out var slot);
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1/2.2.2.2$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        var slot = c.SelectCharList.OnLineItems(0)!;
         slot.sAccount = "acct";                                                   // 绕开 `sAccount <> ''` 短路，直达 CheckSession
+        slot.dwChrTick = 0;
+        DelphiTick.GetTickCount = () => 100000;
 
         string frame = UserDataFrame("7", ident, "acct/42");
         byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
         Exception? ex = SelectClientGateWiring.FeedSafe(c, bytes, 0, bytes.Length);
 
-        Assert.IsType<NotSupportedException>(ex);
-        Assert.Contains(Logs, s => s.Contains("SelectClient 命令处理抛异常"));
+        Assert.Null(ex);                                                          // 不再抛
+        Assert.Single(sent);
+        Assert.Equal((ushort)expectedReply, EDcode.DecodeMessage(Slice(sent[0])).Ident);  // 被拒
+    }
+
+    [Fact]
+    public void 会话表里真有会话时_CM_QUERYCHR被放行并回真实角色列表()
+    {
+        // 对照组：把会话塞进 `TFrmIDSoc`（等价于 LoginSrv 推了一条 SS_OPENSESSION）后，命令**被放行**。
+        using var srv = new DBServerService(Path2("host.db"));
+        var frm = (TFrmIDSoc)IDSocCliSeam.FrmIDSoc!;
+        frm.ProcessAddSession("acct/42/0/x/1.1.1.1");                              // 原文 :328-349 的推送载荷
+        Assert.Equal(1, frm.GlobaSessionCount);
+        Assert.True(frm.CheckSession("acct", "1.1.1.1", 42));
+
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1/2.2.2.2$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.dwChrTick = 0;
+        DelphiTick.GetTickCount = () => 100000;
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Hero1", true, 1, 2, 3);
+
+        byte[] frame = System.Text.Encoding.Latin1.GetBytes(UserDataFrame("7", Grobal2Const.CM_QUERYCHR, "acct/42"));
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, frame, 0, frame.Length));
+
+        Assert.Single(sent);
+        TDefaultMessage msg = EDcode.DecodeMessage(Slice(sent[0]));
+        Assert.Equal(Grobal2Const.SM_QUERYCHR, msg.Ident);                        // 放行（不再是 OutOfConnect）
+        Assert.Equal(1, msg.Recog);
     }
 
     [Fact]

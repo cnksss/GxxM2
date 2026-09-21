@@ -416,24 +416,67 @@ public class TSelectClient : TServerClientWinSocket
             TUserInfo? UserInfo = SelectCharList.OnLineItems(I);
             if ((UserInfo != null) && (UserInfo.sConnID == sID))
             {
-                // 原文 :714-718：
-                //   if not FrmIDSoc.GetGlobaSessionStatus(nSessionID) then begin
-                //     FrmIDSoc.SendSocketMsg(SS_SOFTOUTSESSION, sAccount + '/' + IntToStr(nSessionID));
-                //     FrmIDSoc.CloseSession(sAccount, nSessionID);
-                //   end;
-                //
-                // ★ 走**窄口子**（偏差 D-p7-13，语义与理由见 IDSocCliSeam.CloseUser_ShouldCloseSession）：
-                //   只有这一步允许"未接线时记日志 + 跳过清理"；其余全部接缝保持抛异常。
-                if (IDSocCliSeam.CloseUser_ShouldCloseSession(UserInfo.nSessionID))
-                {
-                    ITFrmIDSoc FrmIDSoc = IDSocCliSeam.Require;
-                    FrmIDSoc.SendSocketMsg((ushort)CommonConst.SS_SOFTOUTSESSION,
-                        UserInfo.sAccount + "/" + DelphiRTL.IntToStr(UserInfo.nSessionID));
-                    FrmIDSoc.CloseSession(UserInfo.sAccount, UserInfo.nSessionID);
-                }
+                CloseUserSessionCleanup(UserInfo);
                 SelectCharList.Finalize(UserInfo.nIndex);
                 break;
             }
+        }
+    }
+
+    /// <summary>
+    /// 原文 :714-718 —— `CloseUser` 里的**会话清理块**，逐字：
+    /// <code>
+    /// if not FrmIDSoc.GetGlobaSessionStatus(UserInfo.nSessionID) then
+    /// begin
+    ///   FrmIDSoc.SendSocketMsg(SS_SOFTOUTSESSION, UserInfo.sAccount + '/' + IntToStr(UserInfo.nSessionID));
+    ///   FrmIDSoc.CloseSession(UserInfo.sAccount, UserInfo.nSessionID);
+    /// end;
+    /// </code>
+    ///
+    /// <para>★★ <b>偏差 D-p7-13 —— 本车道唯一的窄口子</b>（集成方裁定）。</para>
+    ///
+    /// <para><b>为什么只有这一条可以"依赖不可用时记日志 + 跳过 + 继续"，而别处一律抛</b>：</para>
+    /// <list type="bullet">
+    ///   <item>原文这两个调用只决定"**要不要给 LoginSrv 发一条清理通知**" ——
+    ///         <b>不是校验判定</b>，不会让服务"接受本应拒绝的输入"。</item>
+    ///   <item>若让它抛，异常会被 <c>SelectClientGateWiring.FeedSafe</c> 的宿主边界接住并
+    ///         **断开整条 SelGate 连接**；而一条 SelGate 连接上通常挂着**多个彼此无关的玩家**
+    ///         ⇒ **一个缺失的清理动作，代价却是"一批玩家被踢"**。两者后果不成比例。</item>
+    ///   <item>其余全部接缝（<c>CheckSession</c>、`DBShare.pas` 名校验族、主动网关路由）
+    ///         **一条都不放宽**：它们放行的后果是"**接受了本应拒绝的角色名/会话**"（正确性/安全），
+    ///         与"少做一次清理"不是同一类事情。守卫用例见 `SelectClientHostWiringTests`。</item>
+    /// </list>
+    ///
+    /// <para><b>口子的形状为什么是"捕获窄异常"而不是"判空谓词"</b>：
+    /// 判空谓词只能猜哪一样不可用（`FrmIDSoc`？还是它内部的 `IDSocket`？），
+    /// 而 `IDSocket` 只有**本单元自己的** `TFrmIDSoc.SendSocketMsg` 才需要 ——
+    /// 一个合法的 <see cref="ITFrmIDSoc"/> 替身完全可以自带发送通道。
+    /// 实测：在谓词层判 <c>IDSocket == null</c> 会把"宿主用替身"也误判成"链路不可用"（一次打红 2 个既有用例）。
+    /// 现在的形态**只包住这一个块**，捕获块内出现的 <see cref="NotSupportedException"/> —— 不论来自哪一层接缝。</para>
+    ///
+    /// <para><b>每次触发都留痕</b>（写 <c>MainOutMessage</c>，带偏差编号，便于审计计数）。</para>
+    ///
+    /// <para><b>恢复途径</b>：`IDSocCli` 链路（<c>FrmIDSoc</c> + 其 socket）接线后本口子自然不再触发；
+    /// 随后可把它**内联回 <see cref="CloseUser"/>**、删掉本方法并注销 D-p7-13。</para>
+    /// </summary>
+    private static void CloseUserSessionCleanup(TUserInfo UserInfo)
+    {
+        try
+        {
+            ITFrmIDSoc FrmIDSoc = IDSocCliSeam.Require;
+            if (!FrmIDSoc.GetGlobaSessionStatus(UserInfo.nSessionID))
+            {
+                FrmIDSoc.SendSocketMsg((ushort)CommonConst.SS_SOFTOUTSESSION,
+                    UserInfo.sAccount + "/" + DelphiRTL.IntToStr(UserInfo.nSessionID));
+                FrmIDSoc.CloseSession(UserInfo.sAccount, UserInfo.nSessionID);
+            }
+        }
+        catch (NotSupportedException ex)
+        {
+            RoleDbSeam.MainOutMessage(
+                "[WARN] 接缝未接线（D-p7-13）：CloseUser 跳过会话清理"
+                + "（SendSocketMsg(SS_SOFTOUTSESSION) + CloseSession）。此跳过**只影响清理通知**，"
+                + "不影响任何校验路径。nSessionID=" + UserInfo.nSessionID + "；原因：" + ex.Message);
         }
     }
 
