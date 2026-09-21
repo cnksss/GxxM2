@@ -63,6 +63,9 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `LOG_ItemSell = 10; // 卖出物品`（M2Share.pas:97）。</summary>
     public const byte LOG_ItemSell = 10;
 
+    /// <summary>接缝：原文 `LOG_ItemBuy = 11; // 买入物品`（M2Share.pas:98）。</summary>
+    public const byte LOG_ItemBuy = 11;
+
     /// <summary>接缝：原文 `LOG_GoldChange = 50; // 金币改变`（M2Share.pas:116）。</summary>
     public const byte LOG_GoldChange = 50;
 
@@ -458,6 +461,30 @@ public static class NpcSeams
     public static GetItemAddValueDelegate GetItemAddValue { get; set; } = (ref TUserItem _, ref TStdItem _) => { };
 
     /// <summary>
+    /// 原文 `function OverLapItems(BaseObject: TBaseObject; StdItem: pTStdItem; wDura: Word): pTUserItem;`
+    /// （`ObjBase.pas:1343` 声明 / `:1873` 实现；`ObjPlayer.pas:31435` 另有一个二参重载）。
+    /// ObjNpc.pas:3441 用三参版 `OverLapItems(PlayObject, StdItem, nCount - 1)`：
+    /// 在**玩家背包**里找一件"可与之叠加"的同名物品（找到返回该件，找不到返回 nil）。
+    /// 接缝：待 ObjBase.pas 的 OverLapItems 移植后接入。
+    /// </summary>
+    public static Func<TPlayObject, TStdItem, ushort, TUserItem?> OverLapItems { get; set; } =
+        (_, _, _) => null;
+
+    /// <summary>
+    /// 原文 `function CopyToUserItemFromName(sItemName: string; Item: pTUserItem): Boolean;`
+    /// （`UsrEngn.pas:284`）。按物品名把标准物品数据**填进** `Item`（并分配 `MakeIndex`），
+    /// 失败返回 False（ObjNpc.pas:3553 的 `if ... then ... else Dispose` 分支）。
+    /// <para>`Item` 原文是指针、且调用方随后读 `OverLapItem.MakeIndex`（:3555）→ 必须按引用回写，
+    /// 故用 `ref` 委托而非 `Func`。</para>
+    /// 接缝：待 UsrEngn.pas 提供该查询后接入。
+    /// </summary>
+    public delegate bool CopyToUserItemFromNameDelegate(string sItemName, ref TUserItem item);
+
+    /// <summary>原文 `UserEngine.CopyToUserItemFromName`（ObjNpc.pas:3553）。接缝（默认失败）。</summary>
+    public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
+        (string _, ref TUserItem _) => false;
+
+    /// <summary>
     /// 原文 `AddGameDataLog(LogAction1, LogAction2: Byte; LogActor: TBaseObject; ItemName: string;
     /// ItemMakeIndex: Integer; TargetName: string; Data1: Integer; Data2: Integer; LogDesc: string)`
     /// （M2Share.pas:11686-11687，ObjNpc.pas:1719/1794 调用）。接缝：待 M2Share 移植后接入。
@@ -678,6 +705,8 @@ public static class NpcSeams
         g_sCanotUserSellItem = "此物品禁止出售!";
         IncRateGoldOnCastle = (_, _) => { };
         IncRateGoldOnCastleManager = _ => { };
+        OverLapItems = (_, _, _) => null;
+        CopyToUserItemFromName = (string _, ref TUserItem _) => false;
         boSubkMasterSendMsg = false;
         g_sSubkMasterMsgCanNotUseNowMsg = "当前无法使用城主喊话功能";
     }
