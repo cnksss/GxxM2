@@ -265,18 +265,20 @@ public static class SelectClientDbShareSeam
     public static Func<string, bool> CheckFilterNewHumanChrName = s => DBShare.CheckFilterNewHumanChrName(s);
 
     /// <summary>
-    /// DBShare.pas:751-870 `function GateActiveRouteIP(sGateIP: string; var nPort: Integer): string;`
-    /// （未移植：约 120 行，依赖 g_RouteInfo.RunGate2List/TRunGateInfo，属 DBShare 车道）。
+    /// DBShare.pas:751-848 `function GateActiveRouteIP(sGateIP: string; var nPort: Integer): string;`
+    /// → 转调 <see cref="DBShare.GateActiveRouteIP"/>（**2026 第 4 轮已移植**）。
+    /// ★ 该路径**默认关闭**（`DBShareSeam.g_boUseActiveRunGage` 默认 False，`SelectClient.pas:1138` 判它）；
+    ///   只有显式打开时才可达 —— 测试的正/反例见 `DBShareActiveGateTests` 与 `SelectClientHostWiringTests`。
     /// </summary>
     public delegate string TGateActiveRouteIP(string sGateIP, out int nPort);
 
     /// <summary>上文委托的注入点（:1152 `sRouteIP := GateActiveRouteIP(m_sGateAddr, nRoutePort)`）。</summary>
     public static TGateActiveRouteIP GateActiveRouteIP =
-        (string _, out int nPort) => throw new NotSupportedException("接缝：DBShare.pas:751-870 GateActiveRouteIP 未移植。");
+        (string sGateIP, out int nPort) => DBShare.GateActiveRouteIP(sGateIP, out nPort);
 
-    /// <summary>DBShare.pas:731-749 `function CheckActiveRunGate(sGateIP: string; nPort: Integer): Boolean;`（:1158）。</summary>
+    /// <summary>DBShare.pas:731-749 `function CheckActiveRunGate(sGateIP: string; nPort: Integer): Boolean;`（:1158）→ 转调真实现。</summary>
     public static Func<string, int, bool> CheckActiveRunGate =
-        (_, __) => throw new NotSupportedException("接缝：DBShare.pas:731-749 CheckActiveRunGate 未移植。");
+        (sGateIP, nPort) => DBShare.CheckActiveRunGate(sGateIP, nPort);
 
     /// <summary>把所有可注入项复位（单测用）。</summary>
     public static void Reset()
@@ -288,9 +290,9 @@ public static class SelectClientDbShareSeam
         CheckNumberName = s => DBShare.CheckNumberName(s);
         CheckLetterName = s => DBShare.CheckLetterName(s);
         CheckFilterNewHumanChrName = s => DBShare.CheckFilterNewHumanChrName(s);
-        // 主动网关路由族：**仍未移植** ⇒ 保持"未接线即抛"（§25.2）。
-        GateActiveRouteIP = (string _, out int nPort) => throw new NotSupportedException("接缝：DBShare.pas:751-848 GateActiveRouteIP 未移植。");
-        CheckActiveRunGate = (_, __) => throw new NotSupportedException("接缝：DBShare.pas:731-749 CheckActiveRunGate 未移植。");
+        // 主动网关路由族：**2026 第 4 轮已移植** ⇒ 同样复位为转调真实现（★ 该路径默认关闭）。
+        GateActiveRouteIP = (string sGateIP, out int nPort) => DBShare.GateActiveRouteIP(sGateIP, out nPort);
+        CheckActiveRunGate = (sGateIP, nPort) => DBShare.CheckActiveRunGate(sGateIP, nPort);
     }
 }
 

@@ -750,12 +750,18 @@ public class SelectClientRoleTests : SelectClientTestBase
     }
 
     [Fact]
-    public void SelectChr_主动网关接缝未接线时抛异常而不是静默()
+    public void SelectChr_主动网关模式_真实现_未配置路由时回SM_STARTFAIL()
     {
+        // 2026 第 4 轮：`GateActiveRouteIP` 已移植 ⇒ 不再抛，本用例走**真实现**（不覆盖接缝）。
+        // `g_RouteInfo` 里没有匹配 `m_sGateaddr` 的角色网关 ⇒ 空 IP + 端口 0 ⇒ `SelectChr` 的 else 分支 ⇒ SM_STARTFAIL。
         var c = SelectChrClient(out _);
         DBShareSeam.g_boUseActiveRunGage = 1;
-        Assert.Throws<NotSupportedException>(
-            () => c.ExecGateBuffers(UserDataFrame("1", Cmd(Grobal2Const.CM_SELCHR), "acct/Hero1")));
+        DBShareSeam.g_RouteInfo[0].sSelGateIP = "9.9.9.9";                         // 与 m_sGateaddr（127.0.0.1）不符
+        SelectClientDbShareSeam.Reset();
+
+        c.ExecGateBuffers(UserDataFrame("1", Cmd(Grobal2Const.CM_SELCHR), "acct/Hero1"));
+
+        Assert.Equal(Grobal2Const.SM_STARTFAIL, Sent[0].Msg.Ident);
     }
 
     // =====================================================================================
