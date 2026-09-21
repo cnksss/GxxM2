@@ -585,28 +585,44 @@ public static void   RemoveModule(IntPtr module);                               
 / `ProcessGetOnlineCount` / `Timer1Timer` / `OpenConnect` / `CloseConnect` / `IDSocketError` / `IDSocketConnect`
 / `IDSocketDisconnect` / `FormCreate` / `FormDestroy` —— **逐方法 ≥2 例**，含差异断言与边界。
 
-### 14.2 ★★ 「哪条命令可用 / 哪条还抛」清单（已用**可执行用例**锁定）
+### 14.2 ★★ 「哪条命令可用 / 哪条还抛」清单（**本表是唯一权威口径**，每一行都有可执行用例）
 
-| 命令 / 帧 | 移植 IDSocCli **之前** | 现在（**默认路由模式**，`g_boUseActiveRunGage = False`） | 用例 |
+> **更新记录**：本表在第 2 轮随移植推进改过一次（`CM_NEWCHR` 由 ⚠ 改为 ✅，见 §15.2）。
+> 后续版本**只改这一张表**，不要再另起一张 —— 两张表必然分叉。
+
+| 命令 / 帧 | 移植 IDSocCli **之前** | **现在**（默认路由模式，`g_boUseActiveRunGage = False`） | 用例 |
 |---|---|---|---|
 | `%-` 心跳 | ✅ 可用 | ✅ 可用 | `帧A…心跳帧逐字节…` |
 | `%O` 接入 | ✅ 可用 | ✅ 可用 | `帧O_接入用户_…` |
 | `%X` 用户离开 | ❌ **抛**（`CloseUser:714` 撞 IDSoc 接缝）⇒ 断整条 SelGate 连接 | ✅ **不抛**（D-p7-13 窄口子：记日志 + 跳过清理 + 继续） | `帧X_命中槽位时不抛_跳过清理_留痕_且不断连接` |
 | `CM_QUERYCHR`(100) | ❌ 抛 | ✅ **真正可用**（会话通过 ⇒ 真实角色库 + `Recog=角色数 / Tag=1`）；会话不存在 ⇒ `SM_QUERYCHR_FAIL`(527) | `有会话时_CM_QUERYCHR走真实角色库` |
 | `CM_RANDOMNAME`(106) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_RANDOMNAME真正执行` |
-| `CM_NEWCHR`(101) | ❌ 抛 | ⚠ **仍抛** —— 会话门已通，卡在**名校验**（`SelectClient.pas:933 CheckDenyChrName` / `:934 CheckChrName` / `:940 CheckFilterNewHumanChrName`） | `有会话时_CM_NEWCHR仍抛_因DBShare名校验族未移植` |
+| `CM_NEWCHR`(101) | ❌ 抛 | ✅ **真正可用**（第 2 轮打通：`DBShare.pas` 名校验族移植后；非法字符 ⇒ `SM_NEWCHR_FAIL` nCode 0、重名 ⇒ nCode 2） | `有会话时_CM_NEWCHR真正可用` / `…非法字符被拒` / `…重名被拒` |
 | `CM_DELCHR`(102) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_DELCHR真正执行` |
 | `CM_SELCHR`(103) | ❌ 抛 | ✅ **真正可用**（默认路由 `DBShareSeam.GateRouteIP` 已移植 ⇒ `SM_STARTPLAY + EncodeString(IP/端口)`） | `有会话时_CM_SELCHR走默认路由模式并回SM_STARTPLAY` |
 | `CM_QUERYDELCHR`(105) | ✅ 可用 | ✅ 可用 | `有会话时_CM_QUERYDELCHR与CM_GETBACKDELCHR可用` |
 | `CM_GETBACKDELCHR`(3006) | ✅ 可用 | ✅ 可用 | 同上 |
 | 其它 Ident | ✅ `SM_CHECKISMYSELFSERVER` | ✅ 同 | `分派_未知Ident回SM_CHECKISMYSELFSERVER` |
 
-**⇒ 默认路由模式下，8 条命令只差 `DBShare.pas` 名校验族（170 行）**（外加装载名单的 `LoadChrNameList:403-425`，23 行），
-且**只影响 `CM_NEWCHR` 一条**。该结论由 `有会话时_CM_NEWCHR仍抛_…` 直接断言（同时断言异常消息里出现 `DBShare.pas` 与 `CheckDenyChrName`）。
+**⇒ 默认路由模式下，8 条命令全部走到真实实现；没有任何一条再抛 `NotSupportedException`。**
+（唯一残留的"未移植"是**主动网关路由** `GateActiveRouteIP`/`CheckActiveRunGate`（`DBShare.pas:731-848`，117 行），
+它只在 `g_boUseActiveRunGage = True`（**默认 False**）时可达，默认路由模式走 `GateRouteIP`（已移植）。）
 
-**但在 `IDSocket` 接线之前，会话表恒为空** ⇒ 6 条走会话校验的命令会被**拒绝**（`SM_OUTOFCONNECTION`(528) / `SM_QUERYCHR_FAIL`(527)），
-**不是**被放行 —— 方向是刻意的（宁拒不放），`DBServerService` 构造时**只提示一次**。
-上表的"真正可用"是指在**会话表里有该会话**时会走到真实实现（那 6 条用例就是这么做的）。**剩余缺口 = socket 适配器**，见 §14.4。
+> ★★★ **本表的口径是「宁拒不放」，不是「开箱即用」—— 这一条不得删除**
+>
+> `IDSocket`（JSocket/TClientSocket）**仍未接线**（属宿主设施，已裁定单开车道，见 §14.4）⇒
+> **全局会话表恒为空** ⇒ 凡需 `CheckSession` 的 6 条命令会被**拒绝**：
+> `CM_QUERYCHR` → `SM_QUERYCHR_FAIL`(527)；`CM_RANDOMNAME`/`CM_NEWCHR`/`CM_DELCHR`/`CM_SELCHR`
+> → `SM_OUTOFCONNECTION`(528)。**这是"拒绝"而不是"放行"**，方向是刻意的。
+>
+> 表中「✅ 真正可用」的**准确含义**是：**当会话表里确有该会话时，命令会走到真实实现** ——
+> 那 6 条用例就是先往 `TFrmIDSoc` 里塞一条会话（等价于 LoginSrv 推了一帧 `(1000/账号/会话号/0/x/IP)`）再投递命令的。
+> `DBServerService` 构造时对这一现状**只提示一次**。
+>
+> **为什么这段话必须留着**：本工程已经吃过两次亏 —— `Checklist` 把 `SelectClient` 标 ✅ 而实际只落了 4 条命令；
+> "交付**可接线**的实现"被读成"**已接线**的服务"。**"✅" 若不带口径，就会被读成"开箱能跑通"。**
+
+**剩余缺口 = socket 适配器**，见 §14.4。
 
 ### 14.3 本轮新增/修订的偏差
 
@@ -638,8 +654,79 @@ public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（
 `IDSocketDisconnect()`（`OnError` → `IDSocketError(out code)`）。
 **该适配器属"宿主设施"，不是本单元的一部分** —— 按"不要顺手移植依赖"，本车道只给签名不实现。
 
-**之后剩下的**（只影响 `CM_NEWCHR`）：`DBShare.pas` 名校验族 170 行 + `LoadChrNameList:403-425` 23 行（见 §12.4）。
+**（第 2 轮更新）** 原先这里还列着"`DBShare.pas` 名校验族 170 行 + `LoadChrNameList` 23 行" ——
+**已在第 2 轮移植完毕**，见 §15。⇒ 现在**唯一**的剩余缺口就是上面这个 socket 适配器。
 
 ### 14.5 行数口径（复核）
 
 `IDSocCli.pas` = **464 行**（`read` 工具与 `[regex]::Matches($t,"\n").Count` 一致；431 是**非空行**，见 §13.2）。
+
+---
+
+## 15. 第 3 轮：`DBShare.pas` 名校验族移植（`8c8e40c5`）—— **`CM_NEWCHR` 打通，8 条命令全部可用**
+
+> **授权自查**：`main` 的分区表已含 `!GXX.CSharp/src/GXX.DBServer/DBShare*.cs` 与
+> `!GXX.CSharp/tests/GXX.DBServer.Tests/DBShare*`（提交 `ee9f0cea`）。
+
+### 15.1 交付
+
+| 产物 | 内容 |
+|---|---|
+| `src/GXX.DBServer/DBShare.cs` | **按原文行号 1:1 移植 193 行**：`LoadChrNameList :403-425`(23) · `CheckDenyChrName :1043-1056`(14) · `CheckFilterNewHumanChrName :1058-1077`(20) · `CheckNumberName :1103-1122`(20) · `CheckLetterName :1124-1143`(20) · `CheckCanCaseChar :1177-1202`(26) · `CheckChrName :1204-1249`(46) · `CheckSpecialChar :1251-1274`(24) |
+| `src/GXX.DBServer/DBShareSeam.cs` | 新增 `g_DenyChrNameList`（DBShare.pas:145），与兄弟 `g_FilterNewHumanNameTextList`(:144) 同处 |
+| `src/GXX.DBServer/SelectClient.Seams.cs` | 6 个校验接缝的默认值**由"抛"改为转调真实现**（`HUtil32Seam` 同款：不保留第二份算法）；常量改为**单一真源**（`= DBShare.XXX`） |
+| `tests/…/DBShareValidationTests.cs` | **67 例** |
+
+**门禁**：`GXX.DBServer.Tests` **744/744**（676 → +68）· `build GXX.slnx --no-incremental` **0 error / 164 warning**（新文件警告 **0**）· 连跑 **3 次全绿** · `git status` 空。
+
+### 15.2 ★ 命令可用性表已更新（§14.2，**唯一权威口径**）
+
+`CM_NEWCHR` 由 ⚠ **改为 ✅ 真正可用**，并新增 3 条可执行断言：
+`有会话时_CM_NEWCHR真正可用`（`SM_NEWCHR_SUCCESS`）、`…非法字符被拒`（`Aaa@` ⇒ nCode 0）、
+`…重名被拒_且Human与Hero两库都算占用`（nCode 2）。
+⇒ **默认路由模式下 8 条命令全部走到真实实现，没有任何一条再抛 `NotSupportedException`。**
+（唯一残留的"未移植"是主动网关路由 117 行，仅在 `g_boUseActiveRunGage = True` 时可达，默认 False。）
+
+### 15.3 ★★ 本轮发现：`UpperCase` 不能直接用 `DelphiRTL.UpperCase`（一个新缺陷类）
+
+`CheckFilterNewHumanChrName:1063/:1070` 对 **AnsiString 字节串**调 `UpperCase`。托管侧**不能**用
+既有的 `DelphiRTL.UpperCase`（它走 `ToUpperInvariant`），原因有两条，都很具体：
+
+1. **会改坏汉字字节**：0xE0~0xFE 被折成 0xC0~0xDE ⇒ 名字在比较前就被**改写成另一个字节串**（后续还要拿去查库）；
+2. **会制造假匹配**：`0xC0` 与 `0xE0` 折到一起后，`Pos`/`CompareText` 会认为两个**不同**的名字相同。
+
+原文在 **CP936(DBCS)** 下 `UpperCase` 不会对双字节字内部字节做大小写映射（只折单字节 ASCII）
+⇒ 本车道实现 `DBShare.UpperCaseAnsi`：**只折 `a-z`，其余字节原样不动**。
+**差异断言**：`CheckFilterNewHumanChrName_UpperCase只折ASCII_不把0xE0折成0xC0`
+（过滤表放 `0xC9`、名字放 `0xE9` ⇒ 必须**不**命中；用 `ToUpperInvariant` 会命中）。
+> 这是本会话第 N 个"**编译过、单测过、语义错**"的类型：把 UTF-16 的字符串助手用在**承载字节的 latin-1 串**上。
+
+### 15.4 ★ 本轮发现：`CheckSpecialChar` 在 `NewChr` 里是**死分支**（原文缺陷）
+
+`SelectClient.pas:942-948` 的 `if not CheckSpecialChar(sChrName) then nCode := 0` **永远不可能命中**：
+能走到那里要求 `nCode = -1`，而它要求 `CheckChrName`（:934）**已返回真**；
+`CheckChrName` 只放行 `0-9a-zA-Z` 或**合法 GBK 双字节**，而 `CheckSpecialChar` 的 `FilterChars`
+全是**非字母数字的 ASCII**（U+0020..U+007D）⇒ **两者交集为空**。
+**属性锁定**：`CheckSpecialChar在NewChr里是死分支` —— 对 `FilterChars` 里每个字符构造 `Aa<c>a`，
+断言 `CheckSpecialChar` 会拒它、且 `CheckChrName` **更早**就拒它。
+（`CheckSpecialChar` 函数本身是好的、也有独立用例 —— 问题在**调用点的顺序**。）
+
+### 15.5 ⚠ 本轮踩到并修掉的：**共享静态接缝的顺序相关污染**
+
+`DBShareValidationTests.接缝已转调真实现_不再抛` **单跑绿、整跑红**。根因具体：
+`SelectClientTestBase` 会在构造时把 6 个校验接缝换成"全放行"桩，
+而 `TestReset.All()`（`tests/TestHelpers.cs`，**不在本车道分区**）不认识本车道新增的这些接缝
+⇒ 谁先跑谁污染谁。
+
+**处置**：本车道的每个测试基类都在自己的构造函数里**显式复位自己会碰的接缝**
+（`SelectClientTestBase` / `IDSocCliTestBase` / `SelectClientHostWiringTests` 早已如此，`DBShareValidationTests` 本轮补上）。
+**规程建议**：本工程的 unit 级静态接缝（§3.3 的 `XxxSeam` 家族）**不能只依赖 `TestReset.All()`** ——
+新车道加了新接缝，就必须在新车道的测试基类里自己复位；否则失败会表现为**顺序相关**（单跑绿/整跑红），
+最容易被误判成"偶发"。**这正是台账 §29 "不存在偶发豁免" 要防的形态。**
+
+### 15.6 剩余（诚实）
+
+1. **`IIDSocClientSocket` 适配器** —— 唯一的剩余缺口，签名见 §14.4（集成方已裁定**单开车道**，本车道不做）。
+   在它接线之前，§14.2 表下那段**"宁拒不放"的口径说明仍然有效**（会话表恒为空 ⇒ 6 条命令被拒而非放行）。
+2. 主动网关路由 `GateActiveRouteIP`/`CheckActiveRunGate`（`DBShare.pas:731-848`，117 行）未移植；
+   仅 `g_boUseActiveRunGage = True` 时可达，默认 False。
