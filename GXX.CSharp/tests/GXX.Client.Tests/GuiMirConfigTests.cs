@@ -167,9 +167,33 @@ public class GuiMirConfigCoreTests : IDisposable
         MirActorSeam.ResetForTests();
         TMirConfigDlg.g_Config = TMirConfigDlg.NewDefaultConfig();
         TMirConfigDlg.ResetNotPorted();
+        // ★ 让本类的用例**不依赖执行次序**：把静态接缝显式设回
+        // GameConfigDlgs.cs 的默认值（两个真实现工厂）——
+        // 既有 GuiCfgConfigShareTests.cs:1011 会把它改成桩且不还原。
+        PlugInSeam.CreateJSYConfigDlg = () => new TJSYConfigDlg();
+        PlugInSeam.CreateMirConfigDlg = () => new TMirConfigDlg();
     }
 
-    public void Dispose() { }
+    /// <summary>
+    /// ★ 跨测试类的静态污染防护（本车道实测到的**真实次序缺陷**）：
+    /// 既有的 <c>GuiCfgConfigShareTests.cs:1011</c> 会把静态接缝改成桩
+    /// （<c>PlugInSeam.CreateMirConfigDlg = () =&gt; new TStubGameConfigObject(...)</c>）**且不还原**；
+    /// 由于 xUnit 在同程序集内共用一个进程，那条赋值会泄漏到后面的测试类，
+    /// 使"接缝已指向真实现"的断言随执行次序时绿时红。
+    /// 本类在进入时显式设默认值、退出时还原（自己的污染自己收），
+    /// 从而在**当前基线**上做到次序无关。
+    ///
+    /// ⚠ 仍建议集成方改既有的两处（见报告 D-P10-09），否则
+    ///   <c>GuiCfgGameConfigDlgsTests.cs:86</c> 的
+    ///   <c>Assert.IsType&lt;TStubGameConfigObject&gt;(...)</c> 会在"真实现先跑"时失败：
+    ///     ① :1011 的还原值改为 <c>() =&gt; new TMirConfigDlg()</c>；
+    ///     ② :86 的断言改为 <c>Assert.IsType&lt;TMirConfigDlg&gt;(...)</c>。
+    /// </summary>
+    public void Dispose()
+    {
+        PlugInSeam.CreateMirConfigDlg = () => new TMirConfigDlg();
+        PlugInSeam.CreateJSYConfigDlg = () => new TJSYConfigDlg();
+    }
 
     // ============================================================================
     // §2 核心行为

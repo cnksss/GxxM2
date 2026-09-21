@@ -253,6 +253,7 @@ TDxChatMemo 6、TDxListView 4、TDxPageControl 3、TDxImageForm 2、TDxPopupMenu
 | **D-P10-06** | `TdxLabel.OnKeyDown` 的 `ref ushort` 形参：C# **不允许 `ref` 出现在泛型实参**里，故用具名委托 `TMirDxKeyEvent` 表达 | 形参与原文逐字对应；`Action<object, ref ushort, …>` 会 CS1073 |
 | **D-P10-07** | `TStrings.Text` 的 setter 必须走 `Add`（同时维护 `_items` 与 `_objects` 两列） | 首版只填 `_items`，导致 `Items.Delete` 抛 `ArgumentOutOfRangeException`（`RefreshUnBindItemList` 1367-1373 真实触发）。已修并有用例 |
 | **D-P10-08** | `TJSYConfigDlg` **同名同命名空间**保留在 `GameConfigDlgs.cs`，真实现叫 `Mir.TJSYRealConfigDlg` | 既有测试 `Assert.IsType<TJSYConfigDlg>` / `new TJSYConfigDlg()` 与 `FinalizeCalls` 钩子都在**非独占分区文件**里（不能改），故用一层平凡子类保住原名，真实现体在独占分区内 |
+| **D-P10-09** | ★ **本车道实测到的既有测试次序缺陷**：`GuiCfgConfigShareTests.cs:1010-1011` 把静态接缝改成桩（`PlugInSeam.CreateMirConfigDlg = () => new TStubGameConfigObject(...)`）**且不还原**。xUnit 同程序集共进程，该赋值泄漏到后续测试类，导致"接缝已指向真实现"的断言**随执行次序时绿时红**（本车道实测：同一份二进制连续两次运行结果不同） | **本车道侧的处置**：`GuiMirConfigCoreTests` 构造时显式把接缝**设回** `GameConfigDlgs.cs` 的默认真实现、`Dispose` 时也还原 ⇒ 本车道用例次序无关（已连跑 3 次全绿验证）。**集成方最小改法（2 行，均在非本分区文件）**：① 把 `GuiCfgConfigShareTests.cs:1011` 的还原值改成 `() => new TMirConfigDlg()`；② 把 `GuiCfgGameConfigDlgsTests.cs:86` 的 `Assert.IsType<TStubGameConfigObject>(…)` 改成 `Assert.IsType<TMirConfigDlg>(…)`（该断言本来就描述了"接缝未接线"的旧状态）。**未改这两处是因为它们不在本车道独占分区内** |
 
 ---
 
@@ -315,6 +316,12 @@ TDxChatMemo 6、TDxListView 4、TDxPageControl 3、TDxImageForm 2、TDxPopupMenu
 > 原文 85-89 的整表循环灌的是 **JSY** 对象，紧接着 88-89 单独补的下标是**写死的 51**
 > （不是 `ckSceneShake = 53`），且 JSY 的整表只到 44，故 `ckSceneShake` 在 JSY 上**不在表内**。
 > 用例已按真实可观测结果逐条断言。
+
+### §3.1 次序无关性（自查）
+本车道的用例**不依赖执行次序**：`GuiMirConfigCoreTests` 构造时显式把静态接缝设回
+`GameConfigDlgs.cs` 的默认真实现并复位全部接缝，`Dispose` 时还原。
+**验证**：同一份二进制连跑 3 次，`4722 / 0 failed` 稳定复现。
+（未做这层防护前，实测出现过"第一次全绿、第二次 3 条失败"的次序依赖 —— 见 D-P10-09。）
 
 ---
 
