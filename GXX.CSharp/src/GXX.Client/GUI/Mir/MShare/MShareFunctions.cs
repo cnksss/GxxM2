@@ -349,4 +349,286 @@ public static unsafe class MShareFunctions
 
     /// <summary>MShare.pas:11762 `function GetMaxBagCount:Integer`：`DEF_MAX_BAG_ITEM + g_ExtBagOpenItemCount`。</summary>
     public static int GetMaxBagCount() => Grobal2Const.DEF_MAX_BAG_ITEM + MShareGlobals.g_ExtBagOpenItemCount;
+
+    // ================================================================================
+    // 【P17 切片3 · 优先③ 平台族】只需 BCL / 既有托管类型
+    // ================================================================================
+
+    /// <summary>
+    /// MShare.pas:3267 `function IsInContinuous:Boolean`。
+    /// 原文 `Result := g_boContinuous;`（后面那句 `InterlockedCompareExchange` 是**注释**，照抄不启用）。
+    /// </summary>
+    public static bool IsInContinuous() => MShareGlobals.g_boContinuous;
+
+    /// <summary>
+    /// MShare.pas:11565 `function ProcessFileNameSpecialChar(S:string):string`。
+    /// 把 9 个 Windows 文件名非法字符逐字符替换（原文用 WideString 逐字符，托管 string 是 UTF-16，等价）。
+    /// </summary>
+    public static string ProcessFileNameSpecialChar(string S)
+    {
+        if (string.IsNullOrEmpty(S))
+            return S;
+
+        var WS = S.ToCharArray();
+        for (int I = 0; I < WS.Length; I++)
+        {
+            switch (WS[I])
+            {
+                case '/': WS[I] = '{'; break;
+                case '\\': WS[I] = '}'; break;
+                case ':': WS[I] = ';'; break;
+                case '*': WS[I] = '@'; break;
+                case '?': WS[I] = '!'; break;
+                case '"': WS[I] = '~'; break;
+                case '<': WS[I] = '('; break;
+                case '>': WS[I] = ')'; break;
+                case '|': WS[I] = '-'; break;
+            }
+        }
+        return new string(WS);
+    }
+
+    /// <summary>
+    /// MShare.pas:11682 `function GetTempDir:string`：
+    /// `GetTempPath(SizeOf(Buf) div SizeOf(Buf[0]), Buf); Result := StrPas(Buf);`
+    /// Win32 `GetTempPath` 的返回串**带结尾反斜杠**；.NET `Path.GetTempPath()` 语义相同。
+    /// （原文全文**无调用点**，见报告 §4.5。）
+    /// </summary>
+    public static string GetTempDir() => System.IO.Path.GetTempPath();
+
+    /// <summary>
+    /// MShare.pas:11690 `function MakeTempFileName(const FileExt:string):string`。
+    /// `QueryPerformanceCounter(N)` 成功 ⇒ `Format('%x', [N])`（**小写十六进制、无前导零**）；
+    /// 失败 ⇒ `Format('%.8x%.4x', [MyGetTickCount, Random(MAXINT)])`（**各带前导零**）。
+    /// 最后 `if Length(FileExt) > 0 then Result := Result + '.' + FileExt;`
+    ///
+    /// 托管侧 `Stopwatch.GetTimestamp()` 即 `QueryPerformanceCounter`，故默认走第一分支。
+    /// 第二分支按原文的 `%.8x`/`%.4x`（含前导零）保留，供测试注入。
+    /// 原文**没有**拼目录（`GetTempDir` 无调用点）⇒ 返回值是**裸文件名**。
+    /// </summary>
+    public static string MakeTempFileName(string FileExt)
+    {
+        string Result;
+        if (PerformanceCounterProvider != null)
+        {
+            Result = PerformanceCounterProvider().ToString("x", CultureInfo.InvariantCulture);
+        }
+        else if (QueryPerformanceCounterFailsForTests)
+        {
+            uint tick = MShareGlobals.MyGetTickCount;
+            int rnd = RandomProvider?.Invoke() ?? 0;
+            Result = tick.ToString("x8", CultureInfo.InvariantCulture)
+                     + ((uint)rnd).ToString("x4", CultureInfo.InvariantCulture);
+        }
+        else
+        {
+            Result = System.Diagnostics.Stopwatch.GetTimestamp()
+                .ToString("x", CultureInfo.InvariantCulture);
+        }
+
+        if (FileExt != null && FileExt.Length > 0)
+            Result = Result + "." + FileExt;
+        return Result;
+    }
+
+    /// <summary>测试注入点：`QueryPerformanceCounter` 的返回（原文 `N:Int64`）。</summary>
+    public static Func<long> PerformanceCounterProvider;
+
+    /// <summary>测试注入点：强制走原文的 `QueryPerformanceCounter` **失败**分支。</summary>
+    public static bool QueryPerformanceCounterFailsForTests;
+
+    /// <summary>测试注入点：原文失败分支里的 `Random(MAXINT)`。</summary>
+    public static Func<int> RandomProvider;
+
+    /// <summary>
+    /// MShare.pas:8984 `function _FileSize(const fname:string):LongWord`。
+    /// 原文用 `FindFirst(ExpandFileName(fname), faAnyFile, SearchRec)`：**找到才返回
+    /// `SearchRec.Size`，否则返回 0**。托管侧只支持文件（目录按"找不到"处理 ⇒ 返回 0），
+    /// 并在读取异常时返回 0（对应原文"找不到"语义）。
+    /// </summary>
+    public static uint FileSize(string fname)
+    {
+        try
+        {
+            string full = System.IO.Path.GetFullPath(fname);
+            if (!System.IO.File.Exists(full))
+                return 0;
+            var len = new System.IO.FileInfo(full).Length;
+            if (len < 0)
+                return 0;
+            if (len > uint.MaxValue)
+                return uint.MaxValue;   // 原文 LongWord 截断语义的保守上界
+            return (uint)len;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
+    }
+
+    /// <summary>
+    /// MShare.pas:6542 `function GetAbsolutePathEx(BasePath, RelativePath:string):string`。
+    /// 原文 `FillChar(Dest, MAX_PATH+1, 0); PathCombine(Dest, BasePath, RelativePath)`；
+    /// 托管侧 `Path.Combine` 语义一致（相对段直接拼接，不解析 `..`）。异常时回退为原文的
+    /// "只填了 BasePath"形态（原文若 `PathCombine` 失败则 Dest 保持全 0 ⇒ 空串）。
+    /// </summary>
+    public static string GetAbsolutePathEx(string BasePath, string RelativePath)
+    {
+        try
+        {
+            return System.IO.Path.Combine(BasePath, RelativePath);
+        }
+        catch (ArgumentException)
+        {
+            // 原文 PathCombine 失败 ⇒ Dest 未被写入（全 0）⇒ Result = ''
+            return "";
+        }
+    }
+
+    // ================================================================================
+    // 【P17 切片3 · 优先③】EnterGate(Plug) 的 ShiftState 位映射（原文 11786-11809）
+    // ================================================================================
+
+    /// <summary>MShare.pas:2582 `ShiftState_Shift = 1`（可组合）。</summary>
+    public const int ShiftState_Shift = 1;
+
+    /// <summary>MShare.pas:2583 `ShiftState_Alt = 2`。</summary>
+    public const int ShiftState_Alt = 2;
+
+    /// <summary>MShare.pas:2584 `ShiftState_Ctrl = 4`。</summary>
+    public const int ShiftState_Ctrl = 4;
+
+    /// <summary>MShare.pas:2585 `ShiftState_Left = 8`。</summary>
+    public const int ShiftState_Left = 8;
+
+    /// <summary>MShare.pas:2586 `ShiftState_Right = 16`。</summary>
+    public const int ShiftState_Right = 16;
+
+    /// <summary>MShare.pas:2587 `ShiftState_Middle = 32`。</summary>
+    public const int ShiftState_Middle = 32;
+
+    /// <summary>MShare.pas:2588 `ShiftState_Double = 64`。</summary>
+    public const int ShiftState_Double = 64;
+
+    /// <summary>
+    /// MShare.pas:11786 `function ShiftStateToPlugShiftState(Shift:TShiftState):Integer`。
+    /// 七个独立 `if`（**不是 else-if**）依次累加位；顺序 Shift→Alt→Ctrl→Left→Right→Middle→Double。
+    /// </summary>
+    public static int ShiftStateToPlugShiftState(TShiftState Shift)
+    {
+        int Result = 0;
+
+        if ((Shift & TShiftState.ssShift) != 0)
+            Result = Result + ShiftState_Shift;
+
+        if ((Shift & TShiftState.ssAlt) != 0)
+            Result = Result + ShiftState_Alt;
+
+        if ((Shift & TShiftState.ssCtrl) != 0)
+            Result = Result + ShiftState_Ctrl;
+
+        if ((Shift & TShiftState.ssLeft) != 0)
+            Result = Result + ShiftState_Left;
+
+        if ((Shift & TShiftState.ssRight) != 0)
+            Result = Result + ShiftState_Right;
+
+        if ((Shift & TShiftState.ssMiddle) != 0)
+            Result = Result + ShiftState_Middle;
+
+        if ((Shift & TShiftState.ssDouble) != 0)
+            Result = Result + ShiftState_Double;
+
+        return Result;
+    }
+
+    // ================================================================================
+    // 【P17 切片3 · 优先③】黑名单系统消息过滤（原文 11454-11482）
+    // ================================================================================
+
+    /// <summary>
+    /// MShare.pas:11454 `function CheckBlockListSys(Ident:Integer; sMsg:string):Boolean`。
+    ///
+    /// 逐条照抄的控制流：
+    ///  1. `try` 体内 `Result := True`；
+    ///  2. `case Ident`：`SM_HEAR/SM_GROUPMESSAGE/SM_GUILDMESSAGE` → 以 `':'` 取第一段为用户名；
+    ///     `SM_CRY` → 以 `':'` 取第一段后再 `RightStr(用户名, Length-3)`（**砍掉前 3 个字符**）；
+    ///     `SM_WHISPER` → 以 `'='` 取第一段；**其它 Ident 不取**（用户名保持 `''`）；
+    ///  3. 用户名非空时：先以 `' '` 再取一次第一段（"私聊显示等级时，黑名单不过滤"），
+    ///     再查黑名单，命中 ⇒ `Result := False`；
+    ///  4. **任何异常 ⇒ `Result := False`**（原文 11478-11481 的 `except`，HZQ 20230524 加）。
+    /// </summary>
+    public static bool CheckBlockListSys(int Ident, string sMsg)
+    {
+        try
+        {
+            bool Result = true;
+            string sUserName = "";
+
+            switch (Ident)
+            {
+                case Grobal2Const.SM_HEAR:
+                case Grobal2Const.SM_GROUPMESSAGE:
+                case Grobal2Const.SM_GUILDMESSAGE:
+                    GetValidStr3_Ex(sMsg, ref sUserName, ':');
+                    break;
+
+                case Grobal2Const.SM_CRY:
+                    GetValidStr3_Ex(sMsg, ref sUserName, ':');
+                    // 原文 `RightStr(sUserName, Length(sUserName) - 3)`：取**后** Length-3 个字符。
+                    // Length < 3 时 Delphi RightStr 的负长度行为未定义；托管侧按 `Max(0, ...)` 保守处理。
+                    if (sUserName != null)
+                    {
+                        int keep = sUserName.Length - 3;
+                        sUserName = keep > 0 ? sUserName.Substring(sUserName.Length - keep) : "";
+                    }
+                    break;
+
+                case Grobal2Const.SM_WHISPER:
+                    GetValidStr3_Ex(sMsg, ref sUserName, '=');
+                    break;
+            }
+
+            if (!string.IsNullOrEmpty(sUserName))
+            {
+                // 私聊显示等级时，黑名单不过滤
+                GetValidStr3_Ex(sUserName, ref sUserName, ' ');
+                int I = BlacklistIndexOf(sUserName);
+                if (I > -1)
+                    Result = false;
+            }
+
+            return Result;
+        }
+        catch (Exception)
+        {
+            CheckBlockListSysExceptionHandler?.Invoke();
+            return false; //HZQ 20230524添加异常后的返回值
+        }
+    }
+
+    /// <summary>测试/接线注入点：原文 `DebugOutStr('[Exception] MShare.CheckBlockListSys')` 的留痕。</summary>
+    public static Action CheckBlockListSysExceptionHandler;
+
+    /// <summary>
+    /// 原文 11475 `g_MyBlacklist.IndexOf(sUserName)` 的等价物。
+    /// `THashedStringList` 继承 `TStringList`，其 `IndexOf` 走 `AnsiCompareText` ⇒ **大小写不敏感**；
+    /// `AddObject` 保序 ⇒ 返回**第一个**命中的下标。
+    /// </summary>
+    private static int BlacklistIndexOf(string sUserName)
+    {
+        var list = MShareGlobals.g_MyBlacklist;
+        if (list == null)
+            return -1;
+        for (int i = 0; i < list.Count; i++)
+        {
+            if (string.Equals(list[i], sUserName, StringComparison.OrdinalIgnoreCase))
+                return i;
+        }
+        return -1;
+    }
+
+    /// <summary>HUtil32.pas `GetValidStr3_Ex`：按分隔符切出第一段到 <paramref name="dest"/>，返回剩余串。</summary>
+    private static string GetValidStr3_Ex(string str, ref string dest, char divider)
+        => GXX.Core.Util.HUtil32.GetValidStr3_Ex(str, ref dest, divider);
 }
