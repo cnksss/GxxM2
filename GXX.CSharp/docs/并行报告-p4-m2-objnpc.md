@@ -1895,3 +1895,80 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 - `g_FunctionNPC` —— 已在 `DamageHealthCore.cs:78` 出现（**他人文件**），需确认托管暴露形态；
 - `g_ManageNPC` —— **全仓缺** → 需 **1 个新接缝**；
 - `g_MissionNPC` —— 本车道已有（`ObjNpcLabels.cs:64`）。
+---
+
+# 22. 第十六轮（切片 39）：3 个全局身份接缝 + **普查自我纠正（`LableIsCanJmp` 其实未移植）** ★ 本节优先于 §21
+
+## 22.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 39 | `7e018f50` | 3 个全局身份接缝（`IsFunctionNpc`/`IsManageNpc`/`IsMissionNpc`）；解析段**暂缓**并留下落点注释 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,325 passed / 0 failed**。越区检查为空。
+
+## 22.2 ★★ 普查自我纠正：`LableIsCanJmp` **在 `src` 无任何代码声明**
+
+| 轮次 | 我的结论 | 实际 |
+|---|---|---|
+| §20.4（上轮） | `LableIsCanJmp` ✅ 已存在（`NpcSession.cs:346`） | ❌ **错** —— `:346` 是**注释行**（讨论 `m_CanJmpScriptLableList` 恒为空的那段说明） |
+| 本轮实测 | `Select-String -Pattern 'LableIsCanJmp' \| ? { 非注释行 }` → **无输出** | **全仓没有任何代码声明** |
+
+**根因**：上轮那条普查用的是 `\bLableIsCanJmp\b`，**没有过滤注释**；而 `src` 里它**只出现在注释中**。
+**教训（已记）**：**普查脚本必须排除注释行**（我在其它普查里做了 `-notmatch '^\s*///'`，这一条漏了）。
+⇒ 这也说明"✅ 已存在"必须附**声明处**（文件:行 + 那一行**是代码**），而不是"某处提到过"。
+
+## 22.3 因此解析段**暂缓**，并**申请 1 个新接缝**
+
+门控链 2573/2575 依赖 `PlayObject.LableIsCanJmp(sLabel)`。**请裁定新增**：
+| 项 | 内容 |
+|---|---|
+| 名称 | `NpcSeams.LableIsCanJmp` |
+| 签名 | `Func<TPlayObject, string, bool>` |
+| 原文 | `ObjPlayer.pas` 的 `function TPlayObject.LableIsCanJmp(sLabel: string): Boolean`（`ObjNpc.pas:2573/2575` 调用） |
+| 建议默认 | **`false`**（忠实：见 §22.4 的判据 —— 它对应 `m_CanJmpScriptLableList` 查询"未命中"，而该表在原文里**恒为空**、只命中 `@main`/`@HeroMap`/Yes/No 几个硬编码项） |
+| 删除条件（可执行） | 当该函数在托管侧落地时删接缝改直调；判据：`grep -n 'LableIsCanJmp' src/GXX.M2Server/Engine/` 出现**代码声明**（`bool LableIsCanJmp(`） |
+
+> 另外只差一个 `using GXX.Core.Rtl;`（`DelphiRTL`）—— 无需申请，下轮直接加。
+
+## 22.4 本轮已落地：3 个全局身份接缝（**默认 `false` 是忠实的，不是静默占位**）
+
+原文 2572/2581/2590 用 `Self = g_FunctionNPC` / `Self = g_ManageNPC` / `Self = g_MissionNPC`（**对象同一性**）。
+| 接缝 | 原文 | 默认 |
+|---|---|---|
+| `IsFunctionNpc` | `Self = g_FunctionNPC`（2572/2581/2590） | `false` |
+| `IsManageNpc` | `Self = g_ManageNPC`（2572）—— 该全局**全仓未移植** | `false` |
+| `IsMissionNpc` | `Self = g_MissionNPC`（2572/2581/2590） | `false` |
+
+**★ 为什么这里用 `false` 而 D37（`GetCastleUnderWar`）必须抛** —— 这个区别是刻意的，已写进代码注释：
+- 这三个是 `M2Share.pas` 的**未初始化全局 = nil** ⇒ 原文在初始化前 `Self = g_FunctionNPC` **本来就恒为 false**。
+  `_ => false` 是**忠实表达**（等价于 nil），**不是**"静默中性值"。
+- D37 那种情况是"**真值不可知**"（字段存在与否都不确定），**才必须抛**。
+> 判据（可复用）：**能把默认值对应到原文某个已定义状态（如 nil）就是忠实；对应不到就必须抛。**
+
+## 22.5 解析段（2527-2596）的**逐段规格**（已复核，下轮按此机械落地，避免重读原文）
+
+1. 2527 `inherited;` → `base.UserSelect(...)`（落到第十五轮那个真实现）。
+2. 2529-2530 `if not (ClassNameIs(TMerchant.ClassName)) then Exit;`
+   —— ★ **精确类名**比较 → `GetType() != typeof(TMerchant)`（**不是** `is`）。
+3. 2533 `not m_boCastle or not ((m_Castle<>nil) and underWar) and (PlayObject<>nil)`
+   —— ★ **Delphi 优先级 `not` > `and` > `or`** → `(!m_boCastle) || ((!castleUnderWar) && (PlayObject != null))`。
+   `m_Castle` 走 `NpcSeams.GetNpcCastle(this)`；`underWar` 走 `NpcSeams.GetCastleUnderWar`（**D37**，窄路径）。
+4. 2535 `(sData <> '') and (sData[1] = '@')` —— `sData[1]` **1-based**、且**已先判空** → `sData[0]`。
+5. 2538 `sMsg := GetValidStr3_Ex(sData, sLabel, #13);` —— **两个出口都接**（`ref sLabel` + 返回值）。
+6. 2540-2545 三重条件 + `Pos('(')`（**找不到返回 0**）→ `DelphiRTL.Copy(sLabel, 1, nPos-1)`。
+7. 2549-2562 `@FOUNDRYITEM_`/`@SHOWITEM_`：后缀存 `m_sNpcSelectItemName`、`sLabel` 归一成前缀；否则置 `''`。
+8. 2564-2566 `m_sScriptLable := sData; m_sInputData := sMsg;`
+9. 2569 `boAllowSelect := AllowSelect(sLabel)`（本车道已覆盖）。
+10. 2572-2575 三全局之一 → `boCanGoto := LableIsCanJmp(sLabel) and boAllowSelect`；否则 `boCanGoto := LableIsCanJmp(sLabel)`。
+11. 2576-2579 `not boCanGoto and m_boMessageBox` → `CompareLStr(sLabel, m_sYesLable/m_sNoLable, **Length(sLabel)**)`
+    —— ★ 长度参数是 **`Length(sLabel)`**，不是被比较串的长度。
+12. 2581-2588 函数/任务 NPC 且 `not boAllowSelect` → `MainOutMessage(...)` + **早退**。
+13. 2590 `boCanJmp := boCanGoto or (IsFunctionNpc and allowSelect) or (IsMissionNpc and allowSelect)`。
+14. 2592-2596 `SameText(sLabel, sNF_SendMsg)` 且 `sMsg = ''` → **早退**。
+15. 2531-2533/2892-2897 `try … except on E` → `catch` 里报 `sExceptionMsg`（含 **`nCode`**，分段 0..21）。
+
+## 22.6 覆盖口径（未变）
+
+Covered **67** / Seam **4** / Missing **41**；**`UserSelect` 三条继续 `Missing`** ✅。
+`UserSelectPrepare` 的落点已在 `ObjNpcUserSelect.cs` 里留**注释块**（写明暂缓原因与所需接缝）。
