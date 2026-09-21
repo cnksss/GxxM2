@@ -763,4 +763,22 @@ public static partial class MShareGlobals
 
     /// <summary>MShare.pas:2269 g_nMissionButonFaceIndex:Integer = 0。</summary>
     public static int g_nMissionButonFaceIndex = 0;
+
+    // ================================================================================
+    // 【P17 切片3】平台族 / 黑名单所需全局（原文 2442、2462）
+    // ================================================================================
+
+    /// <summary>
+    /// MShare.pas:2462 `g_MyBlacklist:THashedStringList`。
+    /// 原文唯一读点是 11475 `g_MyBlacklist.IndexOf(sUserName)`（`TStringList.IndexOf` ⇒ 大小写不敏感）。
+    /// 托管侧以 `List&lt;string&gt;` 承载；比较语义由 `MShareFunctions.CheckBlockListSys` 保证
+    /// （`OrdinalIgnoreCase` + 返回第一个命中下标）。
+    /// </summary>
+    public static System.Collections.Generic.List<string> g_MyBlacklist;
+
+    /// <summary>
+    /// MShare.pas:2442 `g_boContinuous:Boolean = False`（是否正在连击）。
+    /// 原文 3267 `IsInContinuous` 的唯一读点。
+    /// </summary>
+    public static bool g_boContinuous = false;
 }

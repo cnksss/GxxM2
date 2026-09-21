@@ -442,6 +442,14 @@ public static class MShareGlobalsReset
         MShareGlobals.g_nRankingsTableType = 0;
         MShareGlobals.g_nRankingsPage = -1;
         MShareGlobals.g_nRankingsPageCount = 0;
+        // ---- P17 切片3：平台族 / 黑名单 / 连击限流配置 ----
+        MShareGlobals.g_MyBlacklist = null;
+        MShareGlobals.g_boContinuous = false;
+        MShareWarrConfigSeam.ResetForTests();
+        MShareFunctions.PerformanceCounterProvider = null;
+        MShareFunctions.QueryPerformanceCounterFailsForTests = false;
+        MShareFunctions.RandomProvider = null;
+        MShareFunctions.CheckBlockListSysExceptionHandler = null;
         MShareGlobals.g_sGameGoldName = "元宝";
         MShareGlobals.g_sGameGirdName = "灵符";
         MShareGlobals.g_sGameDiamondName = "金刚石";
