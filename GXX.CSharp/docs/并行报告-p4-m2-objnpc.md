@@ -1736,3 +1736,79 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 | 查调用点（`src` + `tests`） | `g_NpcProcessCommand` 此前**零引用**（全新基础设施）；`nNF_*`/`sNF_*` 的 7 条旧引用已随 §19.4 收敛 |
 | `params` 重载族 | 无 |
 | 巨型结构值复制 | 无 |
+---
+
+# 20. 第十四轮：`2547-2696` 解析段的**依赖普查**结果与两处前置（本轮**未落代码**）★ 本节优先于 §19
+
+> 本轮按调度方要求"**开工前先做依赖普查，缺的 `GetValidStr3` 一族只申请那几个**"。
+> 普查发现**两个需裁定的前置**，故**先报告、未动代码**（工作树干净，最后一次提交仍是全绿的 `4ceb74b0`）。
+
+## 20.1 好消息：`GetValidStr3_Ex` **已存在，无需申请**
+
+| 依赖 | 现状 |
+|---|---|
+| `GetValidStr3_Ex` | ✅ **已存在**：`GXX.Core/Util/HUtil32.cs:303` `public static string GetValidStr3_Ex(string str, ref string dest, char divider)`（Client 车道已在用，见 `DxImageButtonEx.cs:431`） |
+| `Pos` / `Copy` / `Length` | ✅ `DelphiRTL.Pos` / `Copy` 已存在 |
+| `m_boCastle` | ✅ `ObjNpcClasses.cs:109` |
+| `m_sNpcSelectItemName` | ✅ `TPlayObject.PlayerSurface.ScriptFields.cs:9`（调度方第七轮补的 3 字段之一） |
+| `m_sScriptLable` / `m_sInputData` / `m_boMessageBox` / `m_sYesLable` / `m_sNoLable` | ✅ `TPlayObject.PlayerSurface.NpcSession.cs:10` |
+| `LableIsCanJmp` | ✅ `TPlayObject.PlayerSurface.NpcSession.cs:346` |
+| `AllowSelect` | ✅ 本车道已覆盖（`ObjNpcLabels.cs`） |
+| `nMaxInputStringLen` | ✅ `Grobal2.Types5.cs:321`（`g_Config` 面） |
+
+⇒ **`GetValidStr3_Ex` 一族不需要申请**（这是本次普查最直接的收益）。
+
+## 20.2 ★ 前置 A（需裁定）：`TMerchant.UserSelect` 的 `inherited`(2527) 指向**未移植的基类**
+
+原文：
+```
+2087  procedure TMerchant.UserSelect(PlayObject: TPlayObject; sData: string);
+2527    inherited;                                  ← 调基类
+9807  procedure TNormNpc.UserSelect(PlayObject: TPlayObject; sData: string);   ← 基类，**本车道未移植**
+```
+托管侧现状：**`TNormNpc.UserSelect` 连虚外壳都没有**（`grep 'void UserSelect('` 在 `src`/`tests` 全仓**零命中**）。
+
+⇒ 这正是台账那条规程的适用场景：**「基类方法 + 子类 `inherited` ⇒ 托管侧必须落 `public virtual` 外壳 + 接缝」**。
+三条分片的派发体（`@repair`/`@sell`/`@buy`）**都坐在这个未移植的基类之上** —— 所以：
+- **要么**先落 `TNormNpc.UserSelect` 的**虚外壳 + 接缝**（最小：外壳转发接缝，基类实体 9807-… 另行安排）；
+- **要么**把基类实体一并移植（9807 起，长度未测，可能很大）。
+
+**请裁定走哪条**（我建议前者：先落虚外壳，才能让 `inherited` 语义成立并让 `TMerchant.UserSelect` 可编译地往下写）。
+⚠ 该虚外壳位于 `Npc/**`（我分区内），但它**是覆写链的基类**，`TGuildOfficial`/`TCastleOfficial` 等是否有 `UserSelect` 覆写需一并核查 —— 我会在动手前查清并报告。
+
+## 20.3 ★ 前置 B（需裁定）：城堡 `m_boUnderWar` 未移植
+
+原文 2533：`if not m_boCastle or not ((m_Castle <> nil) and TUserCastle(m_Castle).m_boUnderWar) and (PlayObject <> nil) then`
+| 依赖 | 现状 |
+|---|---|
+| `m_boCastle` | ✅ |
+| `m_Castle` | ⚠ **托管侧无此字段** —— 本车道一直用接缝 `NpcSeams.GetNpcCastle(this)`（`ObjNpcMerchant.cs:164/546`、`ObjNpcGuildCastle.cs:131`、`ObjNpcMerchantBuy.cs:457`、`ObjNpcMerchantUpgrade.cs:103`） |
+| `TUserCastle.m_boUnderWar` | ❌ **未移植**（`ArcherGuardCore.cs:24`、`CanWalkCore.cs:80` 只有注释提到它） |
+
+⇒ 需要 **1 个新的读取面**。两个选择：
+1. **新增接缝** `NpcSeams.GetCastleUnderWar` : `Func<object, bool>`（最小、零跨文件）；
+2. 或申请在 `Engine/Castle.cs` 的 `TUserCastle` 上加 `m_boUnderWar` 字段（更"正式归属"，但要动他人文件 + 该字段在原文里的赋值点也要一并处理）。
+
+**请裁定**（我建议 1，代价最小且与既有 `GetNpcCastle` 同族）。
+
+## 20.4 其它已确认的易抄错点（下一轮实现时逐条处理）
+
+| 原文 | 风险 | 托管写法 |
+|---|---|---|
+| 2529 `if not (ClassNameIs(TMerchant.ClassName)) then Exit;` | `ClassNameIs` 是**精确类名**比较，**不是** `is`/派生判定 | `if (GetType() != typeof(TMerchant)) return;` |
+| 2527 `inherited;` | 见 §20.2 | 虚外壳 + 接缝 |
+| 2538 `sMsg := GetValidStr3_Ex(sData, sLabel, #13);` | **原地修改** `sLabel`（`ref`）+ 返回**剩余串**；`#13` 是分隔符 | 照抄 `ref` 语义，不改成返回值风格 |
+| 2540-2545 `if (Length(sLabel)>=2) and (sLabel[2]='@') and (sLabel[Length(sLabel)]=')')` → `nPos := Pos('(',sLabel)` → 截断 | 三重条件 + **`Pos('(')` 找不到时返回 0** | `DelphiRTL.Pos("(", sLabel) > 0` |
+| 2531-2533/2892-2897 `try … except on E: Exception do MainOutMessage(Format(sExceptionMsg,[sData,nCode]))` | `nCode` 是**分段进度标记**（0..21），异常里要报出来 | 照抄 `try/catch` + `nCode` |
+| 2535 `(sData <> '') and (sData[1] = '@')` | **`sData[1]` 是 1-based**，且已先判空 | 逐条对照 |
+
+## 20.5 调度方提醒的字符串坑（已记入本轮约束）
+
+- `GetValidStr3_Ex` 的**空分隔符 / 连续分隔符 / 首尾分隔符**：切分处将写**差异断言**（空串、仅分隔符、连续分隔符、首尾分隔符）。
+- **不写依赖 `Pos("")` 能命中的断言** —— 台账记录 Delphi `Pos('')` 语义**至今未修**，托管侧行为不可依赖。
+
+## 20.6 本轮状态（诚实登记）
+
+- **本轮未落任何代码**：普查发现 §20.2/§20.3 两处前置需裁定，故**停下报告**（与第十三轮同做法）。
+- 工作树**干净**，最后一次提交 `4ceb74b0` **全绿**（9,308 例），**无** `WIP` 提交。
+- `UserSelect` 登记**继续 `Missing`**（未变）。
