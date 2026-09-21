@@ -88,3 +88,9 @@ p10-m2-misc	GXX.CSharp/src/GXX.M2Server/Sweep9b/Forms/**;GXX.CSharp/src/GXX.Core
 # 169 units (488,671 lines) that are counted MAPPED on a header mention alone -- no same-basename
 # port.  This lane decides, per unit, whether that claim is real.  Report only; no src grant.
 p12-e2only-review	GXX.CSharp/docs/并行报告-p12-e2only-review.md
+# ---- P11 (round 57): ports the 4 real LoginGate gaps the review lane proved (ledger 44.6).
+# HARD CONSTRAINT from that review: SelGate's own headers (SelGateIPAddrFilter.cs:17-25,
+# SelGateMisc.cs:11-16, SelGateSession.cs:17-24) declare that its differences from GatewayKit
+# MUST be kept, so every new facility has to be OPT-IN and must never unify/replace SelGate
+# behaviour.  LoginGate has no test project of its own -> tests go in GXX.GatewayKit.Tests.
+p11-logingate-filter	GXX.CSharp/src/GXX.GatewayKit/Rest11/**;GXX.CSharp/src/GXX.LoginGate/Rest11/**;GXX.CSharp/tests/GXX.GatewayKit.Tests/Rest11*;GXX.CSharp/docs/并行报告-p11-logingate-filter.md

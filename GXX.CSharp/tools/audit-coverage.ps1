@@ -121,12 +121,25 @@ $VENDOR_UNITS = @(
     # LogDataServer gap -- see the report's DUPLICATE-BASENAME section (ledger 39.3).
 )
 
+# ---- E2 claims REFUTED by a verification lane -----------------------------
+# A read-only review lane can PROVE that an E2 mention belongs to a different unit (borrowed
+# name): e.g. ledger 44.3 found 12 of LoginGate's 15 MAPPED rows were borrowed from a differing
+# sibling, and 4 units had no managed declaration at all.  Without this registry such a finding
+# has nowhere to live -- the unit would keep scoring MAPPED because the mention is still there.
+# "<dir>/<unit>" entries apply to that copy only, same as $VENDOR_UNITS.
+$E2_REFUTED = @(
+    'LoginGate/Misc',          # ledger 44.3: the 8 enforcement routines have 0 hits repo-wide
+    'LoginGate/FuncForComm'    # ledger 44.3: TProcMsgThread/TAddressInfo have 0 hits repo-wide
+)
+
 # ---- per-copy entries of the not-ported registry --------------------------
 # A "<dir>/<unit>" entry marks ONLY that copy.  Needed wherever one basename has copies with
 # OPPOSITE rulings (e.g. ThreadPool.pas: two gateway copies replaced by GatewayKit, one
 # LogDataServer copy that is a real gap).  Bare entries keep the old any-copy meaning.
 $vendorByCopy = @{}
 foreach ($v in $VENDOR_UNITS) { if ($v -like '*/*') { $vendorByCopy[$v] = $true } }
+$refutedByCopy = @{}
+foreach ($v in $E2_REFUTED) { if ($v -like '*/*') { $refutedByCopy[$v] = $true } }
 
 # ---- load optional explicit map ------------------------------------------
 $explicit = @{}
@@ -217,9 +230,10 @@ foreach ($d in $Dir) {
         $e1 = $csByBase.ContainsKey($unit.ToLowerInvariant())
         $e2 = $false
         $e2w = $false
+        $e2File = ''
         if (-not $e1) {
             $needle = "$unit.pas"
-            foreach ($k in $csHead.Keys) { if ($csHead[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; break } }
+            foreach ($k in $csHead.Keys) { if ($csHead[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; $e2File = $k.Substring($csRoot.Length + 1); break } }
             if (-not $e2) {
                 foreach ($k in $csText.Keys) { if ($csText[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2w = $true; break } }
             }
@@ -257,9 +271,19 @@ foreach ($d in $Dir) {
         # ORDER MATTERS: ASSIGNED is tested BEFORE WEAK.  A unit can be both (it has a lane row
         # AND a stray body mention); "someone owns it" is the more actionable fact, and letting
         # WEAK win would hide an in-flight unit from the ASSIGNED table -- the dispatcher's list.
+        # A verification lane proved the E2 mention does not describe THIS unit (borrowed name).
+        # This BEATS MAPPED unconditionally: the whole point of the registry is that the mention
+        # is still sitting there and would otherwise keep scoring the unit as ported.  A lane row
+        # does not restore the claim -- it only means someone is now fixing the real gap, and the
+        # unit still shows up in the in-flight table (which keys on E4, not on the verdict).
+        $isRefuted = $false
+        if ($E2_REFUTED -contains $unit) { $isRefuted = $true }
+        if ($refutedByCopy.ContainsKey("$d/$($f.BaseName)")) { $isRefuted = $true }
+
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($isNonUnit) { 'NONUNIT' }
                    elseif ($isDatedBackup) { 'NONUNIT' }
+                   elseif ($isRefuted) { 'REFUTED' }
                    elseif ($mapped) { 'MAPPED' }
                    elseif ($e4) { 'ASSIGNED' }
                    elseif ($e2w) { 'WEAK' }
@@ -276,9 +300,29 @@ foreach ($d in $Dir) {
         $rows += [pscustomobject]@{
             Dir = $d; Unit = $unit; Lines = $lines; KB = [math]::Round($f.Length / 1KB)
             E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel; Lane = $e4lane
+            E2File = $e2File
             HasDfm = $hasDfm
         }
     }
+}
+
+# ---- pre-pass: per-copy hashes for multi-copy basenames -------------------
+# An E2 verdict (and any not-ported registry row) keys on the BASENAME, so it can be "borrowed"
+# from a sibling copy.  Byte-identical copies are the same source (the mention transfers);
+# DIFFERING copies are two units and the mention may describe the other one.
+# Measured on LoginGate: 12 of its 15 MAPPED rows were borrowed from a differing sibling.
+$srcHash = @{}        # source path -> sha256[:8]  (only for rows in a duplicate group)
+$dupDistinct = @{}    # unit basename -> count of distinct hashes across its copies
+$dupGroups = @($rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 })
+foreach ($g in $dupGroups) {
+    $hs = @{}
+    foreach ($r in $g.Group) {
+        $h = '?'
+        try { $h = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $srcRoot $r.Rel)).Hash.Substring(0, 8) } catch { }
+        $srcHash[$r.Rel] = $h
+        $hs[$h] = $true
+    }
+    $dupDistinct[$g.Name] = $hs.Keys.Count
 }
 
 # ---- summarise ------------------------------------------------------------
@@ -311,6 +355,7 @@ $tot = [pscustomobject]@{
     Unmapped    = @($rows | Where-Object Verdict -eq 'UNMAPPED').Count
     Vendor      = @($rows | Where-Object Verdict -eq 'VENDOR').Count
     NonUnit     = @($rows | Where-Object Verdict -eq 'NONUNIT').Count
+    Refuted     = @($rows | Where-Object Verdict -eq 'REFUTED').Count
 }
 Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
     $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
@@ -371,6 +416,18 @@ if ($Report) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
     }
     [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## REFUTED E2 claims (a verification lane proved the mention is borrowed)')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('These units used to score MAPPED purely because some .cs header mentions their name.')
+    [void]$sb.AppendLine('A read-only lane then proved the mention belongs to a DIFFERENT unit or that no managed')
+    [void]$sb.AppendLine('code exists at all, so the claim is withdrawn here.  They are real gaps.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object Verdict -eq 'REFUTED' | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
+    }
+    [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## MAPPED on a header mention ONLY (E2-only, no same-basename .cs) -- WEAK EVIDENCE')
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('These rows are counted MAPPED, but the ONLY evidence is that some unrelated .cs file')
@@ -380,18 +437,20 @@ if ($Report) {
     [void]$sb.AppendLine('Client-HGE) scores every copy.  Treat each row as "claimed, not proven" and verify per copy')
     [void]$sb.AppendLine('before citing it as done.')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | unit | lines | KB | source path |')
-    [void]$sb.AppendLine('|---|---|---|---|---|')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | E2 evidence (.cs that mentions it) | sibling copies w/ differing bytes | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|')
     foreach ($r in ($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 } | Sort-Object KB -Descending)) {
-        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
+        $n = if ($dupDistinct.ContainsKey($r.Unit)) { $dupDistinct[$r.Unit] } else { 1 }
+        $warn = if ($n -gt 1) { "**$n (borrow risk)**" } else { "$n" }
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.E2File)`` | $warn | ``$($r.Rel)`` |")
     }
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('## ASSIGNED units (owned by a parallel lane, work in flight)')
+    [void]$sb.AppendLine('## ASSIGNED units (a lane owns them -- keyed on the unit-map row, not on the verdict)')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | unit | lines | KB | lane |')
-    [void]$sb.AppendLine('|---|---|---|---|---|')
-    foreach ($r in ($rows | Where-Object Verdict -eq 'ASSIGNED' | Sort-Object KB -Descending)) {
-        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($r.Lane) |")
+    [void]$sb.AppendLine('| dir | unit | lines | KB | lane | verdict |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.E4 } | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($r.Lane) | $($r.Verdict) |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## UNMAPPED units, largest first')
@@ -443,17 +502,9 @@ if ($Report) {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('| dir | unit | lines | verdict | sha256[:8] | distinct hashes in group |')
     [void]$sb.AppendLine('|---|---|---|---|---|---|')
-    $dups = $rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 }
-    foreach ($g in ($dups | Sort-Object Name)) {
-        $hashes = @{}
-        foreach ($r in $g.Group) {
-            $h = '?'
-            try { $h = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $srcRoot $r.Rel)).Hash.Substring(0, 8) } catch { }
-            $hashes[$h] = $true
-            $r | Add-Member -NotePropertyName SrcHash -NotePropertyValue $h -Force
-        }
+    foreach ($g in ($dupGroups | Sort-Object Name)) {
         foreach ($r in ($g.Group | Sort-Object Dir)) {
-            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $($r.SrcHash) | $($hashes.Keys.Count) |")
+            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $($srcHash[$r.Rel]) | $($dupDistinct[$g.Name]) |")
         }
     }
     [void]$sb.AppendLine('')
