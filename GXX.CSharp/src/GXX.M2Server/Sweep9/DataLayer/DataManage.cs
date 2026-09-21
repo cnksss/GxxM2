@@ -206,6 +206,19 @@ public static class DataManageAccessSeam
         CreateAdoQuery = () => null;
         MainOutMessage = msg => Sweep9DataLayerSeam.MainOutMessage(msg);
     }
+
+    /// <summary>
+    /// 把 <c>DataManage.pas</c> 的两个 unit-level 全局（<see cref="DataManageGlobals.DBQry"/> /
+    /// <see cref="DataManageGlobals.ADOConnection"/>）与单元级 <c>AccessEngine</c> 复位为 nil。
+    /// <para>放在本类而不是 <see cref="Sweep9DataLayerSeam.ResetDefaults"/>，
+    /// 以保证"DataManage 链的隔离"与"ItemEvent 链的隔离"互不成环。</para>
+    /// </summary>
+    public static void ResetGlobals()
+    {
+        DataManageGlobals.DBQry = null;
+        DataManageGlobals.ADOConnection = null;
+        DataManageGlobals.AccessEngine = null;
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -739,28 +752,21 @@ public class TAccessTable
     /// <summary>
     /// DataManage.pas:272-275 的 `function TAccessTable.GetParameters: TParameters;`
     /// （`property Parameters: TParameters read GetParameters`，:52）。
+    /// <para>**是方法、不是属性** —— 逐字对应原文 :37 的 `function` 声明
+    /// （表达式体属性会被编译器编译成 `get_GetParameters`，那就不是原文那个过程函数了）。</para>
     /// </summary>
-    public IAccessParameters? GetParameters => DataManageGlobals.DBQry?.Parameters;
+    public IAccessParameters? GetParameters() => DataManageGlobals.DBQry?.Parameters;
 
     /// <summary>
-    /// DataManage.pas:50 的 `property Count: Integer read GetCount;` —— 托管侧见 <see cref="Count"/>。
-    /// </summary>
-    public int GetCountValue => Count;
-
-    /// <summary>
-    /// DataManage.pas:51/52/53 的三个"按名取属性"入口的显式形态。
-    /// <para>原文是 `property Fields[Field: string]`（**带索引器的属性**）、
-    /// `property Parameters` 与 `property ADOQuery`。C# 允许索引器，故此处落成同名索引器 +
-    /// 两个只读属性，逐字对应。</para>
+    /// DataManage.pas:50-53 的四个属性声明在托管侧落成 **3 个属性 + 1 个索引器**：
+    /// `Count`(:50)、`Fields[Field: string]`(:51，C# 索引器)、`Parameters`(:52)、`ADOQuery`(:53)。
+    /// <para><b>为什么 :52 的 `Parameters` 属性不在这里重复暴露</b>：原文 :37 已经声明了
+    /// `function GetParameters: TParameters;`，:52 又把它 `read GetParameters`（Delphi 允许同名）。
+    /// C# 不允许"属性名与 getter 方法同名"，因此 <b>保留原文的过程函数名</b>
+    /// （<see cref="GetField"/> / <see cref="GetParameters()"/>，与 :36/:37 逐字一致），
+    /// 只为 :50/:53 两个**没有同名方法**的属性补上 `Count`/`ADOQuery` 属性 ——
+    /// 这样公开成员与原文一一对应（14 项过程函数名 + 3 项属性名），**不造多余成员**。</para>
     /// </summary>
     public IAccessField? this[string Field] => GetField(Field);
-
-    /// <summary>
-    /// DataManage.pas:52 的 `property Parameters: TParameters read GetParameters;`
-    /// （用属性名 `Parameters` 会与原文的 `GetParameters` 方法混淆，故托管侧保留原文的
-    /// Pascal 命名 —— 属性名与私有 getter 同名是 Delphi 允许的，C# 不允许，
-    /// 故 getter 落成 <see cref="GetParameters"/>、属性落成 `Parameters`）。
-    /// </summary>
-    public IAccessParameters? Parameters => GetParameters;
 }
 

@@ -143,9 +143,7 @@ public static class Sweep9DataLayerTestKit
     {
         Sweep9DataLayerSeam.ResetDefaults();
         DataManageAccessSeam.ResetDefaults();
-        DataManageGlobals.DBQry = null;
-        DataManageGlobals.ADOConnection = null;
-        DataManageGlobals.AccessEngine = null;
+        DataManageAccessSeam.ResetGlobals();
 
         var clock = new Sweep9FakeClock();
         Sweep9DataLayerSeam.MyGetTickCount = clock.Peek;

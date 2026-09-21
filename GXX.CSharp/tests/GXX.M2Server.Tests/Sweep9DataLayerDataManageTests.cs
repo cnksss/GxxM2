@@ -612,12 +612,20 @@ public class Sweep9DataLayerAccessTableTests
         Assert.Same(qry, table.ADOQuery);
     }
 
+    /// <summary>
+    /// `property Count: Integer read GetCount`（原文 :50）—— 托管侧属性 getter 的
+    /// 反射名是 `get_Count`；此处通过属性读出值与 <see cref="TAccessTable.Count"/> 一致。
+    /// </summary>
     [Fact]
-    public void GetCountValue_MirrorsCount()
+    public void CountPropertyGetter_IsExposedAsGetCount()
     {
         var (table, qry) = MakePair();
         qry.RecordCount = 7;
-        Assert.Equal(7, table.GetCountValue);
+
+        var getter = typeof(TAccessTable).GetProperty("Count")!.GetGetMethod();
+        Assert.NotNull(getter);
+        Assert.Equal("get_Count", getter!.Name);
+        Assert.Equal(7, (int)getter.Invoke(table, null)!);
     }
 
     /// <summary>`ClearSQL` → `DBQry.SQL.Clear`（原文 :240）。</summary>
@@ -677,12 +685,17 @@ public class Sweep9DataLayerAccessTableTests
         Assert.Null(table.GetField("NOPE"));
     }
 
+    /// <summary>
+    /// `property Parameters: TParameters read GetParameters`（原文 :52）与
+    /// `function GetParameters: TParameters`（原文 :37）在 Delphi 里同名共存；
+    /// C# 不允许，故托管侧只保留**过程函数名** <see cref="TAccessTable.GetParameters"/>
+    /// （与原文 :37 逐字一致），并按 :52 的 `read` 语义断言"取到的就是全局 DBQry 的 Parameters"。
+    /// </summary>
     [Fact]
     public void GetParameters_ForwardsToGlobalQuery()
     {
         var (table, qry) = MakePair();
-        Assert.Same(qry.Parameters, table.GetParameters);
-        Assert.Same(qry.Parameters, table.Parameters);
+        Assert.Same(qry.Parameters, table.GetParameters());
     }
 
     [Fact]
@@ -737,7 +750,7 @@ public class Sweep9DataLayerAccessTableTests
         Assert.Equal(0, table.Count);
         Assert.Null(table.ADOQuery);
         Assert.Null(table.GetField("F"));
-        Assert.Null(table.GetParameters);
+        Assert.Null(table.GetParameters());
 
         var ex = Record.Exception(() =>
         {

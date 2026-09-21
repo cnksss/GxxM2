@@ -233,9 +233,5 @@ public static class Sweep9DataLayerSeam
         AddGameDataLog = _ => { };
         MainOutMessage = msg => LoggedMessages.Add(msg ?? "");
         LoggedMessages.Clear();
-        DataManageAccessSeam.ResetDefaults();
-        DataManageGlobals.DBQry = null;
-        DataManageGlobals.ADOConnection = null;
-        DataManageGlobals.AccessEngine = null;
     }
 }
