@@ -23,7 +23,7 @@
 | **当前真实覆盖率** | **105/533 = 19.70%** | 同上 |
 | 可移植面完成率（分母 `REAL+PENDING+ORIGINAL_EMPTY` = 301） | **105/301 = 34.88%** | 同上 |
 | 本车道落地的成员 | **84** | `TFrmDlgPortLedger.LaneCount` |
-| 本车道新增用例 | **约 160**（实测 4904 → 5040） | `GXX.Client.Tests` |
+| 本车道新增用例 | **约 160**（本车道切片累计；工作树合计 4904 → 5394，含同步进来的其它车道用例） | `GXX.Client.Tests` |
 
 > **`ABSTRACT_NO_BODY` 的独立取证（本轮补做）**：对 `TFrmDlg` 类体（原文 311-1114）逐行扫描，
 > **带 `abstract` 的声明共 220 条**；对当前 428 个去重 throw 名字做交集，
@@ -588,7 +588,7 @@ python "$share\gen-recon-table.py" `
 | B-1 | `DScreen:TDrawScreen`（MShare/DrawScrn）未见托管实体 | 约十余个鼠标/绘制处理器的**第一步**只能走 `FStateScreenSeam` 留痕（D-P14-06）。**不计入 FState 未移植缺口**。 |
 | B-9 | `DMessageDlg`/`DMessageDiceDlg`/`DMessageLoadDataDlg`/`DMessageNoticeDlg` 等 **220 条原文 `abstract` 钩子** | 它们在原文里**没有实现体**（本单元不实现，由 `StateWindows`/`SerialWindowsDlg` 等子类实现）⇒ 托管侧保留 `throw` 壳**是正确的**，**不是缺口**。切片 9 起用 `FStateClMainSeam.DMessageDlg` 注入接缝供本单元处理器使用。 |
 | B-10 | **220 条原文 `virtual; abstract` 钩子**（`DMessageDlg`/`DMessageDiceDlg`/`DMessageLoadDataDlg`/`DMessageNoticeDlg`/`ResetMenuDlg`/`CloseMDlg`/`ToggleShowGroupDlg`/`ViewBottomBox`/`ShowGorupJoinDlg`/`ShowProgressBarDlg` …） | 它们在原文里**没有实现体**（由 `StateWindows`/`SerialWindowsDlg` 等子类实现）⇒ 托管侧保留 `throw` 壳**是正确的**，**不是缺口**。独立取证：类体带 `abstract` 的声明共 **220** 条，与当时 428 个去重 throw 名字求交**恰好 220**，零误差。 |
-| B-11 | **接缝退役（本车道被指派项）无法在本工作树执行 —— 真身只在 main** | 见 §12。`p17-client-mshare` 把 9 个 `g_*` 真身 + `MShareGlobalsReset` + CR-1 的 `TUserCharacterInfo.sChrName` **都提交在 main**；本车道（`par/p14-client-fstate`，基于 `main @ 838ad9ae`）**看不到它们**，且我**禁止** `merge/rebase/checkout`、**禁止**改分区外的 `GUI/Mir/ClientGlobals.cs` ⇒ 改指后本工作树无法编译。**已提交一份可机械执行的退役方案（§12）交集成方或待同步后由我执行。** |
+| B-11 | ~~接缝退役无法在本工作树执行~~ → **已解除并执行完毕** | main 已由集成方同步进本工作树（`dad3ce04`）；本车道据此执行 §12.2 全部步骤：**12 项接缝退役**、CR-1 改持整条记录、Reset 改调 `MShareGlobalsReset`。**结果见 §12.4。** |
 | B-2 | `frmMain`（ClMain.pas）在车道1 的 `GXX.Client.GUI.Mir.frmMain` 里**只有** `boNpcDlgCanMove` 一条 | 切片 3 已按调度方授权补进 6 个成员（见 §3c），由此**解锁 4 条**并把 `DWebClick`/`DActionLogClick`/`DGetBackDeleteHumanClick`/`DCustomButtonClick` 从"主动放弃"改为**已 1:1**。**仍缺约 12 条**（`Close`/`ReConnectClientSocketGate`/`SendSay`/`SendGuildAddMem`/`SendGuildDelMem`/`SendAdjustBonus`/`SendCancelGameGoldDealItem`/`SendGetShopItems`/`SendDealTry`/`SendChallengeTry`/`SendGroupMode`/`AppLogout` …）—— 清单写在 `FStateSeams.cs` 的 `FStateClMainSeam` 注释里，每条都挡着一个 `PENDING`。 |
 | B-3 | `GXX.Client.GUI.Mir.TFrmDlg`（车道1 早期接缝）与本车道 `GXX.Client.GUI.Share.TFrmDlg` **同名不同类型** | 每个引用点都要 `using TFrmDlg = ...` 消歧（`GuiSharePureTests.cs`/`GuiShareHandlersTests.cs` 已如此）。**建议后续合并**，但跨分区，本车道不动。 |
 | B-4 | `S*` resourcestring（`SGuildDelMem` 等）与 `DecodeResStr` 无正式归属 | 已用 `FStateResStrSeam`（默认值=常量名）承载（D-P14-09）。凡原文提示文本走 resourcestring 的处理器都受此影响。**不计入 FState 缺口**。 |
@@ -609,7 +609,7 @@ python "$share\gen-recon-table.py" `
 
 ---
 
-## 12. 接缝退役方案（B-11：**已就绪但无法在本工作树执行**）
+## 12. 接缝退役（B-11：**已执行完毕**）
 
 调度方指派本车道退役 `GUI/Share/FStateSeams.cs` 里的接缝（10 项），依据是 `p17-client-mshare`
 给出的"可直接退役"证明。**核对结果：方案正确，但在本工作树里执行不了。** 如实登记如下。
@@ -662,6 +662,52 @@ python "$share\gen-recon-table.py" `
 
 > 本节三条事实（9 个 `g_*` / Reset 覆盖 / `sChrName`）都是在 **main 上只读核对**的，
 > 本车道的实现一行未改。
+
+
+### 12.4 ★ 执行结果（本轮，提交 `f6205ce2`）
+
+**12 项接缝已退役**（字段从 `FStateMShareSeam` 删除，调用点改指 `MShareGlobals` 真身）：
+
+| # | 接缝字段 | 真身 |
+|---:|---|---|
+| 1 | `g_SellDlgItem` | `MShareGlobals.g_SellDlgItem`（`ClientGlobals.cs:211`） |
+| 2 | `g_ExtBagOpenItemCount` | `MShareGlobals.g_ExtBagOpenItemCount`（`:214`） |
+| 3 | `g_dwQueryMsgTick` | `MShareGlobals.g_dwQueryMsgTick`（`:220`） |
+| 4 | `g_dwDealActionTick` | `MShareGlobals.g_dwDealActionTick`（`:223`） |
+| 5 | `g_dwChallengeActionTick` | `MShareGlobals.g_dwChallengeActionTick`（`:226`） |
+| 6 | `g_boDealEnd` | `MShareGlobals.g_boDealEnd`（`:229`） |
+| 7 | `g_nDealGold` | `MShareGlobals.g_nDealGold`（`:232`） |
+| 8 | `g_boChallengeEnd` | `MShareGlobals.g_boChallengeEnd`（`:235`） |
+| 9 | `g_nChallengeGold` | `MShareGlobals.g_nChallengeGold`（`:238`） |
+| 10 | `g_dwChangeGroupModeTick` | `MShareGlobals.g_dwChangeGroupModeTick`（`:242`） |
+| 11 | `g_boAllowGroup` | `MShareGlobals.g_boAllowGroup`（`:245`） |
+| 12 | `g_GameGoldDeal` | `MShareGlobals.g_GameGoldDeal`（`:266`） |
+
+**比原方案多退了 3 项**：同步进来的 p17 批次把 `g_dwChangeGroupModeTick` / `g_boAllowGroup` /
+`g_GameGoldDeal` 的真身也落在了 `MShareGlobals`（`ClientGlobals.cs` 的 "B-6 剩余项" 段），
+且 `MShareGlobalsReset`（`:430-437`）**覆盖它们** ⇒ 与那 9 项同样可无损退役，已一并处理。
+
+**CR-1（第 4 步）已按整条记录落地**：
+`FStateMShareSeam.g_SelDeleteHumanInfo_sChrName`（string 单字段）→
+**`FStateMShareSeam.g_SelDeleteHumanInfo`（整条 `TUserCharacterInfo`）**，
+调用点写 `g_SelDeleteHumanInfo.sChrName`（原文 20594/20595 访问的是同一记录的同一字段）。
+
+**Reset 改指**：`FStateClMainSeam.ResetForTests()` 里对 `MShareGlobalsReset.ResetForTests()` 的调用已移除，
+改由测试的 `ResetAll()` 直接调用（那里本来就有）—— 避免在 `GUI/Share` 分区里重复复位同一批全局。
+`FStateMShareSeam.ResetForTests()` **保留**，但只复位**仍未退役**的 8 个接缝字段。
+
+**仍保留的接缝（8 个，都是"真身尚未落地"，不是遗漏）**：
+`g_SelDeleteHumanInfo`（记录承载）、`g_MouseUserStateItem_sName`、`g_DealDlgItem`、
+`g_GameGoldDealRemoteItems`、`g_nMinMapX`、`g_nMinMapY`、
+`g_ClientConfig_boNPCGuiCanMove / g_ClientConfig_DMerchantDlgHelp`（原文 Grobal2 的 `g_ClientConfig`，与 MShare 的 `g_ConfigClient` **不是**一回事）。
+
+**守卫（2 例，退役后仍全绿）**：
+- `NoMShareSeamFieldShadowsTheLandedGlobal` —— 接缝字段与 `MShareGlobals` 真身**不得同名并存**
+  （这次退役正是为它而做；12 项退役后它由"暂态可容忍"变为"必须无同名"）。
+- `EveryMShareSeamFieldIsEitherRetirableOrExplicitlyStays` —— 接缝上每个 `g_` 字段都必须有归属；
+  上面那 8 个保留项逐条写明原因，**后人再塞一个未登记的 `g_` 接缝字段就会红**。
+
+**口径**：退役**不是**新增实现 ⇒ **不计入**覆盖率分子（`REAL` 仍为 105）。
 
 ---
 
