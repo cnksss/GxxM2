@@ -31,6 +31,7 @@ using GXX.M2Server.Engine;
 using GXX.M2Server.Forms;
 using GXX.M2Server.GameCenter;
 using GXX.M2Server.Npc;
+using GXX.M2Server.Sweep9.Monsters;
 
 namespace GXX.M2Server.Tests;
 
@@ -72,5 +73,13 @@ internal static class M2ConfigIsolationCoverage
         typeof(NpcSeams),            // GXX.M2Server.Npc：ObjNpc 侧接缝（测试里 200 处引用）
         typeof(AuctionDbRunSeam),    // DbLayer：拍卖/UserShop 侧接缝（测试里 50 处引用）
         typeof(DbLayerRunSeam),      // DbLayer：DbLayer 运行期接缝
+
+        // --- 4b. Sweep9/Monsters 的 4 个静态接缝（由车道 p9-m2-monsters 请求 X-P9-01，集成方代补） ---
+        // 该车道的用例虽然每个都自己 `using var env = ...` 安装/还原，但"靠自觉"正是本机制
+        // 要消除的东西 —— 纳入清单后即成为"不靠自觉"的双保险（与 section 4 同一理由）。
+        typeof(ObjRobotSeam),        // Sweep9/Monsters：TPlayObject 面接缝（ObjRobot）
+        typeof(ObjFireDragonSeam),   // Sweep9/Monsters：点灯/火圈接缝（ObjFireDragon）
+        typeof(ObjDummySeam),        // Sweep9/Monsters：假人面接缝（ObjDummy）
+        typeof(ObjDummySortSeam),    // Sweep9/Monsters：CustomSort 接缝（默认空操作，见报告 T-P9-01）
     };
 }
