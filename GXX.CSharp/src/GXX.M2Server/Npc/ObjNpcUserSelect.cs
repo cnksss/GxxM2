@@ -295,6 +295,73 @@ public partial class TMerchant
         }
     }
 
+    /// <summary>
+    /// 原文 `procedure DealGold(User: TPlayObject; sMsg: string);`（ObjNpc.pas:2212-2254）—— 元宝转账。
+    /// <para><b>照抄要点（三处早退各跳一个**不同**标签，勿互抄）</b>：2218 `m_nDealGoldPose &lt;&gt; 1` → `'@dealgoldPlayError'` + **Exit**（**不改 Pose**）；
+    /// 2223 **无条件**先把 Pose 置 **2**（在金额校验**之前**）；2224 `nGameGold &lt;= 0` → `'@dealgoldInputFail'`；
+    /// 2250 余额不足 → `'@dealgoldFail'`；2233 对向不合法 → `'@dealgoldpost'`。</para>
+    /// <para>2233 对向**三个条件**：非 nil **且** `PoseHuman.GetPoseCreate = User`（**互指**）**且** `m_btRaceServer = RC_PLAYOBJECT`。
+    /// 2235-2238 顺序：先 `Inc` 对方、再 `Dec` 自己，然后**双方各一次** `GameGoldChanged`。
+    /// 2239-2240 两条提示串的 `#10`/`#9`、转出/增加、当前余额 —— 照抄。
+    /// 2241-2243 的 `AddGameDataLog(...)` 是**注释**（内容还是从别处复制的"装备破碎"模板）—— 原文如此，保留。</para>
+    /// <para>触发点：`nNF_DealGold`（原文 2727-2731），守卫 `m_boDealGold`。</para>
+    /// <para>⚠ **托管偏差登记**：原文 `m_nGameGold: LongWord`（ObjPlayer.pas:202），托管是 **`int`**
+    /// （`Engine/ObjBase.OnlineMsg.cs:36`）⇒ **溢出边界**行为不同（无符号回绕 vs 有符号）。
+    /// 本方法只在 `m_nGameGold &gt;= nGameGold &gt; 0` 路径上做减法，**正常路径不受影响**；已登记待统一。</para>
+    /// </summary>
+    public void DealGold(TPlayObject User, string sMsg)
+    {
+        // 原文 2217：默认 -1
+        int nGameGold = (int)DelphiRTL.StrToInt64Def(sMsg, -1);
+        // 原文 2218-2222
+        if (User.m_nDealGoldPose != 1)
+        {
+            PlayerSurfaceNpcSeams.GotoLable(this, User, "@dealgoldPlayError", false);
+            return;
+        }
+        // 原文 2223：先置 2（在金额校验之前）
+        User.m_nDealGoldPose = 2;
+        // 原文 2224
+        if (nGameGold <= 0)
+        {
+            // 原文 2226
+            PlayerSurfaceNpcSeams.GotoLable(this, User, "@dealgoldInputFail", false);
+        }
+        // 原文 2230
+        else if (User.m_nGameGold >= nGameGold)
+        {
+            // 原文 2232-2233：对向**互指**校验
+            TPlayObject? PoseHuman = User.GetPoseCreate() as TPlayObject;
+            if ((PoseHuman != null) && (ReferenceEquals(PoseHuman.GetPoseCreate(), User))
+                && (PoseHuman.m_btRaceServer == Grobal2Const.RC_PLAYOBJECT))
+            {
+                // 原文 2235-2238（顺序照抄）
+                PoseHuman.m_nGameGold += nGameGold;
+                User.m_nGameGold -= nGameGold;
+                PoseHuman.GameGoldChanged();
+                User.GameGoldChanged();
+                // 原文 2239-2240（第三参 False = 不显示 NPC 名）
+                SendMsgToUser(User, "转帐成功：" + '\n' + "转出" + M2Config.sGameGoldName + "："
+                    + DelphiRTL.IntToStr(nGameGold) + '\t' + "当前" + M2Config.sGameGoldName + "："
+                    + DelphiRTL.IntToStr(User.m_nGameGold), false);
+                SendMsgToUser(PoseHuman, "转帐成功：" + '\n' + "增加" + M2Config.sGameGoldName + "："
+                    + DelphiRTL.IntToStr(nGameGold) + '\t' + "当前" + M2Config.sGameGoldName + "："
+                    + DelphiRTL.IntToStr(PoseHuman.m_nGameGold), false);
+                // 原文 2241-2243：`// AddGameDataLog(...)` 注释 —— 原文如此，保留
+            }
+            else
+            {
+                // 原文 2247
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@dealgoldpost", false);
+            }
+        }
+        else
+        {
+            // 原文 2252
+            PlayerSurfaceNpcSeams.GotoLable(this, User, "@dealgoldFail", false);
+        }
+    }
+
     /// <summary>原文 `Self = g_MissionNPC` 同型的占位说明见 <see cref="UserSelectPortedArms"/>。</summary>
     public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "", string sLabel = "")
     {
@@ -371,6 +438,10 @@ public partial class TMerchant
             case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
                 if (m_boofflinemsg)
                     AutoGetExp(PlayObject, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_DealGold:           // 原文 2727-2731（元宝转账）
+                if (m_boDealGold)
+                    DealGold(PlayObject, sMsg);
                 return true;
             case NpcProcessCmd.nNF_Rmst:               // 原文 2717-2721（接受歌曲 → RemoteMsg）
                 if (m_boofflinemsg)
