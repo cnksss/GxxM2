@@ -1577,3 +1577,100 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 
 按调度方顺序：**`UserSelect`(2087-2900, 814 行)** 按 `@buy` / `@sell` / `@repair` **分片**，
 每片独立提交 + 独立门禁；**首片建议 `@repair`**（最小）。开工前做依赖普查（D36 同族 / `m_UseItems` 读写点 —— 后者现已直读直写）。
+---
+
+# 18. 第十二轮（切片 32）：`UserSelect` 首片 `@repair` + **分片前提的实测纠正** ★ 本节优先于 §17
+
+## 18.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 32 | `edae49bc` | `@repair` 分片：`SuperRepairItem`(2089-2092) + `RepairItem`(2262-2265) + 两条 `case` 分支(2702-2706/2737-2741) 1:1 + 1 接缝 + 4 常量 + 14 用例 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,295 passed / 0 failed**。越区检查为空。
+
+## 18.2 ★★ 实测纠正：三条分片**并不互相独立** —— 它们共享"派发基础设施"
+
+`UserSelect`(2087-2899) 的结构实测为：
+```
+2089-2546   20 个**嵌套过程**（SuperRepairItem / BuyItem / SellItem / RepairItem / … ）
+2547-2696   派发前置：解析 sData → sLabel / sMsg，以及 nCode 赋值
+2691-2694   nIndex := g_NpcProcessCommand.IndexOf(sLabel); nIndex := Integer(...Objects[nIndex]);
+2696-2899   case nIndex of  →  30+ 个 nNF_* 分支
+```
+**结论**：`@repair` / `@sell` / `@buy` 三个分片各自的"内容"（嵌套过程 + `case` 分支）确实很小，
+但它们**都依赖同一套派发基础设施**：`g_NpcProcessCommand`（标签→命令号表，`NpcCommon.pas:1906-1960`）、
+`nNF_*` 枚举（`NpcCommon.pas:10-88`）、以及 2547-2696 的标签/参数解析。
+⇒ 调度方"首片 `@repair` 最小"的判断，按**嵌套过程行数**成立，
+但按**可独立完成的闭环**不成立 —— 任何一片都无法在派发体移植前真正"接上"。
+
+## 18.3 本片实际交付（1:1）
+
+| 原文 | 内容 | 托管落点 |
+|---|---|---|
+| 2089-2092 | `procedure SuperRepairItem(User)`：`User.SendMsg(Self, RM_SENDUSERSREPAIR, 0, NativeInt(Self), 0, 0, '')` | `TMerchant.SuperRepairItem` |
+| 2262-2265 | `procedure RepairItem(User)`：`User.SendMsg(Self, RM_SENDUSERREPAIR, 0, NativeInt(Self), 0, 0, '')` | `TMerchant.RepairItem` |
+| 2702-2706 | `case nNF_SuperRepair: if m_boS_repair then SuperRepairItem(PlayObject);` | `UserSelectRepairCommands` 的 `case` |
+| 2737-2741 | `case nNF_Repair: if m_boRepair then RepairItem(PlayObject);` | 同上 |
+
+**新增接缝 1 个**：`NpcSeams.NpcProcessCommandIndexOf` : `Func<string, int>`
+（原文 `g_NpcProcessCommand.IndexOf(sLabel)` 的等价物；返回 `-1` = "标签不在表中"，
+对应原文 2692 的 `nIndex >= 0` 为假）。**新增常量 4 个**：
+`sNF_Repair='@repair'`/`sNF_RepairOK='~@repair'`（`NpcCommon.pas:33/35`）、
+`nNF_SuperRepair=9`/`nNF_Repair=12`（`NpcCommon.pas:26/32`）。
+
+### ★ 登记口径（**避免过度声称**）
+`UserSelect` 在登记表里**仍保持 `Missing`** —— 派发体（含 2547-2696 的解析与其余 30+ 个 `nNF_*` 分支）
+**未移植**。本片以"分片进度"形式记录，**不**把 `UserSelect` 标为 Covered。
+
+### 写入 `UserSelectRepairCommands` 的理由（以及为什么它不是"新 API"）
+派发体未移植，但本片两条分支是**可独立验证的完整语义单元**；该方法的**名字直接标出**它对应
+原文 `UserSelect` 内 `@repair` 的那两条 `case`，等派发体移植时**原样搬进 `case` 后本方法即删除**。
+返回 `bool` 以区分"命中本片两条分支"与"该命令号不属 `@repair` 族" —— **刻意不做静默兜底**
+（呼应调度方第 3 条提醒：静默兜底会把"没实现"伪装成"没命中"）。
+
+## 18.4 20 个嵌套过程清单（供后续分片排期）
+
+| 原文行 | 嵌套过程 | 归属分片建议 |
+|---|---|---|
+| 2089-2092 | `SuperRepairItem` | **@repair（本片 ✅）** |
+| 2262-2265 | `RepairItem` | **@repair（本片 ✅）** |
+| 2094-2176 | `BuyItem`（83 行，含 `label RefBuy` + `goto`） | `@buy` |
+| 2257-2260 | `SellItem` | `@sell` |
+| 2177-2205 | `RemoteMsg` | `$RMST`（离线消息族） |
+| 2206-2211 | `AutoGetExp` | 离线挂机 |
+| 2212-2256 | `DealGold` | 交易金币 |
+| 2267-2270 | `ArmRemoveStoneItem` | 卸装 |
+| 2272-2306 | `MakeDurg` | 制药 |
+| 2307-2310 | `ItemPrices` | 询价 |
+| 2311-2315 | `Storage` | 仓库 |
+| 2316-2320 | `GetBack` | 取回 |
+| 2321-2325 | `BigStorage` / 2326-2331 `BigGetBack` | 大仓库 |
+| 2332-2340 | `GetPreviousPage` / 2341-2346 `GetNextPage` | 翻页 |
+| 2347-2407 | `MakeHeroName` | 英雄命名 |
+| 2408-2460 | `MakeDeputyHeroName` | 副将命名 |
+| 2461-2485 | `InPutInteger` / 2486-2507 `InPutString` | 输入 |
+| 2508-2546 | `PlayDrink` | 斗酒 |
+
+## 18.5 依赖普查结果（按调度方要求，开工前已做）
+
+| 普查项 | 本片结果 |
+|---|---|
+| **D36 同族**（"先入包、后改物品"） | **本片无** —— 两条分支只发包 `RM_SENDUSERSREPAIR`/`RM_SENDUSERREPAIR`，不碰背包/物品 |
+| **`m_UseItems` 读写点** | **本片无** |
+| 查调用点（`src` + `tests`） | `SuperRepairItem`/`RepairItem` 在 `src`/`tests` 中**此前零引用**（原文里只在 `UserSelect` 的 `case` 内被调用）—— 已按原文接上，**不是**"零调用方的错实现" |
+| `params` 重载族 | 本片测试辅助方法均为固定参数，**无 `params`** |
+| `THumData` 巨型结构值复制 | 本片不涉及 |
+
+## 18.6 下一轮的建议（需裁定）
+
+三条路，请择一：
+1. **先把派发基础设施做成一个独立提交**：移植 `g_NpcProcessCommand`（标签→命令号表，
+   `NpcCommon.pas:1906-1960`，含 30+ 条注册）+ `nNF_*` 全部常量 + 2547-2696 的标签/参数解析。
+   做完后，三条分片就退化为"填 `case` 分支"，**每片都会很小**。
+   → 代价：该基础设施**属 NpcCommon 面**，不在 `Npc.*` 归属内，需要新的分区授权（或另派车道）。
+2. **由另一条车道先移植 `g_NpcProcessCommand`/`nNF_*`**，我再按原计划分片。
+3. **继续以"分片 + 单接缝"推进**：每片照本片做法落地（嵌套过程 + `case` 分支 + 用
+   `NpcProcessCommandIndexOf` 接缝），最后一次性把接缝换成真表。缺点是期间 `UserSelect` 无法端到端验证。
+
+**我倾向 1 或 2**（先补基础设施，避免三片各留半截）。
