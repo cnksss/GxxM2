@@ -69,3 +69,7 @@ p10-client-scrn	GXX.CSharp/src/GXX.Client/Scenes/DrawScrn/**;!GXX.CSharp/src/GXX
 # writer.  LogDataServer/ThreadPool is the one unit whose basename repeats with an OPPOSITE
 # ruling in the gateways (see tools/unit-map.tsv + the per-copy registry in audit-coverage.ps1).
 p10-db-login-forms	GXX.CSharp/src/GXX.DBServer/Forms/**;GXX.CSharp/src/GXX.LoginSrv/Forms/**;GXX.CSharp/src/GXX.GameCenter/Forms/**;GXX.CSharp/src/GXX.LogDataServer/Pool/**;GXX.CSharp/tests/GXX.DBServer.Tests/P10*;GXX.CSharp/tests/GXX.LoginSrv.Tests/P10*;GXX.CSharp/tests/GXX.GameCenter.Tests/P10*;GXX.CSharp/tests/GXX.LogDataServer.Tests/P10*;GXX.CSharp/docs/并行报告-p10-db-login-forms.md
+# ---- P11 (round 54): READ-ONLY verification lane.  It writes ONE report and nothing else;
+# its job is to decide whether LoginGate's 15 E2-only MAPPED verdicts are real ports or
+# borrowed-name false positives (ledger 41.2).  No src/ grant at all, on purpose.
+p11-logingate-review	GXX.CSharp/docs/并行报告-p11-logingate-review.md
