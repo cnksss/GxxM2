@@ -300,6 +300,26 @@ if ($Report) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
     }
     [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## DUPLICATE-BASENAME units (E1/E2 evidence is AMBIGUOUS -- verify per copy)')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('The same unit basename exists in more than one source dir above.  E1 (same-basename .cs)')
+    [void]$sb.AppendLine('and E2 ("<unit>.pas" in a header) both match on the BASENAME alone, so the verdict shown')
+    [void]$sb.AppendLine('for these rows applies to EVERY copy: porting (or merely naming) ONE copy flips them all')
+    [void]$sb.AppendLine('to MAPPED and thereby HIDES the other copies still being unported.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('Rule: never cite a MAPPED verdict for a row listed here without per-copy evidence,')
+    [void]$sb.AppendLine('and never add such a name to the tools/audit-coverage.ps1 not-ported registries or to a')
+    [void]$sb.AppendLine('.cs header -- that would silently close the sibling copies too.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | verdict |')
+    [void]$sb.AppendLine('|---|---|---|---|')
+    $dups = $rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 }
+    foreach ($g in ($dups | Sort-Object Name)) {
+        foreach ($r in ($g.Group | Sort-Object Dir)) {
+            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) |")
+        }
+    }
+    [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## CHECKLIST_ONLY units (mentioned in Checklist.md but no direct .cs evidence)')
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('| dir | unit | lines | KB |')
