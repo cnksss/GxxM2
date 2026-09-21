@@ -112,25 +112,31 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void DBShare名校验接缝_未接线_访问即抛NotSupportedException()
+    public void DBShare名校验接缝_已转调真实现()
     {
+        // 2026 第 2 轮：校验族已移植（`DBShare.cs`，原文 :1043-1274 逐行）⇒
+        // 接缝默认值从"抛"改为**转调**（与 `HUtil32Seam` 同款处置：不保留第二份算法）。
         using var srv = new DBServerService(Path2("host.db"));
 
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckChrName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckSpecialChar("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckDenyChrName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckNumberName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckLetterName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckFilterNewHumanChrName("Aaaa"));
+        Assert.True(SelectClientDbShareSeam.CheckChrName("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckChrName("Aaa@"));
+        Assert.True(SelectClientDbShareSeam.CheckSpecialChar("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckSpecialChar("A a"));
+        Assert.True(SelectClientDbShareSeam.CheckDenyChrName("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckNumberName("Aaaa"));
+        Assert.True(SelectClientDbShareSeam.CheckLetterName("Abcd"));
+        Assert.False(SelectClientDbShareSeam.CheckFilterNewHumanChrName("Aaaa"));
     }
 
     [Fact]
-    public void 主动网关路由接缝_未接线_访问即抛NotSupportedException()
+    public void 主动网关路由接缝_已转调真实现()
     {
+        // 2026 第 4 轮：已移植 ⇒ 不再抛。★ 该路径默认关闭，命令级正/反例见本文件末尾那 4 条。
         using var srv = new DBServerService(Path2("host.db"));
 
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.GateActiveRouteIP("127.0.0.1", out _));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckActiveRunGate("127.0.0.1", 7200));
+        Assert.Equal("", SelectClientDbShareSeam.GateActiveRouteIP("127.0.0.1", out int port));
+        Assert.Equal(0, port);
+        Assert.False(SelectClientDbShareSeam.CheckActiveRunGate("127.0.0.1", 7200));
     }
 
     // =====================================================================================
@@ -467,21 +473,168 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void 有会话时_CM_NEWCHR仍抛_因DBShare名校验族未移植()
+    public void 有会话时_CM_NEWCHR真正可用()
     {
-        // ★★ 这是移植 IDSocCli 之后**唯一**还会抛的命令，也是它唯一的原因。
-        //    会话说 `CM_NEWCHR` 已经不再卡在会话校验上；它卡在**名校验**
-        //    （SelectClient.pas:933 `CheckDenyChrName` / :934 `CheckChrName` / :940 `CheckFilterNewHumanChrName`）。
-        //    ⇒ 默认路由模式下，**只差 `DBShare.pas` 名校验族**。
+        // ★★ 2026 第 2 轮：`DBShare.pas` 名校验族移植后，**最后一条会抛的命令也通了**。
+        //    默认路由模式下 8 条命令**全部走到真实实现**。
         using var srv = new DBServerService(Path2("cmd.db"));
-        var c = AttachWithValidSession(srv, out _);
-        byte[] frame = System.Text.Encoding.Latin1.GetBytes(UserDataFrame("7", Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+        var c = AttachWithValidSession(srv, out var sent);
 
-        Exception? ex = SelectClientGateWiring.FeedSafe(c, frame, 0, frame.Length);
+        Assert.Equal(Grobal2Const.SM_NEWCHR_SUCCESS, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+    }
 
-        Assert.IsType<NotSupportedException>(ex);
-        Assert.Contains("DBShare.pas", ex!.Message);
-        Assert.Contains("CheckDenyChrName", ex.Message);
+    [Fact]
+    public void 有会话时_CM_NEWCHR_名校验真的在跑_非法字符被拒()
+    {
+        // 对照：`Aaa@` 会被 `CheckChrName`（原文 :934）判非法 ⇒ nCode 0 ⇒ SM_NEWCHR_FAIL(Recog=0)。
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+
+        Assert.Equal(Grobal2Const.SM_NEWCHR_FAIL, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaa@/1/1/1"));
+        Assert.Equal(0, EDcode.DecodeMessage(Slice(sent[0])).Recog);              // nCode 落在 Recog
+    }
+
+    [Fact]
+    public void 有会话时_CM_NEWCHR_重名被拒_且Human与Hero两库都算占用()
+    {
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("other", "Aaaa", false, 0, 0, 0);
+
+        // nCode 2（名字已存在）—— 原文 :964 `HumanDB.GetID(name) <> NO_ID or HeroDB.GetID(name) <> NO_ID`
+        Assert.Equal(Grobal2Const.SM_NEWCHR_FAIL, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+        Assert.Equal(2, EDcode.DecodeMessage(Slice(sent[0])).Recog);
+    }
+
+    // =====================================================================================
+    // ★★ 主动网关路由（`g_boUseActiveRunGage`）：**默认关闭** —— 正例/反例都在这里
+    // =====================================================================================
+
+    [Fact]
+    public void 有会话时_CM_SELCHR_主动网关路由默认关闭_走的是GateRouteIP()
+    {
+        // ★ 反例（默认配置）：`g_boUseActiveRunGage = False` ⇒ `SelectClient.pas:1138` 取反为真 ⇒ 走 `GateRouteIP`。
+        //   两张表故意配成**不同**的 IP，用来判别实际走了哪一条。
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Hero1", false, 0, 0, 0);
+        DBShareSeam.g_boUseActiveRunGage = 0;                                      // ← 默认
+        c.m_sGateaddr = "127.0.0.1";
+        c.SelectCharList.OnLineItems(0)!.sGateIPaddr = "10.1.1.1";
+
+        // `GateActiveRouteIP` 若被调用会返回 10.0.0.7（已连通），而 `GateRouteIP` 返回 10.0.0.1
+        DBShareSeam.g_RouteInfo[0].sSelGateIP = "127.0.0.1";
+        DBShareSeam.g_RouteInfo[0].nGateCount = 1;
+        DBShareSeam.g_RouteInfo[0].sGameGateIP[0] = "10.0.0.1";
+        DBShareSeam.g_RouteInfo[0].nGameGatePort[0] = 7200;
+        DBShareSeam.g_RouteInfo[0].dwGameGateConnectTick[0] = 0;
+        DelphiTick.GetTickCount = () => 0;
+        DelphiRandom.Next = _ => 0;
+
+        Assert.Equal(Grobal2Const.SM_STARTPLAY, ReplyIdent(c, sent, Grobal2Const.CM_SELCHR, "acct/Hero1"));
+        Assert.Equal("10.0.0.1/7200", DecodeFrameBody(sent[0]));
+    }
+
+    [Fact]
+    public void 有会话时_CM_SELCHR_主动网关路由打开时走GateActiveRouteIP()
+    {
+        // ★ 正例（显式打开开关）：`GateActiveRouteIP` 只从**已连通**的网关里挑 ⇒ 未连通的 10.0.0.8 不会被选中。
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Hero1", false, 0, 0, 0);
+        DBShareSeam.g_boUseActiveRunGage = 1;                                      // ← 打开
+        c.m_sGateaddr = "127.0.0.1";
+
+        DBShareSeam.g_RouteInfo[0].sSelGateIP = "127.0.0.1";
+        DBShareSeam.g_RouteInfo[0].nGateCount = 2;
+        DBShareSeam.g_RouteInfo[0].sGameGateIP[0] = "10.0.0.7";
+        DBShareSeam.g_RouteInfo[0].nGameGatePort[0] = 7300;
+        DBShareSeam.g_RouteInfo[0].sGameGateIP[1] = "10.0.0.8";
+        DBShareSeam.g_RouteInfo[0].nGameGatePort[1] = 7301;
+        DelphiTick.GetTickCount = () => 100000;
+        DBShareSeam.g_RouteInfo[0].dwGameGateConnectTick[0] = 100000;              // 刚连上 ⇒ 可选
+        DBShareSeam.g_RouteInfo[0].dwGameGateConnectTick[1] = 9999;                // 100000-9999 回绕 >> 3000 ⇒ 不可选
+        DelphiRandom.Next = _ => 0;
+
+        Assert.Equal(Grobal2Const.SM_STARTPLAY, ReplyIdent(c, sent, Grobal2Const.CM_SELCHR, "acct/Hero1"));
+        Assert.Equal("10.0.0.7/7300", DecodeFrameBody(sent[0]));
+    }
+
+    [Fact]
+    public void 有会话时_CM_SELCHR_主动网关模式无可用网关时回SM_STARTFAIL()
+    {
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Hero1", false, 0, 0, 0);
+        DBShareSeam.g_boUseActiveRunGage = 1;
+        c.m_sGateaddr = "127.0.0.1";
+
+        DBShareSeam.g_RouteInfo[0].sSelGateIP = "127.0.0.1";
+        DBShareSeam.g_RouteInfo[0].nGateCount = 1;
+        DBShareSeam.g_RouteInfo[0].sGameGateIP[0] = "10.0.0.7";
+        DBShareSeam.g_RouteInfo[0].nGameGatePort[0] = 7300;
+        DBShareSeam.g_RouteInfo[0].EnabledRunGate2List = 0;
+        DelphiTick.GetTickCount = () => 0;
+        DBShareSeam.g_RouteInfo[0].dwGameGateConnectTick[0] = 9999;                // 未连通
+
+        Assert.Equal(Grobal2Const.SM_STARTFAIL, ReplyIdent(c, sent, Grobal2Const.CM_SELCHR, "acct/Hero1"));
+    }
+
+    [Fact]
+    public void 有会话时_CM_SELCHR_主动网关加动态IP时由CheckActiveRunGate裁决()
+    {
+        // `g_boDynamicIPMode` 打开时：`sRouteIP := UserInfo.sGateIPaddr`，
+        // 再 `if not CheckActiveRunGate(sRouteIP, nRoutePort) then sRouteIP := ''` ⇒ 不通过 ⇒ SM_STARTFAIL。
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Hero1", false, 0, 0, 0);
+        DBShareSeam.g_boUseActiveRunGage = 1;
+        SelectClientGlobals.g_boDynamicIPMode = 1;
+        c.m_sGateaddr = "127.0.0.1";
+        c.SelectCharList.OnLineItems(0)!.sGateIPaddr = "10.1.1.1";                 // 动态 IP
+        DBShareSeam.g_RouteInfo[0].sSelGateIP = "127.0.0.1";
+        DBShareSeam.g_RouteInfo[0].nGateCount = 1;
+        DBShareSeam.g_RouteInfo[0].sGameGateIP[0] = "10.0.0.7";
+        DBShareSeam.g_RouteInfo[0].nGameGatePort[0] = 7300;
+        DBShareSeam.g_RouteInfo[0].dwGameGateConnectTick[0] = 0;
+        DelphiTick.GetTickCount = () => 0;
+        DelphiRandom.Next = _ => 0;
+
+        // ① 没有任何 RunGate 会话 ⇒ `CheckActiveRunGate` 为假 ⇒ SM_STARTFAIL
+        Assert.Equal(Grobal2Const.SM_STARTFAIL, ReplyIdent(c, sent, Grobal2Const.CM_SELCHR, "acct/Hero1"));
+
+        // ② 放一条匹配的 RunGate 会话 ⇒ `CheckActiveRunGate` 为真 ⇒ 用动态 IP
+        sent.Clear();
+        c.SelectCharList.OnLineItems(0)!.dwChrTick = 0;
+        var session = DBShareSeam.SessionRunGateArray[0];
+        session.Socket = new FakeTCustomWinSocket();
+        session.sRemoteAddr = "10.1.1.1";
+        session.nRemotePort = 7300;
+        session.dwReceiveTick = 0;
+
+        Assert.Equal(Grobal2Const.SM_STARTPLAY, ReplyIdent(c, sent, Grobal2Const.CM_SELCHR, "acct/Hero1"));
+        Assert.Equal("10.1.1.1/7300", DecodeFrameBody(sent[0]));
+    }
+
+    private sealed class FakeTCustomWinSocket : TCustomWinSocket { }
+
+    /// <summary>
+    /// 从出站帧 <c>%&lt;sid&gt;/#&lt;22 字节编码头&gt;&lt;编码体&gt;!$</c> 里取出**编码体**并解回 GBK 文本。
+    /// （本类不派生 `SelectClientTestBase`，故不复用它的 `DecodeBody`。）
+    /// </summary>
+    private static string DecodeFrameBody(byte[] raw)
+    {
+        int start = 0;
+        for (int i = 0; i + 1 < raw.Length; i++)
+            if (raw[i] == (byte)'/' && raw[i + 1] == (byte)'#') { start = i + 2; break; }
+        int end = raw.Length;
+        for (int i = raw.Length - 2; i >= 0; i--)
+            if (raw[i] == (byte)'!' && raw[i + 1] == (byte)'$') { end = i; break; }
+        int bodyStart = start + Grobal2Const.DEF_BLOCK_SIZE;
+        int len = Math.Max(0, end - bodyStart);
+        byte[] body = new byte[len];
+        Array.Copy(raw, bodyStart, body, 0, len);
+        return System.Text.Encoding.GetEncoding(936).GetString(EDcode.DecodeString(body));
     }
 
     /// <summary>从 <c>%&lt;sid&gt;/#…!$</c> 里取出 22 字节编码头。</summary>
