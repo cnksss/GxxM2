@@ -446,3 +446,115 @@ git show main:GXX.CSharp/tools/lane-zones.tsv | Select-String p7-db-selectclient
 2. `%X` 会断整条 SelGate 连接（§12.4 末行）——这是裁定 (a) 的**已知代价**，若集成方认为
    "`CloseUser` 里的 IDSoc 只是清理通知"可以单独放宽，请给编号；**本车道没有自行放宽**。
 3. `IDSocCli.pas` / `DBShare.pas` 名校验族 / 主动网关路由**仍未移植**（规模见 §12.4）。
+
+---
+
+## 13. 第 2 轮：`%X` 窄口子（D-p7-13）落地 + `IDSocCli.pas` 移植侦察
+
+### 13.1 ✅ 裁定执行：**只对 `CloseUser` 的 `GetGlobaSessionStatus` 放宽**（偏差 D-p7-13）
+
+集成方**细化**了上一轮的 (a)：`%X` 的这一步是**清理通知**（"会话已失效 → 叫 LoginSrv 关掉它"），
+**不是校验判定**；而它抛出去的代价是**断开整条 SelGate 连接**（一条连接上通常挂着多个无关玩家）——
+**一个缺失的清理动作，代价是一批玩家被踢**。⇒ 只此一条路径允许"记日志 + 跳过清理 + 继续"。
+
+| 要求 | 落实 |
+|---|---|
+| ① **命名清晰的窄口子**，不要通用"放行开关" | `IDSocCliSeam.CloseUser_ShouldCloseSession(int nSessionID)` —— 名字直接点明**调用方**（CloseUser）与**唯一用途**（该不该关会话）；没有 `bool Permissive` 之类的开关，也**没有默认值可配**。调用点只有一个：`SelectClient.CloseUser`（:419 附近） |
+| ② **注释写明为什么这里可以跳过而别处不行** | 方法 XML 注释里逐条列出集成方裁定的 3 条理由（非校验判定 / 后果不成比例 / 其余接缝一条都不放宽），并注明这是**偏差 D-p7-13** |
+| ③ **每次触发都留痕** | 未接线时每次都写 `MainOutMessage("[WARN] 接缝未接线（D-p7-13）：… nSessionID=" + id)` —— 带**偏差编号**便于审计计数 |
+| ④ **登记为带编号的正式偏差** | 见下表 |
+| ⑤ **两条用例改成锁定新行为 + 保留"不命中槽位"那条** | `帧X_命中槽位时不抛_跳过清理_留痕_且不断连接`（新）· `帧X_命中槽位但FrmIDSoc已接线时_回到原文分支`（新，对照组）· `帧X_会话仍活跃时不做清理`（新）· `帧X_不命中槽位时不抛`（保留） |
+
+**偏差登记 D-p7-13**
+
+| 项 | 内容 |
+|---|---|
+| **偏离点** | `SelectClient.CloseUser` 里"要不要给 LoginSrv 发会话清理通知"这一步 |
+| **原文行为** | `if not FrmIDSoc.GetGlobaSessionStatus(nSessionID) then begin SendSocketMsg(SS_SOFTOUTSESSION,…); CloseSession(…); end;`（SelectClient.pas:714-718）——`FrmIDSoc` 恒存在，两步必定按状态执行 |
+| **托管行为** | `FrmIDSoc` **已接线**时与原文**完全一致**（用例 `帧X_命中槽位但FrmIDSoc已接线时_回到原文分支` / `帧X_会话仍活跃时不做清理` 锁定）；**未接线**时 `CloseUser_ShouldCloseSession` 返回 `false` ⇒ **跳过清理**并写一条 `[WARN] …（D-p7-13）` 日志 |
+| **为什么必须偏离** | 未接线让它抛 ⇒ 异常经 `SelectClientGateWiring` 的宿主边界被接住 ⇒ **断开整条 SelGate 连接**（多玩家受影响）。而这一步只是**清理通知**，不是校验判定："少做一次清理"与"接受本应拒绝的输入"后果不成比例 |
+| **边界（明确不放宽的部分）** | `CheckSession`（`CM_QUERYCHR`/`CM_RANDOMNAME`/`CM_NEWCHR`/`CM_DELCHR`/`CM_SELCHR`）、`DBShare.pas` 名校验族、`GateActiveRouteIP`/`CheckActiveRunGate` —— **一条都不放宽**，仍然是 `NotSupportedException`；守卫用例：`依赖IDSocCli的五条命令_目前抛NotSupportedException`、`DBShare名校验接缝_未接线_访问即抛NotSupportedException`、`主动网关路由接缝_未接线_访问即抛NotSupportedException` |
+| **恢复途径** | `IDSocCli.pas` 移植并接线（`IDSocCliSeam.FrmIDSoc` 非 nil）后，本口子**自动失效**（方法内 `if (FrmIDSoc != null) return !FrmIDSoc.GetGlobaSessionStatus(...)`）；随后**删除** `CloseUser_ShouldCloseSession`、`CloseUser` 改回 `if (!IDSocCliSeam.Require.GetGlobaSessionStatus(...))`，并**注销 D-p7-13** |
+
+### 13.2 ⚠ 我的行数口径错误（自我更正）
+
+上一轮 §12.4 我写 **`IDSocCli.pas` 431 行** —— **错了**。实测：
+
+| 口径 | 值 |
+|---|---|
+| **总行数**（`[regex]::Matches($t,"\n").Count`） | **464 行** |
+| 非空行（`Get-Content \| Where-Object { $_.Trim() -ne '' }`） | 431 行 |
+| `Get-Content \| Measure-Object -Line` | 431 ← **我当时用的就是这个，它计的是非空行** |
+
+⇒ **正确数字是 464 行**（`DBShare.pas` 的**函数行区间**是 `read` 工具按含空行给的，那些是准的，不用改）。
+**规程**：报"某单元多少行"必须用**总行数**，且用 `read` 工具或 `[regex]::Matches($t,"\n").Count` 复核；
+`Measure-Object -Line` **不报空行**，不能当总行数用。
+
+### 13.3 `IDSocCli.pas`（464 行）移植侦察 —— ✅ 结论：**依赖比预想的少得多**
+
+**已经具备、不用碰的**（这是好消息，说明它不是"要带一串依赖"的单元）：
+
+| 依赖 | 现状 |
+|---|---|
+| `TGlobaSessionInfo` / `pTGlobaSessionInfo`（Grobal2.pas:4048-4061） | ✅ **已移植**：`GXX.Core.Protocol.TGlobaSessionInfo`（`Grobal2.Types5.cs:795`），字段逐一对应（含 `n24` / `bo28` / `boHeroLoadRcd` / `dwAddTick` / `dAddDate`） |
+| `SS_OPENSESSION` / `SS_CLOSESESSION` / `SS_KEEPALIVE` / `SS_SERVERINFO` | ✅ **已移植**：`GXX.Core.CommonConst` = **1000 / 1010 / 1040 / 1030** |
+| `ArrestStringEx` / `GetValidStr3` / `StrToIntDef` | ✅ `GXX.Core.Util.HUtil32` + `GXX.Core.Rtl.DelphiRTL` |
+| `SameText` | ✅ `DelphiStrUtils.SameText` |
+| `Format('%d/%s')` / `Format('%s:%d → %s:%d')` | ✅ `GXX.Core.Rtl.DelphiFormat.Format`（§17.2 规程） |
+| `Now`（TDateTime） / `GetTickCount` | ✅ `DelphiDate.Now()` / 可注入的 `DelphiTick.GetTickCount()` |
+| `MainOutMessage` | ✅ `RoleDbSeam.MainOutMessage` |
+
+★ **一处原文陷阱**：`case nIdent of SS_OPENSESSION {100}` 里的 **`{100}` 注释是陈旧的**（真值是 **1000**，
+`SS_CLOSESESSION {101}`→**1010**、`SS_KEEPALIVE {104}`→**1040**）。⇒ **1:1 照抄 case 标签，不要照抄注释里的十进制值**。
+
+**需要的新接缝（精确签名）**——共 4 组，都是"宿主面"而不是"未移植算法"：
+
+```csharp
+// 1) JSocket/TClientSocket（未移植）：本单元只用到 8 个成员
+public interface IIDSocClientSocket            // 对应 IDSocket: TClientSocket
+{
+    bool Active { get; set; }                  // OpenConnect/CloseConnect/Timer1Timer
+    string Address { get; set; }               // OpenConnect/Timer1Timer（g_sIDServerAddr）
+    int Port { get; set; }                     // OpenConnect/Timer1Timer（g_nIDServerPort）
+    bool Connected { get; }                    // IDSocket.Socket.Connected
+    void SendText(string sMsg);                // IDSocket.Socket.SendText
+    string ReceiveText { get; }                // IDSocketRead → Socket.ReceiveText
+    string RemoteAddress { get; }              // IDSocketConnect
+    int LocalPort { get; }                     // IDSocketConnect（模块地址串）
+    int RemotePort { get; }                    // IDSocketConnect
+    void Close();                              // IDSocketError → Socket.Close
+}
+
+// 2) TTimer（未移植）：只用 Enabled
+public static Action<bool> Timer1Enabled;          // Timer1.Enabled
+public static Action<bool> KeepAliveTimerEnabled;  // KeepAliveTimer.Enabled
+
+// 3) uFrmMain.pas:434-453 GetSelectCharCount（DBSUSETHREAD=0 分支 = SelectSocket.Socket.ActiveConnections）
+public static Func<int> GetSelectCharCount;
+
+// 4) DBShare.pas 全局 + 模块表（均未移植）
+public static string g_sIDServerAddr = "127.0.0.1";   // DBShare.pas:129
+public static int    g_nIDServerPort  = 5600;         // DBShare.pas:128
+public static string g_sServerName    = "GeeM2";      // DBShare.pas:131
+public static IntPtr AddModule(string moduleName, string address, string buffer);  // DBShare.pas:98
+public static void   RemoveModule(IntPtr module);                                  // DBShare.pas:99
+```
+
+**纯逻辑占比很高**（可高覆盖测试）：`GlobaSessionList` 的增删查（`ProcessAddSession` / `ProcessDelSession`）、
+9 个会话查询/变更（`CheckSession` / `CheckSessionLoadRcd` / `CheckSessionHeroLoadRcd` / `SetSessionSaveRcd` /
+`SetGlobaSessionNoPlay` / `SetGlobaSessionPlay` / `GetGlobaSessionStatus` / `CloseSession` / `GetSession`）、
+解包循环（`ProcessSocketMsg`）、组包（`SendSocketMsg`）。
+真正只剩接缝的是：`FormCreate/FormDestroy`、`Timer1Timer`、`IDSocketRead/Error/Connect/Disconnect`、
+`SendKeepAlivePacket`、`OpenConnect`/`CloseConnect`。
+
+### 13.4 ★ 需要的分区（**待授权，本车道未动**）
+
+自查：`main` 的 `lane-zones.tsv` 里本车道是
+`!…/SelectClient*.cs;!…/DBServerService.cs;!…/RoleDatabase.cs;!…/tests/…/SelectClient*;!…/docs/并行报告-p7-db-selectclient.md` —— **不含 `IDSocCli*`**。
+
+| 需要授权的路径 | 用途 |
+|---|---|
+| `GXX.CSharp/src/GXX.DBServer/IDSocCli*.cs` | 按转换开发文档 §3.3（文件名与原 .pas 单元名一致）新建 `IDSocCli.cs` —— **不把别人的单元塞进 `SelectClient*.cs` 里凑路径** |
+| `GXX.CSharp/tests/GXX.DBServer.Tests/IDSocCli*` | 对应测试 |
+
+（若集成方更希望**直接扩成 `GXX.DBServer/**`**，请一并告知；否则上面两条即可。）

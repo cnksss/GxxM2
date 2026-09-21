@@ -416,9 +416,17 @@ public class TSelectClient : TServerClientWinSocket
             TUserInfo? UserInfo = SelectCharList.OnLineItems(I);
             if ((UserInfo != null) && (UserInfo.sConnID == sID))
             {
-                ITFrmIDSoc FrmIDSoc = IDSocCliSeam.Require;
-                if (!FrmIDSoc.GetGlobaSessionStatus(UserInfo.nSessionID))
+                // 原文 :714-718：
+                //   if not FrmIDSoc.GetGlobaSessionStatus(nSessionID) then begin
+                //     FrmIDSoc.SendSocketMsg(SS_SOFTOUTSESSION, sAccount + '/' + IntToStr(nSessionID));
+                //     FrmIDSoc.CloseSession(sAccount, nSessionID);
+                //   end;
+                //
+                // ★ 走**窄口子**（偏差 D-p7-13，语义与理由见 IDSocCliSeam.CloseUser_ShouldCloseSession）：
+                //   只有这一步允许"未接线时记日志 + 跳过清理"；其余全部接缝保持抛异常。
+                if (IDSocCliSeam.CloseUser_ShouldCloseSession(UserInfo.nSessionID))
                 {
+                    ITFrmIDSoc FrmIDSoc = IDSocCliSeam.Require;
                     FrmIDSoc.SendSocketMsg((ushort)CommonConst.SS_SOFTOUTSESSION,
                         UserInfo.sAccount + "/" + DelphiRTL.IntToStr(UserInfo.nSessionID));
                     FrmIDSoc.CloseSession(UserInfo.sAccount, UserInfo.nSessionID);
