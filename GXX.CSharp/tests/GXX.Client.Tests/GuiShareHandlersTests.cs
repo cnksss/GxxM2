@@ -1690,6 +1690,96 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 接缝防回潮守卫（B-11 / 报告 §12）
+    //
+    // 调度方指派本车道退役 FStateMShareSeam 里 9 个 `g_*` 接缝（真身已由 p17-client-mshare
+    // 落在 main 的 MShareGlobals）。退役后这些名字**不得**再作为接缝出现。
+    // 本用例在**退役执行前也会通过**（那时全局侧还没有同名真身），
+    // 退役后转为"两侧都不得同名"；若后人把同名接缝加回来，它立刻红。
+    // -------------------------------------------------------------------------------------
+
+    /// <summary>接缝 → 已落地的真身（退役后接缝侧必须消失）。</summary>
+    private static readonly (string Seam, string Global)[] RetirableSeamToGlobal =
+    {
+        ("g_dwQueryMsgTick", "g_dwQueryMsgTick"),
+        ("g_dwDealActionTick", "g_dwDealActionTick"),
+        ("g_dwChallengeActionTick", "g_dwChallengeActionTick"),
+        ("g_boDealEnd", "g_boDealEnd"),
+        ("g_nDealGold", "g_nDealGold"),
+        ("g_boChallengeEnd", "g_boChallengeEnd"),
+        ("g_nChallengeGold", "g_nChallengeGold"),
+        ("g_SellDlgItem", "g_SellDlgItem"),
+        ("g_ExtBagOpenItemCount", "g_ExtBagOpenItemCount"),
+    };
+
+    private static bool HasPublicStaticField(Type type, string name)
+        => type.GetField(name, BindingFlags.Public | BindingFlags.Static) != null;
+
+    [Fact]
+    public void NoMShareSeamFieldShadowsTheLandedGlobal()
+    {
+        var seam = typeof(FStateMShareSeam);
+        var globals = typeof(GXX.Client.GUI.Mir.MShareGlobals);
+
+        var collisions = new List<string>();
+        foreach (var (seamName, globalName) in RetirableSeamToGlobal)
+        {
+            bool seamHas = HasPublicStaticField(seam, seamName);
+            bool globalHas = HasPublicStaticField(globals, globalName);
+
+            // 两种情况都算违规：
+            //   (a) 退役已完成 ⇒ 接缝侧必须**没有**该字段；
+            //   (b) 若接缝侧仍有它，则全局侧**不得**也有同名（那正是合并会撞的形态）。
+            if (!seamHas && globalHas) continue;   // 已退役，正确
+            if (seamHas && !globalHas) continue;   // 真身尚未同步进来，暂态
+            collisions.Add(seamName + (seamHas ? "" : " (接缝侧缺)") + (globalHas ? "" : " (全局侧缺)")
+                           + " —— 接缝与真身同名并存，退役前必须先删接缝字段（报告 §12.2）");
+        }
+
+        Assert.Empty(collisions);
+    }
+
+    [Fact]
+    public void EveryMShareSeamFieldIsEitherRetirableOrExplicitlyStays()
+    {
+        // 反向完整性：FStateMShareSeam 上每个 `g_` 字段都必须**有归属** ——
+        // 要么在"可退役"名单里（→ 真身已在 MShareGlobals，退役后应消失），
+        // 要么在"明确保留"名单里并写清原因。
+        // 这样后人再往接缝里塞一个 `g_` 字段时，不登记就会红。
+        var retirable = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (seamName, _) in RetirableSeamToGlobal) retirable.Add(seamName);
+
+        // 明确保留（真身尚未落地或按记录承载，见报告 §12.2 第 4 步）：
+        //   * g_SelDeleteHumanInfo_sChrName —— 单字段承载；CR-1 后应改为整条记录
+        //   * g_nMinMapX / g_nMinMapY       —— MShare 真身尚未落地
+        //   * g_ClientConfig_*              —— Grobal2 的 g_ClientConfig（TClientConfig）未落地
+        var explicitKeep = new HashSet<string>(StringComparer.Ordinal)
+        {
+            // 单字段承载；CR-1 后应改为整条记录（报告 §12.2 第 4 步）
+            "g_SelDeleteHumanInfo_sChrName",
+            "g_MouseUserStateItem_sName",
+            // MShare 真身尚未落地（本车道切片 3/7/8/10 按需补的独立接缝）
+            "g_nMinMapX", "g_nMinMapY",
+            "g_dwChangeGroupModeTick", "g_boAllowGroup",
+            "g_DealDlgItem", "g_GameGoldDealRemoteItems", "g_GameGoldDeal",
+            // Grobal2 的 g_ClientConfig（TClientConfig）未落地
+            "g_ClientConfig_boNPCGuiCanMove", "g_ClientConfig_DMerchantDlgHelp",
+        };
+
+        var unaccounted = new List<string>();
+        foreach (var fi in typeof(FStateMShareSeam).GetFields(BindingFlags.Public | BindingFlags.Static))
+        {
+            if (!fi.Name.StartsWith("g_", StringComparison.Ordinal)) continue;
+            if (retirable.Contains(fi.Name) || explicitKeep.Contains(fi.Name)) continue;
+            unaccounted.Add(fi.Name);
+        }
+
+        Assert.True(unaccounted.Count == 0,
+            "FStateMShareSeam 上出现未登记的 `g_` 字段（请登记为可退役或明确保留）: "
+            + string.Join(", ", unaccounted));
+    }
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 
