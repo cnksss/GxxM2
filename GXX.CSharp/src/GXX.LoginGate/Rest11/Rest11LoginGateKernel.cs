@@ -116,7 +116,12 @@ public sealed class Rest11LoginGateKernel : IDisposable
         int slot = session.Socket % g_UserList.Count;
         if (slot < 0) slot += g_UserList.Count;
         g_UserList[slot] = session;
-        g_CurrIPaddrList.Add(session.IPText);                       // AppMain.pas:762 g_CurrIPaddrList.Find(...)
+        // 车道 p14-logingate-wire 修正：`g_CurrIPaddrList` 原属 **AppMain.pas:760-980 的
+        // 服务器消息记账块**（`g_CurrIPaddrList.Lock/Find/Add`，用于账号错/密码错/验证攻击计数），
+        // 而那一整块至今**未移植**。p11 曾在此处 `Add(session.IPText)`，属**伪造的调用点**
+        // （原文该表不由"客户端接入"填充），本车道予以删除以免制造不存在的语义。
+        // `g_CurrIPaddrList` 字段本身保留（原文 `FuncForComm.pas:78` 的全局量），
+        // 待 AppMain 记账块移植后由它使用。
         g_ProcMsgThread.AddSession(session);                        // ClientSession.pas:713
     }
 
@@ -200,6 +205,9 @@ public sealed class Rest11GateSessionAdapter : IRest11SessionObj
         IPText = ipText;
     }
 
+    /// <summary>被包装的既有会话（`GXX.GatewayKit.GateSession`）。</summary>
+    public GateSession Raw => _session;
+
     public int IPAddr { get; }
     public string IPText { get; }
 
@@ -208,18 +216,41 @@ public sealed class Rest11GateSessionAdapter : IRest11SessionObj
 
     public int Socket => _session.SocketId;                    // m_pUserOBJ._SendObj.Socket
     public bool KickFlag { get; set; }                         // m_fKickFlag
-    public byte HandleLogin { get; set; }                      // m_fHandleLogin
-    public int SvrObject { get; set; }                         // m_nSvrObject
+
+    /// <summary>
+    /// `ClientSession.pas:19 m_fHandleLogin: Byte`。
+    /// ★ 可写：原文 `ProcessCltData:462` 每次处理客户端包都**无条件**置 2
+    /// （车道 p14-logingate-wire 接线后由 `Rest11LoginGatePacketGate.DispatchCommand` 承担）。
+    /// </summary>
+    byte IRest11SessionObj.HandleLogin { get; set; }
+
+    /// <summary>`ClientSession.pas:22 m_nSvrObject`（`SM_OUTOFCONNECTION` 的 `nRecog` 实参）。</summary>
+    public int SvrObject { get; set; }
+
     public uint dwClientTimeOutTick { get; set; } = DelphiRTL.GetTickCount();  // :68
     public bool IsDelayClose { get; set; }                     // :78 m_IsDelayClose
     public uint dwDelayCloseTick { get; set; } = DelphiRTL.GetTickCount();     // :79
 
     // ---- ClientSession.pas 的 LoginGate 独有残部（SelGate 副本没有）----
     public uint m_dwProtocolPassword;                          // :27
+
+    /// <summary>`ClientSession.pas:28 m_IsCanSetL2Password`（显式接口实现；底层字段同名）。</summary>
     public bool m_IsCanSetL2Password;                          // :28
+
+    /// <summary>`ClientSession.pas:29 m_IsCanCheckL2Password`（显式接口实现；底层字段同名）。</summary>
     public bool m_IsCanCheckL2Password;                        // :29
 
-    /// <summary>`ClientSession.pas:785-789 DelayClose(DelayTick)`。</summary>
+    /// <summary>`IRest11SessionObj.m_IsCanSetL2Password` 的显式实现（`AppMain.pas:748` 置位 / `:502` 消费）。</summary>
+    bool IRest11SessionObj.m_IsCanSetL2Password { get => m_IsCanSetL2Password; set => m_IsCanSetL2Password = value; }
+
+    /// <summary>`IRest11SessionObj.m_IsCanCheckL2Password` 的显式实现（`AppMain.pas:750` 置位 / `:518` 消费）。</summary>
+    bool IRest11SessionObj.m_IsCanCheckL2Password { get => m_IsCanCheckL2Password; set => m_IsCanCheckL2Password = value; }
+
+    /// <summary>
+    /// `ClientSession.pas:785-789 DelayClose(DelayTick)`：
+    /// `m_dwDelayCloseTick := GetTickCount + DelayTick; m_IsDelayClose := True;`
+    /// （到期判定在 `FuncForComm.TProcMsgThread.Run` :213）。
+    /// </summary>
     public void DelayClose(uint DelayTick)
     {
         dwDelayCloseTick = DelphiRTL.GetTickCount() + DelayTick; // :787

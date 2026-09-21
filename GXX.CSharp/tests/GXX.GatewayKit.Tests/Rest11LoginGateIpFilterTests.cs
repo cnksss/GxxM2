@@ -42,6 +42,18 @@ internal sealed class FakeSession : IRest11SessionObj
     public uint dwClientTimeOutTick { get; set; }
     public bool IsDelayClose { get; set; }
     public uint dwDelayCloseTick { get; set; }
+
+    // ---- 车道 p14-logingate-wire 新增的接口成员（`ProcessCltData` 分派与 L2 门控需要可写）----
+    public bool m_IsCanSetL2Password { get; set; }      // ClientSession.pas:28
+    public bool m_IsCanCheckL2Password { get; set; }    // ClientSession.pas:29
+    public uint m_dwProtocolPassword { get; set; }      // ClientSession.pas:27
+
+    /// <summary>`ClientSession.pas:785-789 DelayClose(DelayTick)`。</summary>
+    public void DelayClose(uint DelayTick)
+    {
+        dwDelayCloseTick = DelphiRTL.GetTickCount() + DelayTick;   // :787
+        IsDelayClose = true;                                       // :788
+    }
 }
 
 public class Rest11LoginGateIpFilterTests : IDisposable

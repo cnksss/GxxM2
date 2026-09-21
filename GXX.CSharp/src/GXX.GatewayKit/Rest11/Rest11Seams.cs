@@ -113,6 +113,80 @@ public struct TIPArea
 }
 
 /// <summary>
+/// `ClientSession.pas:157-401 ProcessCltData` 在**进入 :462 的 `CM_*` 分派之前**的三种去向。
+///
+/// <para>
+/// 车道 p14-logingate-wire 把该段（原文 `:189-247` 的包头门控 + `:462-687` 的分派）接线时，
+/// 需要一个能表达"原文在这里 `Exit` / `KickUser` / 落到 `CM_*` 分派"的返回契约。
+/// 原文用的是 `Exit` + `Succeed` 出参 + `KickUser` 的副作用组合，托管以枚举显式化。
+/// </para>
+/// </summary>
+public enum Rest11ProcessCltResult
+{
+    /// <summary>未命中任何门控 ⇒ 继续进入 `:462` 的 `CM_*` 分派（原文"落到后面"）。</summary>
+    ContinueToDispatch = 0,
+
+    /// <summary>原文调用 `KickUser(...)` 并 `Exit`（`:200`/`:213`/`:225`/`:233`/`:244`/`:398`/`:683`）。</summary>
+    Kick = 1,
+
+    /// <summary>原文 `ProcessSvrData` 走"置位后反转 `m_fKickFlag` 并关连接"（`:1027` 效果，见 `:189-194`）。</summary>
+    KickFlagReversed = 2
+}
+
+/// <summary>
+/// `ClientSession.pas:123-155 SendDefMessage` 需要的**最小帧输入**：
+/// `wIdent` + `nRecog` + 三个 Word 参数 + 消息体（`sMsg`）。
+///
+/// <para>
+/// 车道 p14-logingate-wire 新增：既有设施只用 `EDcode` 手工装帧；接线后
+/// `CM_*` 分派 / `SM_*` 二级密码响应 / `SM_OUTOFCONNECTION` 都要发**同一种**
+/// `# + EncodeBuffer(TCmdPack + sMsg) + !` 帧，故把它提成一个显式记录，
+/// 由 <see cref="Rest11LoginGateSession.BuildDefMessageFrame"/> 复用（§14.2 不造第二份实现）。
+/// </para>
+/// </summary>
+public readonly struct Rest11DefMessage
+{
+    public readonly ushort Ident;   // wIdent
+    public readonly long Recog;     // nRecog（Int64）
+    public readonly ushort Param;   // nParam
+    public readonly ushort Tag;     // nTag
+    public readonly ushort Series;  // nSeries
+    public readonly string Msg;     // sMsg（原文 `:142 Move(sMsg[1], ...)`，GBK 字节）
+
+    public Rest11DefMessage(ushort ident, long recog, ushort param, ushort tag, ushort series, string msg)
+    {
+        Ident = ident;
+        Recog = recog;
+        Param = param;
+        Tag = tag;
+        Series = series;
+        Msg = msg ?? "";
+    }
+}
+
+/// <summary>
+/// `ClientSession.pas:462-687` 的 `CM_*` 分派结果（dispatcher 的出口）。
+///
+/// <para>
+/// `AppMain.pas:735-753` 的"服务器 → 网关"路径给出的 `SM_*` 会置位二级密码许可
+/// （`m_IsCanSetL2Password` / `m_IsCanCheckL2Password`）或调用 `DelayClose(8000)`；
+/// 客户端侧则在 `CM_SETL2PASSWORD` / `CM_CHECKL2PASSWORD` 处**消费**该许可。
+/// 三态即原文的"落到 `else` 踢线 / 消费许可后正常转发"。
+/// </para>
+/// </summary>
+public enum Rest11CommandDispatchResult
+{
+    /// <summary>`CM_MACHINEID` 命中（`:521-567`）：原文 **只** 处理版本号，随后 `Exit`（`:566`），**不转发**。</summary>
+    HandledExit = 0,
+
+    /// <summary>命中 `CM_*` 白名单且通过二级密码门控 ⇒ 原文 `:569-579` 把包转发给 `m_tLastGameSvr`。</summary>
+    ForwardToGameSvr = 1,
+
+    /// <summary>`CM_SETL2PASSWORD`/`CM_CHECKL2PASSWORD` 无许可，或落到未列入白名单的 `else`（`:679-685`）⇒ `KickUser`。</summary>
+    Kick = 2
+}
+
+/// <summary>
 /// `ClientSession.pas` 的 `TSessionObj` 中，`Misc.pas` / `FuncForComm.pas` / `IPAddrFilter.pas`
 /// 判定所需的**只读接缝**（其余字段见 `Rest11LoginGateSession`）。
 ///
@@ -138,11 +212,23 @@ public interface IRest11SessionObj
     /// <summary>`m_fKickFlag`（可写：KickUser/BlockUser/DelayClose 都要置位）。</summary>
     bool KickFlag { get; set; }
 
-    /// <summary>`m_fHandleLogin: Byte`（`>= 2` 走 SM_OUTOFCONNECTION，`< 3` 才进入超时判定）。</summary>
-    byte HandleLogin { get; }
+    /// <summary>`m_fHandleLogin: Byte`（可写）。
+    /// ★ 车道 p14-logingate-wire 接线后，`ClientSession.pas:462` 的**无条件**
+    /// `m_fHandleLogin := 2` 由 `Rest11LoginGatePacketGate.DispatchCommand` 承担，
+    /// 故由只读改为可写。</summary>
+    byte HandleLogin { get; set; }
 
-    /// <summary>`m_nSvrObject: Integer`。</summary>
-    int SvrObject { get; }
+    /// <summary>`m_nSvrObject: Integer`（可写：`AppMain.pas:1053` 之外由服务器消息回填）。</summary>
+    int SvrObject { get; set; }
+
+    /// <summary>`m_IsCanSetL2Password`（`ClientSession.pas:28`；由 `AppMain.pas:748` 置位、`:502` 消费）。</summary>
+    bool m_IsCanSetL2Password { get; set; }
+
+    /// <summary>`m_IsCanCheckL2Password`（`ClientSession.pas:29`；由 `AppMain.pas:750` 置位、`:518` 消费）。</summary>
+    bool m_IsCanCheckL2Password { get; set; }
+
+    /// <summary>`DelayClose(DelayTick)`（`ClientSession.pas:785-789`；`:538` / `:752` 调用）。</summary>
+    void DelayClose(uint DelayTick);
 
     /// <summary>`m_dwClientTimeOutTick: LongWord`（可写：巡检会刷新它）。</summary>
     uint dwClientTimeOutTick { get; set; }

@@ -1,0 +1,121 @@
+﻿# 归档：GXX.GatewayKit.Tests 侧对真实 LoginGateService 的端到端接线用例（p14-logingate-wire）
+
+> 状态：**已实测通过（3/3）**，但**不在提交树内参与编译**。
+> 原因：	ests/GXX.GatewayKit.Tests/GXX.GatewayKit.Tests.csproj 在本车道基线上
+> **没有** GXX.LoginGate 项目引用，而本车道的分区禁止改 csproj。
+> 集成方若在 csproj 增加下面一行，把本文件复制为
+> 	ests/GXX.GatewayKit.Tests/Rest14LoginGateWiringE2E.cs（并去掉 .txt 后缀）即可启用：
+>
+> ``xml
+> <ProjectReference Include="..\..\src\GXX.LoginGate\GXX.LoginGate.csproj" />
+> ``
+>
+> 实测命令（本车道已跑过）：
+> dotnet test GXX.CSharp/tests/GXX.GatewayKit.Tests/GXX.GatewayKit.Tests.csproj -c Debug --nologo -m:1
+> → 加入本文件后 196 例全绿（其中本文件 3 例）。
+
+## 实测结论（3 例）
+
+| 用例 | 断言 | 结果 |
+|---|---|---|
+| DefaultConstructor_DoesNotWireRest11 | 
+ew LoginGateService(null, ini) ⇒ Rest11Options == null 且 Rest11Wire == null（设施**根本不存在**） | 通过 |
+| OptInConstructor_WiresKernelAndLoadsOriginalSections | 
+ew LoginGateService(Rest11LoginGateOptions.All, ini) ⇒ kernel 装配、Enabled == true；[LoginGate]/[Integer] 原文段名已加载（ShowLogLevel=6、MaxConnectOfIP=3、CheckNewIDOfIP=2、ClientTimeOutTime3=20000）；接缝三条判定可调用 | 通过 |
+| OptIn_StartService_RunsResidualStartup | StartService() ⇒ g_fServiceStarted == true、g_ProcMsgThread.Enabled == true、两张黑名单文件路径可用 | 通过 |
+
+## 源码
+
+``csharpusing System;
+using System.IO;
+using GXX.GatewayKit.Rest11;
+using Xunit;
+
+namespace GXX.GatewayKit.Tests;
+
+/// <summary>
+/// 杞﹂亾 **p14-logingate-wire** 鐨?*绔埌绔帴绾?*鐢ㄤ緥锛氱洿鎺ユ瀯閫犵湡瀹炵殑
+/// `GXX.LoginGate.LoginGateService`锛岄獙璇?榛樿鍏抽棴"涓?鏄惧紡 opt-in"涓や晶銆?/// 锛堟湰鏂囦欢鍦?csproj 澧炲姞 `GXX.LoginGate` 寮曠敤鏃舵墠鍙備笌缂栬瘧锛涜鎶ュ憡 搂闃诲銆傦級
+/// </summary>
+public class ZWireTests : IDisposable
+{
+    private readonly string _dir;
+
+    public ZWireTests()
+    {
+        _dir = Path.Combine(Path.GetTempPath(), "zwire-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(_dir);
+    }
+
+    public void Dispose()
+    {
+        try { Directory.Delete(_dir, true); } catch { }
+    }
+
+    private string IniPath => Path.Combine(_dir, "Config.ini");
+
+    [Fact]
+    public void DefaultConstructor_DoesNotWireRest11()
+    {
+        var svc = new GXX.LoginGate.LoginGateService(null, IniPath);
+        try
+        {
+            Assert.Null(svc.Rest11Options);
+            Assert.Null(svc.Rest11Wire);
+        }
+        finally { svc.Dispose(); }
+    }
+
+    [Fact]
+    public void OptInConstructor_WiresKernelAndLoadsOriginalSections()
+    {
+        File.WriteAllText(IniPath,
+            "[LoginGate]\r\nShowLogLevel=6\r\nCount=1\r\nServerAddr=127.0.0.1\r\nServerPort=5500\r\nGatePort=7000\r\n" +
+            "[Integer]\r\nMaxConnectOfIP=3\r\nCheckNewIDOfIP=2\r\nClientTimeOutTime3=20000\r\n" +
+            "[Switch]\r\nCheckNullSession=-1\r\nCheckNewIDOfIP=-1\r\n\r\n");
+
+        var svc = new GXX.LoginGate.LoginGateService(Rest11LoginGateOptions.All, IniPath);
+        try
+        {
+            Assert.NotNull(svc.Rest11Options);
+            Assert.NotNull(svc.Rest11Wire);
+            Assert.True(svc.Rest11Wire!.Enabled);
+
+            Assert.Equal(6, svc.Rest11Wire.g_pConfig.m_nShowLogLevel);
+            Assert.Equal(3, svc.Rest11Wire.g_pConfig.m_nMaxConnectOfIP);
+            Assert.Equal(2, svc.Rest11Wire.g_pConfig.m_nCheckNewIDOfIP);
+            Assert.Equal(20000, svc.Rest11Wire.g_pConfig.m_nClientTimeOutTime);
+
+            // `GateService.IRest11GateEnforcement` 鎺ョ紳鐨勪笁鏉″垽瀹氬湪鐪熷疄 kernel 涓婂彲璋冪敤
+            Assert.False(svc.Rest11Wire.IsBlockIP("10.0.0.1"));
+            Assert.False(svc.Rest11Wire.IsBlockIPArea("10.0.0.1"));
+            Assert.False(svc.Rest11Wire.OverConnectOfIP("10.0.0.1"));
+        }
+        finally { svc.Dispose(); }
+    }
+
+    [Fact]
+    public void OptIn_StartService_RunsResidualStartup()
+    {
+        File.WriteAllText(IniPath,
+            "[LoginGate]\r\nShowLogLevel=6\r\nCount=1\r\nGateAddr=127.0.0.1\r\nGatePort=0\r\nServerPort=5500\r\n" +
+            "[Switch]\r\nCheckNullSession=-1\r\n\r\n");
+
+        var svc = new GXX.LoginGate.LoginGateService(Rest11LoginGateOptions.All, IniPath);
+        try
+        {
+            Assert.True(svc.StartService());
+            Assert.True(svc.Rest11Wire!.g_fServiceStarted);
+            Assert.True(svc.Rest11Wire.g_ProcMsgThread.Enabled);
+            Assert.True(File.Exists(svc.Rest11Wire.IPAddrFilter.BlockFilePath));
+        }
+        finally
+        {
+            svc.StopService();
+            svc.Dispose();
+        }
+    }
+}
+
+``
+
