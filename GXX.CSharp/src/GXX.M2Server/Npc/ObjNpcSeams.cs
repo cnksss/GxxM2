@@ -764,6 +764,8 @@ public static class NpcSeams
         IsManageNpc = _ => false;
         IsMissionNpc = _ => false;
         LableIsCanJmp = (_, _) => false;
+        // ★ 第十八轮：`RemoteMsg`/`InPutInteger`/`InPutString` 族的宿主面接缝（§24 五项已批准）
+        ObjNpcInputSeams.ResetDefaults();
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);
