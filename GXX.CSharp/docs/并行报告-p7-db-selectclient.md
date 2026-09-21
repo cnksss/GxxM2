@@ -259,3 +259,76 @@ dotnet test tests\GXX.DBServer.Tests\GXX.DBServer.Tests.csproj -c Debug --nologo
    * `CheckSession` / 会话状态机的真实行为未验证。
 4. **`RoleDatabase.cs` / `DBServerService.cs` 的接线本身 —— 我没动**（只读区）。所以**当前跑起来的 DBServer 仍然只有那 4 条命令**，本车道的成果要等集成方按 §6 接线后才生效（或者说：本车道交付的是"可接线的正确实现"，不是"已接线的服务"）。
 5. **`SelectClientAnsi` 是 `internal`**，测试只能间接覆盖（通过公开入口）；其正/负边界由 `NewChr` 的两个字节语义用例与 `帧A` 的载荷用例间接锁定。
+
+---
+
+## 11. 接线执行（切片7，`5b3bc2e0`）与**待授权的越区路径**
+
+### 11.1 已完成（分区内，可合并）
+
+| 产物 | 内容 |
+|---|---|
+| `src/GXX.DBServer/SelectClient.GateWiring.cs` | `SelectClientGateWiring`：一条 SelGate 连接 ↔ 一个 `TSelectClient`（1000 槽会话表）的绑定、出站按实例路由、收包喂入。对应 `uFrmMain.pas:303-306`(OnGetSocket) / `:335-338`(OnClientDisconnect) / `:340-353`(OnClientRead) |
+| `tests/…/SelectClientGateWiringTests.cs` | **20 例**：接线/断线、两连接互不串扰、RemoteAddress、半包、带偏移切片、未接线抛异常，以及 **SelGate 命令路径的第一批端到端用例** |
+
+`DBServerService` 侧届时只需 3 行：
+```csharp
+int idx = _gateLinks.Count + 1;
+link.OnDisconnected += () => _gateLinks.TryRemove(idx, out _);
+_gateLinks[idx] = link;
+string remote = (client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "";
+SelectClientGateWiring.AttachTcpLink(link, remote);     // ← 新增的唯一一行
+```
+`StopService()` 里加一行 `SelectClientGateWiring.DetachAll();`。
+
+### 11.2 ★ 授权状态（台账 §31.4：授权必须可由仓库状态自查）
+
+```
+git show main:GXX.CSharp/tools/lane-zones.tsv | Select-String p7-db-selectclient
+→ p7-db-selectclient  !GXX.CSharp/src/GXX.DBServer/SelectClient*.cs;!GXX.CSharp/tests/GXX.DBServer.Tests/SelectClient*;!GXX.CSharp/docs/并行报告-p7-db-selectclient.md
+```
+
+**`DBServerService.cs` 与 `RoleDatabase.cs` 不在本车道分区**（三条 `!` 里没有它们）；
+集成方的任务书写的是"若不在你现有分区，请先告诉我需要哪几个路径" ⇒ 本报告 §11.4 即该清单。
+
+### 11.3 §28.3 双根侦察（`src` + `tests` 同时搜）——结论：`:135` 的修正**没有测试冲突**
+
+| 搜索项 | `src` | `tests` |
+|---|---|---|
+| `DBServerService` | 自身 + `Program.cs:26/30`（仅构造） | **0** |
+| `RoleDatabase` | 自身 + `DBServerService.cs:22/44/47` | **0** |
+| `SM_QUERYCHR`/`SM_NEWCHR`/`SM_DELCHR`/`SM_STARTPLAY`/… 字面量 | `DBServerService.cs:135/144/153/164/169` | **0**（除本车道 `SelectClient*` 自己的用例） |
+| 数字常量 520–527 | `DBServerService.cs:135-169` | **0** |
+
+`GXX.Integration.Tests` 只有 2 例，均在 LoginGate / LoginSrv（`LoginGateIntegrationTests.cs`、`LoginSrvIntegrationTests.cs`），**不碰 DBServer**。
+
+* ⇒ 集成方给的停止条件（"若 `:135` 与既有集成测试冲突"）**未触发**：没有任何既有断言依赖现行的 `Param=n>0 / Tag=0`。
+* ⇒ 反向也成立：**现行的 4 条命令一条测试都没有**；删除 `ProcessGateData` 不损失任何覆盖，而本切片的 20 例正是接管它的验收网
+  （`端到端_CM_QUERYCHR_角色数在Recog且Tag为1`、`端到端_CM_QUERYCHR_角色数落在Recog上`、`端到端_未知命令回SM_CHECKISMYSELFSERVER`）。
+
+### 11.4 需要的越区路径（精确两项）
+
+1. `GXX.CSharp/src/GXX.DBServer/DBServerService.cs`
+2. `GXX.CSharp/src/GXX.DBServer/RoleDatabase.cs`
+
+### 11.5 已核实的连带死代码（同文件内，删除 `ProcessGateData` 后）
+
+`DBServerService.cs` 的 `ToByte`(:183)、`ExtractBodyText`(:185-191)、`SendReply`(:193-206)
+**只被 `ProcessGateData` 的 4 个 case 调用**；`src` + `tests` 全仓无其它调用点（§28.3 双根已搜）。
+⇒ 接线时应一并删除（`SendM2Reply` 是 M2 数据端专用，**保留**）。
+
+### 11.6 ★★ 需要裁定：两个依赖**根本没有本体**，只有接缝
+
+* `IDSocCliSeam.FrmIDSoc` ← `IDSocCli.pas`（会话状态机 / LoginSrv 客户端）**未移植**，默认抛 `NotSupportedException`。
+* `SelectClientDbShareSeam.CheckChrName / CheckSpecialChar / CheckDenyChrName / CheckNumberName / CheckLetterName / CheckFilterNewHumanChrName` ← `DBShare.pas:1043-1280` **未移植**，默认抛 `NotSupportedException`。
+
+⇒ 若严格按台账 §25.2「接缝不得静默返回中性值」只接**已有**依赖，**服务一收到 `CM_QUERYCHR` / `CM_NEWCHR` 就会抛异常**。
+三条路，请裁一条：
+
+| 方案 | 行为 | 代价 |
+|---|---|---|
+| **(a) 保持抛异常** | 接线完成、服务可起，但 `CM_QUERYCHR`/`CM_NEWCHR` 抛 `NotSupportedException`（= 显式"未实现"） | 要等 IDSocCli / DBShare 车道补齐才真正可用 |
+| **(b) 显式命名的放行桩**（如 `SelectClientSeamPolicy.UnwiredPermissive`，每次调用 `MainOutMessage` 留痕） | 服务立即可用，行为对齐**现行** C#（不校验会话、名校验全放行） | **正是 §25.2 点名的"中性值"形态** ⇒ 必须登记为带编号的正式偏差 + 调用留痕，不能裸给 |
+| **(c) 一并移植** `IDSocCli.pas` 会话判定 + `DBShare.pas` 名校验族 | 最忠实 | 工作量远超本车道，建议另开 1~2 条车道 |
+
+**我没有自行选 (b)**（它是 §25.2 点名的形态，需要编号裁定）；也**没有改任何分区外文件**。
