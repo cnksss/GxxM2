@@ -284,6 +284,212 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
     }
 
     // -----------------------------------------------------------------------
+    // 8 个小过程（2206-2345）+ 其 14 条分支（2722-2816）
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void ItemPrices_EmptyBody_DoesNothing()
+    {
+        // ★ 原文 2307-2309 **过程体为空** —— 调用后**零发包、零状态变化**（不"顺手补实现"）
+        var m = Merchant();
+        m.ItemPrices(Player());
+        Assert.Empty(_sent);
+    }
+
+    [Fact]
+    public void AutoGetExp_WritesAutoSendMsg()
+    {
+        var p = Player();
+        Merchant().AutoGetExp(p, "挂机中");
+        Assert.Equal("挂机中", p.m_sAutoSendMsg);
+        Assert.Empty(_sent);   // 原文只赋值，不发包（2209 的 SysMsg 是注释）
+    }
+
+    [Fact]
+    public void Storage_PutsPageInNParam2_NotWParam()
+    {
+        // ★ 参数位差异断言：`SendMsg(Self, RM_USERSTORAGEITEM, 0, Self, nPage, 0, '')`
+        //   → wParam=0，nParam1=Self，**nParam2=page**
+        var m = Merchant();
+        m.Storage(Player(), 2);
+        Assert.Equal($"{Grobal2Const.RM_USERSTORAGEITEM}|0|4242|2|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void GetBack_PutsPageInNParam2_NotWParam()
+    {
+        var m = Merchant();
+        m.GetBack(Player(), 3);
+        Assert.Equal($"{Grobal2Const.RM_USERGETBACKITEM}|0|4242|3|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void BigStorage_SamePacketAndArgsAsStorageZero()
+    {
+        // ★ 差异断言：BigStorage 与 Storage(User,0) **同包同实参**，差别**只在守卫**
+        var a = Merchant();
+        a.BigStorage(Player());
+        var b = Merchant();
+        b.Storage(Player(), 0);
+        Assert.Equal(_sent[0], _sent[1]);
+    }
+
+    [Fact]
+    public void BigGetBack_ResetsPageToZero_AndPutsPageInWParam()
+    {
+        // ★ 参数位与 Storage/GetBack **相反**：page 在 wParam、Self 在 nParam1
+        var m = Merchant();
+        var p = Player();
+        p.m_nBigStoragePage = 5;
+        m.BigGetBack(p);
+        Assert.Equal(0, p.m_nBigStoragePage);                                   // 2328 先清零
+        Assert.Equal($"{Grobal2Const.RM_USERBIGGETBACKITEM}|0|4242|0|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void GetPreviousPage_AtZero_StaysZero_NotMinusOne()
+    {
+        // ★ 边界：2334 `if page > 0` → page=0 走 else 显式置 0，**不会变成 -1**
+        var m = Merchant();
+        var p = Player();
+        p.m_nBigStoragePage = 0;
+        m.GetPreviousPage(p);
+        Assert.Equal(0, p.m_nBigStoragePage);
+        Assert.Equal($"{Grobal2Const.RM_USERBIGGETBACKITEM}|0|4242|0|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void GetPreviousPage_FromThree_Decrements()
+    {
+        var m = Merchant();
+        var p = Player();
+        p.m_nBigStoragePage = 3;
+        m.GetPreviousPage(p);
+        Assert.Equal(2, p.m_nBigStoragePage);
+        Assert.Equal($"{Grobal2Const.RM_USERBIGGETBACKITEM}|2|4242|0|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void GetNextPage_HasNoUpperBound()
+    {
+        // ★ 原文 2343 只有 `Inc`，**没有任何 Max 夹取** —— 照抄
+        var m = Merchant();
+        var p = Player();
+        p.m_nBigStoragePage = 99;
+        m.GetNextPage(p);
+        Assert.Equal(100, p.m_nBigStoragePage);
+    }
+
+    [Fact]
+    public void FourStorageArms_ShareOneGuard_AndPassPagesZeroToThree()
+    {
+        // ★ 差异断言：2757-2776 四条 Storage 分支**共用 `m_boStorage`**，只有 page 不同
+        var m = Merchant();
+        m.m_boStorage = true;
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Storage));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Storage2));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Storage3));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Storage4));
+        Assert.Equal(4, _sent.Count);
+        Assert.Equal($"{Grobal2Const.RM_USERSTORAGEITEM}|0|4242|0|0|", _sent[0]);
+        Assert.Equal($"{Grobal2Const.RM_USERSTORAGEITEM}|0|4242|1|0|", _sent[1]);
+        Assert.Equal($"{Grobal2Const.RM_USERSTORAGEITEM}|0|4242|2|0|", _sent[2]);
+        Assert.Equal($"{Grobal2Const.RM_USERSTORAGEITEM}|0|4242|3|0|", _sent[3]);
+    }
+
+    [Fact]
+    public void FourGetbackArms_ShareOneGuard_AndPassPagesZeroToThree()
+    {
+        var m = Merchant();
+        m.m_boGetback = true;
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Getback));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Getback2));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Getback3));
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Getback4));
+        Assert.Equal(4, _sent.Count);
+        Assert.Equal($"{Grobal2Const.RM_USERGETBACKITEM}|0|4242|3|0|", _sent[3]);
+    }
+
+    [Fact]
+    public void StorageAndGetbackGuardsAreSeparate()
+    {
+        // ★ 差异断言：`m_boStorage` 不该放行 Getback（反之亦然）
+        var m = Merchant();
+        m.m_boStorage = true;
+        m.m_boGetback = false;
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Getback);
+        Assert.Empty(_sent);
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Storage);
+        Assert.Single(_sent);
+    }
+
+    [Fact]
+    public void Prices_GuardDrivesEmptyBody()
+    {
+        // 体虽为空，但**守卫仍然生效**（`m_boPrices=false` 时报 0 个包，true 时报 0 个包 —— 差异在分支命中）
+        var m = Merchant();
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Prices));   // 命中分支
+        Assert.Empty(_sent);
+        m.m_boPrices = false;
+        Assert.True(m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_Prices));   // 仍命中，只是不做事
+        Assert.Empty(_sent);
+    }
+
+    [Fact]
+    public void OfflineMsgArm_PassesMsgToAutoGetExp()
+    {
+        var m = Merchant();
+        m.m_boofflinemsg = true;
+        var p = Player();
+        Assert.True(m.UserSelectPortedArms(p, NpcProcessCmd.nNF_OfflineMsg, "离线挂机文本"));
+        Assert.Equal("离线挂机文本", p.m_sAutoSendMsg);
+    }
+
+    [Fact]
+    public void OfflineMsgArm_GuardOff_DoesNotWrite()
+    {
+        var m = Merchant();
+        m.m_boofflinemsg = false;
+        var p = Player();
+        Assert.True(m.UserSelectPortedArms(p, NpcProcessCmd.nNF_OfflineMsg, "x"));
+        Assert.Equal("", p.m_sAutoSendMsg);
+    }
+
+    [Fact]
+    public void BigStorageAndPageArms_GuardsAreIndependent()
+    {
+        var m = Merchant();
+        m.m_boBigStorage = true;
+        m.m_boBigGetBack = false;
+        m.m_boGetPreviousPage = false;
+        m.m_boGetNextPage = false;
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_BigGetback);
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_GetPreviousPage);
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_GetNextPage);
+        Assert.Empty(_sent);
+        m.UserSelectPortedArms(Player(), NpcProcessCmd.nNF_BigStorage);
+        Assert.Single(_sent);
+    }
+
+    [Fact]
+    public void EightSmallProcedures_CommandIdsAreOriginal()
+    {
+        // NpcCommon.pas:44/46-52/54-60/62/64/66/68/106
+        Assert.Equal(18, NpcProcessCmd.nNF_Prices);
+        Assert.Equal(19, NpcProcessCmd.nNF_Storage);
+        Assert.Equal(20, NpcProcessCmd.nNF_Storage2);
+        Assert.Equal(21, NpcProcessCmd.nNF_Storage3);
+        Assert.Equal(22, NpcProcessCmd.nNF_Storage4);
+        Assert.Equal(23, NpcProcessCmd.nNF_Getback);
+        Assert.Equal(26, NpcProcessCmd.nNF_Getback4);
+        Assert.Equal(27, NpcProcessCmd.nNF_BigStorage);
+        Assert.Equal(28, NpcProcessCmd.nNF_BigGetback);
+        Assert.Equal(29, NpcProcessCmd.nNF_GetPreviousPage);
+        Assert.Equal(30, NpcProcessCmd.nNF_GetNextPage);
+        Assert.Equal(49, NpcProcessCmd.nNF_OfflineMsg);
+    }
+
+    // -----------------------------------------------------------------------
     // 派发基础设施（g_NpcProcessCommand 表；原文 NpcCommon.pas:1899-1962）
     // -----------------------------------------------------------------------
 
