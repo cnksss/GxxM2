@@ -1674,3 +1674,65 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
    `NpcProcessCommandIndexOf` 接缝），最后一次性把接缝换成真表。缺点是期间 `UserSelect` 无法端到端验证。
 
 **我倾向 1 或 2**（先补基础设施，避免三片各留半截）。
+---
+
+# 19. 第十三轮（切片 34）：NPC **派发基础设施** 1:1 落地 ★ 本节优先于 §18
+
+## 19.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 34 | `001e26a1` | `Npc/NpcProcessCommand.cs`：`NpcCommon.pas` 的 **68 组 `nNF_*`/`sNF_*` 常量** + **`g_NpcProcessCommand` 表与 68 条注册**；**删 `NpcProcessCommandIndexOf` 替身接缝**；常量单一来源收敛；+27 用例 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,308 passed / 0 failed**。越区检查为空。
+
+## 19.2 落地内容（逐条标注原文行）
+
+| 原文 | 托管 |
+|---|---|
+| `NpcCommon.pas:10-144` 的 68 个 `nNF_*`（值 **1..68**） | `NpcProcessCmd.nNF_*`（每条都带 `/// nNF_X = N（NpcCommon.pas:行）`） |
+| `NpcCommon.pas:33-…` 的 68 个 `sNF_*` 标签 | `NpcProcessCmd.sNF_*` |
+| `NpcCommon.pas:1899-1962` 的 68 条 `g_NpcProcessCommand.AddObject(sLabel, TObject(nNF))` | `NpcProcessCmd.g_NpcProcessCommand`：`AddObject` / `IndexOf` / `GetCommand` / `Count` / `Order` / `Init` / `Reset`，静态构造调 `Init()` |
+
+**查表语义照抄**：`IndexOf` 未命中返回 `-1`（对应原文 `nIndex >= 0` 为假）；
+`GetCommand` 合并原文 2691-2694 的两步（`IndexOf` + `Objects[nIndex]`），未命中同样 `-1`。
+⚠ `TStringList.IndexOf` 默认 **`CaseSensitive = False`** → 用 `OrdinalIgnoreCase`（已加差异用例）。
+
+## 19.3 去替身：`NpcProcessCommandIndexOf` 接缝**已删除**
+
+上一轮为"派发基础设施未移植"加的单一接缝，在本轮基础设施落地后**按"正式归属落地后去掉替身"
+删除** —— 调用方直接 `NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)`。
+**本轮净减 1 个接缝**（累计：§13 删 8 个、§14 删 1 个（`Click`）、§17 删 2 个、本轮删 1 个）。
+
+## 19.4 常量**单一来源**收敛（消除重复声明）
+
+上一轮曾把 `sNF_Repair/RepairOK`、`nNF_SuperRepair/Repair`（以及更早的 `sNF_Upgradeing/OK/Fail`）
+放在 `ObjNpcConst`；本轮基础设施落地后**这 7 条已移出** `ObjNpcConst`，
+统一声明在 `NpcProcessCmd`（原文同属 `NpcCommon.pas`），并把 4 个文件里的引用同步更新
+（`ObjNpcMerchantUpgrade.cs`、`ObjNpcUserSelect.cs`、`NpcObjNpcUpgradeWaponTests.cs`、
+`NpcObjNpcUserSelectRepairTests.cs`）。`ObjNpcConst` 中留了**注释指向新位置**，不留别名。
+
+## 19.5 登记口径（继续克制，未变）
+
+**`UserSelect` 在登记表里仍保持 `Missing`** —— 派发体（2547-2899）与 2547-2696 的
+**标签/参数解析段**仍未移植。本轮只落"基础设施"（常量 + 表），**不**把 `UserSelect` 标 Covered。
+⇒ **基础设施提交尚未完全收口**：原任务书的第 3 项"`2547-2696` 解析"**仍是下一轮内容**
+（它依赖 `GetValidStr3` 一族字符串解析与 `nCode` 语义，是独立的一块）。**已在 §19.6 列出**。
+
+## 19.6 下一轮的唯一待办 + 之后的排期
+
+1. **（下一轮）`2547-2696` 解析段**：`sData` → `sLabel`/`sMsg` 的提取 + `nCode` 赋值。
+   依赖 `GetValidStr3` 一族（`HUtil32`，部分已移植）——开工前会先做依赖普查并**只申请缺的那几个**。
+2. 然后三条分片退化为"填 `case`"：`@repair`（嵌套过程已成 ✅，只需把 `UserSelectRepairCommands`
+   的两个 `case` 搬进真 `switch` 并删除该临时方法）→ `@sell` → `@buy`。
+3. `UserSelectRepairCommands` 的**删除条件**已写进其 XML 注释（可执行判据：
+   `UserSelect` 由 `Missing` → `Covered`，且该方法在 `src`/`tests` 中零引用，`grep` 可验）。
+
+## 19.7 依赖普查（本轮，开工前）
+
+| 项 | 结果 |
+|---|---|
+| D36 同族 / `m_UseItems` 读写点 | **均无**（本文件只落常量与查表，不碰背包/物品） |
+| 查调用点（`src` + `tests`） | `g_NpcProcessCommand` 此前**零引用**（全新基础设施）；`nNF_*`/`sNF_*` 的 7 条旧引用已随 §19.4 收敛 |
+| `params` 重载族 | 无 |
+| 巨型结构值复制 | 无 |
