@@ -197,12 +197,14 @@ Actual:   238
 | B″. `GXX.M2Server` 非委托静态 | **34** | 0 | 34 | ≈25 | 2 | 7 |
 | C. `GXX.GatewayKit`+`GXX.LoginGate`（逐条核过） | **40** | 19 + **2 条失效** | 21 | 34 | 1 | 5 |
 | D. `GXX.Core`（逐条核过） | **14** | 1 | 13 | 8 | 5 | 1 |
-| **合计** | **596** | **22（+2 失效）** | **574** | **≈420** | **≈34** | **≈142** |
-| E. 其它程序集（Client/LoginSrv/DBServer/LogDataServer/GameCenter/RunGate/SelGate） | 未在本车道逐条复核 | — | — | — | — | — |
+| **合计（A–D，已逐条核对）** | **596** | **22（+2 失效）** | **574** | **≈420** | **≈34** | **≈142** |
+| E. 其它程序集（**第二方只读普查**，见下） | **321 + ≈52（Client 抽样）** | **73** | **248+** | **≈200** | **≈59** | **≈13** |
+| **合计（A–E）** | **917+** | **95** | **822+** | **≈620** | **≈93** | **≈155** |
 
 **诚实声明**：A / C / D 的每一行都读过源码，数字精确；
 B / B′ / B″ 的三档分布来自**机械扫描 + 抽样核对**，故写 `≈`（**不是**逐条读过 596 行）。
-E 区**没有**本车道的独立复核 —— 按 §59.2-1 的规程，**车道自报 ≠ 已核**。
+E 区来自**一条独立的第二方只读普查**（判据与本表一致；本车道**抽检 3 条 `file:line` 均准确**，
+但**未全量逐行复核**）⇒ **单列**。按 §59.2-1 的规程：**第二方普查 ≠ 本车道已核**。
 
 ### §5.2 最重要的一个数
 
@@ -240,7 +242,39 @@ ResetDefaults  = 34    ← 34 个接缝类各自写了一个 ResetDefaults()
 | **必须同时加的守卫** | 一条**行为**用例：opt-in 后各造一个黑名单/段表/超连接数命中输入，断言 `CheckIP` **真的拒绝**（修前必红）。 |
 | **建议的工程级措施** | 把 `CS0108`/`CS0114` 从 `src/**` 的 `NoWarn` 移除，或加一条"禁止隐藏基类成员"的门禁 —— 这是本工程"同名不同义 / 静默失效"家族的**第 6 个实例**（前五个见台账 §59.1、§58.2；X-P10-04 是**同一机制**的第二例：`TextReplaceDialog` 用 `new` 隐藏而非 `override`）。 |
 
-### §6.2 X-P17-02：宿主接缝未被静态隔离机制覆盖
+### §6.4 ★★ 结构性结论（第二方普查交回，范围比 §58.5 更大）
+
+> **出货的宿主进程根本不驱动那些 1:1 移植的平面。**
+
+| 宿主 | 实际跑的是 | **从不触碰**的 1:1 平面 |
+|---|---|---|
+| `GXX.RunGate/Program.cs:18-19` | `GateService` 骨架 | `GateShareSeam` / `MirClientContext` |
+| `GXX.SelGate/Program.cs:18-19` | `GateService` 骨架 | `CSelSessionObj` / `CSelGateIPFilter` / `SelGateGlobals` |
+| `GXX.LoginSrv/Program.cs:18-19` | `LoginSrvService` 包在 `GateMainForm` 里 | `MasSock` / `frmGateSet` / `LoginSrvShare` / `RoleDBSeam` |
+| `GXX.LogDataServer/Program.cs:18-19` | `LogDataService` | `TFrmLogManage` / `Pool\FileSearchPool` |
+| `GXX.GameCenter/Program.cs:15-20` | Mutex + 新建 `FrmMain` | `CheckPrevious` / `GMainHelpers` 面 |
+| `GXX.LoginGate/Program.cs:17` | `new LoginGateService()`（**options = null**） | 整个 Rest11 面（§6.1） |
+| **`GXX.M2Server/Program.cs:21`** | **`M2EngineService`（真主循环）** | 表 B 的 523 条接缝 |
+
+⇒ **"未接"在 RunGate/SelGate/LoginSrv/GameCenter/LogDataServer 里，多数不是"忘了一根线"，
+而是"宿主根本不存在"。** 这把 §58.5 的裁定**从 M2Server 扩到 7 个 exe**：
+**D-P17-03 应从"建一个 M2Server HostWire"升级为"给 7 个 exe 各定一个宿主装配点"。**
+
+**两条新机制（本车道登记，都能"把缺口伪装成别的东西"）：**
+
+| ID | 机制 | 实例 |
+|---|---|---|
+| **X-P17-04** | **"b 显式抛"被上层 `catch` + 静默默认值吞成 "a 静默"** | `RoleDbSeam.MainOutMessage = _ => { }`（`DBServer/MySqlRoleDB.Seam.cs:175`）是 `THumanDBBase`/`THeroDBBase` **全部 wrapper 的唯一出口** ⇒ 已接线的 `SelectClientHumanDb/HeroDb` 适配器里 **23 个故意抛 `Unwired` 的成员**全部退化为静默中性返回（导出空文件、静默查不到角色） |
+| **X-P17-05** | **`Reset*` / `ResetForTests` 不是接线**（只是把默认值再写一遍） | `GXX.Client` 全树 grep 赋值 ⇒ **恰好只有 1 处真接线**（`DxControlOps.CanMoveSink`，`DxComponent/DxImageForm.cs:835`）；其余全是"再断言同一个默认值" |
+
+**E 区 Top 3 危险条目**（完整 Top 10 见工单表 §4.4.3）：
+① 上表 `RoleDbSeam.MainOutMessage`；② `GateShareSeam.AddMainLogMsgSink`/`AddBlockIPSink`/`AddTempBlockIPSink`
+（`RunGate/MirClientContextSeams.cs:705/710/714`，`≈80` 个日志点与**全部封禁动作**进入空 lambda，
+而**兄弟平面** `RunGateConfigLoader.LogSink:105` 是接了的 ⇒ 镜像面对外报告"已封禁"却什么都没封）；
+③ `CSelSessionObj.KickUser`+`.SendRaw`（`SelGate/SelGateSession.cs:70/64`，反 CC/`$` 攻击只记日志不踢人，
+且客户端**什么都收不到**）。
+
+### §6.5 X-P17-02：宿主接缝未被静态隔离机制覆盖
 
 `tests/GXX.M2Server.Tests/M2ConfigIsolationCoverage.cs`（**不在本车道分区**）的类型清单里
 **没有** `M2EngineService`。本车道的两个接缝因此**刻意做成实例字段**（见 §2.1），
@@ -279,7 +313,7 @@ ResetDefaults  = 34    ← 34 个接缝类各自写了一个 ResetDefaults()
 | 4 | `CM_QUERYUSERNAME` 1:1 化 | 依赖缺口 | D-P17-05：四个上游面未接 |
 | 5 | `TMonster.Run` 1:1 化 | 依赖缺口 | `p16-m2-tmonster-run` **未并入 main** ⇒ 本链路用的是 18 行近似物 |
 | 6 | `TPlayObject.Run` 1:1 化 | 依赖缺口 | 原文 `ObjPlayer.pas:3772-5606`（1,835 行）未落地 ⇒ `Process()` 走继承的 `TCreature.Run` |
-| 7 | E 区（Client / LoginSrv / DBServer / LogDataServer / GameCenter / RunGate / SelGate）接缝 | **未独立复核** | 本车道时间/分区；只有各车道自报。建议下一条接线车道按 §59.2-1 **先核对 main 再采信** |
+| 7 | E 区 321 条接缝（RunGate/SelGate/GameCenter/LogDataServer/LoginSrv/DBServer/Client） | **第二方普查已交回，但本车道未全量复核** | 本车道时间/分区；已单列（§5.1）并要求下一个接线车道按 §59.2-1 **先核对 main 再采信** |
 | 8 | `GXX.M2Server` 的 **4,680 条裸 `=> true;`** | 未处理（**不在本车道任务范围**） | 台账 §58.2/§49.3 已登记；本车道只把它数字化（§1.2 命令 4） |
 
 ---
@@ -300,12 +334,15 @@ crash markers found   : none
 GATE: PASS (build 0 error, test exit 0, no crash markers)
 ```
 
-`dotnet test` 摘要行：`已通过! - 失败: 0，通过: 10711，已跳过: 37，总计: 10748`（30 s）
+`dotnet test` 摘要行：`已通过! - 失败: 0，通过: 10711，已跳过: 37，总计: 10748`（27–30 s）
 —— 与台账 §59.8 的 `M2Server 10,696（+37 ticket skip）` 相比 **+15**，
 **恰好等于本车道新增用例数**（9 + 6）。
 
+**提交后已复跑一次**（`defe1fa4` 之后），四行取证完全一致 ⇒ 门禁可复现。
+
 > ⚠ 按 §52.3 的规程，本报告**不以摘要行**为判据；上表四行由 `run-gate.ps1` 打印
 > （`build exit` + `dotnet test exit` + `crash markers` + `GATE:`）。
+> 本车道**没有**只贴摘要行，也没有在 testhost 崩溃的情况下误报"通过"。
 
 ---
 
