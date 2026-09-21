@@ -246,6 +246,63 @@ public class SelectClientGateWiringTests : SelectClientTestBase
         SelectClientGateWiring.Feed(c, bytes, 0, bytes.Length);
     }
 
+    // =====================================================================================
+    // 宿主异常边界（FeedSafe）
+    // =====================================================================================
+
+    [Fact]
+    public void FeedSafe_正常帧返回null且不记错误日志()
+    {
+        var c = AttachAndFeed("10.9.9.9", "%O7/1.1.1.1$");
+        byte[] ok = System.Text.Encoding.Latin1.GetBytes("%-$");
+
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, ok, 0, ok.Length));
+        Assert.DoesNotContain(Logs, s => s.Contains("SelectClient 命令处理抛异常"));
+    }
+
+    [Fact]
+    public void Feed_不加边界_命令异常会原样抛出()
+    {
+        // 差异断言：Feed 是**薄**直通（原文 ExecGateBuffers 也没有 try/except）。
+        IDSocCliSeam.Reset();                                                     // 生产默认：IDSocCli 未接线
+        var c = AttachAndFeed("10.9.9.9", "%O7/1.1.1.1$");
+        c.SelectCharList.OnLineItems(0)!.sAccount = "acct";
+
+        string frame = UserDataFrame("7", Cmd(Grobal2Const.CM_RANDOMNAME));
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
+
+        Assert.Throws<NotSupportedException>(() => SelectClientGateWiring.Feed(c, bytes, 0, bytes.Length));
+    }
+
+    [Fact]
+    public void FeedSafe_命令异常时返回该异常并记日志_不吞不崩()
+    {
+        // ★ 宿主边界（对应原文 VCL 回调的 Application.HandleException）：
+        //   把异常**返回给调用方**（宿主据此断开连接），并把完整消息写进 MainOutMessage。
+        IDSocCliSeam.Reset();
+        var c = AttachAndFeed("10.9.9.9", "%O7/1.1.1.1$");
+        c.SelectCharList.OnLineItems(0)!.sAccount = "acct";
+
+        string frame = UserDataFrame("7", Cmd(Grobal2Const.CM_RANDOMNAME));
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
+
+        Exception? ex = SelectClientGateWiring.FeedSafe(c, bytes, 0, bytes.Length);
+
+        Assert.NotNull(ex);
+        Assert.IsType<NotSupportedException>(ex);
+        Assert.Contains(Logs, s => s.Contains("[ERROR] SelectClient 命令处理抛异常")
+                                && s.Contains("NotSupportedException")
+                                && s.Contains("IDSocCli"));
+    }
+
+    [Fact]
+    public void FeedSafe_长度非正时不抛也不记日志()
+    {
+        var c = Attach();
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, null!, 0, 0));
+        Assert.DoesNotContain(Logs, s => s.Contains("SelectClient 命令处理抛异常"));
+    }
+
     [Fact]
     public void 端到端_CM_QUERYCHR_角色数在Recog且Tag为1()
     {
