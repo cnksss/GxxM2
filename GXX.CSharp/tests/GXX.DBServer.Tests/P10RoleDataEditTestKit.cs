@@ -24,6 +24,9 @@ public sealed class P10FakeHumanDb : THumanDBBase
     /// <summary>DoSave 的返回值（默认 True = 保存成功）。</summary>
     public bool SaveResult = true;
 
+    /// <summary>非 null 时 DoSave 抛这个异常（用于验证 THumanDBBase 公开包装的"吞异常"语义）。</summary>
+    public string ThrowOnSaveMessage;
+
     /// <summary>每一次 Save 的入参快照（编号 + 记录里几个可辨识字段）。</summary>
     public readonly List<(int HumanID, string ChrName, string StoragePwd, uint Gold, int Level)> SaveCalls = new();
 
@@ -36,6 +39,7 @@ public sealed class P10FakeHumanDb : THumanDBBase
     protected override bool DoSave(int HumanID, ref THumData HumData)
     {
         SaveCalls.Add((HumanID, HumData.ChrName, HumData.StoragePwd, HumData.nGold, HumData.Abil.Level));
+        if (ThrowOnSaveMessage != null) throw new InvalidOperationException(ThrowOnSaveMessage);
         return SaveResult;
     }
 

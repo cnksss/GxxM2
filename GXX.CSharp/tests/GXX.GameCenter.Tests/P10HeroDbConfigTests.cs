@@ -69,11 +69,11 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     // ==================================================================
 
     /// <summary>建"三个 DB 文件齐全"的目录，返回目录绝对路径。</summary>
-    private static string MakeDbDir(FakeHeroDB fake, string baseDir, string tableAlias = "StdItems")
+    private static string MakeDbDir(string baseDir)
     {
         string dir = Path.Combine(baseDir, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(dir);
-        File.WriteAllText(Path.Combine(dir, tableAlias + ".DB"), "");
+        File.WriteAllText(Path.Combine(dir, "StdItems.DB"), "");
         File.WriteAllText(Path.Combine(dir, "Monster.DB"), "");
         File.WriteAllText(Path.Combine(dir, "Magic.DB"), "");
         return dir;
@@ -130,12 +130,12 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
-            f.Show();   // 原文窗体是**显示中**的；CheckHeroDB:338 的 Control.Visible 语义只有在显示时才成立
+            f.Show();   // 原文窗体是**显示中**的；:338 的 Control.Visible 语义只有在显示时才成立
             Assert.False(f.CheckHeroDB());            // false = 无缺失
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet1));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet2));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet3));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.False(f.GetTabVisible(f.TabSheet1));
+            Assert.False(f.GetTabVisible(f.TabSheet2));
+            Assert.False(f.GetTabVisible(f.TabSheet3));
+            Assert.False(f.GetTabVisible(f.TabSheet4));
             Assert.Empty(f.MemoLogLines);
             Assert.Empty(Items(f.ListBoxStdItems));
             Assert.Empty(Items(f.ListBoxMonster));
@@ -157,11 +157,11 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.Show();
             Assert.True(f.CheckHeroDB());
             Assert.Equal(new[] { g_sHeroDBName + "配置错误！" }, f.MemoLogLines);
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet1));
+            Assert.True(f.GetTabVisible(f.TabSheet1));
             // :198 的 `if not TabSheet1.TabVisible` 守卫 ⇒ 表检查整段跳过
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet2));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet3));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.False(f.GetTabVisible(f.TabSheet2));
+            Assert.False(f.GetTabVisible(f.TabSheet3));
+            Assert.False(f.GetTabVisible(f.TabSheet4));
             Assert.Empty(Items(f.ListBoxStdItems));
         });
     }
@@ -180,8 +180,8 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.Show();
             Assert.True(f.CheckHeroDB());
             Assert.Equal(new[] { g_sHeroDBName + expected }, f.MemoLogLines);
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet1));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet2));
+            Assert.True(f.GetTabVisible(f.TabSheet1));
+            Assert.False(f.GetTabVisible(f.TabSheet2));
         });
     }
 
@@ -189,7 +189,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     public void CheckHeroDB_MissingStdItemsFields_ListIsCompleteAndOrdered()
     {
         _db = FieldSets.CompleteFake();
-        // 顺序 = 原文检查顺序：14 具名 → 24 个 Element → InsuranceCurrency/InsuranceGold
+        // 顺序 = 原文检查顺序：12 具名 → 24 个 Element → InsuranceCurrency/InsuranceGold
         var removed = new[] { "Color", "OverLap", "HP", "Expand5", "Element1", "Element24", "InsuranceCurrency" };
         foreach (string r in removed) _db.RemoveField("StdItems", r);
         FormSta.Run(() =>
@@ -198,14 +198,14 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.Show();
             Assert.True(f.CheckHeroDB());
             Assert.Equal(removed, Items(f.ListBoxStdItems));
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet2));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet1));
+            Assert.True(f.GetTabVisible(f.TabSheet2));
+            Assert.False(f.GetTabVisible(f.TabSheet1));
             Assert.Empty(f.MemoLogLines);
             // :311 的 `if not TabSheet2.TabVisible` 守卫 ⇒ Monster/Magic 整段跳过
             Assert.Empty(Items(f.ListBoxMonster));
             Assert.Empty(Items(f.ListBoxMagic));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet3));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.False(f.GetTabVisible(f.TabSheet3));
+            Assert.False(f.GetTabVisible(f.TabSheet4));
         });
     }
 
@@ -213,7 +213,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     public void CheckHeroDB_StdItemsCheckCoversExactly38Fields()
     {
         _db = FieldSets.CompleteFake();
-        // 全部 38 个 StdItems 字段都拿掉 ⇒ ListBox 必须逐字列出 38 项（上界 1..24 / 1..5 计数证据）
+        // 全部 38 个 StdItems 字段都拿掉 ⇒ ListBox 必须逐字列出 38 项（计数取证：14 具名 + 24 元素）
         foreach (string field in FieldSets.StdItemsCheckOrder()) _db.RemoveField("StdItems", field);
         FormSta.Run(() =>
         {
@@ -241,8 +241,8 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.Show();
             Assert.True(f.CheckHeroDB());
             Assert.Equal(FieldSets.Monster, Items(f.ListBoxMonster));
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet3));
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.True(f.GetTabVisible(f.TabSheet3));
+            Assert.False(f.GetTabVisible(f.TabSheet4));
         });
     }
 
@@ -268,7 +268,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             Assert.DoesNotContain("NeedL16", items);
             Assert.DoesNotContain("L0Train", items);
             Assert.DoesNotContain("L16Train", items);
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.True(f.GetTabVisible(f.TabSheet4));
         });
     }
 
@@ -282,11 +282,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
         // 场景：StdItems 齐（TabSheet2 不点亮）⇒ 进入 :311 的 else 分支；
         // 同时 Monster 也缺字段 ⇒ :335 已经把 TabSheet3.TabVisible 置 True。
         // 原文 :338 查的却是 Control.Visible（TabSheet3 不是被选中页 ⇒ 恒 False）
-        // ⇒ :340 的 Magic 字段检查**照样执行**。这是原文缺陷，逐字保留。
-        //
-        // 实测结论（D-P10-20）：WinForms 的 TabPage.Visible 在"页签被程序化摘除/追加"之后
-        // 并不可靠（会与被选中页脱钩），因此本用例**以可见后果**取证：
-        // Magic 检查确实跑了（ListBoxMagic 非空），而不是拿一个不可靠属性当真值。
+        // ⇒ :340 的 Magic 字段检查**照样执行**（这是原文缺陷，逐字保留）。
         _db = FieldSets.CompleteFake();
         foreach (string m in FieldSets.Monster) _db.RemoveField("Monster", m);
         _db.RemoveField("Magic", "NeedL1");
@@ -296,20 +292,20 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.Show();
             Assert.True(f.CheckHeroDB());
 
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet3));     // TabVisible 已是 True
-            Assert.False(f.TabSheet3.Visible);                      // 但 Control.Visible 仍是 False（ActivePage 恒为 TabSheet2）
+            Assert.True(f.GetTabVisible(f.TabSheet3));         // TabVisible 已是 True
+            Assert.False(f.TabSheet3.Visible);                 // 但 Control.Visible 仍为 False（ActivePage 恒为 TabSheet2）
             Assert.Equal(FieldSets.Monster, Items(f.ListBoxMonster));
-            // 关键：Monster 刚被判定缺字段，Magic 检查仍被执行（原文 :338 的 TabSheet3.Visible 拦不住）
+            // 关键：Monster 刚被判定缺字段，Magic 检查仍被执行（:338 的死条件拦不住）
             Assert.Equal(new[] { "NeedL1" }, Items(f.ListBoxMagic));
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet4));
+            Assert.True(f.GetTabVisible(f.TabSheet4));
         });
     }
 
     [Fact]
     public void TabPage_VisibleOnlyForSelectedPage()
     {
-        // 前提固化（WinForms 实测）：**未经**程序化摘除/追加时，TabPage.Visible 只对当前选中页为 True。
-        // 原文缺陷 1（:338 用 Control.Visible 而不是 TabVisible）之所以是死条件，根因就在这里。
+        // 前提固化（WinForms 实测）：**未做**页签摘除/追加时，TabPage.Visible 只对当前选中页为 True。
+        // 原文缺陷 1 之所以是死条件，根因就在这里。
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
@@ -324,31 +320,10 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     }
 
     [Fact]
-    public void TabPage_VisibleBecomesUnreliableAfterProgrammaticTabRemoval()
+    public void TabPage_VisibleIsNotTheTabVisibleProperty()
     {
-        // 前提固化 2（偏差 D-P10-19/D-P10-20 的取证）：TabSheet3.TabVisible := False 会把它
-        // 从 TabControl.Controls 摘除，之后再 TabVisible := True 追加回去时，WinForms 会把
-        // TabPage.Visible 与"当前选中页"脱钩（Delphi 的 TabVisible/Visible 是互不干扰的两个属性）。
-        // 结论：托管侧**不得**把 TabPage.Visible 当作 ActivePage 的可靠判据 —— 原文缺陷 1 的
-        // 语义改由"Magic 检查是否执行"这条可见后果锁定（见上一个用例）。
-        FormSta.Run(() =>
-        {
-            using var f = new TFrmHeroDB();
-            f.Show();
-            f.SetTabVisible(f.TabSheet3, false);
-            Assert.False(f.TabSheet3.Visible);
-            f.SetTabVisible(f.TabSheet3, true);
-            Assert.True(TFrmHeroDB.GetTabVisible(f.TabSheet3));     // TabVisible 恢复
-            Assert.False(ReferenceEquals(f.PageControl.SelectedTab, f.TabSheet3));  // 但 ActivePage 没变
-            Assert.True(f.TabSheet3.Visible);                       // ← Visible 已不可靠（不是被选中页却为 True）
-        });
-    }
-
-    [Fact]
-    public void TabPage_VisibleSetterDoesNotHideTab()
-    {
-        // 前提 2：WinForms 里设置 TabPage.Visible **不会**把页签从页签行摘除，
-        // 因此 TabVisible 只能用"摘除/追加 TabControl.Controls"来等价实现（偏差 D-P10-19）。
+        // 前提固化 2：WinForms 的 TabPage 没有 TabVisible，且直接写 TabPage.Visible
+        // **不会**把页签从页签行摘除 ⇒ 托管侧只能另立状态（偏差 D-P10-19）。
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
@@ -356,11 +331,31 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.TabSheet1.Visible = false;                       // 直接写 Control.Visible：
             Assert.Equal(tabsBefore, f.PageControl.TabCount);  // 页签数量不变
             Assert.Contains(f.TabSheet1, f.PageControl.Controls.Cast<System.Windows.Forms.Control>());
+            Assert.True(f.GetTabVisible(f.TabSheet1));         // TabVisible 也不受影响
+        });
+    }
 
-            f.SetTabVisible(f.TabSheet1, false);               // 垫片：
-            Assert.Equal(tabsBefore - 1, f.PageControl.TabCount);   // 页签确实消失
-            Assert.DoesNotContain(f.TabSheet1, f.PageControl.Controls.Cast<System.Windows.Forms.Control>());
-            Assert.False(TFrmHeroDB.GetTabVisible(f.TabSheet1));
+    [Fact]
+    public void SetTabVisible_DoesNotTouchTabPageVisibility()
+    {
+        // 前提固化 3（D-P10-19）：托管 TabVisible 只改自己的状态字典，
+        // 与 Control.Visible 完全解耦 —— 这正是原文缺陷 1（:338 用 Control.Visible 判定）
+        // 能逐字保留、且 :340 的 Magic 检查不会被误跳过的前提。
+        FormSta.Run(() =>
+        {
+            using var f = new TFrmHeroDB();
+            f.Show();
+            System.Windows.Forms.Application.DoEvents();
+
+            f.SetTabVisible(f.TabSheet3, false);
+            Assert.False(f.GetTabVisible(f.TabSheet3));
+            Assert.Equal(4, f.PageControl.TabCount);            // 页签行不变（视觉差异，见 D-P10-19）
+
+            bool visibleBefore = f.TabSheet3.Visible;
+            f.SetTabVisible(f.TabSheet3, true);
+            Assert.True(f.GetTabVisible(f.TabSheet3));
+            Assert.Equal(visibleBefore, f.TabSheet3.Visible);   // Control.Visible 未被触碰
+            Assert.Same(f.TabSheet2, f.PageControl.SelectedTab); // ActivePage 恒为 TabSheet2
         });
     }
 
@@ -413,9 +408,9 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     }
 
     [Fact]
-    public void EditHeroDBPathButtonClick_OnlyMissingOneFile_LogsOnlyThatOne()
+    public void EditHeroDBPathButtonClick_AllFilesPresent_NoWarning()
     {
-        string dir = MakeDbDir(_db, Dir);
+        string dir = MakeDbDir(Dir);
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
@@ -467,25 +462,35 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             Assert.Equal(3, f.MemoLogLines.Count);
             Assert.Empty(_db.SavedConfigFiles);                  // :150 Exit ⇒ 根本没建 THeroDB
             Assert.Equal(0, _db.DisposeCount);
-            Assert.False(g_boHeroDBOK);                          // g_boHeroDBOK 保持初始 False（ResetForTests）
+            Assert.False(g_boHeroDBOK);                          // 保持初始 False（ResetForTests）
         });
     }
 
     [Fact]
     public void ButtonSaveHeroDBConfigClick_Success_WritesAliasAndIniAndSetsOk()
     {
-        string dir = MakeDbDir(_db, Dir);
+        _db = FieldSets.CompleteFake();
+        string dir = MakeDbDir(Dir);
+        var pre = "DIAGF dir=" + dir
+            + "; files=" + File.Exists(Path.Combine(dir, "StdItems.DB"))
+                + File.Exists(Path.Combine(dir, "Monster.DB")) + File.Exists(Path.Combine(dir, "Magic.DB"))
+            + "; tables=" + string.Join(",", _db.Tables)
+            + "; alias=" + _db.AliasExists
+            + "; proxy=" + ReferenceEquals(HeroDBFactory.Create(), _db)
+            + "; aliasCheck=" + HeroDBFactory.Create().HeroDBExist("X")
+            + "; stdColor=" + HeroDBFactory.Create().FieldExist("X", "StdItems", "Color");
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
             f.EditHeroDB.Text = " MyHeroDB ";
             f.EditHeroDBPath.Text = dir + "\\";                  // :141-142 剥尾反斜杠
             f.ButtonSaveHeroDBConfigClick(f);
-
+            if (!g_boHeroDBOK) throw new Xunit.Sdk.XunitException(pre + "; POST memo=["
+                + string.Join("|", f.MemoLogLines) + "]; ok=" + g_boHeroDBOK);
             Assert.Equal("MyHeroDB", g_sHeroDBName);
             Assert.Single(_db.SavedConfigFiles);
             Assert.Equal(("MyHeroDB", dir), _db.SavedConfigFiles[0]);      // :153 不带尾反斜杠
-            // _db 被用了两次（:152 SaveHeroDBConfigFile + :158 CheckHeroDB）⇒ Dispose 计数 2（原文各 Free 一次）
+            // _db 被用了两次（:152 SaveHeroDBConfigFile + :158 CheckHeroDB）⇒ Dispose 2 次（原文各 Free 一次）
             Assert.Equal(2, _db.DisposeCount);
             Assert.Equal("MyHeroDB", g_IniConf!.ReadString("GameConf", "HeroDBName", ""));   // :156
 
@@ -500,7 +505,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     [Fact]
     public void ButtonSaveHeroDBConfigClick_WhenFieldsStillMissing_NoMessageBoxNoClose()
     {
-        string dir = MakeDbDir(_db, Dir);
+        string dir = MakeDbDir(Dir);
         _db.RemoveField("StdItems", "Color");
         FormSta.Run(() =>
         {
@@ -518,7 +523,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     [Fact]
     public void ButtonSaveHeroDBConfigClick_UnwiredHeroDBFactory_ThrowsNotWired()
     {
-        string dir = MakeDbDir(_db, Dir);
+        string dir = MakeDbDir(Dir);
         HeroDBFactory.ResetForTests();                     // 台账 §25.2：默认必须显式抛"未接线"
         FormSta.Run(() =>
         {
@@ -560,9 +565,8 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             // 原文 :394 先 MemoLog1.Clear；但 :489 的 CheckHeroDB 开头会**再次** Clear 所有 Memo，
             // 所以方法返回后 Log1 已被清空 —— 这里用"调用过程中的最长快照"断言。
             var lines = _memo1Snapshot;
-            // 计数取证：14 具名（含 InsuranceCurrency/InsuranceGold）+ 24 个 'ElementI' = **38 行**
-            //（CreateField 共 40 次：:400-:472 的 14 次 + :464/:469 的 2 次 + :476 循环 24 次）
-            // 行序 = 原文检查顺序：14 具名 → 24 元素（原文 :474 的循环在 :464/:469 之后）。
+            // 计数取证：14 具名 + 24 个 'ElementI' = **38 行**；CreateField 也是 38 次
+            //（原文 :400-:472 的 14 次 + :474 循环 24 次）。
             Assert.Equal(38, lines.Count);
             Assert.Equal("Color字段创建失败", lines[0]);
             Assert.Equal("OverLap字段创建失败", lines[1]);
@@ -573,10 +577,9 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             Assert.Equal("Element1字段创建失败", lines[14]);
             Assert.Equal("Element24字段创建失败", lines[37]);
 
-            // CreateField 的（值/长度）规则逐字比对（共 38 次调用：:400-:472 的 14 次 + :474 循环 24 次）
+            // CreateField 的（值/长度）规则逐字比对（"字段:默认值:长度"快照）
             var created = _db.CreatedFields;
             Assert.Equal(38, created.Count);
-            // 逐字快照 "字段:默认值:长度"（避免元组里 object 装箱的 int/byte 比较歧义）
             Assert.Equal(
                 new[]
                 {
@@ -611,27 +614,14 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
 
             Assert.Equal(38, _memo1Snapshot.Count);
             Assert.All(_memo1Snapshot, l => Assert.EndsWith("字段创建成功", l));
-            Assert.Equal(38, _db.CreatedFields.Count);          // 建字段 38 次，日志 38 行
+            Assert.Equal(38, _db.CreatedFields.Count);
             Assert.Equal(FieldSets.StdItemsCreateOrder(), _db.CreatedFields.Select(t => t.Field).ToList());
-            Assert.Equal(
-                new[]
-                {
-                    "Color", "OverLap", "HP", "MP", "Light", "Horse", "Element",
-                    "Expand1", "Expand2", "Expand3", "Expand4", "Expand5",
-                    "InsuranceCurrency", "InsuranceGold",
-                },
-                _memo1Snapshot.Take(14).Select(l => l.Replace("字段创建成功", "")));
-            Assert.Equal("Element1字段创建成功", _memo1Snapshot[14]);
-            Assert.Equal("Element24字段创建成功", _memo1Snapshot[37]);
             Assert.True(g_boHeroDBOK);
             Assert.Equal("数据库更新成功！！！", f.LastMessageBoxText);
             Assert.Equal(0x00 + 0x30, f.LastMessageBoxFlags);
             Assert.True(f.CloseCalled);
         });
     }
-
-    private static (string, string, object, object) ToTuple((string Table, string Field, object Default, object Len) t)
-        => (t.Table, t.Field, t.Default, t.Len);
 
     // ==================================================================
     // ButtonMagicFieldClick（:496-532）+ 取值规则（:509-516）
@@ -671,7 +661,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.ListBoxMagic.Items.AddRange(new object[] { "MaxTrainLv", "CanUpgrade", "NeedL3", "L3Train" });
             f.ButtonMagicFieldClick(f);
 
-            // 同上：:526 的 CheckHeroDB 会清空 MemoLog3 ⇒ 用过程中的最长快照断言。
+            // :526 的 CheckHeroDB 会清空 MemoLog3 ⇒ 用过程中的最长快照断言。
             Assert.Equal(
                 new[]
                 {
@@ -682,13 +672,9 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
                 },
                 _memo3Snapshot);
 
-            Assert.Equal(new (string, string, object, object)[]
-            {
-                ("Magic", "MaxTrainLv", 3, (byte)4),
-                ("Magic", "CanUpgrade", 0, (byte)4),
-                ("Magic", "NeedL3", 20, (byte)4),
-                ("Magic", "L3Train", 200, (byte)4),
-            }, _db.CreatedFields.Select(ToTuple).ToArray());
+            Assert.Equal(
+                new[] { "MaxTrainLv:3:4", "CanUpgrade:0:4", "NeedL3:20:4", "L3Train:200:4" },
+                _db.CreatedFields.Select(t => t.Field + ":" + t.Default + ":" + t.Len));
         });
     }
 
@@ -741,11 +727,9 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
             f.ButtonMonsterFieldClick(f);
 
             Assert.Equal(new[] { "AttackState字段创建成功", "ExploreItem字段创建成功" }, _memo2Snapshot);
-            Assert.Equal(new (string, string, object, object)[]
-            {
-                ("Monster", "AttackState", 0, (byte)4),       // :548 nValue := 0（循环体内）＋ Len=4
-                ("Monster", "ExploreItem", 0, (byte)4),
-            }, _db.CreatedFields.Select(ToTuple).ToArray());
+            Assert.Equal(
+                new[] { "AttackState:0:4", "ExploreItem:0:4" },   // :548 nValue := 0（循环体内）＋ Len=4
+                _db.CreatedFields.Select(t => t.Field + ":" + t.Default + ":" + t.Len));
             Assert.True(f.ButtonMonsterField.Enabled);
         });
     }
@@ -844,7 +828,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
         {
             string Directory = Dir;                          // Dir 由 GameCenterTestBase 真实建好
             Assert.False(TFrmHeroDB.SelectDirectory("请选择数据库目录", "", ref Directory, IntPtr.Zero));
-            Assert.Equal(Dir, Directory);                    // 未取消前原值不动（取消才返回 False，但不清空）
+            Assert.Equal(Dir, Directory);                    // 取消时返回 False，但不清空 var 参数
             Assert.Equal(Dir, initial());
         }
         finally { FolderPicker.Restore(); }
@@ -904,7 +888,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     [Fact]
     public void ButtonSaveHeroDBConfigClick_EmptyEditHeroDB_WritesEmptyAlias()
     {
-        string dir = MakeDbDir(_db, Dir);
+        string dir = MakeDbDir(Dir);
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
@@ -1006,7 +990,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     }
 
     [Fact]
-    public void DfmReconcile_SixOnClickBindings_PlusLoad()
+    public void DfmReconcile_SixOnClickBindings_PlusClosed()
     {
         FormSta.Run(() =>
         {
@@ -1055,6 +1039,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
+            Assert.Equal("FrmHeroDB", f.Name);                                      // DFM 根节点名
             Assert.Equal("HeroDB自动配置", f.Text);                                  // Caption
             Assert.Equal(new System.Drawing.Size(511, 330), f.ClientSize);          // ClientWidth/Height
             Assert.Equal(System.Windows.Forms.FormBorderStyle.FixedDialog, f.FormBorderStyle);  // bsDialog

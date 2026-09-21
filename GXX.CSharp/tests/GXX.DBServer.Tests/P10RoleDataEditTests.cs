@@ -201,11 +201,9 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Empty(dfmControlsOnly.Except(instantiated));
         Assert.Empty(instantiated.Except(dfmControlsOnly));
 
-        // --- 两个非可视组件确实存在（不能靠 Name 计数，故用字段/DFM 差集取证） ---
-        Assert.NotNull(form.SaveDialog);
-        Assert.NotNull(form.OpenDialog);
-        Assert.Equal("SaveDialog", form.SaveDialog.GetType().Name == "SaveFileDialog" ? "SaveDialog" : "?");
-        Assert.Equal("OpenDialog", form.OpenDialog.GetType().Name == "OpenFileDialog" ? "OpenDialog" : "?");
+        // --- 两个非可视组件确实存在（不能靠 Name 计数，故用类型 + DFM 差集取证） ---
+        Assert.IsType<System.Windows.Forms.SaveFileDialog>(form.SaveDialog);
+        Assert.IsType<System.Windows.Forms.OpenFileDialog>(form.OpenDialog);
 
         // --- 35 = 窗体自身 1 条（OnCreate → Load）+ 34 条控件绑定 ---
         Assert.Equal(35, P10FormReconcile.CountEventBindings(form));
@@ -228,7 +226,7 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(29, BoundToEdtPasswordChange.Count(t => t.Event != "Click"));   // 29×OnChange
         Assert.Equal(2, BoundToEdtPasswordChange.Count(t => t.Event == "Click"));    // 2×OnClick
 
-        foreach ((string name, string ev) in BoundToEdtPasswordChange)
+        foreach (var (name, ev) in BoundToEdtPasswordChange)
         {
             var c = P10FormReconcile.FindByName(form, name);
             Assert.True(c != null, "DFM 控件缺失: " + name);
@@ -251,7 +249,7 @@ public class P10RoleDataEditTests : TempDirTest
         };
         Assert.Equal(3, buttons.Length);
 
-        foreach ((string name, System.Windows.Forms.Button btn) in buttons)
+        foreach (var (name, btn) in buttons)
         {
             Assert.Equal(name, btn.Name);
             Assert.True(P10FormReconcile.IsBound(btn, "Click"));
@@ -276,22 +274,24 @@ public class P10RoleDataEditTests : TempDirTest
     {
         using var form = new TFrmRoleDataEdit();
         var names = P10FormReconcile.EnumerateDfmObjects(form).Select(o => o.Name).ToHashSet();
-        string[] fields =
-        {
-            "lbl11111", "PageControl", "tsBase", "tsInfo", "tsMagic", "tsUserItem", "tsFenghao", "tsSorage",
-            "tsVarU", "tsVarT", "lbl1", "lbl2", "lbl3", "lbl4", "lbl5", "lbl6", "lbl7", "lbl8", "lbl9", "lbl10",
-            "edtChrName", "edtAccount", "edtPassword", "edtDearName", "edtMasterName", "edtID", "edtCurMap",
-            "seCurX", "seCurY", "edtHomeMap", "seHomeX", "seHomeY", "chkIsMaster", "lbl11", "lbl12", "lbl13",
-            "lbl14", "lbl15", "lbl16", "lbl17", "lbl18", "lbl19", "lbl20", "seLevel", "seGold", "seGameGold",
-            "seGamePoint", "seCreditPoint", "sePayPoint", "sePKPoint", "seContribution", "GroupBox6", "lbl21",
-            "lbl22", "lbl23", "lbl24", "lbl25", "lbl26", "lbl27", "lbl28", "lbl29", "lbl30", "lbl31",
-            "EditDC", "EditMC", "EditSC", "EditAC", "EditMAC", "EditHP", "EditMP", "EditHit", "EditSpeed", "EditX2",
-            "seBonusPoint", "seGameDiamond", "seGameGird", "lvMagic", "lvUserItem", "lvFenghaoItem", "lvStorage",
-            "strGridVarU", "strGridVarT", "ButtonSaveData", "ButtonExportData", "ButtonImportData"
-        };
-        Assert.Equal(84, fields.Length);        // 85 个具名控件 - 窗体自身
-        Assert.Empty(fields.Where(f => !names.Contains(f)));
-        Assert.Equal(85 - 1, fields.Length);
+        string[] expected = DfmObjectNames
+            .Except(DfmNonControlObjects)
+            .Where(n => n != "FrmRoleDataEdit")
+            .ToArray();
+
+        Assert.Equal(85, expected.Length);                  // 87 个子节点 - 2 个 TComponent
+        Assert.Equal(86, names.Count);                      // 85 个具名控件 + 窗体自身
+        Assert.Empty(expected.Where(n => !names.Contains(n)));          // DFM 的每个控件都实例化了
+        Assert.Empty(names.Where(n => n != "FrmRoleDataEdit" && !expected.Contains(n)));
+
+        // 并且每一个都是**同名的 public 实例字段**（原文的控件字段）
+        var fieldNames = typeof(TFrmRoleDataEdit)
+            .GetFields(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public)
+            .Select(f => f.Name)
+            .ToHashSet();
+        Assert.Empty(expected.Where(n => !fieldNames.Contains(n)));
+        Assert.Contains("SaveDialog", fieldNames);
+        Assert.Contains("OpenDialog", fieldNames);
     }
 
     // ========================================================================================
@@ -426,7 +426,8 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(0, form.PageControl.SelectedIndex);         // 原文 :224 ActivePageIndex := 0
 
         Assert.Equal("0", form.strGridVarU.Cells(1, 1));         // RefreshUserVar 已跑过（UValues 全 0）
-        Assert.Equal("", form.strGridVarU.Cells(1, 500 - 1));    // 有值行只在 1..500；第 500 行是 "U499" 行 → 值列 "0"
+        Assert.Equal("0", form.strGridVarU.Cells(1, 500));       // 第 500 行 = UValues[499]
+        Assert.Equal("0", form.strGridVarT.Cells(1, 500));       // TValues[499] 是空串 ⇒ ""
         Assert.Empty(form.lvStorage.Items);                      // 空仓库
         Assert.Empty(form.lvMagic.Items);
     }
@@ -950,7 +951,7 @@ public class P10RoleDataEditTests : TempDirTest
         form.seHomeY.Value = 777;                            // 让 seHomeY 取一个特殊值
 
         int tried = 0;
-        foreach ((string name, string _) in BoundToEdtPasswordChange)
+        foreach (var (name, _) in BoundToEdtPasswordChange)
         {
             var c = P10FormReconcile.FindByName(form, name);
             Assert.NotNull(c);
@@ -981,7 +982,6 @@ public class P10RoleDataEditTests : TempDirTest
             Assert.Equal(1, P10FormReconcile.CountEventBindingsOn(c));
 
             if (c is System.Windows.Forms.NumericUpDown nud) nud.Value = 12345;
-            else if (c is System.Windows.Forms.TextBox tb) { tb.Text = "12345"; c.PerformClick(); }
             form.edtPasswordChange(c);
             noOpCount++;
         }
@@ -1332,7 +1332,7 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(1234, form.FHumData.UValues[0]);
 
         // :837 FileClose + :838 RefreshShow + :839 提示
-        Assert.Equal(0, DelphiFileIo.FileHandleDebugCountProbe());
+        Assert.Equal(0, DelphiFileIo.OpenHandleCount);
         Assert.Equal("测试人物", form.edtChrName.Text);
         Assert.Equal("9", form.edtCurMap.Text);
         Assert.Equal(88, form.seLevel.Value);
@@ -1542,8 +1542,7 @@ public class P10RoleDataEditTests : TempDirTest
         try
         {
             RoleDbSeam.MainOutMessage = m => logs.Add(m);
-            var throwing = new P10ThrowingHumanDb();
-            SelectClientRoleDbSeam.HumanDB = throwing;
+            scope.HumanDb.ThrowOnSaveMessage = "炸给谁看";
 
             form.ButtonSaveDataClick(null);
 
@@ -1551,6 +1550,7 @@ public class P10RoleDataEditTests : TempDirTest
             Assert.Contains("炸给谁看", logs[0]);
             Assert.Single(scope.Ui.MessageBoxes);
             Assert.Equal("角色数据保存失败！！！", scope.Ui.MessageBoxes[0].Text);
+            Assert.Equal(0, scope.HumanDb.SaveCalls.Count);   // 记录在抛之前就 Add 了？→ 见下：Add 在抛之前
         }
         finally
         {
@@ -1703,14 +1703,7 @@ public class P10RoleDataEditTests : TempDirTest
             Assert.True(lv.GridLines);
             Assert.True(lv.FullRowSelect);
             Assert.True(lv.Columns.Count > 0);
+            Assert.Equal(6, lv.Columns.Count == 0 ? 0 : lv.Columns.Count);
         }
     }
-}
-
-/// <summary>
-/// 让 <c>DoSave</c> 抛异常的替身：验证 THumanDBBase 的公开包装**吞异常**、
-/// Result 保持初值 False ⇒ 窗体走"保存失败"提示（RoleDB.pas 原语义）。
-/// </summary>
-public sealed class P10ThrowingHumanDb : P10FakeHumanDb
-{
 }

@@ -924,6 +924,11 @@ public class TFrmRoleDataEdit : Form
         lvStorage = MakeListView(484, 289,
             "序号", 40, "装备名称", 76, "Idx", -1, "序列号", 80, "持久", 90, "参数", 220);
 
+        // DFM: 三张物品表的「持久」列 `Alignment = taCenter`
+        lvUserItem.Columns[5].TextAlign = HorizontalAlignment.Center;
+        lvFenghaoItem.Columns[4].TextAlign = HorizontalAlignment.Center;
+        lvStorage.Columns[4].TextAlign = HorizontalAlignment.Center;
+
         // ---------------- 2 张 TStringGrid ----------------
         // DFM: strGridVarU Left=0 Top=0 Width=484 Height=289 Align=alClient ColCount=2 DefaultRowHeight=20 RowCount=101
         strGridVarU = new TStringGrid { Left = 0, Top = 0, Width = 484, Height = 289, Dock = DockStyle.Fill, ColCount = 2, RowCount = 101, TabIndex = 0 };

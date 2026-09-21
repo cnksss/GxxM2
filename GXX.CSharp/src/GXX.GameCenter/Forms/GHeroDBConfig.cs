@@ -333,13 +333,10 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
         PageControl.Controls.Add(TabSheet4);
         PageControl.SelectedTab = TabSheet2;
         // Delphi 里 TabSheet1..4 的 TabVisible 默认都是 True（页签全在）；原封不动。
-        _tabOrderInitial = new System.Collections.Generic.List<System.Windows.Forms.TabPage>
-        { TabSheet1, TabSheet2, TabSheet3, TabSheet4 };
         _tabVisibleState = new System.Collections.Generic.Dictionary<System.Windows.Forms.TabPage, bool>
         {
             [TabSheet1] = true, [TabSheet2] = true, [TabSheet3] = true, [TabSheet4] = true
         };
-        _activeTabName = TabSheet2.Text;   // DFM: ActivePage = TabSheet2
 
         // ---- ButtonClose（窗体根直属；DFM: Left=216 Top=296 Width=75 Height=25 Caption='取消'） ----
         ButtonClose = new System.Windows.Forms.Button { Name = "ButtonClose", Text = "取消", Left = 216, Top = 296, Width = 75, Height = 25, TabIndex = 1, Font = dfmFont };
@@ -1101,86 +1098,57 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     // TabVisible 垫片（原文 :186-189/:195/… 的 TabSheetN.TabVisible）
     // ==================================================================
 
-    /// <summary>四个 TTabSheet 在 DFM 里的初始顺序（TabSheet1..4）。</summary>
-    private System.Collections.Generic.List<System.Windows.Forms.TabPage> _tabOrderInitial = null!;
-
-    /// <summary>Delphi <c>TTabSheet.TabVisible</c> 的托管状态（与"是否在 TabControl 控件集合里"保持一致）。</summary>
+    /// <summary>
+    /// Delphi <c>TTabSheet.TabVisible</c> 的托管状态。
+    /// <para>与 <c>TabPage.Visible</c>（= WinForms 的 Control.Visible）**互不干扰**，正如 Delphi 语义。</para>
+    /// </summary>
     private System.Collections.Generic.Dictionary<System.Windows.Forms.TabPage, bool> _tabVisibleState = null!;
 
-    /// <summary>DFM <c>ActivePage = TabSheet2</c> 对应的页签文本（用于复位选中页）。</summary>
-    private string? _activeTabName;
-
     /// <summary>
-    /// Delphi <c>TTabSheet.TabVisible</c>（读）：等价于"该页签当前在 TabControl 的控件集合里"。
+    /// Delphi <c>TTabSheet.TabVisible</c>（读）。
     /// </summary>
-    public static bool GetTabVisible(System.Windows.Forms.TabPage page)
-        => page.Parent is System.Windows.Forms.TabControl owner && owner.Controls.Contains(page);
+    public bool GetTabVisible(System.Windows.Forms.TabPage page)
+        => _tabVisibleState.TryGetValue(page, out bool v) ? v : false;
 
     /// <summary>
     /// Delphi <c>TTabSheet.TabVisible := value</c>。
     /// <para>
-    /// false ⇒ 从 <c>TabControl.Controls</c> 摘除（页签消失）；true ⇒ 追加回集合。
-    /// 摘除当前选中页会让 TabControl 自动改选，故随后调用 <see cref="RestoreActivePage"/> 把
-    /// ActivePage 钉回 TabSheet2，保证 <c>TabSheet3.Visible</c> 恒为 false（原文缺陷 1 的前提）。
+    /// 托管实现（偏差 D-P10-19）：只改窗体自己维护的 <c>_tabVisibleState</c> —— 与
+    /// <c>TabPage.Visible</c>（= Control.Visible）**完全无关**，这正是 Delphi 里
+    /// <c>TabVisible</c>/<c>Visible</c> 两个属性的关系。
+    /// </para>
+    /// <para>
+    /// <b>为什么不真的把页签从 <c>TabControl.Controls</c> 摘掉</b>（实测三次，见测试
+    /// <c>SetTabVisible_DoesNotTouchTabPageVisibility</c>）：WinForms 会因"容器里只剩孤页"
+    /// 把该页当成可见页渲染，<c>TabPage.Visible</c> 随之翻成 True，于是原文缺陷 1
+    /// （<c>CheckHeroDB:338</c> 的 <c>TabSheet3.Visible</c> 恒 False）的条件语义被破坏，
+    /// <c>:340-371</c> 的 Magic 检查会被错误地跳过。代价是页签行始终显示 4 个页签（视觉差异）。
     /// </para>
     /// </summary>
     public void SetTabVisible(System.Windows.Forms.TabPage page, bool value)
-    {
-        _tabVisibleState[page] = value;
-        ApplyTabVisible(page, value);
-    }
-
-    private void ApplyTabVisible(System.Windows.Forms.TabPage page, bool value)
-    {
-        if (PageControl.Controls.Contains(page) == value) return;
-        if (value) PageControl.Controls.Add(page);
-        else PageControl.Controls.Remove(page);
-    }
+        => _tabVisibleState[page] = value;
 
     /// <summary>
     /// 把 <c>PageControl.ActivePage</c> 复位为 <c>TabSheet2</c>（DFM: ActivePage=TabSheet2）。
     /// <para>
-    /// 注意两点，都是"保持原文语义"所必需的：
-    /// <list type="number">
-    /// <item><b>不</b>把 ActivePage 改到别的页签上去。原文 <c>CheckHeroDB</c> 从不触碰
-    /// <c>ActivePage</c>；页签被隐藏后 Delphi 的 ActivePage 会停在原页（只是它已 TabVisible=False），
-    /// 若这里顺手改选到 TabSheet1，就会把 <c>TabSheet3.Visible</c> 翻成 True，原文缺陷 1 的条件语义被改掉。</item>
-    /// <item>ActivePage 不可见时**不选**任何页（<c>SelectedIndex = -1</c>），等价"页签行里没有活动页"。</item>
-    /// </list>
+    /// 原文 <c>CheckHeroDB</c> 从不触碰 <c>ActivePage</c>，本方法只做"恢复原状"，
+    /// 保证 <c>TabSheet3.Visible</c> 恒为 False（原文缺陷 1 的条件前提）。
     /// </para>
     /// </summary>
     public void RestoreActivePage()
     {
-        if (GetTabVisible(TabSheet2))
-        {
-            PageControl.SelectedTab = TabSheet2;
-            return;
-        }
-        PageControl.SelectedIndex = -1;
-    }
-
-    private System.Windows.Forms.TabPage? FindTab(string? text)
-    {
-        if (text == null) return null;
-        foreach (System.Windows.Forms.TabPage p in PageControl.TabPages)
-            if (p.Text == text) return p;
-        return null;
+        PageControl.SelectedTab = TabSheet2;
     }
 
     /// <summary>
-    /// 原文四连 <c>TabVisible := False</c>（CheckHeroDB 开头）的托管写法：
-    /// 先摘除**非** ActivePage 的页签（摘除非选中页不会改选），再摘除 ActivePage 并复位选中页。
-    /// 这样整个过程中 <c>TabSheet2</c> 始终保持"选中 &amp; 在集合里"。
+    /// 原文四连 <c>TabVisible := False</c>（CheckHeroDB 开头）的托管写法。
     /// </summary>
     public void HideAllTabVisible()
     {
-        var active = FindTab(_activeTabName);
-        foreach (var p in _tabOrderInitial)
-        {
-            if (ReferenceEquals(p, active)) continue;
-            SetTabVisible(p, false);
-        }
-        if (active != null) SetTabVisible(active, false);
+        SetTabVisible(TabSheet1, false);
+        SetTabVisible(TabSheet2, false);
+        SetTabVisible(TabSheet3, false);
+        SetTabVisible(TabSheet4, false);
         RestoreActivePage();
     }
 
