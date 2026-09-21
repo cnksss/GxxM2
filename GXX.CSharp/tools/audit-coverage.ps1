@@ -70,7 +70,17 @@ $VENDOR_UNITS = @(
     'MsCTF',            # c3 COM IME -> WinForms native IME (Checklist section 5)
     'GHeroDB',          # c3 BDE alias/table/field manager, obsolete under the Sqlite architecture
     'Objects',          # c1 design-time only: referenced by GuiEdit.dpr, NOT by Client.dpr
-    'FireDragon'        # c4 old duplicate of ObjFireDragon.pas (not in any .dpr)
+    'FireDragon',       # c4 old duplicate of ObjFireDragon.pas (not in any .dpr)
+    # ---- c3 "replaced by the managed runtime", ruled in ledger 18.5#5/#6 and executed 2026-09-21.
+    # Registered HERE (not as a .cs header mention) on purpose: a header mention scores the unit
+    # MAPPED, which would claim a port that was never made.  These units are NOT ported.
+    'imm',              # c3 IME P/Invoke -> WinForms native IME; verified 76/76 routines absent
+    'SendQueue',        # c3 both copies (LoginGate/SelGate) -> GatewayKit send queue
+    'IOCPManager'       # c3 both copies (LoginGate/SelGate) -> SocketAsyncEventArgs
+    # NOTE: 'ThreadPool' is deliberately NOT registered here.  It exists in LogDataServer (a REAL
+    # gap: 445 lines, TPoolManager/TPoolThread unported) as well as in LoginGate/SelGate (replaced
+    # by design).  This registry keys on the BASENAME, so a row would silently hide the
+    # LogDataServer gap -- see the report's DUPLICATE-BASENAME section (ledger 39.3).
 )
 
 # ---- load optional explicit map ------------------------------------------
