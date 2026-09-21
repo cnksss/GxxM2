@@ -64,3 +64,8 @@ p9-rungate-rest	GXX.CSharp/src/GXX.RunGate/Rest9/**;GXX.CSharp/tests/GXX.RunGate
 # gets a narrow '!' grant to replace that seam with the real factory.
 p10-client-mirconfig	GXX.CSharp/src/GXX.Client/GUI/GameConfig/Mir/**;!GXX.CSharp/src/GXX.Client/GUI/GameConfig/GameConfigDlgs.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirConfig*;GXX.CSharp/docs/并行报告-p10-client-mirconfig.md
 p10-client-scrn	GXX.CSharp/src/GXX.Client/Scenes/DrawScrn/**;!GXX.CSharp/src/GXX.Client/Scenes/DropItemFx.cs;GXX.CSharp/tests/GXX.Client.Tests/ScrnDraw*;GXX.CSharp/docs/并行报告-p10-client-scrn.md
+# ---- P10 wave, second batch (ledger 41.8): the DB / Login / LogData remainder found by the
+# WEAK triage.  Four projects, all NEW directories; nothing existing is shared with another
+# writer.  LogDataServer/ThreadPool is the one unit whose basename repeats with an OPPOSITE
+# ruling in the gateways (see tools/unit-map.tsv + the per-copy registry in audit-coverage.ps1).
+p10-db-login-forms	GXX.CSharp/src/GXX.DBServer/Forms/**;GXX.CSharp/src/GXX.LoginSrv/Forms/**;GXX.CSharp/src/GXX.GameCenter/Forms/**;GXX.CSharp/src/GXX.LogDataServer/Pool/**;GXX.CSharp/tests/GXX.DBServer.Tests/P10*;GXX.CSharp/tests/GXX.LoginSrv.Tests/P10*;GXX.CSharp/tests/GXX.GameCenter.Tests/P10*;GXX.CSharp/tests/GXX.LogDataServer.Tests/P10*;GXX.CSharp/docs/并行报告-p10-db-login-forms.md

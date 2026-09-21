@@ -223,11 +223,14 @@ foreach ($d in $Dir) {
         # E4 = the unit is explicitly assigned to a parallel lane, i.e. in flight,
         # NOT finished. It must never be counted as mapped.
         # WEAK = only a non-header mention exists: explicitly NOT a port.
+        # ORDER MATTERS: ASSIGNED is tested BEFORE WEAK.  A unit can be both (it has a lane row
+        # AND a stray body mention); "someone owns it" is the more actionable fact, and letting
+        # WEAK win would hide an in-flight unit from the ASSIGNED table -- the dispatcher's list.
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($isNonUnit) { 'NONUNIT' }
                    elseif ($mapped) { 'MAPPED' }
-                   elseif ($e2w) { 'WEAK' }
                    elseif ($e4) { 'ASSIGNED' }
+                   elseif ($e2w) { 'WEAK' }
                    elseif ($e3) { 'CHECKLIST_ONLY' }
                    else { 'UNMAPPED' }
 

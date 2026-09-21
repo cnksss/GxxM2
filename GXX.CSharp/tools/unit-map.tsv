@@ -53,16 +53,23 @@ M2Locker	par/p3-m2-sweep
 ObjGuard	par/p3-m2-sweep
 M2Threads	par/p3-m2-sweep
 StringListHelper	par/p3-m2-sweep
-# ---- DxComponent tree, owned wholesale by one lane ----
+# ---- DxComponent tree ----
 # DONE (landed on main, now detected by E1/E2 -- rows removed):
-#   DxMagicBall, AsphyreTimer, StreamClipbrd, DxControlClpbrd
-DxImageButtonEx	par/p2-dxcontrols-rest
-# BLOCKED on the deferred DxComponent<->LoadDx dedup batch (see ledger 14.4/16.2):
-DxSwitchButton	par/p2-dxcontrols-rest
-DxGroupAttackProgress	par/p2-dxcontrols-rest
-# PENDING integrator decision (lane judged "not worth porting"; NOT yet accepted):
-GuiManage	par/p2-dxcontrols-rest
-LoginDlg	par/p2-dxcontrols-rest
+#   DxMagicBall, AsphyreTimer, StreamClipbrd, DxControlClpbrd, DxImageButtonEx
+# (verified 2026-09-21: DxImageButtonEx.cs exists -> E1, so its row was removed too)
+#
+# ROWS REMOVED 2026-09-21 (ledger 41.10): the four rows below used to point at
+# par/p2-dxcontrols-rest, a lane that was MERGED AND CLOSED long ago -- i.e. exactly the
+# "permanently parked row" failure of ledger 38.2 (they were invisible as in-flight work and
+# invisible as gaps).  Their real state, re-measured after removal:
+#   DxSwitchButton     -> WEAK   (only a body mention in LoadDx/DxControlSeams.cs; unported)
+#   DxGroupAttackProgress -> WEAK (same; both are BLOCKED on the DxComponent<->LoadDx dedup
+#                                  batch of ledger 14.4/16.2 -- they must not be ported before it)
+#   GuiManage          -> UNMAPPED (no evidence anywhere; the closed lane judged it "not worth
+#                                  porting" and that judgement was NEVER accepted -- so it stays
+#                                  a visible gap rather than a silent one)
+#   LoginDlg           -> UNMAPPED (same)
+# They are re-assigned only together with the dedup ruling, as p10-client-dxrest.
 # ---- P5 wave ----
 MirReturnConfigDlg	par/p5-client-mirreturn
 uFrmCustomMagic	par/p5-m2-custommagic
@@ -104,3 +111,15 @@ MirConfigDlg	par/p10-client-mirconfig
 JSYConfigDlg	par/p10-client-mirconfig
 DrawScrn	par/p10-client-scrn
 DropItemsMgr	par/p10-client-scrn
+#
+# ---- P10 wave, second batch (round 53, ledger 41.8): DB / Login / LogData remainder.
+# NOTE the per-copy key on ThreadPool: its SelGate/LoginGate copies are ruled "not ported"
+# (replaced by GatewayKit) in audit-coverage.ps1, so only the LogDataServer copy -- the real
+# gap -- may be assigned here.  A bare "ThreadPool" row would cover all three copies.
+uFrmRoleDataEdit	par/p10-db-login-forms
+MasSock	par/p10-db-login-forms
+GrobalSession	par/p10-db-login-forms
+GHeroDBConfig	par/p10-db-login-forms
+GLoginServerRouteSet	par/p10-db-login-forms
+LogDataServer/ThreadPool	par/p10-db-login-forms
+FileSearchPool	par/p10-db-login-forms
