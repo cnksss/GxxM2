@@ -100,7 +100,16 @@ public partial class TMerchant
                 return false;
         }
     }
+
+    // ★ 2026 第十六轮：`UserSelectPrepare`（原文 2527-2596 解析段 + 门控链）**暂缓落地**。
+    //   原因（本轮普查实测）：门控链 2573/2575 依赖 `PlayObject.LableIsCanJmp(sLabel)`，
+    //   而它在 `src` **没有任何代码声明**（此前误判为已存在 —— 命中的其实是
+    //   `TPlayObject.PlayerSurface.NpcSession.cs:346` 的**注释行**）。
+    //   ⇒ 需先裁定 1 个新接缝 `LableIsCanJmp`（签名 `Func<TPlayObject, string, bool>`，
+    //     原文 `ObjPlayer.pas` `function TPlayerObject.LableIsCanJmp(sLabel: string): Boolean`），
+    //     落地后再补 `UserSelectPrepare`。详见报告 §22。
 }
+
 
 /// <summary>
 /// `TNormNpc.UserSelect` —— `UserSelect` **虚分派链的基类落点**（原文 `ObjNpc.pas:305` 声明 `virtual`，
