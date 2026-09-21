@@ -93,22 +93,27 @@ public class SelectClientHostWiringTests : TempDirTest
     {
         using var srv = new DBServerService(Path2("host.db"));
 
-        // ★ 本轮起 `TFrmIDSoc` 已移植并接线 ⇒ 不再是 nil；未接线的换成它内部的**宿主设施** seam。
+        // ★★ 2026 第 5 轮：**四组宿主设施全部接线** ⇒ 这里不再有任何"未接线即抛"的 IDSocCli 接缝。
         Assert.NotNull(IDSocCliSeam.FrmIDSoc);
         Assert.IsType<TFrmIDSoc>(IDSocCliSeam.FrmIDSoc);
-        Assert.Null(IDSocCliSeam.IDSocket);                                       // JSocket/TClientSocket 仍未移植
-        var ex = Assert.Throws<NotSupportedException>(() => IDSocCliSeam.RequireIDSocket);
-        Assert.Contains("JSocket.pas", ex.Message);
+        Assert.IsType<IDSocClientSocketAdapter>(IDSocCliSeam.IDSocket);            // TcpLink 适配器
+        Assert.NotNull(IDSocCliSeam.RequireIDSocket);
+        Assert.False(IDSocCliSeam.RequireIDSocket.Socket.Connected);               // ★ 构造**不发起连接**（TcpLink 是惰性的）
     }
 
     [Fact]
-    public void 定时器接缝_未接线_访问即抛NotSupportedException()
+    public void 定时器与在线数接缝_已接线_不再抛()
     {
         using var srv = new DBServerService(Path2("host.db"));
 
-        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.Timer1Enabled(true));
-        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.KeepAliveTimerEnabled(true));
-        Assert.Throws<NotSupportedException>(() => IDSocCliSeam.GetSelectCharCount());
+        // 2026 第 5 轮：Timer1(3000ms) / KeepAliveTimer(10ms) / GetSelectCharCount 均已接线。
+        IDSocCliSeam.Timer1Enabled(true);
+        IDSocCliSeam.Timer1Enabled(false);
+        IDSocCliSeam.KeepAliveTimerEnabled(true);
+        IDSocCliSeam.KeepAliveTimerEnabled(false);
+        Assert.Equal(srv.OnlineCount, IDSocCliSeam.GetSelectCharCount());          // = SelGate + M2 连接数
+        Assert.Equal(3000, IDSocCliHost.DFM_TIMER1_INTERVAL);                      // DFM 解出的真值
+        Assert.Equal(10, IDSocCliHost.DFM_KEEPALIVE_TIMER_INTERVAL);
     }
 
     [Fact]
@@ -281,14 +286,41 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void 帧X_命中槽位时不抛_跳过清理_留痕_且不断连接()
+    public void 帧X_命中槽位时_走原文分支_不抛_不断连接()
     {
-        // ★ 裁定（偏差 **D-p7-13**，唯一窄口子）：`CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）
-        //   在 FrmIDSoc 未接线时 **记日志 + 跳过清理 + 继续**，**不抛**、**不断连接**。
+        // ★★ 2026 第 5 轮起的状态：`FrmIDSoc` 与 `IDSocket` **都已接线** ⇒
+        //   `CloseUser` 的清理块走**原文路径**，窄口子（D-p7-13）**不再触发**。
+        //   此处 `IDSocket` 尚未连通（构造不连接）⇒ 原文 :141 `if IDSocket.Socket.Connected` 为假
+        //   ⇒ `SendSocketMsg` **静默跳过发送**（这是原文行为，不是接缝兜底）；`CloseSession` 照常执行（表空 ⇒ 无操作）。
+        using var srv = new DBServerService(Path2("host.db"));
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
+        c.SelectCharList.OnLineItems(0)!.sAccount = "acct";
+
+        byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
+        Exception? ex = SelectClientGateWiring.FeedSafe(c, close, 0, close.Length);
+
+        Assert.Null(ex);                                                          // 不抛
+        Assert.Equal(1, SelectClientGateWiring.Count);                            // 绑定还在 ⇒ 宿主没有 Detach
+        Assert.Empty(sent);                                                       // 没有回发给 SelGate（清理通知发不出去也不算错）
+        Assert.DoesNotContain(Logs, s => s.Contains("D-p7-13"));                  // ★ 窄口子不再触发
+        Assert.Equal(0, c.SelectCharList.OnLineCount);                            // 槽位照常回收（原文 :719 的 Finalize）
+        Assert.Equal("", c.m_sReceiveText);
+    }
+
+    [Fact]
+    public void 帧X_FrmIDSoc为nil时_仍走D_p7_13窄口子_留痕且不断连接()
+    {
+        // ★ 裁定（偏差 **D-p7-13**，唯一窄口子）在**宿主不接线**时仍然有效，必须继续被锁住：
+        //   `CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）在 FrmIDSoc 未接线时
+        //   **记日志 + 跳过清理 + 继续**，**不抛**、**不断连接**。
         //   理由：它只决定"要不要发一条清理通知"，不是校验判定；而抛出去的代价是
         //   **整条 SelGate 连接被断开**（一条连接上通常挂着多个无关玩家）。
-        //   其余接缝（CheckSession / 名校验族 / 主动网关路由）**一条都不放宽** —— 见本文件的另两条用例。
         using var srv = new DBServerService(Path2("host.db"));
+        IDSocCliSeam.FrmIDSoc = null;                                              // ← 显式退回"未接线"
         var sent = new List<byte[]>();
         var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
         byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
@@ -300,10 +332,9 @@ public class SelectClientHostWiringTests : TempDirTest
 
         Assert.Null(ex);                                                          // 不抛
         Assert.Equal(1, SelectClientGateWiring.Count);                            // 绑定还在 ⇒ 宿主没有 Detach
-        Assert.Empty(sent);                                                       // 清理通知确实被跳过（没发包给 LoginSrv）
+        Assert.Empty(sent);                                                       // 清理通知确实被跳过
         Assert.Contains(Logs, s => s.Contains("D-p7-13") && s.Contains("99"));     // 每次触发都留痕，带编号与会话号
-        Assert.Equal(0, c.SelectCharList.OnLineCount);                            // 槽位照常回收（原文 :719 的 Finalize 仍然执行）
-        Assert.Equal("", c.m_sReceiveText);
+        Assert.Equal(0, c.SelectCharList.OnLineCount);                            // 槽位照常回收
     }
 
     [Fact]
