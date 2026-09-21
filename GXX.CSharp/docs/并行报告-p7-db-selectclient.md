@@ -834,6 +834,36 @@ public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（
 两个 `Enabled` 在 DFM 里都是 `vaFalse(0x08)`（与 `FormCreate` 再置 False 一致）⇒ 托管侧用
 `Change(Timeout.Infinite, …)` 造出"已创建但未启用"的等价物。
 
+#### 17.3.1 ★ 取值依据（可复核，不是结论）
+
+**证据是 `IDSocCli.dfm` 的原始字节**（`Timer1` 的 `Interval` 在偏移 **520**，`KeepAliveTimer` 的在 **598**）：
+
+```
+off=520 : 6C 65 64 08 08 49 6E 74 65 72 76 61 6C 03 B8 0B 07 4F 6E 54 69 6D 65
+          "led"  08 08 "Interval"              03 B8 0B  07 "OnTimer"
+                 │  └─ 属性名长度前缀 0x08 = 8（"Interval" 有 8 个字符）
+                 └──── vaFalse(0x08) = Enabled := False
+                                                        └──── 值：vaInt16(0x03) + 小端 B8 0B = 0x0BB8 = 3000
+
+off=598 : 62 6C 65 64 08 08 49 6E 74 65 72 76 61 6C 02 0A 07 4F 6E 54 69 6D 65
+          "bled" 08 08 "Interval"              02 0A     07 "OnTimer"
+                                                        └──── vaInt8(0x02) + 0A = 10
+```
+
+**DFM 值类型编码**（用到的三个）：`vaFalse = 0x08`（布尔假，**不带数据**）、
+`vaInt8 = 0x02`（后跟 1 字节）、`vaInt16 = 0x03`（后跟 2 字节**小端**）。
+属性名是**长度前缀**的（`0x08` + `"Interval"`），所以上面 `Enabled` 的 `08` 与 `Interval` 的长度前缀 `08` 是两个不同的字节。
+
+**复现命令**（★ 必须用 `ReadAllBytes`；`Get-Content` 会按编码读文本、把二进制属性读坏 —— 我第一遍就是这么误读的）：
+
+```powershell
+$p="...\Source\DBServer\IDSocCli.dfm"; $b=[System.IO.File]::ReadAllBytes($p)
+foreach($off in 520,598){ ($b[$off..($off+22)] | ForEach-Object { "{0:X2}" -f $_ }) -join " " }
+```
+
+**这是从字节里读出来的，不是猜的** —— 报告里同时给"结论"与"依据"，是为了让复核者能**自己重算**，
+而不是只能选择相信。（同一条纪律也适用于本报告 §1 的行数口径。）
+
 ### 17.4 两处原文语义对齐（偏差）+ 一处**我自己引入又修掉的**缺陷
 
 | 编号 | 内容 |
