@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using GXX.Client.GUI.GameConfig;
@@ -1008,7 +1008,10 @@ internal static class GuiCfgTestEnv
         ClientGlobalSeam.g_boWindowMode = false;
 
         PlugInSeam.CreateJSYConfigDlg = () => new TJSYConfigDlg();
-        PlugInSeam.CreateMirConfigDlg = () => new TStubGameConfigObject(TConfigDlgType.ptDefault);
+        // 集成方修正（台账 §47）：这里原本装的是**桩** `TStubGameConfigObject`，而它是**静态接缝**、装完**不还原**
+        // ⇒ xUnit 同进程内泄漏给后续测试类，造成"同一二进制第一次全绿、第二次 3 条失败"（次序性假红/假绿）。
+        // 正式实现已由车道 p10-client-mirconfig 接线（GameConfigDlgs.cs），故这里同样指向真实现。
+        PlugInSeam.CreateMirConfigDlg = () => new GXX.Client.GUI.GameConfig.Mir.TMirConfigDlg();
     }
 
     /// <summary>供 Hint / 聊天栏断言使用。</summary>
