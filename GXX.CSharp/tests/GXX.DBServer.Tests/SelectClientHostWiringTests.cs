@@ -112,16 +112,20 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void DBShare名校验接缝_未接线_访问即抛NotSupportedException()
+    public void DBShare名校验接缝_已转调真实现()
     {
+        // 2026 第 2 轮：校验族已移植（`DBShare.cs`，原文 :1043-1274 逐行）⇒
+        // 接缝默认值从"抛"改为**转调**（与 `HUtil32Seam` 同款处置：不保留第二份算法）。
         using var srv = new DBServerService(Path2("host.db"));
 
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckChrName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckSpecialChar("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckDenyChrName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckNumberName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckLetterName("Aaaa"));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckFilterNewHumanChrName("Aaaa"));
+        Assert.True(SelectClientDbShareSeam.CheckChrName("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckChrName("Aaa@"));
+        Assert.True(SelectClientDbShareSeam.CheckSpecialChar("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckSpecialChar("A a"));
+        Assert.True(SelectClientDbShareSeam.CheckDenyChrName("Aaaa"));
+        Assert.False(SelectClientDbShareSeam.CheckNumberName("Aaaa"));
+        Assert.True(SelectClientDbShareSeam.CheckLetterName("Abcd"));
+        Assert.False(SelectClientDbShareSeam.CheckFilterNewHumanChrName("Aaaa"));
     }
 
     [Fact]
@@ -467,21 +471,37 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void 有会话时_CM_NEWCHR仍抛_因DBShare名校验族未移植()
+    public void 有会话时_CM_NEWCHR真正可用()
     {
-        // ★★ 这是移植 IDSocCli 之后**唯一**还会抛的命令，也是它唯一的原因。
-        //    会话说 `CM_NEWCHR` 已经不再卡在会话校验上；它卡在**名校验**
-        //    （SelectClient.pas:933 `CheckDenyChrName` / :934 `CheckChrName` / :940 `CheckFilterNewHumanChrName`）。
-        //    ⇒ 默认路由模式下，**只差 `DBShare.pas` 名校验族**。
+        // ★★ 2026 第 2 轮：`DBShare.pas` 名校验族移植后，**最后一条会抛的命令也通了**。
+        //    默认路由模式下 8 条命令**全部走到真实实现**。
         using var srv = new DBServerService(Path2("cmd.db"));
-        var c = AttachWithValidSession(srv, out _);
-        byte[] frame = System.Text.Encoding.Latin1.GetBytes(UserDataFrame("7", Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+        var c = AttachWithValidSession(srv, out var sent);
 
-        Exception? ex = SelectClientGateWiring.FeedSafe(c, frame, 0, frame.Length);
+        Assert.Equal(Grobal2Const.SM_NEWCHR_SUCCESS, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+    }
 
-        Assert.IsType<NotSupportedException>(ex);
-        Assert.Contains("DBShare.pas", ex!.Message);
-        Assert.Contains("CheckDenyChrName", ex.Message);
+    [Fact]
+    public void 有会话时_CM_NEWCHR_名校验真的在跑_非法字符被拒()
+    {
+        // 对照：`Aaa@` 会被 `CheckChrName`（原文 :934）判非法 ⇒ nCode 0 ⇒ SM_NEWCHR_FAIL(Recog=0)。
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+
+        Assert.Equal(Grobal2Const.SM_NEWCHR_FAIL, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaa@/1/1/1"));
+        Assert.Equal(0, EDcode.DecodeMessage(Slice(sent[0])).Recog);              // nCode 落在 Recog
+    }
+
+    [Fact]
+    public void 有会话时_CM_NEWCHR_重名被拒_且Human与Hero两库都算占用()
+    {
+        using var srv = new DBServerService(Path2("cmd.db"));
+        var c = AttachWithValidSession(srv, out var sent);
+        SelectClientRoleDbSeam.RequireHuman.Add("other", "Aaaa", false, 0, 0, 0);
+
+        // nCode 2（名字已存在）—— 原文 :964 `HumanDB.GetID(name) <> NO_ID or HeroDB.GetID(name) <> NO_ID`
+        Assert.Equal(Grobal2Const.SM_NEWCHR_FAIL, ReplyIdent(c, sent, Grobal2Const.CM_NEWCHR, "acct/Aaaa/1/1/1"));
+        Assert.Equal(2, EDcode.DecodeMessage(Slice(sent[0])).Recog);
     }
 
     /// <summary>从 <c>%&lt;sid&gt;/#…!$</c> 里取出 22 字节编码头。</summary>
