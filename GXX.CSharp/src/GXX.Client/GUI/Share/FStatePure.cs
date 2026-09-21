@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
+using GXX.Client.Scenes;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 
 namespace GXX.Client.GUI.Share;
@@ -14,6 +15,12 @@ namespace GXX.Client.GUI.Share;
 //   4257-4269 function  GetJobText(nJob:Integer):string;                                ✅
 //   4271-4283 function  GetJobTextEx(nJob:Integer):string;                              ✅
 //   1135-1152 procedure WriteOutStr(Msg:string);                                        ✅
+//
+// ★ D-P10-06 已结清（车道 p14-client-fstate）：`GetHitLines` 的 HintLines 形参改用
+//   `GXX.Client.Scenes.THintLines`（DrawScrn.pas:318 的**正式归属**），
+//   原先 `FStateSeams.cs` 里那两个接缝类（THintLines / THintWindows）与本文件的
+//   `using GXX.Client.Scenes;` 已按台账 §47.5 D-P10-06 的删除条件删除。
+//   删除条件核对结论见交付报告 §D-P10-06。
 // ============================================================================================
 
 /// <summary>FState.pas 的单元级（非 TFrmDlg 成员）函数与过程。</summary>
@@ -71,6 +78,11 @@ public static class FStatePure
     ///
     /// 注意 `for I := nPos - 1 downto 1`：nPos 是 1-based，故 I 从 '/' 前一个字符开始往前扫；
     /// 若 I 一直退到 0 仍未 Break，说明 '/' 前全是数字（或紧邻串首）。
+    ///
+    /// **D-P10-06 核对结论**：原文 3658/3674/3682 三处 `HintLines.Add(...)` 都**丢弃返回值**
+    /// （Delphi 里 `Add` 是 `procedure`；接缝曾把它写成 `function ... : Integer`）。
+    /// 因此接缝的 int 返回值**无任何调用点** —— 删除条件成立，已改用正式归属
+    /// <see cref="GXX.Client.Scenes.THintLines"/>（其 `Add` 与原文同为 void）。
     /// </summary>
     public static void GetHitLines(THintLines HintLines, string S, TColor DefColor)
     {

@@ -1,6 +1,7 @@
 using System;
 using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
+using GXX.Client.Scenes;
 using GXX.Core.Protocol;
 using GXX.Core.Util;
 using TGList = GXX.Core.Protocol.SDK.TGList;
@@ -175,7 +176,9 @@ public partial class TFrmDlg
         FIsFashionRingLeft = false;                                 // 1552
         FIsFashionArmRingLeft = false;                              // 1553
 
-        FSayItemHintWin = DrawScrn.CreateHintWindows();             // 1555
+        // 1555：原文 `FSayItemHintWin := DrawScrn.THintWindows.Create;`
+        // D-P10-06 后 THintWindows 的正式归属是 GXX.Client.Scenes（DrawScrn.pas:408）。
+        FSayItemHintWin = new THintWindows();                       // 1555
 
         FGameShopPageControlIndex = 0;                              // 1557
         FGameShopPageIndex = 0;                                     // 1558

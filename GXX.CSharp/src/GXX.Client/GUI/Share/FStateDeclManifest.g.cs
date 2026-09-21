@@ -284,7 +284,7 @@ public static class TFrmDlgFieldTable
         "FIsFashionArmRingLeft", // line 490 : bool
         "boSayItemDlgMoveOutClose", // line 501 : bool
         "nSayItemMakeIndex", // line 502 : int
-        "FSayItemHintWin", // line 503 : object
+        "FSayItemHintWin", // line 503 : THintWindows
         "FGuildGroupIndex", // line 504 : int
         "FGuildJoinJob", // line 505 : int
         "FGuildJoinLevel", // line 506 : int

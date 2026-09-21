@@ -11,6 +11,11 @@ using Xunit;
 // GXX.Client.GUI.Share。车道1 的 GXX.Client.GUI.Mir.TFrmDlg 是同一 Delphi 类型的早期接缝，
 // 二者同名会造成 CS0104 歧义 —— 已登记在交付报告的"接缝改回/合并清单"里。
 using TFrmDlg = GXX.Client.GUI.Share.TFrmDlg;
+// D-P10-06：THintLines 的正式归属是 GXX.Client.Scenes（DrawScrn.pas:318）；
+// FStateSeams.cs 的接缝类已删除，本测试改用正式实现的对象形态
+// （FList + THintText.FCaption / FColor / Size / Style / IsStroke）。
+using THintLines = GXX.Client.Scenes.THintLines;
+using THintText = GXX.Client.Scenes.THintText;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 
 namespace GXX.Client.Tests;
@@ -57,6 +62,16 @@ public sealed class GuiSharePureTests : IDisposable
     }
 
     private static THintLines NewHintLines() => new();
+
+    /// <summary>
+    /// 取第 <paramref name="i"/> 行的 THintText（原文 THintLines.FList[i]）。
+    /// D-P10-06 后不再有接缝的 `Lines[i]` 值副本 —— 断言直接读正式实现的
+    /// `THintText.FCaption` / `FColor` / `Size` / `Style` / `IsStroke`。
+    /// </summary>
+    private static THintText LineAt(THintLines h, int i) => (THintText)h.FList[i];
+
+    /// <summary>提示行数（原文 THintLines.Count 属性 = FList.Count）。</summary>
+    private static int LineCount(THintLines h) => h.FList.Count;
 
     // =====================================================================================
     // GetJobText / GetJobTextEx（原文 4257-4283）
@@ -113,9 +128,9 @@ public sealed class GuiSharePureTests : IDisposable
         var def = new TColor(0x0000FF00);
         FStatePure.GetHitLines(h, "普通文本", def);
 
-        Assert.Equal(1, h.Count);
-        Assert.Equal("普通文本", h.Lines[0].Text);
-        Assert.Equal(def.Value, h.Lines[0].Color.Value);
+        Assert.Equal(1, LineCount(h));
+        Assert.Equal("普通文本", LineAt(h, 0).FCaption);
+        Assert.Equal(def.Value, LineAt(h, 0).FColor.Value);
     }
 
     [Fact]
@@ -125,8 +140,8 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "", new TColor(0x00FFFFFF));
 
-        Assert.Equal(1, h.Count);
-        Assert.Equal("", h.Lines[0].Text);
+        Assert.Equal(1, LineCount(h));
+        Assert.Equal("", LineAt(h, 0).FCaption);
     }
 
     [Fact]
@@ -137,9 +152,9 @@ public sealed class GuiSharePureTests : IDisposable
         var def = new TColor(0x000000FF);
         FStatePure.GetHitLines(h, "abc 200/", def);
 
-        Assert.Equal(1, h.Count);
-        Assert.Equal("abc ", h.Lines[0].Text);              // 颜色码被吃掉，前面的文字保留含空格
-        Assert.Equal(def.Value, h.Lines[0].Color.Value);    // 第一行仍用默认色
+        Assert.Equal(1, LineCount(h));
+        Assert.Equal("abc ", LineAt(h, 0).FCaption);              // 颜色码被吃掉，前面的文字保留含空格
+        Assert.Equal(def.Value, LineAt(h, 0).FColor.Value);       // 第一行仍用默认色
     }
 
     [Fact]
@@ -148,11 +163,11 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "A 1/B 2/", new TColor(0x000000FF));
 
-        Assert.Equal(2, h.Count);
-        Assert.Equal("A ", h.Lines[0].Text);
-        Assert.Equal("B ", h.Lines[1].Text);
+        Assert.Equal(2, LineCount(h));
+        Assert.Equal("A ", LineAt(h, 0).FCaption);
+        Assert.Equal("B ", LineAt(h, 1).FCaption);
         // 第二段的颜色来自第一段末尾的颜色码（GetRGB(1)），与第一段不同
-        Assert.NotEqual(h.Lines[0].Color.Value, h.Lines[1].Color.Value);
+        Assert.NotEqual(LineAt(h, 0).FColor.Value, LineAt(h, 1).FColor.Value);
     }
 
     [Fact]
@@ -163,9 +178,9 @@ public sealed class GuiSharePureTests : IDisposable
         var def = new TColor(0x00ABCDEF);
         FStatePure.GetHitLines(h, "/abc", def);
 
-        Assert.Equal(1, h.Count);
-        Assert.Equal("abc", h.Lines[0].Text);
-        Assert.Equal(def.Value, h.Lines[0].Color.Value);
+        Assert.Equal(1, LineCount(h));
+        Assert.Equal("abc", LineAt(h, 0).FCaption);
+        Assert.Equal(def.Value, LineAt(h, 0).FColor.Value);
     }
 
     [Fact]
@@ -176,9 +191,9 @@ public sealed class GuiSharePureTests : IDisposable
         var def = new TColor(0x00123456);
         FStatePure.GetHitLines(h, "255/abc", def);
 
-        Assert.Equal(1, h.Count);
-        Assert.Equal("abc", h.Lines[0].Text);
-        Assert.Equal(def.Value, h.Lines[0].Color.Value);
+        Assert.Equal(1, LineCount(h));
+        Assert.Equal("abc", LineAt(h, 0).FCaption);
+        Assert.Equal(def.Value, LineAt(h, 0).FColor.Value);
     }
 
     [Fact]
@@ -189,9 +204,9 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "12345/abc", new TColor(0x00000000));
 
-        Assert.Equal(2, h.Count);
-        Assert.Equal("12", h.Lines[0].Text);
-        Assert.Equal("abc", h.Lines[1].Text);
+        Assert.Equal(2, LineCount(h));
+        Assert.Equal("12", LineAt(h, 0).FCaption);
+        Assert.Equal("abc", LineAt(h, 1).FCaption);
     }
 
     [Fact]
@@ -202,11 +217,11 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "a/1", new TColor(0x00000000));
 
-        Assert.Equal(2, h.Count);
-        Assert.Equal("a", h.Lines[0].Text);
-        Assert.Equal("1", h.Lines[1].Text);
+        Assert.Equal(2, LineCount(h));
+        Assert.Equal("a", LineAt(h, 0).FCaption);
+        Assert.Equal("1", LineAt(h, 1).FCaption);
         // 第 2 行用的是默认回退色 GetRGB(255)
-        Assert.Equal(GetRGB(255), h.Lines[1].Color.Value);
+        Assert.Equal(GetRGB(255), LineAt(h, 1).FColor.Value);
     }
 
     [Fact]
@@ -215,10 +230,10 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "A 1/B", new TColor(0x000000FF));
 
-        Assert.Equal(2, h.Count);
-        Assert.Equal("A ", h.Lines[0].Text);
-        Assert.Equal("B", h.Lines[1].Text);
-        Assert.NotEqual(h.Lines[0].Color.Value, h.Lines[1].Color.Value);
+        Assert.Equal(2, LineCount(h));
+        Assert.Equal("A ", LineAt(h, 0).FCaption);
+        Assert.Equal("B", LineAt(h, 1).FCaption);
+        Assert.NotEqual(LineAt(h, 0).FColor.Value, LineAt(h, 1).FColor.Value);
     }
 
     [Fact]
@@ -232,9 +247,9 @@ public sealed class GuiSharePureTests : IDisposable
         var h = NewHintLines();
         FStatePure.GetHitLines(h, "X", new TColor(0x00000000));
 
-        Assert.Equal(12, h.Lines[0].Size);
-        Assert.Equal(TFontStyles.fsBold, h.Lines[0].Style);
-        Assert.False(h.Lines[0].Stroke);
+        Assert.Equal(12, LineAt(h, 0).Size);
+        Assert.Equal(TFontStyles.fsBold, LineAt(h, 0).Style);
+        Assert.False(LineAt(h, 0).IsStroke);
     }
 
     [Fact]
