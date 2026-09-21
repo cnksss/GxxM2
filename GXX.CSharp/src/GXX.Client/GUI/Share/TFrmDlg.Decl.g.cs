@@ -582,9 +582,6 @@ public partial class TFrmDlg
     /// <summary>Source line 594 : procedure DDGoldClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DDGoldClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DDGoldClick: not ported yet (FState.pas:594)");
-    /// <summary>Source line 595 : procedure DUserState1MouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
-    public virtual void DUserState1MouseMove(object Sender, TShiftState Shift, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DUserState1MouseMove: not ported yet (FState.pas:595)");
     /// <summary>Source line 597 : procedure DNecklaceUS1DirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DNecklaceUS1DirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DNecklaceUS1DirectPaint: not ported yet (FState.pas:597)");
@@ -663,9 +660,6 @@ public partial class TFrmDlg
     /// <summary>Source line 639 : procedure DMinMapDlgMouseLeave(Sender:TObject); stdcall;</summary>
     public virtual void DMinMapDlgMouseLeave(object Sender)
         => throw new NotSupportedException("TFrmDlg.DMinMapDlgMouseLeave: not ported yet (FState.pas:639)");
-    /// <summary>Source line 640 : procedure DMinMapDlgMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
-    public virtual void DMinMapDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMinMapDlgMouseMove: not ported yet (FState.pas:640)");
     /// <summary>Source line 641 : procedure DMinMapDlgMouseUP(Sender:TObject; Button:TMouseButton; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DMinMapDlgMouseUP(object Sender, TMouseButton Button, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMinMapDlgMouseUP: not ported yet (FState.pas:641)");
@@ -681,9 +675,6 @@ public partial class TFrmDlg
     /// <summary>Source line 645 : procedure OnGetImage(Sender:TObject; ImageType:TImageType; var AImage:TObject);</summary>
     public virtual void OnGetImage(object Sender, TImageType ImageType, ref object AImage)
         => throw new NotSupportedException("TFrmDlg.OnGetImage: not ported yet (FState.pas:645)");
-    /// <summary>Source line 648 : procedure DealItemReturnBag(mitem:TClientItem);</summary>
-    public virtual void DealItemReturnBag(TClientItem mitem)
-        => throw new NotSupportedException("TFrmDlg.DealItemReturnBag: not ported yet (FState.pas:648)");
     /// <summary>Source line 650 : procedure OpenSoundOption(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void OpenSoundOption(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.OpenSoundOption: not ported yet (FState.pas:650)");
@@ -711,12 +702,6 @@ public partial class TFrmDlg
     /// <summary>Source line 666 : procedure DBotGroupClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotGroupClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotGroupClick: not ported yet (FState.pas:666)");
-    /// <summary>Source line 667 : procedure DGrpAllowGroupClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGrpAllowGroupClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGrpAllowGroupClick: not ported yet (FState.pas:667)");
-    /// <summary>Source line 668 : procedure DBotGroupMouseDown(Sender:TObject; Button:TMouseButton; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotGroupMouseDown(object Sender, TMouseButton Button, TShiftState Shift, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotGroupMouseDown: not ported yet (FState.pas:668)");
     /// <summary>Source line 671 : procedure DBotExitClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotExitClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotExitClick: not ported yet (FState.pas:671)");
@@ -729,9 +714,6 @@ public partial class TFrmDlg
     /// <summary>Source line 674 : procedure DButtonFriendClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DButtonFriendClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DButtonFriendClick: not ported yet (FState.pas:674)");
-    /// <summary>Source line 680 : procedure DGameGoldDealDlgMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
-    public virtual void DGameGoldDealDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGameGoldDealDlgMouseMove: not ported yet (FState.pas:680)");
     /// <summary>Source line 681 : procedure DGameGoldDealMenuDlgPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGameGoldDealMenuDlgPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGameGoldDealMenuDlgPaint: not ported yet (FState.pas:681)");
@@ -750,9 +732,6 @@ public partial class TFrmDlg
     /// <summary>Source line 686 : procedure DGameGoldDealDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DGameGoldDealDlgCloseClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGameGoldDealDlgCloseClick: not ported yet (FState.pas:686)");
-    /// <summary>Source line 688 : procedure DGameGoldDealMenuDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGameGoldDealMenuDlgCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGameGoldDealMenuDlgCloseClick: not ported yet (FState.pas:688)");
     /// <summary>Source line 689 : procedure DBuyGameGoldDealItemOKClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBuyGameGoldDealItemOKClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBuyGameGoldDealItemOKClick: not ported yet (FState.pas:689)");
@@ -1227,9 +1206,6 @@ public partial class TFrmDlg
     /// <summary>Source line 858 : procedure ShowSayItemDlg(Item:PTClientItem; X, Y:Integer); virtual; abstract;</summary>
     public virtual void ShowSayItemDlg(PTClientItem Item, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.ShowSayItemDlg: abstract in Delphi (FState.pas:858)");
-    /// <summary>Source line 859 : procedure CloseSayItemDlg(X, Y:Integer);</summary>
-    public virtual void CloseSayItemDlg(int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.CloseSayItemDlg: not ported yet (FState.pas:859)");
     /// <summary>Source line 860 : procedure ShowDGJPointsDlg; virtual; abstract;</summary>
     public virtual void ShowDGJPointsDlg()
         => throw new NotSupportedException("TFrmDlg.ShowDGJPointsDlg: abstract in Delphi (FState.pas:860)");
@@ -1329,9 +1305,6 @@ public partial class TFrmDlg
     /// <summary>Source line 903 : procedure ProgressButtonStartSubDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void ProgressButtonStartSubDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.ProgressButtonStartSubDirectPaint: not ported yet (FState.pas:903)");
-    /// <summary>Source line 905 : procedure DSSrvCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DSSrvCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DSSrvCloseClick: not ported yet (FState.pas:905)");
     /// <summary>Source line 907 : procedure DMyHeroStateClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DMyHeroStateClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMyHeroStateClick: not ported yet (FState.pas:907)");
@@ -1691,9 +1664,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1060 : procedure DGoToLieDragontPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGoToLieDragontPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGoToLieDragontPaint: not ported yet (FState.pas:1060)");
-    /// <summary>Source line 1062 : procedure DGoToLieDragonClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGoToLieDragonClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGoToLieDragonClick: not ported yet (FState.pas:1062)");
     /// <summary>Source line 1064 : procedure DLieDragonNpcPaint(Sender:TObject); stdcall;</summary>
     public virtual void DLieDragonNpcPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DLieDragonNpcPaint: not ported yet (FState.pas:1064)");

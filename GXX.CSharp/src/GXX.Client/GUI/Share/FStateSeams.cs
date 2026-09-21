@@ -610,6 +610,42 @@ public static class FStateMShareSeam
     /// <summary>MShare.pas `g_nChallengeGold:Integer`（挑战中的金币数；原文 20791 判据）。</summary>
     public static int g_nChallengeGold;
 
+    /// <summary>MShare.pas `g_dwChangeGroupModeTick:LongWord`（切换组队模式节流时间戳；原文 18923/18942 判据）。</summary>
+    public static uint g_dwChangeGroupModeTick;
+
+    /// <summary>MShare.pas `g_boAllowGroup:Boolean`（是否允许组队；原文 18924/18943 **取反**后回写并上报）。</summary>
+    public static bool g_boAllowGroup;
+
+    /// <summary>MShare.pas `g_DealDlgItem:TClientItem`（交易对话框当前物品；原文 17620 赋值）。</summary>
+    public static TClientItem g_DealDlgItem;
+
+    /// <summary>
+    /// MShare.pas `g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（元宝交易菜单的 9 个远端物品栏）。
+    /// 原文 18663 的 `SafeFillChar(..., SizeOf(TClientItem) * 9, #0)` 在托管侧等价于 `Array.Clear`。
+    /// </summary>
+    public static TClientItem[] g_GameGoldDealRemoteItems = new TClientItem[9];
+
+    /// <summary>
+    /// MShare.pas `g_GameGoldDeal:TGameGoldDeal`（元宝交易菜单状态）。
+    /// 原文 18664 的 `SafeFillChar(..., SizeOf(TGameGoldDeal), #0)` 在托管侧等价于 `= default`。
+    /// </summary>
+    public static TGameGoldDeal g_GameGoldDeal;
+
+    /// <summary>MShare.pas `g_nMinMapX:Integer`（小地图上鼠标 X；原文 18224 赋值）。</summary>
+    public static int g_nMinMapX;
+
+    /// <summary>MShare.pas `g_nMinMapY:Integer`（小地图上鼠标 Y；原文 18225 赋值）。</summary>
+    public static int g_nMinMapY;
+
+    /// <summary>
+    /// MShare.pas `g_MouseUserStateItem:TClientItem`（人物状态窗口上鼠标所指的物品）。
+    /// 原文 17802 / 2612 只做 `g_MouseUserStateItem.S.Name := ''`（清空短串名）。
+    /// 这里只暴露**被用到的那一个字段**，而不是整份 645 KB 级结构体
+    /// （**禁止按值传递巨型结构体** —— 台账本轮新规程）。
+    /// 【接缝：待 MShare.pas 落地后换成真实 TClientItem 的 s.Name】
+    /// </summary>
+    public static string g_MouseUserStateItem_sName = "";
+
     /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
@@ -623,6 +659,14 @@ public static class FStateMShareSeam
         g_nDealGold = 0;
         g_boChallengeEnd = false;
         g_nChallengeGold = 0;
+        g_dwChangeGroupModeTick = 0;
+        g_boAllowGroup = false;
+        g_DealDlgItem = default;
+        g_GameGoldDealRemoteItems = new TClientItem[9];
+        g_GameGoldDeal = default;
+        g_nMinMapX = 0;
+        g_nMinMapY = 0;
+        g_MouseUserStateItem_sName = "";
     }
 }
 
@@ -951,6 +995,24 @@ public static class FStateClMainSeam
     /// <summary>ClMain.pas frmMain.ReConnectClientSocketGate（原文 24471 调用）。</summary>
     public static void ReConnectClientSocketGate() => ReConnectClientSocketGateHandler?.Invoke();
 
+    /// <summary>ClMain.pas `frmMain.SendGroupMode(boAllowGroup:Boolean)`（原文 18926/18945 调用）。</summary>
+    public static Action<bool> SendGroupModeHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGroupMode（原文 18926/18945 调用）。</summary>
+    public static void SendGroupMode(bool boAllowGroup) => SendGroupModeHandler?.Invoke(boAllowGroup);
+
+    /// <summary>ClMain.pas `frmMain.SendDelDealItem(Item:TClientItem)`（原文 17621 调用）。</summary>
+    public static Action<TClientItem> SendDelDealItemHandler;
+
+    /// <summary>ClMain.pas frmMain.SendDelDealItem（原文 17621 调用）。</summary>
+    public static void SendDelDealItem(TClientItem item) => SendDelDealItemHandler?.Invoke(item);
+
+    /// <summary>ClMain.pas `frmMain.Close`（原文 2249 / 2297 调用，无参）。</summary>
+    public static Action CloseHandler;
+
+    /// <summary>ClMain.pas frmMain.Close（原文 2297 调用）。</summary>
+    public static void Close() => CloseHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -978,6 +1040,9 @@ public static class FStateClMainSeam
         SendDealTryHandler = null;
         SendChallengeTryHandler = null;
         ReConnectClientSocketGateHandler = null;
+        SendGroupModeHandler = null;
+        SendDelDealItemHandler = null;
+        CloseHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

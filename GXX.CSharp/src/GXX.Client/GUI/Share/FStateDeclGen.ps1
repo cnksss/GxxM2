@@ -67,7 +67,16 @@ $Handwritten = @(
   'DChallengeCloseClick','ChallengeZeroGold',
   # ---- lane p14-client-fstate slice 6 (TFrmDlg.Handlers.cs) --------------------------------
   # Help-button throttle (field + difference guard) and the update-dialog reconnect handler.
-  'DControlHelpClick','DUpdateStatusDlgDblClick'
+  'DControlHelpClick','DUpdateStatusDlgDblClick',
+  # ---- lane p14-client-fstate slice 7 (TFrmDlg.Handlers.cs) --------------------------------
+  # Group-mode toggle pair (two entry points sharing one handler body) and the
+  # deal-item / game-gold-deal clear handlers.
+  'DBotGroupMouseDown','DGrpAllowGroupClick','DealItemReturnBag','DGameGoldDealMenuDlgCloseClick',
+  # ---- lane p14-client-fstate slice 8 (TFrmDlg.Handlers.cs) --------------------------------
+  # Hint-clearing mouse handlers, the two remaining "close/hide" forwarders, the minimap
+  # coordinate recorder, and the early-Exit CloseSayItemDlg.
+  'DSSrvCloseClick','DGoToLieDragonClick','DGameGoldDealDlgMouseMove','DMinMapDlgMouseMove',
+  'CloseSayItemDlg','DUserState1MouseMove'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

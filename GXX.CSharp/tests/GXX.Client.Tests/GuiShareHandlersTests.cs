@@ -1132,6 +1132,249 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 切片 7：组队模式开关对 + 交易物品回包 + 元宝交易菜单清场
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice7RegistersFourMembers()
+    {
+        Assert.Equal(4, TFrmDlgPortLedger.Slice7Count);
+    }
+
+    [Fact]
+    public void GroupModeToggleFlipsTheFlagRearmsByFiveThousandAndReportsTheNewValue()
+    {
+        var frm = NewForm();
+        var reported = new List<bool>();
+        FStateClMainSeam.SendGroupModeHandler = v => reported.Add(v);
+        FStateMShareSeam.g_boAllowGroup = false;
+        FStateMShareSeam.g_dwChangeGroupModeTick = 9_999;
+
+        frm.DGrpAllowGroupClick(null, 0, 0);
+
+        Assert.True(FStateMShareSeam.g_boAllowGroup);                        // 18943：取反
+        Assert.Equal(15_000u, FStateMShareSeam.g_dwChangeGroupModeTick);     // 18944：+5000
+        Assert.Single(reported);
+        Assert.True(reported[0]);                                            // 18945：上报**取反后**的值
+    }
+
+    [Fact]
+    public void GroupModeToggleIsThrottledAndUsesAStrictGreaterThan()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGroupModeHandler = _ => calls++;
+        FStateMShareSeam.g_boAllowGroup = false;
+
+        // 相等 ⇒ 严格 `>` 不成立
+        FStateMShareSeam.g_dwChangeGroupModeTick = 10_000;
+        frm.DGrpAllowGroupClick(null, 0, 0);
+        Assert.Equal(0, calls);
+        Assert.False(FStateMShareSeam.g_boAllowGroup);                // 未被取反
+
+        // tick 未推进时再点 ⇒ 被上一步的 +5000 挡住
+        FStateMShareSeam.g_dwChangeGroupModeTick = 0;
+        frm.DGrpAllowGroupClick(null, 0, 0);
+        Assert.Equal(1, calls);
+        frm.DGrpAllowGroupClick(null, 0, 0);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void BotGroupMouseDownOnlyTogglesOnTheRightButton()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGroupModeHandler = _ => calls++;
+        FStateMShareSeam.g_boAllowGroup = false;
+
+        frm.DBotGroupMouseDown(null, TMouseButton.mbLeft, TShiftState.ssNone, 0, 0);
+        Assert.Equal(0, calls);                                       // 18922：非右键直接返回
+        Assert.False(FStateMShareSeam.g_boAllowGroup);
+
+        frm.DBotGroupMouseDown(null, TMouseButton.mbRight, TShiftState.ssNone, 0, 0);
+        Assert.Equal(1, calls);
+        Assert.True(FStateMShareSeam.g_boAllowGroup);
+    }
+
+    [Fact]
+    public void BotGroupMouseDownSharesTheSameThrottleAndBodyAsTheAllowGroupButton()
+    {
+        // 差异证据：两条走**同一个** g_dwChangeGroupModeTick 与同一份主体 ⇒
+        // 右键点过之后，立刻点"允许组队"按钮不会再次翻转。
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGroupModeHandler = _ => calls++;
+        FStateMShareSeam.g_boAllowGroup = false;
+        FStateMShareSeam.g_dwChangeGroupModeTick = 0;
+
+        frm.DBotGroupMouseDown(null, TMouseButton.mbRight, TShiftState.ssNone, 0, 0);
+        Assert.True(FStateMShareSeam.g_boAllowGroup);
+
+        frm.DGrpAllowGroupClick(null, 0, 0);
+        Assert.Equal(1, calls);                                       // 共享计数器挡住
+        Assert.True(FStateMShareSeam.g_boAllowGroup);
+    }
+
+    [Fact]
+    public void DealItemReturnBagCachesReportsAndRearms()
+    {
+        var frm = NewForm();
+        var sent = new List<TClientItem>();
+        FStateClMainSeam.SendDelDealItemHandler = it => sent.Add(it);
+        FStateMShareSeam.g_boDealEnd = false;
+
+        frm.DealItemReturnBag(new TClientItem());
+
+        Assert.Single(sent);                                          // 17621
+        Assert.Equal(14_000u, FStateMShareSeam.g_dwDealActionTick);   // 17622：+4000
+    }
+
+    [Fact]
+    public void DealItemReturnBagDoesNothingAfterTheDealEnded()
+    {
+        // 原文**只判** not g_boDealEnd（17619）—— 交易结束后整段跳过。
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendDelDealItemHandler = _ => calls++;
+        FStateMShareSeam.g_boDealEnd = true;
+
+        frm.DealItemReturnBag(new TClientItem());
+
+        Assert.Equal(0, calls);
+        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);        // 未重装
+    }
+
+    [Fact]
+    public void DGameGoldDealMenuDlgCloseForwardsToTheMenuDialogCloser()
+    {
+        var frm = NewForm();
+        FStateMShareSeam.g_GameGoldDeal.ItemCount = 7;
+
+        // 18662 的 CloseDGameGoldDealMenuDlg 仍是 throw 壳 ⇒ 抛点在被转发方（且发生在清场之前）
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DGameGoldDealMenuDlgCloseClick(null, 0, 0));
+        Assert.Contains("CloseDGameGoldDealMenuDlg", ex.Message);
+        Assert.Equal(7, FStateMShareSeam.g_GameGoldDeal.ItemCount);   // 未被清（前一行先抛）
+    }
+
+    [Fact]
+    public void GameGoldDealSeamHasTheOriginalNineRemoteSlots()
+    {
+        // 原文 `g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（9 槽）。
+        Assert.Equal(9, FStateMShareSeam.g_GameGoldDealRemoteItems.Length);
+    }
+
+    // =====================================================================================
+    // 切片 8：提示清理族 + 关闭转发 + 小地图坐标 + 原文 Exit 短路
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice8RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice8Count);
+    }
+
+    [Fact]
+    public void DSSrvCloseClickClosesTheServerDlgThenTheMainForm()
+    {
+        var frm = NewForm();
+        int closes = 0;
+        FStateClMainSeam.CloseHandler = () => closes++;
+
+        // 2296 的 CloseDSelServerDlg 仍是 throw 壳 ⇒ 抛点在被转发方，2297 不会执行
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DSSrvCloseClick(null, 0, 0));
+        Assert.Contains("CloseDSelServerDlg", ex.Message);
+        Assert.Equal(0, closes);                              // 顺序证据：先关对话框再关主窗体
+    }
+
+    [Fact]
+    public void DGameGoldDealDlgMouseMoveClearsBothHints()
+    {
+        var frm = NewForm();
+        DrawScrnEnv.HintWindows.Add(new THintWindow());
+
+        frm.DGameGoldDealDlgMouseMove(null, TShiftState.ssNone, 0, 0);
+
+        Assert.Equal(1, FStateScreenSeam.ClearHintCount);     // 18523
+        Assert.Equal(0, DrawScrnEnv.HintWindows.Count);       // 18524
+    }
+
+    [Fact]
+    public void DMinMapDlgMouseMoveStoresTheRawCoordinatesWithoutConversion()
+    {
+        var frm = NewForm();
+
+        frm.DMinMapDlgMouseMove(null, TShiftState.ssNone, 1234, -5678);
+
+        Assert.Equal(1234, FStateMShareSeam.g_nMinMapX);      // 18224：原始 X，不换算
+        Assert.Equal(-5678, FStateMShareSeam.g_nMinMapY);     // 18225：原始 Y（负数也照存）
+    }
+
+    [Fact]
+    public void DUserState1MouseMoveClearsTheItemNameThenBothHints()
+    {
+        var frm = NewForm();
+        FStateMShareSeam.g_MouseUserStateItem_sName = "某物品";
+        DrawScrnEnv.HintWindows.Add(new THintWindow());
+
+        frm.DUserState1MouseMove(null, TShiftState.ssNone, 0, 0);
+
+        Assert.Equal("", FStateMShareSeam.g_MouseUserStateItem_sName);   // 17802
+        Assert.Equal(0, DrawScrnEnv.HintWindows.Count);                  // 17803
+        Assert.Equal(1, FStateScreenSeam.ClearHintCount);                // 17804
+    }
+
+    [Fact]
+    public void DGoToLieDragonClickSendsTheHeroMapCommandThenHidesTheDialog()
+    {
+        var frm = NewForm();
+        var sent = new List<(int Merchant, string Cmd)>();
+        FStateClMainSeam.SendMerchantDlgSelectHandler = (m, c) => sent.Add((m, c));
+        FStateClMainSeam.g_nCurMerchant = 77;
+        frm.DLieDragon = new TDxImageForm { Visible = true };
+
+        frm.DGoToLieDragonClick(null, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal(77, sent[0].Merchant);                  // 24289：用当前商人号
+        Assert.Equal("@HeroMap", sent[0].Cmd);               // 24289：命令字面量
+        Assert.False(frm.DLieDragon.Visible);                // 24290
+    }
+
+    [Fact]
+    public void CloseSayItemDlgShortCircuitsAtTheOriginalUnconditionalExit()
+    {
+        // ★ 原文缺陷锁死：24376 是**无条件 Exit** ⇒ 24378-24382 的"移出即关闭"永远不可达。
+        //   即使把两个前置条件都摆成"成立"的样子，对话框也**不会**被关掉。
+        var frm = NewForm();
+        frm.DSayItemDlg = new TDxImageForm { Visible = true };
+        SetProtectedBool(frm, "boSayItemDlgMoveOutClose", true);
+
+        frm.CloseSayItemDlg(-9999, -9999);   // 坐标远在矩形外
+
+        Assert.True(frm.DSayItemDlg.Visible);                // 原文如此：Exit 之后一切不执行
+        Assert.True(GetProtectedBool(frm, "boSayItemDlgMoveOutClose"));   // 该字段本身未被改动
+    }
+
+    /// <summary>
+    /// 原文 `protected` 段的字段在托管生成壳里同样是 `protected`；测试只能经反射读写
+    /// （**不为测试改原文可见性** —— 台账本轮采信的判据）。
+    /// </summary>
+    private static System.Reflection.FieldInfo ProtectedField(TFrmDlg frm, string name)
+    {
+        var f = frm.GetType().GetField(name,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.False(f == null, "生成壳里找不到字段: " + name);
+        return f;
+    }
+
+    private static bool GetProtectedBool(TFrmDlg frm, string name)
+        => (bool)ProtectedField(frm, name).GetValue(frm);
+
+    private static void SetProtectedBool(TFrmDlg frm, string name, bool value)
+        => ProtectedField(frm, name).SetValue(frm, value);
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 
