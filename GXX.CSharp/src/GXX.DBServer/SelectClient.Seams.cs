@@ -216,53 +216,53 @@ public static class SelectClientGlobals
 }
 
 /// <summary>
-/// 接缝：DBShare.pas 的人物名校验族与主动网关路由族（**均未移植**）。
+/// 接缝：DBShare.pas 的人物名校验族与主动网关路由族。
 ///
-/// ★ 参数表示（关键）：<c>CheckChrName</c>/<c>CheckSpecialChar</c>/<c>CheckDenyChrName</c>/
+/// 【2026 第 2 轮变更：校验族已移植，接缝由"抛"改为**转调真实现**】
+///   6 个校验函数已在 <see cref="DBShare"/>（`DBShare.cs`，原文 :1043-1274 逐行）落地 ⇒ 本接缝的默认值
+///   改成**转调**（与 <c>HUtil32Seam</c> 同一处置：**不保留第二份算法**，两份实现一旦漂移，
+///   DBServer 内部与外部调用就会分叉）。仍保留为可注入的 <c>Func&lt;string,bool&gt;</c>，
+///   因为既有单测（`SelectClientRoleTests` 等）需要桩住它们来锁定分支顺序。
+///   **主动网关路由族（GateActiveRouteIP / CheckActiveRunGate）仍未移植** ⇒ 那两个仍然默认抛。
+///
+/// ★ 参数表示（关键）：<c>CheckChrName</c>/<c>CheckDenyChrName</c>/
 ///   <c>CheckNumberName</c>/<c>CheckLetterName</c>/<c>CheckFilterNewHumanChrName</c> 在原文里接收的是
 ///   Delphi <c>AnsiString</c>，函数体按**字节**判定（DBShare.pas:1204-1249 <c>Chr := sChrName[I]</c>
 ///   与 <c>#$81..#$FE</c> 比较，即 GBK 首字节区间）。
-///   ⇒ 托管侧接缝一律传 **latin-1 字节串**（见 <see cref="SelectClientAnsi"/>），
-///     将来 DBShare.pas 正式移植时可直接逐字节照抄函数体。
+///   ⇒ 托管侧接缝一律传 **latin-1 字节串**（见 <see cref="SelectClientAnsi"/>）。
 ///   <c>CheckSpecialChar(sChrName: WideString)</c>（DBShare.pas:1251）是**唯一**收 WideString 的一个，
 ///     按原文 AnsiString→WideString 的隐式转换，传 **GBK 文本**。
 /// </summary>
 public static class SelectClientDbShareSeam
 {
-    /// <summary>DBShare.pas:16 `TextChars = [#32..#255];`（AnsiChar 集合；:937 `sChrName[I] in TextChars`）。</summary>
-    public const byte TextCharsFirst = 32;
+    /// <summary>DBShare.pas:16 `TextChars = [#32..#255];`（AnsiChar 集合；:937 `sChrName[I] in TextChars`）。**单一真源**在 <see cref="DBShare"/>。</summary>
+    public const byte TextCharsFirst = (byte)DBShare.TextCharsFirst;
     /// <summary>DBShare.pas:16 的上界 255。</summary>
-    public const byte TextCharsLast = 255;
+    public const byte TextCharsLast = (byte)DBShare.TextCharsLast;
 
-    /// <summary>DBShare.pas:21 `MIN_CHAR_NAME_LEN = 4;`（:932）。</summary>
-    public const int MIN_CHAR_NAME_LEN = 4;
+    /// <summary>DBShare.pas:21 `MIN_CHAR_NAME_LEN = 4;`（:932）。**单一真源**在 <see cref="DBShare"/>。</summary>
+    public const int MIN_CHAR_NAME_LEN = DBShare.MIN_CHAR_NAME_LEN;
 
-    /// <summary>DBShare.pas:22 `MAX_CHAR_NAME_LEN = 14;`（:957）。</summary>
-    public const int MAX_CHAR_NAME_LEN = 14;
+    /// <summary>DBShare.pas:22 `MAX_CHAR_NAME_LEN = 14;`（:957）。**单一真源**在 <see cref="DBShare"/>。</summary>
+    public const int MAX_CHAR_NAME_LEN = DBShare.MAX_CHAR_NAME_LEN;
 
-    /// <summary>DBShare.pas:1204 `function CheckChrName(sChrName: string): Boolean;`（入参：字节串）。</summary>
-    public static Func<string, bool> CheckChrName =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1204-1249 CheckChrName 未移植。");
+    /// <summary>DBShare.pas:1204-1249 `CheckChrName`（入参：字节串）→ <see cref="DBShare.CheckChrName"/>。</summary>
+    public static Func<string, bool> CheckChrName = s => DBShare.CheckChrName(s);
 
-    /// <summary>DBShare.pas:1251 `function CheckSpecialChar(sChrName: WideString): Boolean;`（入参：GBK 文本）。</summary>
-    public static Func<string, bool> CheckSpecialChar =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1251-1280 CheckSpecialChar 未移植。");
+    /// <summary>DBShare.pas:1251-1274 `CheckSpecialChar`（入参：GBK 文本）→ <see cref="DBShare.CheckSpecialChar"/>。</summary>
+    public static Func<string, bool> CheckSpecialChar = s => DBShare.CheckSpecialChar(s);
 
-    /// <summary>DBShare.pas:1043 `function CheckDenyChrName(sChrName: string): Boolean;`（入参：字节串）。</summary>
-    public static Func<string, bool> CheckDenyChrName =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1043-1056 CheckDenyChrName 未移植。");
+    /// <summary>DBShare.pas:1043-1056 `CheckDenyChrName`（入参：字节串）→ <see cref="DBShare.CheckDenyChrName"/>。</summary>
+    public static Func<string, bool> CheckDenyChrName = s => DBShare.CheckDenyChrName(s);
 
-    /// <summary>DBShare.pas:1103 `function CheckNumberName(sChrName: string): Boolean;`（入参：字节串）。</summary>
-    public static Func<string, bool> CheckNumberName =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1103-1122 CheckNumberName 未移植。");
+    /// <summary>DBShare.pas:1103-1122 `CheckNumberName`（入参：字节串）→ <see cref="DBShare.CheckNumberName"/>。</summary>
+    public static Func<string, bool> CheckNumberName = s => DBShare.CheckNumberName(s);
 
-    /// <summary>DBShare.pas:1124 `function CheckLetterName(sChrName: string): Boolean;`（入参：字节串）。</summary>
-    public static Func<string, bool> CheckLetterName =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1124-1150 CheckLetterName 未移植。");
+    /// <summary>DBShare.pas:1124-1143 `CheckLetterName`（入参：字节串）→ <see cref="DBShare.CheckLetterName"/>。</summary>
+    public static Func<string, bool> CheckLetterName = s => DBShare.CheckLetterName(s);
 
-    /// <summary>DBShare.pas:1058 `function CheckFilterNewHumanChrName(sChrName: string): Boolean;`（入参：字节串）。</summary>
-    public static Func<string, bool> CheckFilterNewHumanChrName =
-        _ => throw new NotSupportedException("接缝：DBShare.pas:1058-1077 CheckFilterNewHumanChrName 未移植。");
+    /// <summary>DBShare.pas:1058-1077 `CheckFilterNewHumanChrName`（入参：字节串）→ <see cref="DBShare.CheckFilterNewHumanChrName"/>。</summary>
+    public static Func<string, bool> CheckFilterNewHumanChrName = s => DBShare.CheckFilterNewHumanChrName(s);
 
     /// <summary>
     /// DBShare.pas:751-870 `function GateActiveRouteIP(sGateIP: string; var nPort: Integer): string;`
@@ -281,13 +281,15 @@ public static class SelectClientDbShareSeam
     /// <summary>把所有可注入项复位（单测用）。</summary>
     public static void Reset()
     {
-        CheckChrName = _ => throw new NotSupportedException("接缝：DBShare.pas:1204-1249 CheckChrName 未移植。");
-        CheckSpecialChar = _ => throw new NotSupportedException("接缝：DBShare.pas:1251-1280 CheckSpecialChar 未移植。");
-        CheckDenyChrName = _ => throw new NotSupportedException("接缝：DBShare.pas:1043-1056 CheckDenyChrName 未移植。");
-        CheckNumberName = _ => throw new NotSupportedException("接缝：DBShare.pas:1103-1122 CheckNumberName 未移植。");
-        CheckLetterName = _ => throw new NotSupportedException("接缝：DBShare.pas:1124-1150 CheckLetterName 未移植。");
-        CheckFilterNewHumanChrName = _ => throw new NotSupportedException("接缝：DBShare.pas:1058-1077 CheckFilterNewHumanChrName 未移植。");
-        GateActiveRouteIP = (string _, out int nPort) => throw new NotSupportedException("接缝：DBShare.pas:751-870 GateActiveRouteIP 未移植。");
+        // 校验族：**复位为转调真实现**（与静态字段的初值一致）。
+        CheckChrName = s => DBShare.CheckChrName(s);
+        CheckSpecialChar = s => DBShare.CheckSpecialChar(s);
+        CheckDenyChrName = s => DBShare.CheckDenyChrName(s);
+        CheckNumberName = s => DBShare.CheckNumberName(s);
+        CheckLetterName = s => DBShare.CheckLetterName(s);
+        CheckFilterNewHumanChrName = s => DBShare.CheckFilterNewHumanChrName(s);
+        // 主动网关路由族：**仍未移植** ⇒ 保持"未接线即抛"（§25.2）。
+        GateActiveRouteIP = (string _, out int nPort) => throw new NotSupportedException("接缝：DBShare.pas:751-848 GateActiveRouteIP 未移植。");
         CheckActiveRunGate = (_, __) => throw new NotSupportedException("接缝：DBShare.pas:731-749 CheckActiveRunGate 未移植。");
     }
 }

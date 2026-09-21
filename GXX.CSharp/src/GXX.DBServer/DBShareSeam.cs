@@ -144,6 +144,15 @@ public static class DBShareSeam
     public static TStringList g_FilterNewHumanNameTextList = new TStringList();
     public static TStringList g_FilterRankingNameTextList = new TStringList();
 
+    /// <summary>
+    /// DBShare.pas:145 `g_DenyChrNameList: TStringList;`（**2026 第 2 轮新增**）：
+    /// 人物名禁用名单，由 <see cref="DBShare.LoadChrNameList"/>（原文 :403-425）装载、
+    /// <see cref="DBShare.CheckDenyChrName"/>（原文 :1043-1056）消费。
+    /// 放在本文件是为了与它的兄弟 `g_FilterNewHumanNameTextList`（:144）同处；
+    /// 将来 DBShare.pas 整体移植时一并迁走。
+    /// </summary>
+    public static TStringList g_DenyChrNameList = new TStringList();
+
     // ---------------- 排行榜（DBShare.pas:176-215） ----------------
 
     public static int g_nRankingMinLevel = 20;
