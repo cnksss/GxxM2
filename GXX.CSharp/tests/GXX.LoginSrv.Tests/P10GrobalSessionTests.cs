@@ -15,7 +15,7 @@ using Xunit;
 
 using TGList = GXX.Core.Protocol.SDK.TGList;
 
-namespace GXX.LoginSrv.Tests;
+namespace GXX.LoginSrv.Forms.Tests;
 
 [Collection("LoginSrvSequential")]
 public sealed class P10GrobalSessionTests : IDisposable

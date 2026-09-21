@@ -21,7 +21,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
-namespace GXX.LoginSrv.Tests;
+namespace GXX.LoginSrv.Forms.Tests;
 
 /// <summary>DFM 对账工具。</summary>
 public static class P10FormReconcile

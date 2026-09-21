@@ -17,13 +17,20 @@
 //   2. `PanelStatus.Caption := '正在取得数据...'` 在 `RefGridSession` 里**只设不复位** ⇒
 //      取完数据后状态栏**永远停在"正在取得数据..."**。
 //   3. `GridSession.FixedRows := 1` 只在"会话数为 0"分支里写；非空分支不写（靠 DFM 默认值 1）。
+//
+// 命名空间：本车道 `Forms/**` 分区下的窗体统一放 `GXX.LoginSrv.Forms`
+// （与既有 `GXX.M2Server.Forms` 的约定一致，见 p9-m2-forms 车道的 Sweep9/Forms）。
+// 理由（D-P10-15）：根命名空间 `GXX.LoginSrv` 里已有/将有可能同名的接缝类型
+// （实测：`LoginSrvShare.TMsgServerInfo` 与 MasSock.pas 的同名记录**不同**；
+//   且 LSShare.pas 的 `TConnInfo` 一旦落地就会与本文件的 `TConnInfo` 撞名）。
+// 落在子命名空间后，外层命名空间成员**先于** using 被解析 ⇒ 结构上不可能撞名。
 // ============================================================================
 
 using System;
 using System.Collections.Generic;
 using System.Windows.Forms;
 
-namespace GXX.LoginSrv;
+namespace GXX.LoginSrv.Forms;
 
 /// <summary>
 /// 接缝：LSShare.pas:53-64 `TConnInfo`（本窗体实际只读 5 个字段：
@@ -117,9 +124,9 @@ public sealed class TfrmGrobalSession : Form
             TabIndex = 1,
         };
 
-        // object GridSession: TStringGrid（ColCount=6, DefaultRowHeight=18, FixedCols=0）
-        // 托管等价：DataGridView + 只读化（DFM 的 Options 含 goEditing，
-        //   但原文代码从不写回网格 ⇒ 托管保持可编辑语义一致性交由列只读关闭：此处保留可编辑）
+        // object GridSession: TStringGrid（ColCount=6, DefaultRowHeight=18, FixedCols=0,
+        //   Options 含 goEditing/goRangeSelect —— 原文代码从不写回网格，托管侧保留可编辑）
+        // 托管等价：DataGridView，并把列头关掉（TStringGrid 的"表头"是**固定行** 0，不是列头）
         GridSession = new DataGridView
         {
             Name = "GridSession",
