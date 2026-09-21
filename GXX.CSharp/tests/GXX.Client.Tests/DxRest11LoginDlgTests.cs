@@ -360,7 +360,7 @@ public sealed class DxRest11LoginDlgTests : IDisposable
             + BoundHandlerNames(f.CheckBoxD3DFormat).Count
             + f.RadioGroupItems.Sum(r => BoundHandlerNames(r).Count);
         Assert.Equal(11, boundEntries);   // 2（确定/取消）+ 1（EditGamePathButton）+ 1（CheckBox）+ 7（单选项）
-        Assert.Equal(0, BoundHandlerNames(f.DialogButtons, allowEmpty: true).Count);   // 纯承载面板，不挂事件
+        Assert.Empty(BoundHandlerNames(f.DialogButtons, allowEmpty: true));   // 纯承载面板，不挂事件
 
         // 计数取证：DFM 的 6 条绑定，逐条在托管侧"能真的触发到原文处理器"
         Assert.Equal(6, dfm.Bindings.Count);
@@ -768,7 +768,7 @@ public sealed class DxRest11LoginDlgTests : IDisposable
         f.RadioGroupClick(f.RadioGroupItems[2], EventArgs.Empty, 2);
 
         Assert.Equal(TClientVersion.cvHero, LoginDlgGlobals.g_ClientVersion);   // :169
-        Assert.Equal(f.RadioGroupItems[2].Checked, true);
+        Assert.True(f.RadioGroupItems[2].Checked);
         Assert.False(f.RadioGroupItems[3].Checked);                             // 单选互斥
         Assert.Equal(@"D:\v2\", f.EditGamePath.Text);                           // :170
     }
@@ -938,6 +938,7 @@ public sealed class DxRest11LoginDlgTests : IDisposable
         Assert.Equal(new[] { "7", "3", "5" }, keys.ToArray());
         Assert.Equal(3, keys.Count);
         Assert.DoesNotContain("应被清空", keys);   // 计数取证：ReadSection 先 Clear（§37.3）
+        Assert.False(ini.ValueExists("FileNames", "1"));   // 计数取证：仅 3 个键
     }
 
     [Fact]
