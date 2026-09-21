@@ -331,12 +331,17 @@ public class Sweep9bFormsReconTests : IDisposable
     }
 
     [Fact]
-    public void ReplaceDialog_VirtualDispatchIsLost_Gap()
+    public void ReplaceDialog_VirtualDispatchReachesDerived_IntegratorFix()
     {
-        // ★★ 缺口 X-P10-04（登记，非本车道可修）：原文 `TTextReplaceDialog.FormCloseQuery`
-        //   是 **override**（基类 `TTextSearchDialog.FormCloseQuery` 为 virtual）⇒ 通过基类引用调用
-        //   仍会派发到派生版；托管侧基类方法非虚、派生版用 `new` 隐藏 ⇒ **虚分派丢失**。
-        //   调用方若把它当 TextSearchDialog 用（fTxtEditor 那条路），替换词就不会被置顶。
+        // ★★ 缺口 X-P10-04 —— **已由集成方修复**（台账 §53.1）。本用例原为 `..._VirtualDispatchIsLost_Gap`
+        //   （锁定"派生逻辑不可达"的缺口现状）；修复后按**正确行为**断言，并按 §19.2 的规矩保留此说明。
+        //
+        // 原文事实（集成方逐行核对，纠正本车道报告里的一处误述）：
+        //   dlgSearchText.pas:60 与 dlgReplaceText.pas:50 **两处声明都没有 `virtual` / `override`**
+        //   ⇒ 在 Delphi 里这是"**隐藏**"而不是"覆写"。但 **DFM 把窗体事件 `OnCloseQuery` 绑到实例的最派生方法**，
+        //   所以**原文的可观测行为**是：关闭替换对话框时跑派生版（把替换词也置顶）。
+        //   托管侧原先 基类非虚 + 派生用 `new` ⇒ 基类继承给按钮的接线永远调到基类版 ⇒ **行为偏离**。
+        // 处置：基类 `virtual` + 派生 `override` —— **声明形态与原文不同（原文非虚），可观测行为对齐**，已登记为偏离。
         using var dlg = new TextReplaceDialog();
         dlg.SearchTextHistory = "b\r\nS";
         dlg.SearchText = "S";
@@ -345,12 +350,17 @@ public class Sweep9bFormsReconTests : IDisposable
         dlg.ModalResult = DialogResult.OK;
 
         TextSearchDialog asBase = dlg;
-        asBase.FormCloseQuery(out _);                       // 通过基类引用 ⇒ 只跑基类版本
+        asBase.FormCloseQuery(out _);                       // 经基类引用调用
         Assert.Equal("S", dlg.cbSearchText.Items[0]?.ToString());
-        Assert.Equal("b", dlg.cbReplaceText.Items[0]?.ToString());   // ← 替换词未被置顶（原文会置顶）
+        Assert.Equal("R", dlg.cbReplaceText.Items[0]?.ToString());   // ← 修复后：派生版被派发，替换词也置顶
 
-        dlg.FormCloseQuery(out _);                          // 直接调派生版才生效
-        Assert.Equal("R", dlg.cbReplaceText.Items[0]?.ToString());
+        // 反例保护：基类实例（非替换对话框）不得出现"替换词置顶"这类派生专属行为
+        using var plain = new TextSearchDialog();
+        plain.SearchTextHistory = "b\r\nS";
+        plain.SearchText = "S";
+        plain.ModalResult = DialogResult.OK;
+        plain.FormCloseQuery(out _);
+        Assert.Equal("S", plain.cbSearchText.Items[0]?.ToString());
     }
 
     [Fact]

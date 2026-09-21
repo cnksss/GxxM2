@@ -116,5 +116,10 @@ p14-logingate-wire	!GXX.CSharp/src/GXX.LoginGate/LoginGateService.cs;!GXX.CSharp
 # (measured), plus ~20 real members in TFrmDlg.Core.cs.  The lane replaces the shell with 1:1
 # implementations, so GUI/Share/** gets a '!' grant (that IS the unit's established home).
 p14-client-fstate	!GXX.CSharp/src/GXX.Client/GUI/Share/**;!GXX.CSharp/tests/GXX.Client.Tests/GuiShare*;GXX.CSharp/docs/并行报告-p14-client-fstate.md
+# ---- P15 (round 63): CP936 sweep.  Ledger 52.1 measured 35 remaining DIRECT Encoding.GetEncoding(936)
+# calls in 17 product files; each one only works if GXX.Core's [ModuleInitializer] happened to run
+# first (a load-order dependency that already produced one red gate).  Explicit file list, no globs,
+# so this lane cannot collide with p13-m2-objplayer (Engine/PlayerSurface/**) or objmon-real (ObjMon*.cs).
+p15-cp936-sweep	!GXX.CSharp/src/GXX.Core/Launcher/LauncherSettings.cs;!GXX.CSharp/src/GXX.M2Server/Engine/Boxs.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ClientModuleList.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CombatPower.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CustomHeroMagic.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CustomNpcUtils.cs;!GXX.CSharp/src/GXX.M2Server/Engine/FilterTexts.cs;!GXX.CSharp/src/GXX.M2Server/Engine/GroupItems.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ItemEffects.cs;!GXX.CSharp/src/GXX.M2Server/Engine/Items.cs;!GXX.CSharp/src/GXX.M2Server/Engine/SkillPowerItemList.cs;!GXX.CSharp/src/GXX.M2Server/Engine/SndaShop.cs;!GXX.CSharp/src/GXX.M2Server/Engine/UserCmds.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ViewFormsData.cs;!GXX.CSharp/src/GXX.RunGate/GateShareAddressUtils.cs;!GXX.CSharp/src/GXX.RunGate/GateShareMagicIntervalUtils.cs;!GXX.CSharp/src/GXX.RunGate/RunGateConfigLoader.cs;GXX.CSharp/tests/GXX.Core.Tests/Cp936*;GXX.CSharp/docs/并行报告-p15-cp936-sweep.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1

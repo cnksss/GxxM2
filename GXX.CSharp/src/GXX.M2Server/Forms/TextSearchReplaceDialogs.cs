@@ -126,7 +126,17 @@ public class TextSearchDialog : System.Windows.Forms.Form
     }
 
     /// <summary>Delphi FormCloseQuery（mrOK 时搜索词置顶，1:1）。</summary>
-    public void FormCloseQuery(out bool canClose)
+    /// <remarks>
+    /// ★ 集成方修正（台账 §53.1，X-P10-04）：本方法在原文里**不是 virtual**（`dlgSearchText.pas:60`），
+    /// 但派生类 `TTextReplaceDialog`（`dlgReplaceText.pas:50`）又声明了同名同签名方法 ——
+    /// Delphi 里那是"隐藏"，可**DFM 把窗体事件 `OnCloseQuery` 绑到的是实例的最派生方法**，
+    /// 因此**原文的可观测行为是"派生版被调用"**。
+    /// 托管侧原先用 `new` 隐藏 ⇒ 基类继承给按钮的接线（`btnOK.Click → FormCloseQuery()`）
+    /// **永远调到基类版**，派生逻辑不可达 = 行为偏离。
+    /// 处置：把基类改 `virtual`、派生改 `override`，**复现原文的可观测行为**；
+    /// 声明形态与原文不同（原文非虚），故登记为**偏离**（见报告 §偏离登记）。
+    /// </remarks>
+    public virtual void FormCloseQuery(out bool canClose)
     {
         canClose = true;
         if (ModalResult == System.Windows.Forms.DialogResult.OK)
@@ -197,7 +207,9 @@ public sealed class TextReplaceDialog : TextSearchDialog
     }
 
     /// <summary>Delphi FormCloseQuery（inherited 后对替换词同样置顶）。</summary>
-    public new void FormCloseQuery(out bool canClose)
+    /// <remarks>★ 集成方修正（台账 §53.1，X-P10-04）：原为 `new`（隐藏）⇒ 派生逻辑经继承的按钮接线不可达；
+    /// 改 `override` 以复现原文"DFM 把事件绑到最派生方法"的可观测行为。原文声明非虚，故记为偏离。</remarks>
+    public override void FormCloseQuery(out bool canClose)
     {
         base.FormCloseQuery(out canClose);
         if (ModalResult == System.Windows.Forms.DialogResult.OK)
