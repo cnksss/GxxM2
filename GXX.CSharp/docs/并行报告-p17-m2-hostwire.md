@@ -198,8 +198,8 @@ Actual:   238
 | C. `GXX.GatewayKit`+`GXX.LoginGate`（逐条核过） | **40** | 19 + **2 条失效** | 21 | 34 | 1 | 5 |
 | D. `GXX.Core`（逐条核过） | **14** | 1 | 13 | 8 | 5 | 1 |
 | **合计（A–D，已逐条核对）** | **596** | **22（+2 失效）** | **574** | **≈420** | **≈34** | **≈142** |
-| E. 其它程序集（**第二方只读普查**，见下） | **321 + ≈52（Client 抽样）** | **73** | **248+** | **≈200** | **≈59** | **≈13** |
-| **合计（A–E）** | **917+** | **95** | **822+** | **≈620** | **≈93** | **≈155** |
+| E. 其它程序集（**第二方只读普查**最终版，见下） | **≈491** | **≈56** | **≈435** | **≈405** | **≈56** | **≈10** |
+| **合计（A–E）** | **≈1087** | **≈78** | **≈1009** | **≈825** | **≈90** | **≈152** |
 
 **诚实声明**：A / C / D 的每一行都读过源码，数字精确；
 B / B′ / B″ 的三档分布来自**机械扫描 + 抽样核对**，故写 `≈`（**不是**逐条读过 596 行）。
@@ -256,16 +256,18 @@ ResetDefaults  = 34    ← 34 个接缝类各自写了一个 ResetDefaults()
 | `GXX.LoginGate/Program.cs:17` | `new LoginGateService()`（**options = null**） | 整个 Rest11 面（§6.1） |
 | **`GXX.M2Server/Program.cs:21`** | **`M2EngineService`（真主循环）** | 表 B 的 523 条接缝 |
 
-⇒ **"未接"在 RunGate/SelGate/LoginSrv/GameCenter/LogDataServer 里，多数不是"忘了一根线"，
-而是"宿主根本不存在"。** 这把 §58.5 的裁定**从 M2Server 扩到 7 个 exe**：
-**D-P17-03 应从"建一个 M2Server HostWire"升级为"给 7 个 exe 各定一个宿主装配点"。**
+⇒ **"未接"在 RunGate/SelGate/LoginSrv/GameCenter/LogDataServer/**Client** 里，多数不是"忘了一根线"，
+而是"宿主根本不存在"**（`GXX.Client/Program.cs:16` 只跑 `FrmMain`，`≈200` 条 Client 接缝一条都没接；
+`GXX.Configurator` 是唯一**零接缝**工程）。这把 §58.5 的裁定**从 M2Server 扩到全部 exe**：
+**D-P17-03 应从"建一个 M2Server HostWire"升级为"给每个 exe 定一个宿主装配点"**，
+并把两类工作分开：**"宿主缺失"（架构，多数）** vs **"单行接线 bug"（GatewayKit/LoginGate/DBServer，少数）**。
 
 **两条新机制（本车道登记，都能"把缺口伪装成别的东西"）：**
 
 | ID | 机制 | 实例 |
 |---|---|---|
 | **X-P17-04** | **"b 显式抛"被上层 `catch` + 静默默认值吞成 "a 静默"** | `RoleDbSeam.MainOutMessage = _ => { }`（`DBServer/MySqlRoleDB.Seam.cs:175`）是 `THumanDBBase`/`THeroDBBase` **全部 wrapper 的唯一出口** ⇒ 已接线的 `SelectClientHumanDb/HeroDb` 适配器里 **23 个故意抛 `Unwired` 的成员**全部退化为静默中性返回（导出空文件、静默查不到角色） |
-| **X-P17-05** | **`Reset*` / `ResetForTests` 不是接线**（只是把默认值再写一遍） | `GXX.Client` 全树 grep 赋值 ⇒ **恰好只有 1 处真接线**（`DxControlOps.CanMoveSink`，`DxComponent/DxImageForm.cs:835`）；其余全是"再断言同一个默认值" |
+| **X-P17-05** | **"已接"的判据必须是限定名 grep（`Type.Member =`）**，且必须排除 `Reset*`/`ResetForTests`、声明行、唯读守卫 | 第一版 `GXX.Client` 普查因此把 **≥8 组接缝**误判为"已接"（匹配到**别的类的同名字段**、本类复位方法、**文件注释**）⇒ **"已接"被系统性高估**（Client 真实接线只有 **3 处**：`DxControlOps.CanMoveSink`、`TDxApplication.SetApplicationOnIdleFn`、ctor 注入的 `TLoginScene.ChangeSceneFn`/`ShowOpenDoor`）。**这条与 §0.2"忠实表达"、§4.4.3"`Reset*` 不是接线"合起来是判定"已接/默认值"的三道闸门** |
 
 **E 区 Top 3 危险条目**（完整 Top 10 见工单表 §4.4.3）：
 ① 上表 `RoleDbSeam.MainOutMessage`；② `GateShareSeam.AddMainLogMsgSink`/`AddBlockIPSink`/`AddTempBlockIPSink`
