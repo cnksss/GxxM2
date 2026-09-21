@@ -84,3 +84,7 @@ p11-client-dxrest2	GXX.CSharp/src/GXX.Client/DxComponent/Rest11/**;GXX.CSharp/te
 # NB the two binary DFMs (CreateChr, GateSet) must be decoded from Source/** by hand -- the
 # _analysis/utf8_mirror copy of a BINARY dfm is corrupted (ledger 41.3-1).
 p10-m2-misc	GXX.CSharp/src/GXX.M2Server/Sweep9b/Forms/**;GXX.CSharp/src/GXX.Core/MemoryIni/**;GXX.CSharp/src/GXX.DBServer/Forms2/**;GXX.CSharp/src/GXX.LoginSrv/Forms2/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9bForms*;GXX.CSharp/tests/GXX.Core.Tests/MemoryIni*;GXX.CSharp/tests/GXX.DBServer.Tests/P10b*;GXX.CSharp/tests/GXX.LoginSrv.Tests/P10b*;GXX.CSharp/docs/并行报告-p10-m2-misc.md
+# ---- P12 (round 56): READ-ONLY verification of the E2-only MAPPED giants.  The audit found
+# 169 units (488,671 lines) that are counted MAPPED on a header mention alone -- no same-basename
+# port.  This lane decides, per unit, whether that claim is real.  Report only; no src grant.
+p12-e2only-review	GXX.CSharp/docs/并行报告-p12-e2only-review.md

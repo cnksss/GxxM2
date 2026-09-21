@@ -90,8 +90,26 @@ $VENDOR_UNITS = @(
     # ThreadPool.pas has three copies with OPPOSITE rulings: the two gateway copies are replaced by
     # GatewayKit (not ported), while LogDataServer's is a REAL gap (TPoolManager/TPoolThread absent)
     # that lane par/p10-db-login-forms is porting.  A bare 'ThreadPool' row would hide that gap.
+    # ---- "<dir>/<unit>" form = THAT COPY ONLY.  CORRECTED 2026-09-21 (ledger 44.4): the earlier
+    # bare 'SendQueue' / 'IOCPManager' rows were justified as "basename unique", which was only
+    # true because LoginGate was not yet in $Dir.  Both units DO have LoginGate + SelGate copies,
+    # so they are now registered per copy.  (The ruling is unchanged -- both copies are replaced by
+    # GatewayKit -- but a bare row would have covered future copies too, which is not ours to decide.)
     'SelGate/ThreadPool',
     'LoginGate/ThreadPool',
+    'LoginGate/SendQueue',
+    'SelGate/SendQueue',
+    'LoginGate/IOCPManager',
+    'SelGate/IOCPManager',
+    # ---- found by the read-only review lane par/p11-logingate-review (ledger 44.3):
+    # AcceptExWorkedThread: 1,398 lines, 5 classes, ZERO managed declarations anywhere.
+    # uDep: basename is unique repo-wide, compiled into LoginGate only.
+    'AcceptExWorkedThread',
+    'uDep',
+    # LoginGate/DesUtils: 1,368 lines whose every call site sits inside {$IF VER_TYPE=1} while
+    # Misc.pas:9 sets VER_TYPE=0, i.e. compiled OUT.  MUST stay per-copy: DesUtils has four
+    # DIFFERING copies and a bare key would also close the Client copy that PakCrypto.cs ports.
+    'LoginGate/DesUtils',
     # ---- c1 dead code, ruled by lane par/p9-m2-datalayer (2026-09-21, ledger 41) with 6 counts:
     # zero hits in .pas/.dpr/.dpk, its own type names hit only itself, ACCOUNTLEN/ACTORNAMELEN are
     # undefined repo-wide (so the original cannot even compile), g_UserShopDB is declared nowhere,
@@ -183,6 +201,19 @@ foreach ($d in $Dir) {
         # as "missing work".  Written with an escape so this script stays ASCII-only.
         $isNonUnit = $unit -match '[^\x00-\x7F]'
 
+        # A DATED BACKUP COPY is not a unit either -- and unlike the non-ASCII case above, these
+        # names are perfectly legal ASCII identifiers, so the rule above misses them.  Measured
+        # 2026-09-21: Client-HGE\ClMain20230516.pas (54,187 lines) sat in the report as a real
+        # "unit" and even scored MAPPED via a mention, inflating both totals.  Rule: "<stem><date>.pas"
+        # beside a live "<stem>.pas" means a hand-kept copy.
+        $isDatedBackup = $false
+        if ($unit -match '^(.*?)(\d{8}|\d{6})$') {
+            $stem = $Matches[1]
+            if ($stem.Length -ge 3) {
+                try { if (Test-Path (Join-Path $f.DirectoryName "$stem.pas")) { $isDatedBackup = $true } } catch { }
+            }
+        }
+
         $e1 = $csByBase.ContainsKey($unit.ToLowerInvariant())
         $e2 = $false
         $e2w = $false
@@ -228,6 +259,7 @@ foreach ($d in $Dir) {
         # WEAK win would hide an in-flight unit from the ASSIGNED table -- the dispatcher's list.
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($isNonUnit) { 'NONUNIT' }
+                   elseif ($isDatedBackup) { 'NONUNIT' }
                    elseif ($mapped) { 'MAPPED' }
                    elseif ($e4) { 'ASSIGNED' }
                    elseif ($e2w) { 'WEAK' }
@@ -283,6 +315,17 @@ $tot = [pscustomobject]@{
 Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
     $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
 
+# ---- MAPPED-on-mention-only summary (the over-claim risk) ------------------
+$e2only = @($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 })
+if ($e2only.Count -gt 0) {
+    $e2lines = ($e2only | Measure-Object Lines -Sum).Sum
+    Write-Host ''
+    Write-Host ("=== MAPPED on header mention only (E2-only): {0} units / {1} lines -- claimed, not proven ===" -f `
+        $e2only.Count, $e2lines) -ForegroundColor Yellow
+    $e2only | Sort-Object KB -Descending | Select-Object -First 12 Dir, Unit, Lines, KB |
+        Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+}
+
 # ---- UI dimension summary (objective marker: a sibling .dfm) --------------
 $uiRows = @($rows | Where-Object HasDfm)
 if ($uiRows.Count -gt 0) {
@@ -326,6 +369,21 @@ if ($Report) {
     [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|')
     foreach ($r in $byDir) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## MAPPED on a header mention ONLY (E2-only, no same-basename .cs) -- WEAK EVIDENCE')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('These rows are counted MAPPED, but the ONLY evidence is that some unrelated .cs file')
+    [void]$sb.AppendLine('mentions "<unit>.pas" inside its first 40 lines.  There is no same-basename port.')
+    [void]$sb.AppendLine('That is exactly how LoginGate''s 15 units were scored (ledger 41.2), and E2 matches on the')
+    [void]$sb.AppendLine('BASENAME alone, so a mention coming from a SIBLING copy (SelGate vs LoginGate, M2Engine vs')
+    [void]$sb.AppendLine('Client-HGE) scores every copy.  Treat each row as "claimed, not proven" and verify per copy')
+    [void]$sb.AppendLine('before citing it as done.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 } | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## ASSIGNED units (owned by a parallel lane, work in flight)')
@@ -378,12 +436,24 @@ if ($Report) {
     [void]$sb.AppendLine('and never add such a name to the tools/audit-coverage.ps1 not-ported registries or to a')
     [void]$sb.AppendLine('.cs header -- that would silently close the sibling copies too.')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | unit | lines | verdict |')
-    [void]$sb.AppendLine('|---|---|---|---|')
+    [void]$sb.AppendLine('**sha256[:8] decides whether an E2 mention is transferable**: the SAME hash on two copies')
+    [void]$sb.AppendLine('means they are byte-identical source, so a port of one genuinely covers the other; DIFFERENT')
+    [void]$sb.AppendLine('hashes mean two distinct units and each needs its own evidence (measured on LoginGate: 12 of')
+    [void]$sb.AppendLine('its 15 MAPPED rows were "borrowed" from a differing sibling -- ledger 44.3).')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | verdict | sha256[:8] | distinct hashes in group |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|')
     $dups = $rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 }
     foreach ($g in ($dups | Sort-Object Name)) {
+        $hashes = @{}
+        foreach ($r in $g.Group) {
+            $h = '?'
+            try { $h = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $srcRoot $r.Rel)).Hash.Substring(0, 8) } catch { }
+            $hashes[$h] = $true
+            $r | Add-Member -NotePropertyName SrcHash -NotePropertyValue $h -Force
+        }
         foreach ($r in ($g.Group | Sort-Object Dir)) {
-            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) |")
+            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $($r.SrcHash) | $($hashes.Keys.Count) |")
         }
     }
     [void]$sb.AppendLine('')
