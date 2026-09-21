@@ -89,7 +89,18 @@ public static class SelectClientGateWiring
     {
         if (link == null) throw new ArgumentNullException(nameof(link));
         TSelectClient client = Attach(link.Send, remoteAddress);
-        link.OnReceive += (buf, off, len) => Feed(client, buf, off, len);
+        link.OnReceive += (buf, off, len) =>
+        {
+            // ★ 宿主的**异常边界**：原文这一层是 VCL 的事件回调，异常由 Application.HandleException 兜住
+            //   （不静默、也不炸进程）。托管侧 `TcpLink.ProcessReceive` 的 `OnReceive?.Invoke` **没有** try，
+            //   异常会直接抛到 IOCP 回调线程 ⇒ 进程级未处理异常。故边界放在这里：
+            //   记一条日志 + **主动断开该连接**（既不放行、也不崩服务）。见报告 §12。
+            if (FeedSafe(client, buf, off, len) != null)
+            {
+                Detach(client);
+                link.Close();
+            }
+        };
         link.OnDisconnected += () => Detach(client);
         return client;
     }
@@ -122,6 +133,29 @@ public static class SelectClientGateWiring
     {
         if (client == null || buffer == null || len <= 0) return;
         client.ExecGateBuffers(SelectClientAnsi.StrOf(buffer, offset, len));
+    }
+
+    /// <summary>
+    /// <see cref="Feed"/> + 宿主的异常边界（对应原文 VCL 事件回调的 `Application.HandleException`）。
+    ///
+    /// 返回 <c>null</c> = 正常处理完；非 <c>null</c> = 抛出的异常（宿主据此**断开该连接**）。
+    /// 异常**不吞**：完整消息写进 `MainOutMessage`（原文的日志出口），并由调用方断开连接。
+    ///
+    /// 为什么必须有它：`ExecGateBuffers` 本身**没有** try/except（原文也没有），
+    /// 而 `TcpLink.ProcessReceive` 的 `OnReceive?.Invoke` 同样没有 —— 异常会升级为进程级未处理异常。
+    /// </summary>
+    public static Exception? FeedSafe(TSelectClient client, byte[] buffer, int offset, int len)
+    {
+        try
+        {
+            Feed(client, buffer, offset, len);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            RoleDbSeam.MainOutMessage("[ERROR] SelectClient 命令处理抛异常：" + ex.GetType().Name + ": " + ex.Message);
+            return ex;
+        }
     }
 
     // ==========================================================================================
