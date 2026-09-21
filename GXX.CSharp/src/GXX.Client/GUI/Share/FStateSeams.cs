@@ -945,6 +945,12 @@ public static class FStateClMainSeam
     /// <summary>ClMain.pas frmMain.SendChallengeTry（原文 18908 调用）。</summary>
     public static void SendChallengeTry() => SendChallengeTryHandler?.Invoke();
 
+    /// <summary>ClMain.pas `frmMain.ReConnectClientSocketGate`（原文 24471 调用，无参）。</summary>
+    public static Action ReConnectClientSocketGateHandler;
+
+    /// <summary>ClMain.pas frmMain.ReConnectClientSocketGate（原文 24471 调用）。</summary>
+    public static void ReConnectClientSocketGate() => ReConnectClientSocketGateHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -971,6 +977,7 @@ public static class FStateClMainSeam
         SendChangeChallengeGoldHandler = null;
         SendDealTryHandler = null;
         SendChallengeTryHandler = null;
+        ReConnectClientSocketGateHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

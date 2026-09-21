@@ -1051,6 +1051,87 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 切片 6：帮助按钮节流（差判据） + 更新状态框重连
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice6RegistersTwoMembers()
+    {
+        Assert.Equal(2, TFrmDlgPortLedger.Slice6Count);
+    }
+
+    [Fact]
+    public void DControlHelpClickUsesAStrictDifferenceGuardOfOneThousand()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendClientMessageHandler =
+            (cmd, recog, p1, p2, p3, msg) => sent.Add(cmd);
+
+        // 差 == 1000 ⇒ `> 1000` 不成立（严格大于）
+        SetHelpTick(frm, 9_000);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Empty(sent);                                          // 21056
+        Assert.Equal(9_000u, GetHelpTick(frm));                      // 未赋值
+
+        // 差 == 1001 ⇒ 成立，且时间戳被赋成**当前 tick**（不是 +1000）
+        SetHelpTick(frm, 8_999);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Single(sent);
+        Assert.Equal(Grobal2Const.CM_HELPBUTTONCLICK, sent[0]);       // 21058
+        Assert.Equal(10_000u, GetHelpTick(frm));                     // 21057
+    }
+
+    [Fact]
+    public void DControlHelpClickThrottlesUntilAnotherThousandMillisPass()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendClientMessageHandler = (a, b, c, d, e, f) => calls++;
+
+        SetHelpTick(frm, 0);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        // 立刻再点：差为 0 ⇒ 不触发
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        _fakeTick = 11_001;   // 差 1001 ⇒ 触发
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(2, calls);
+        Assert.Equal(11_001u, GetHelpTick(frm));
+    }
+
+    /// <summary>
+    /// 原文 486 的 `dwControlHelpCickTick:LongWord` 在 Delphi 的 **protected** 段，
+    /// 托管生成壳同样落成 `protected`（`TFrmDlg.Decl.g.cs`），测试只能经反射读写。
+    /// </summary>
+    private static System.Reflection.FieldInfo HelpTickField()
+    {
+        var f = typeof(TFrmDlg).GetField("dwControlHelpCickTick",
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.NotNull(f);
+        return f;
+    }
+
+    private static uint GetHelpTick(TFrmDlg frm) => (uint)HelpTickField().GetValue(frm);
+
+    private static void SetHelpTick(TFrmDlg frm, uint value) => HelpTickField().SetValue(frm, value);
+
+    [Fact]
+    public void DUpdateStatusDlgDblClickReconnectsTheSocketGate()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.ReConnectClientSocketGateHandler = () => calls++;
+
+        frm.DUpdateStatusDlgDblClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                      // 24471
+    }
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 

@@ -715,6 +715,36 @@ public partial class TFrmDlg
             FStateClMainSeam.SendChangeChallengeGold(0);    // 20793
         }
     }
+
+    // ==========================================================================================
+    // 切片 6：帮助按钮节流 + 更新状态框重连
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:21054-21060 procedure TFrmDlg.DControlHelpClick。
+    /// 与切片 4/5 的守卫族**不同**：判据是**差**而不是**序**——
+    /// `MyGetTickCount - dwControlHelpCickTick &gt; 1000`（**严格大于 1000**），
+    /// 命中后把 `dwControlHelpCickTick := MyGetTickCount`（**赋当前值，不是 +1000**）。
+    /// 注意 `dwControlHelpCickTick` 是**本单元字段**（原文 486），故本条无接缝依赖。
+    /// 无符号减法：原文 `LongWord - LongWord`，托管侧同为 `uint` 差，回绕语义一致。
+    /// </summary>
+    public virtual void DControlHelpClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now - dwControlHelpCickTick > 1000)     // 21056
+        {
+            dwControlHelpCickTick = FStateSeamClock.Now;            // 21057
+            FStateClMainSeam.SendClientMessage(Grobal2Const.CM_HELPBUTTONCLICK, 0, 0, 0, 0, ""); // 21058
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:24469-24472 procedure TFrmDlg.DUpdateStatusDlgDblClick。
+    /// 原文只转发 `FrmMain.ReConnectClientSocketGate`（双击更新状态框 = 重连网关）。
+    /// </summary>
+    public virtual void DUpdateStatusDlgDblClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.ReConnectClientSocketGate();       // 24471
+    }
 }
 
 /// <summary>
@@ -851,9 +881,18 @@ public static class TFrmDlgPortLedger
         new PortedMember("DChallengeCloseClick",       "20813-20819"),
     };
 
+    /// <summary>
+    /// 切片 6 落地的成员（2 条）：帮助按钮节流 + 更新状态框重连。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice6 = new[]
+    {
+        new PortedMember("DControlHelpClick",          "21054-21060"),
+        new PortedMember("DUpdateStatusDlgDblClick",   "24469-24472"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4, Slice5 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -870,9 +909,12 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 5 的真实现成员数。</summary>
     public static int Slice5Count => Slice5.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..5）。</summary>
+    /// <summary>切片 6 的真实现成员数。</summary>
+    public static int Slice6Count => Slice6.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..6）。</summary>
     public static int LaneCount =>
-        Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count;
+        Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count + Slice6.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)

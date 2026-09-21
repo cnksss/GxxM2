@@ -64,7 +64,10 @@ $Handwritten = @(
   # ---- lane p14-client-fstate slice 5 (TFrmDlg.Handlers.cs) --------------------------------
   # Rest of the "one guard + one forwarded send" family that only needed MShare globals.
   'DBotTradeClick','BotChallengeClick','DDealCloseClick','DealZeroGold',
-  'DChallengeCloseClick','ChallengeZeroGold'
+  'DChallengeCloseClick','ChallengeZeroGold',
+  # ---- lane p14-client-fstate slice 6 (TFrmDlg.Handlers.cs) --------------------------------
+  # Help-button throttle (field + difference guard) and the update-dialog reconnect handler.
+  'DControlHelpClick','DUpdateStatusDlgDblClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

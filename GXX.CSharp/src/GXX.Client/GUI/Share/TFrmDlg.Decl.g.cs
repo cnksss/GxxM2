@@ -1500,9 +1500,6 @@ public partial class TFrmDlg
     /// <summary>Source line 982 : procedure DChallengeRemoteGridGridMouseMove(Sender:TObject; ACol, ARow:Integer; Shift:TShiftState); stdcall;</summary>
     public virtual void DChallengeRemoteGridGridMouseMove(object Sender, int ACol, int ARow, TShiftState Shift)
         => throw new NotSupportedException("TFrmDlg.DChallengeRemoteGridGridMouseMove: not ported yet (FState.pas:982)");
-    /// <summary>Source line 983 : procedure DControlHelpClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DControlHelpClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DControlHelpClick: not ported yet (FState.pas:983)");
     /// <summary>Source line 984 : procedure DRandomCodeDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DRandomCodeDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DRandomCodeDlgDirectPaint: not ported yet (FState.pas:984)");
@@ -1709,9 +1706,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1074 : procedure DUpdateStatusDlgMouseEnter(Sender:TObject); stdcall;</summary>
     public virtual void DUpdateStatusDlgMouseEnter(object Sender)
         => throw new NotSupportedException("TFrmDlg.DUpdateStatusDlgMouseEnter: not ported yet (FState.pas:1074)");
-    /// <summary>Source line 1076 : procedure DUpdateStatusDlgDblClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DUpdateStatusDlgDblClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DUpdateStatusDlgDblClick: not ported yet (FState.pas:1076)");
     /// <summary>Source line 1079 : procedure UpdateBusinessStatusText; virtual; abstract;</summary>
     public virtual void UpdateBusinessStatusText()
         => throw new NotSupportedException("TFrmDlg.UpdateBusinessStatusText: abstract in Delphi (FState.pas:1079)");
