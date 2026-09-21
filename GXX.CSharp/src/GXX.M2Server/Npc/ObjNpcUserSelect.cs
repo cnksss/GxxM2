@@ -424,6 +424,126 @@ public partial class TMerchant
         User.SendTo(this, Grobal2Const.RM_SENDUSERPLAYDRINK, 0, m_nRecogId, 0, 0, "");
     }
 
+    /// <summary>
+    /// 原文 `procedure MakeHeroName(User: TPlayObject; sLabel, sMsg: string);`（ObjNpc.pas:2347-2406）。
+    /// <para><b>★ 与 <see cref="MakeDeputyHeroName"/> 的四处差异（互相对照普查结果）</b>：</para>
+    /// <list type="number">
+    /// <item><b>首判字段不同</b>：本过程判 `m_sHeroName`(2352)，副将版判 `m_sDeputyHeroName`(2413)；</item>
+    /// <item>★★ <b>2359 的"创建中"门**少半个条件**</b>：`if { (User.m_sTempHeroName &lt;&gt; '') or } User.m_boWaitHeroDate then`
+    ///   —— 前半被 `{ }` **注释掉**，**活条件只有 `m_boWaitHeroDate`**；副将版 2419 则是**两条件都活**。
+    ///   ⇒ **同名结构、行为不同**，照抄（**不要"补齐"**）。</item>
+    /// <item>★★ <b>2365-2369 多一段"长度必须 ≥ 4"门</b>（跳 `@SetHeroName` + Exit），**副将版完全没有**。</item>
+    /// <item>else 分支清的字段不同：本过程清 `m_sHeroName`(2401)，副将版清 `m_sDeputyHeroName`(2454)；两者都清 `m_sTempHeroName`。</item>
+    /// </list>
+    /// <para>⚠ <b>2373-2393 整段"字符过滤"在 `{ }` 里</b>（含两处 `GetNameInFilterList`）⇒ **原文从不执行它**，
+    /// 故托管侧**不建 `GetNameInFilterList` 接缝**（避免造"假前提"）；照抄成注释。</para>
+    /// <para>⚠ <b>托管偏差登记</b>：2365 原文是 `Length(**AnsiString**(sMsg)) &lt; 4`（**GBK 字节数**），
+    /// 托管 `sMsg.Length` 是 **UTF-16 字符数** ⇒ 对**非 ASCII 名**行为不同（2 个汉字：原文 4 字节通过 / 托管 2 字符被拒）。已登记待统一。</para>
+    /// <para>触发点：`nNF_CreateHero`（原文 2846-2850），守卫 `m_boCreateHeroName`。</para>
+    /// </summary>
+    public void MakeHeroName(TPlayObject User, string sLabel, string sMsg)
+    {
+        // 原文 2351：`// MainOutMessage(sLabel +' sMsg:'+sMsg);` —— 原文如此，保留
+        // 原文 2352-2355
+        if (User.m_sHeroName != "")
+        {
+            PlayerSurfaceNpcSeams.GotoLable(this, User, "@HaveHero", false);
+        }
+        else
+        {
+            // 原文 2358：{ 修正输入英雄名…的Bug chongchong 2013-09-11 }
+            // 原文 2359：★ 前半 `(User.m_sTempHeroName <> '') or` **在 `{ }` 里**
+            if (User.m_boWaitHeroDate)
+            {
+                // 原文 2361-2362
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@CreateingHero", false);
+                return;
+            }
+            // 英雄名称必须多于3个字符 chongchong 2013-08-27（原文 2365，见上方偏差登记）
+            if (sMsg.Length < 4)
+            {
+                // 原文 2367-2368
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@SetHeroName", false);
+                return;
+            }
+            // 原文 2370
+            if ((sMsg.Length > 0) && (sMsg.Length < 15))
+            {
+                // 原文 2372-2393：整段字符过滤在 `{ }` 里 —— 原文如此，保留
+                // { if GetNameInFilterList(sMsg) then
+                //     if (g_FilterTexts <> nil) then begin
+                //       if g_FilterTexts.Filter(sMsg, sNewMsg) then begin
+                //         User.m_sHeroName := ''; User.m_sTempHeroName := '';
+                //         GotoLable(User, '@HeroNameFilter', False); Exit; end; end;
+                //   // 英雄改名搞到DBServer上面，这里不要 2020-05-12 22:05:11
+                //   if GetNameInFilterList(sMsg) then begin
+                //     User.m_sHeroName := ''; User.m_sTempHeroName := '';
+                //     GotoLable(User, '@HeroNameFilter', False); Exit; end; }
+                // 原文 2394-2397
+                User.m_sTempHeroName = sMsg;
+                string sGotoLabel = DelphiRTL.Copy(sLabel, 2, sLabel.Length - 1);
+                PlayerSurfaceNpcSeams.GotoLable(this, User, sGotoLabel, false); // gotoLabel '@CreateHero'
+            }
+            else
+            {
+                // 原文 2401-2403
+                User.m_sHeroName = "";
+                User.m_sTempHeroName = "";
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@HeroNameFilter", false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 原文 `procedure MakeDeputyHeroName(User: TPlayObject; sLabel, sMsg: string);`（ObjNpc.pas:2408-2459）。
+    /// <para>★ 与 <see cref="MakeHeroName"/> 的四处差异见该方法的文档 —— **逐条比对，勿互抄**。</para>
+    /// <para>触发点：`nNF_CreateDeputy`（原文 2851-2855），守卫 **`m_boBuHero`**
+    /// （⚠ 命令号 `CreateDeputy`／判定串 `sNF_CreateDeputy='@@BuHero'`／守卫 `m_boBuHero` —— **三个名字又各不相同**）。</para>
+    /// </summary>
+    public void MakeDeputyHeroName(TPlayObject User, string sLabel, string sMsg)
+    {
+        // 原文 2412：`// MainOutMessage(sLabel +' sMsg:'+sMsg);` —— 原文如此，保留
+        // 原文 2413-2416
+        if (User.m_sDeputyHeroName != "")
+        {
+            PlayerSurfaceNpcSeams.GotoLable(this, User, "@HaveHero", false);
+        }
+        else
+        {
+            // 原文 2419：★★ **两条件都活**（与 MakeHeroName 的 2359 不同！）
+            if ((User.m_sTempHeroName != "") || User.m_boWaitHeroDate)
+            {
+                // 原文 2421-2422
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@CreateingHero", false);
+                return;
+            }
+            // 原文 2424：★ **没有** MakeHeroName 2365 那段"长度 ≥ 4"门
+            if ((sMsg.Length > 0) && (sMsg.Length < 15))
+            {
+                // 原文 2426-2446：整段字符过滤在 `{ }` 里 —— 原文如此，保留
+                // { if (g_FilterTexts <> nil) then begin
+                //     if g_FilterTexts.Filter(sMsg, sNewMsg) then begin
+                //       User.m_sHeroName := ''; User.m_sTempHeroName := '';
+                //       GotoLable(User, '@HeroNameFilter', False); Exit; end; end;
+                //   if GetNameInFilterList(sMsg) then begin
+                //     User.m_sHeroName := ''; User.m_sTempHeroName := '';
+                //     GotoLable(User, '@HeroNameFilter', False); Exit; end; }
+                // 原文 2447-2450
+                User.m_sTempHeroName = sMsg;
+                string sGotoLabel = DelphiRTL.Copy(sLabel, 2, sLabel.Length - 1);
+                // 原文 2449：`// MainOutMessage('MakeDeputyHeroName:' + …)` 保留
+                PlayerSurfaceNpcSeams.GotoLable(this, User, sGotoLabel, false);
+            }
+            else
+            {
+                // 原文 2454-2456：★ 清的是 `m_sDeputyHeroName`（不是 `m_sHeroName`）
+                User.m_sDeputyHeroName = "";
+                User.m_sTempHeroName = "";
+                PlayerSurfaceNpcSeams.GotoLable(this, User, "@HeroNameFilter", false);
+            }
+        }
+    }
+
     /// <summary>原文 `Self = g_MissionNPC` 同型的占位说明见 <see cref="UserSelectPortedArms"/>。</summary>
     public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "", string sLabel = "")
     {
@@ -500,6 +620,14 @@ public partial class TMerchant
             case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
                 if (m_boofflinemsg)
                     AutoGetExp(PlayObject, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_CreateHero:         // 原文 2846-2850（英雄命名）
+                if (m_boCreateHeroName)
+                    MakeHeroName(PlayObject, sLabel, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_CreateDeputy:       // 原文 2851-2855（副将命名；★ 守卫是 m_boBuHero）
+                if (m_boBuHero)
+                    MakeDeputyHeroName(PlayObject, sLabel, sMsg);
                 return true;
             case NpcProcessCmd.nNF_PlayDrink:          // 原文 2862-2866（斗酒；★ 守卫字段是 `m_boPleaseDrink`）
                 if (m_boPleaseDrink)
