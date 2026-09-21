@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using GXX.Client.GUI.GameConfig.Seams;
+using MirDlg = GXX.Client.GUI.GameConfig.Mir;
 using GXX.Core.Util;
 
 namespace GXX.Client.GUI.GameConfig;
@@ -290,16 +291,27 @@ public static class ClientGlobalSeam
 }
 
 /// <summary>
-/// 接缝：后续批次的配置对话框实现单元
-/// （JSYConfigDlg.pas 的 TJSYConfigDlg、MirConfigDlg.pas 的 TMirConfigDlg）。
+/// 接缝：配置对话框实现单元的工厂。
+///
+/// ★ 本接缝已**接线**（派发方授权的**唯一**改动点，见 p10-client-mirconfig 车道）：
+///   - <c>JSYConfigDlg.pas</c> → <c>GXX.Client.GUI.GameConfig.Mir.TJSYRealConfigDlg</c>
+///     （过渡实现：继承已翻译的 <c>TMirConfigDlg</c>，覆写 <c>GetType = ptJSY</c>；
+///      JSY 自身的 6395 行逐行搬运仍未完成，见报告 §未完成/阻塞项）；
+///   - <c>MirConfigDlg.pas</c> → <c>GXX.Client.GUI.GameConfig.Mir.TMirConfigDlg</c>
+///     （真实现；`GetType = ptDefault`，含 516 个控件声明 + 279 条事件绑定对账表）。
+///
+/// 工厂仍保留为可注入委托，便于测试替换（原文是直接 `TMirConfigDlg.Create`，
+/// 这里保留"可替换"只是为了可测，默认值就是真实现）。
 /// </summary>
 public static class PlugInSeam
 {
-    /// <summary>接缝：待 JSYConfigDlg.pas 移植后接入 <c>TJSYConfigDlg.Create</c>。</summary>
-    public static Func<TGameConfigObject> CreateJSYConfigDlg = () => new TStubGameConfigObject(TConfigDlgType.ptJSY);
+    /// <summary>接缝：原文 <c>TJSYConfigDlg.Create</c>（JSYConfigDlg.pas）。**已接入真实现。**</summary>
+    public static Func<TGameConfigObject> CreateJSYConfigDlg =
+        () => new TJSYConfigDlg();
 
-    /// <summary>接缝：待 MirConfigDlg.pas 移植后接入 <c>TMirConfigDlg.Create</c>。</summary>
-    public static Func<TGameConfigObject> CreateMirConfigDlg = () => new TStubGameConfigObject(TConfigDlgType.ptDefault);
+    /// <summary>接缝：原文 <c>TMirConfigDlg.Create</c>（MirConfigDlg.pas:1058）。**已接入真实现。**</summary>
+    public static Func<TGameConfigObject> CreateMirConfigDlg =
+        () => new MirDlg.TMirConfigDlg();
 }
 
 /// <summary>
@@ -365,12 +377,38 @@ public class TStubGameConfigObject : TGameConfigObject
     public override void AddOrRemoveBossList(string sNamt) { }
 }
 
+// ================================================================================
+// 【已收口】原 `public class TJSYConfigDlg : TStubGameConfigObject`
+// --------------------------------------------------------------------------------
+// 该桩**已被真实现替换**（派发方授权的唯一改动点，p10-client-mirconfig 车道）：
+//   真实现 = GXX.Client.GUI.GameConfig.Mir.TJSYRealConfigDlg（继承已翻译的 TMirConfigDlg，
+//   覆写 `GetType = ptJSY`；Create / 访问器 / Finalize / Logout / SaveConfigFile 都是真实体）。
+//   下面这个同名类**只是它的公开名字**（保持原命名空间与原类名，
+//   使既有调用点与测试里的 `new TJSYConfigDlg()` / `is TJSYConfigDlg` 不必改动），
+//   自身不再有任何桩逻辑。
+// GameConfigDlgs.Finalize 的 `is TJSYConfigDlg` 判定与 AddObject 次序**完全不变**。
+// 保留 TStubGameConfigObject（仍有测试与接缝默认值在用）。
+// ================================================================================
+
 /// <summary>
-/// 接缝：JSYConfigDlg.pas 的 <c>TJSYConfigDlg</c>。
-/// 原类未移植；这里只作为**类型标记**出现，以便 GameConfigDlgs.Finalize 的
-/// <c>is TJSYConfigDlg</c> 判定保持与原文一致。接入真实实现时改为继承真实基类。
+/// JSYConfigDlg.pas 的 <c>TJSYConfigDlg</c> 的公开名字（真实现见
+/// <see cref="MirDlg.TJSYRealConfigDlg"/>）。**不再是桩。**
+///
+/// <c>FinalizeCalls</c> 是**观测计数器**（原 TStubGameConfigObject 上的测试钩子）：
+/// 真实现的 <c>Finalize</c>（原文 5046-5050 → <c>SaveConfigFile</c>）**照常执行**，
+/// 计数只是叠加在上面，不改变任何行为。
 /// </summary>
-public class TJSYConfigDlg : TStubGameConfigObject
+public class TJSYConfigDlg : MirDlg.TJSYRealConfigDlg
 {
-    public TJSYConfigDlg() : base(TConfigDlgType.ptJSY) { }
+    public TJSYConfigDlg() { }
+
+    /// <summary>观测用：<c>Finalize</c> 被调用次数（行为不变，仅计数）。</summary>
+    public int FinalizeCalls;
+
+    /// <inheritdoc/>
+    public override void Finalize()
+    {
+        base.Finalize();
+        FinalizeCalls++;
+    }
 }

@@ -90,17 +90,76 @@ $VENDOR_UNITS = @(
     # ThreadPool.pas has three copies with OPPOSITE rulings: the two gateway copies are replaced by
     # GatewayKit (not ported), while LogDataServer's is a REAL gap (TPoolManager/TPoolThread absent)
     # that lane par/p10-db-login-forms is porting.  A bare 'ThreadPool' row would hide that gap.
+    # ---- "<dir>/<unit>" form = THAT COPY ONLY.  CORRECTED 2026-09-21 (ledger 44.4): the earlier
+    # bare 'SendQueue' / 'IOCPManager' rows were justified as "basename unique", which was only
+    # true because LoginGate was not yet in $Dir.  Both units DO have LoginGate + SelGate copies,
+    # so they are now registered per copy.  (The ruling is unchanged -- both copies are replaced by
+    # GatewayKit -- but a bare row would have covered future copies too, which is not ours to decide.)
     'SelGate/ThreadPool',
     'LoginGate/ThreadPool',
+    'LoginGate/SendQueue',
+    'SelGate/SendQueue',
+    'LoginGate/IOCPManager',
+    'SelGate/IOCPManager',
+    # ---- found by the read-only review lane par/p11-logingate-review (ledger 44.3):
+    # AcceptExWorkedThread: 1,398 lines, 5 classes, ZERO managed declarations anywhere.
+    # uDep: basename is unique repo-wide, compiled into LoginGate only.
+    'AcceptExWorkedThread',
+    'uDep',
+    # LoginGate/DesUtils: 1,368 lines whose every call site sits inside {$IF VER_TYPE=1} while
+    # Misc.pas:9 sets VER_TYPE=0, i.e. compiled OUT.  MUST stay per-copy: DesUtils has four
+    # DIFFERING copies and a bare key would also close the Client copy that PakCrypto.cs ports.
+    'LoginGate/DesUtils',
     # ---- c1 dead code, ruled by lane par/p9-m2-datalayer (2026-09-21, ledger 41) with 6 counts:
     # zero hits in .pas/.dpr/.dpk, its own type names hit only itself, ACCOUNTLEN/ACTORNAMELEN are
     # undefined repo-wide (so the original cannot even compile), g_UserShopDB is declared nowhere,
     # and its `unit UserShopDB;` name collides with the live UserShopDB unit.
-    'UserShopDB_Old'
+    'UserShopDB_Old',
+    # ---- GuiManage: NOT PORTED, ruled by lane par/p11-client-dxrest2 (ledger 47.2) with three
+    # independent proofs, any one of which is fatal to a 1:1 port:
+    #   1. the original references type TDxBackground, which exists NOWHERE in the tree
+    #      (:29/:443/:454; zero hits in .pas/.dpr/.inc/.dfm besides those lines) -> it cannot build;
+    #   2. its job is already carried by GXX.Client.LoadDx in an EVOLVED form (DxControlFactory /
+    #      GuiComponentLoader / DxGuiFonts ... with 11 extra version boundaries + DES + name table),
+    #      so a 1:1 copy would insert a SECOND deserializer for the same protocol;
+    #   3. doing it 1:1 would require redefining 13 out-of-zone seams (TDxEdit/TDxImageGrid/... whose
+    #      only home is LoadDx/DxControlSeams.cs, the pending dedup battlefield) -> ledger 14.2.
+    # Bare key is safe: GuiManage.pas exists once in the whole tree (verified).
+    'GuiManage',
+    # ---- ledger 49.1: the 3 of the 13 giant E2-only units whose function IS carried by a
+    # substitute framework -- lane par/p12-e2only-review proved 1,188 routines with 0 translated,
+    # the behaviour instead being provided by Engine/NpcScriptCommands.cs' command-code dispatcher.
+    # Per ledger 39.5/44.5 ("covered by a shared facility" belongs in the not-ported bucket):
+    'NpcActionCmd',            # 47,018 lines
+    'NpcConditionCmd',         # 10,489
+    'HandleCommands'           # 9,151
     # NOTE: 'ThreadPool' is deliberately NOT registered here.  It exists in LogDataServer (a REAL
     # gap: 445 lines, TPoolManager/TPoolThread unported) as well as in LoginGate/SelGate (replaced
     # by design).  This registry keys on the BASENAME, so a row would silently hide the
     # LogDataServer gap -- see the report's DUPLICATE-BASENAME section (ledger 39.3).
+)
+
+# ---- E2 claims REFUTED by a verification lane -----------------------------
+# A read-only review lane can PROVE that an E2 mention belongs to a different unit (borrowed
+# name): e.g. ledger 44.3 found 12 of LoginGate's 15 MAPPED rows were borrowed from a differing
+# sibling, and 4 units had no managed declaration at all.  Without this registry such a finding
+# has nowhere to live -- the unit would keep scoring MAPPED because the mention is still there.
+# "<dir>/<unit>" entries apply to that copy only, same as $VENDOR_UNITS.
+$E2_REFUTED = @(
+    'LoginGate/Misc',          # ledger 44.3: the 8 enforcement routines have 0 hits repo-wide
+    'LoginGate/FuncForComm',   # ledger 44.3: TProcMsgThread/TAddressInfo have 0 hits repo-wide
+    # ---- ledger 49.1: the 7 REAL gaps among the 13 giant E2-only units that lane
+    # par/p12-e2only-review adjudicated as class C ("not ported / name borrowed"), verified by
+    # method-level sampling.  They have NO substitute framework, so they must stay visible as
+    # gaps instead of hiding in MAPPED (putting them in $VENDOR_UNITS would hide them).
+    # Basenames verified unique repo-wide, so bare keys are safe here.
+    'ObjPlayer',               # 49,232 lines
+    'ObjHero',                 # 14,664
+    'StateWindows',            # 14,027
+    'MShare',                  # 13,522
+    'FState',                  # 25,165
+    'Actor',                   # 18,009
+    'ObjMon'                   # 9,502  (46 *Core.cs hold ~1,917 bare `=> true;` stubs)
 )
 
 # ---- per-copy entries of the not-ported registry --------------------------
@@ -109,6 +168,8 @@ $VENDOR_UNITS = @(
 # LogDataServer copy that is a real gap).  Bare entries keep the old any-copy meaning.
 $vendorByCopy = @{}
 foreach ($v in $VENDOR_UNITS) { if ($v -like '*/*') { $vendorByCopy[$v] = $true } }
+$refutedByCopy = @{}
+foreach ($v in $E2_REFUTED) { if ($v -like '*/*') { $refutedByCopy[$v] = $true } }
 
 # ---- load optional explicit map ------------------------------------------
 $explicit = @{}
@@ -140,6 +201,19 @@ foreach ($f in $csFiles) { $csByBase[$f.BaseName.ToLowerInvariant()] = $true }
 # file is downgraded to WEAK (reported, never counted as mapped).
 $HEAD_LINES = 40
 $latin1 = [System.Text.Encoding]::GetEncoding(28591)
+
+# ---- E2 evidence VALIDITY (ledger 49.2) -----------------------------------
+# A header mention only counts as evidence of a PORT if the file is not itself an admission of
+# absence.  Measured by read-only lane par/p12-e2only-review: FState.pas scored MAPPED although
+# 291 of its 330 name hits came from GUI/Share/TFrmDlg.Decl.g.cs -- an <auto-generated> shell
+# whose 515 members ALL `throw new NotSupportedException`, with a header that says so.
+# Two file classes are therefore barred from providing E2:
+#   * generated shells / stub shells that announce it in their header;
+#   * files whose own header states the unit is not ported (NotPorted( / 未移植 / NotSupported).
+$csHeadNoE2 = @{}
+$NEG_MARKERS = @('<auto-generated>', 'NotSupportedException', 'NotPorted(')
+$NEG_MARKER_CJK = ([string][char]0x672A) + [char]0x79FB + [char]0x690D   # "wei yi zhi" = not ported
+
 $csText = @{}
 $csHead = @{}
 foreach ($f in $csFiles) {
@@ -150,6 +224,16 @@ foreach ($f in $csFiles) {
         $ls = $t -split "`n"
         if ($ls.Count -gt $HEAD_LINES) { $t = ($ls[0..($HEAD_LINES - 1)] -join "`n") }
         $csHead[$f.FullName] = $t
+    } catch { }
+    try {
+        # marker scan must read real UTF-8: the latin1 view above is byte-transparent on purpose
+        $u = [System.IO.File]::ReadAllText($f.FullName, [System.Text.Encoding]::UTF8)
+        $uls = $u -split "`n"
+        if ($uls.Count -gt $HEAD_LINES) { $u = ($uls[0..($HEAD_LINES - 1)] -join "`n") }
+        $neg = $false
+        foreach ($mk in $NEG_MARKERS) { if ($u.IndexOf($mk, [StringComparison]::Ordinal) -ge 0) { $neg = $true; break } }
+        if (-not $neg -and $u.IndexOf($NEG_MARKER_CJK, [StringComparison]::Ordinal) -ge 0) { $neg = $true }
+        if ($neg) { $csHeadNoE2[$f.FullName] = $true }
     } catch { }
 }
 Write-Host "src text loaded  : $($csText.Count)"
@@ -183,12 +267,29 @@ foreach ($d in $Dir) {
         # as "missing work".  Written with an escape so this script stays ASCII-only.
         $isNonUnit = $unit -match '[^\x00-\x7F]'
 
+        # A DATED BACKUP COPY is not a unit either -- and unlike the non-ASCII case above, these
+        # names are perfectly legal ASCII identifiers, so the rule above misses them.  Measured
+        # 2026-09-21: Client-HGE\ClMain20230516.pas (54,187 lines) sat in the report as a real
+        # "unit" and even scored MAPPED via a mention, inflating both totals.  Rule: "<stem><date>.pas"
+        # beside a live "<stem>.pas" means a hand-kept copy.
+        $isDatedBackup = $false
+        if ($unit -match '^(.*?)(\d{8}|\d{6})$') {
+            $stem = $Matches[1]
+            if ($stem.Length -ge 3) {
+                try { if (Test-Path (Join-Path $f.DirectoryName "$stem.pas")) { $isDatedBackup = $true } } catch { }
+            }
+        }
+
         $e1 = $csByBase.ContainsKey($unit.ToLowerInvariant())
         $e2 = $false
         $e2w = $false
+        $e2File = ''
         if (-not $e1) {
             $needle = "$unit.pas"
-            foreach ($k in $csHead.Keys) { if ($csHead[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; break } }
+            foreach ($k in $csHead.Keys) {
+                if ($csHeadNoE2.ContainsKey($k)) { continue }   # ledger 49.2: not evidence
+                if ($csHead[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2 = $true; $e2File = $k.Substring($csRoot.Length + 1); break }
+            }
             if (-not $e2) {
                 foreach ($k in $csText.Keys) { if ($csText[$k].IndexOf($needle, [StringComparison]::Ordinal) -ge 0) { $e2w = $true; break } }
             }
@@ -226,19 +327,58 @@ foreach ($d in $Dir) {
         # ORDER MATTERS: ASSIGNED is tested BEFORE WEAK.  A unit can be both (it has a lane row
         # AND a stray body mention); "someone owns it" is the more actionable fact, and letting
         # WEAK win would hide an in-flight unit from the ASSIGNED table -- the dispatcher's list.
+        # A verification lane proved the E2 mention does not describe THIS unit (borrowed name).
+        # This BEATS MAPPED unconditionally: the whole point of the registry is that the mention
+        # is still sitting there and would otherwise keep scoring the unit as ported.  A lane row
+        # does not restore the claim -- it only means someone is now fixing the real gap, and the
+        # unit still shows up in the in-flight table (which keys on E4, not on the verdict).
+        $isRefuted = $false
+        if ($E2_REFUTED -contains $unit) { $isRefuted = $true }
+        if ($refutedByCopy.ContainsKey("$d/$($f.BaseName)")) { $isRefuted = $true }
+
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($isNonUnit) { 'NONUNIT' }
+                   elseif ($isDatedBackup) { 'NONUNIT' }
+                   elseif ($isRefuted) { 'REFUTED' }
                    elseif ($mapped) { 'MAPPED' }
                    elseif ($e4) { 'ASSIGNED' }
                    elseif ($e2w) { 'WEAK' }
                    elseif ($e3) { 'CHECKLIST_ONLY' }
                    else { 'UNMAPPED' }
 
+        # ---- UI dimension: a VCL form/dialog unit has a .dfm beside its .pas. ----
+        # The project's DoD is "code AND interface AND functionality fully translated", but the
+        # report only ever measured code units.  A sibling .dfm is an OBJECTIVE marker of "this
+        # unit is a window/dialog", so the 界面 dimension can be counted instead of guessed.
+        $hasDfm = $false
+        try { $hasDfm = (Test-Path ([System.IO.Path]::ChangeExtension($f.FullName, '.dfm'))) } catch { }
+
         $rows += [pscustomobject]@{
             Dir = $d; Unit = $unit; Lines = $lines; KB = [math]::Round($f.Length / 1KB)
             E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel; Lane = $e4lane
+            E2File = $e2File
+            HasDfm = $hasDfm
         }
     }
+}
+
+# ---- pre-pass: per-copy hashes for multi-copy basenames -------------------
+# An E2 verdict (and any not-ported registry row) keys on the BASENAME, so it can be "borrowed"
+# from a sibling copy.  Byte-identical copies are the same source (the mention transfers);
+# DIFFERING copies are two units and the mention may describe the other one.
+# Measured on LoginGate: 12 of its 15 MAPPED rows were borrowed from a differing sibling.
+$srcHash = @{}        # source path -> sha256[:8]  (only for rows in a duplicate group)
+$dupDistinct = @{}    # unit basename -> count of distinct hashes across its copies
+$dupGroups = @($rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 })
+foreach ($g in $dupGroups) {
+    $hs = @{}
+    foreach ($r in $g.Group) {
+        $h = '?'
+        try { $h = (Get-FileHash -Algorithm SHA256 -LiteralPath (Join-Path $srcRoot $r.Rel)).Hash.Substring(0, 8) } catch { }
+        $srcHash[$r.Rel] = $h
+        $hs[$h] = $true
+    }
+    $dupDistinct[$g.Name] = $hs.Keys.Count
 }
 
 # ---- summarise ------------------------------------------------------------
@@ -271,9 +411,32 @@ $tot = [pscustomobject]@{
     Unmapped    = @($rows | Where-Object Verdict -eq 'UNMAPPED').Count
     Vendor      = @($rows | Where-Object Verdict -eq 'VENDOR').Count
     NonUnit     = @($rows | Where-Object Verdict -eq 'NONUNIT').Count
+    Refuted     = @($rows | Where-Object Verdict -eq 'REFUTED').Count
 }
 Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
     $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
+
+# ---- MAPPED-on-mention-only summary (the over-claim risk) ------------------
+$e2only = @($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 })
+if ($e2only.Count -gt 0) {
+    $e2lines = ($e2only | Measure-Object Lines -Sum).Sum
+    Write-Host ''
+    Write-Host ("=== MAPPED on header mention only (E2-only): {0} units / {1} lines -- claimed, not proven ===" -f `
+        $e2only.Count, $e2lines) -ForegroundColor Yellow
+    $e2only | Sort-Object KB -Descending | Select-Object -First 12 Dir, Unit, Lines, KB |
+        Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+}
+
+# ---- UI dimension summary (objective marker: a sibling .dfm) --------------
+$uiRows = @($rows | Where-Object HasDfm)
+if ($uiRows.Count -gt 0) {
+    $uiMapped = @($uiRows | Where-Object Verdict -eq 'MAPPED').Count
+    Write-Host ''
+    Write-Host ("=== UI units (sibling .dfm present): total={0}  mapped={1}  NOT mapped={2} ===" -f `
+        $uiRows.Count, $uiMapped, ($uiRows.Count - $uiMapped)) -ForegroundColor Cyan
+    $uiRows | Where-Object Verdict -ne 'MAPPED' | Group-Object Verdict |
+        Select-Object Name, Count | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+}
 
 Write-Host ''
 Write-Host '=== top UNMAPPED by size (candidate next batches) ===' -ForegroundColor Yellow
@@ -309,12 +472,41 @@ if ($Report) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
     }
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('## ASSIGNED units (owned by a parallel lane, work in flight)')
+    [void]$sb.AppendLine('## REFUTED E2 claims (a verification lane proved the mention is borrowed)')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | unit | lines | KB | lane |')
+    [void]$sb.AppendLine('These units used to score MAPPED purely because some .cs header mentions their name.')
+    [void]$sb.AppendLine('A read-only lane then proved the mention belongs to a DIFFERENT unit or that no managed')
+    [void]$sb.AppendLine('code exists at all, so the claim is withdrawn here.  They are real gaps.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | source path |')
     [void]$sb.AppendLine('|---|---|---|---|---|')
-    foreach ($r in ($rows | Where-Object Verdict -eq 'ASSIGNED' | Sort-Object KB -Descending)) {
-        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($r.Lane) |")
+    foreach ($r in ($rows | Where-Object Verdict -eq 'REFUTED' | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## MAPPED on a header mention ONLY (E2-only, no same-basename .cs) -- WEAK EVIDENCE')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('These rows are counted MAPPED, but the ONLY evidence is that some unrelated .cs file')
+    [void]$sb.AppendLine('mentions "<unit>.pas" inside its first 40 lines.  There is no same-basename port.')
+    [void]$sb.AppendLine('That is exactly how LoginGate''s 15 units were scored (ledger 41.2), and E2 matches on the')
+    [void]$sb.AppendLine('BASENAME alone, so a mention coming from a SIBLING copy (SelGate vs LoginGate, M2Engine vs')
+    [void]$sb.AppendLine('Client-HGE) scores every copy.  Treat each row as "claimed, not proven" and verify per copy')
+    [void]$sb.AppendLine('before citing it as done.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | E2 evidence (.cs that mentions it) | sibling copies w/ differing bytes | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 } | Sort-Object KB -Descending)) {
+        $n = if ($dupDistinct.ContainsKey($r.Unit)) { $dupDistinct[$r.Unit] } else { 1 }
+        $warn = if ($n -gt 1) { "**$n (borrow risk)**" } else { "$n" }
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.E2File)`` | $warn | ``$($r.Rel)`` |")
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## ASSIGNED units (a lane owns them -- keyed on the unit-map row, not on the verdict)')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | lane | verdict |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.E4 } | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($r.Lane) | $($r.Verdict) |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## UNMAPPED units, largest first')
@@ -359,13 +551,31 @@ if ($Report) {
     [void]$sb.AppendLine('and never add such a name to the tools/audit-coverage.ps1 not-ported registries or to a')
     [void]$sb.AppendLine('.cs header -- that would silently close the sibling copies too.')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| dir | unit | lines | verdict |')
-    [void]$sb.AppendLine('|---|---|---|---|')
-    $dups = $rows | Group-Object Unit | Where-Object { ($_.Group | Select-Object -ExpandProperty Dir -Unique).Count -gt 1 }
-    foreach ($g in ($dups | Sort-Object Name)) {
+    [void]$sb.AppendLine('**sha256[:8] decides whether an E2 mention is transferable**: the SAME hash on two copies')
+    [void]$sb.AppendLine('means they are byte-identical source, so a port of one genuinely covers the other; DIFFERENT')
+    [void]$sb.AppendLine('hashes mean two distinct units and each needs its own evidence (measured on LoginGate: 12 of')
+    [void]$sb.AppendLine('its 15 MAPPED rows were "borrowed" from a differing sibling -- ledger 44.3).')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | verdict | sha256[:8] | distinct hashes in group |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|')
+    foreach ($g in ($dupGroups | Sort-Object Name)) {
         foreach ($r in ($g.Group | Sort-Object Dir)) {
-            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) |")
+            [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $($srcHash[$r.Rel]) | $($dupDistinct[$g.Name]) |")
         }
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## UI units (a .dfm sits beside the .pas) -- the INTERFACE dimension')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('A sibling `.dfm` is the objective marker of "this Delphi unit is a window/dialog", so the')
+    [void]$sb.AppendLine('界面 half of the DoD can be counted rather than guessed.  Rows below are UI units that are')
+    [void]$sb.AppendLine('NOT yet MAPPED -- i.e. the remaining interface work (a MAPPED UI unit still needs its')
+    [void]$sb.AppendLine('DFM control/event reconciliation reviewed, which this script cannot judge).')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | verdict | lane / source |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.HasDfm -and $_.Verdict -ne 'MAPPED' } | Sort-Object KB -Descending)) {
+        $note = if ($r.Lane) { $r.Lane } else { "``$($r.Rel)``" }
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $note |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## CHECKLIST_ONLY units (mentioned in Checklist.md but no direct .cs evidence)')

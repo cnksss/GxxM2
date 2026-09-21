@@ -1,96 +1,50 @@
 # unit-map.tsv -- explicit Delphi unit -> parallel lane assignment
 #
-# Read by tools/audit-coverage.ps1 (evidence E4). A row here means the unit is
-# OWNED BY A LANE AND IN FLIGHT -- it is reported as ASSIGNED, never as MAPPED.
+# Read by tools/audit-coverage.ps1 (evidence E4).  A row means "a lane owns this unit and the
+# work is NOT finished".
 #
-# E1/E2 (real .cs evidence) take PRECEDENCE over E4, so a row whose port has
-# already landed is reported MAPPED anyway: a stale row can never hide finished
-# work.  Keep the file refreshed once per wave; a row that is no longer in any
-# lane's charter must be DELETED, otherwise it hides a real gap from UNMAPPED.
+# VERDICT PRECEDENCE (updated 2026-09-21, ledger 45): VENDOR -> NONUNIT -> REFUTED -> MAPPED ->
+# E4(ASSIGNED) -> WEAK -> CHECKLIST_ONLY -> UNMAPPED.  So a row does NOT by itself make a unit
+# read as "assigned": if E1/E2 evidence exists the unit still reads MAPPED.  The report's
+# ASSIGNED table therefore keys on "has an E4 row" (it shows the verdict too), which is what
+# makes a STALE row visible instead of invisible.
 #
-# Columns: <Delphi unit basename> \t <lane branch> [\t note]
-# Key is the basename only, so duplicate basenames (e.g. AsyncCalls.pas exists in
-# M2Engine, Client-HGE and RunGate) match all copies; keep that in mind.
-# Do NOT add a row for a unit whose lane does not actually own every copy.
+# MANDATORY HYGIENE after every merge (ledger 38.2, applied three times already):
+#   - port landed            -> DELETE the row (E1/E2 takes over);
+#   - still unfinished       -> RE-ASSIGN to a live lane;
+#   - not ported by design   -> move it to $VENDOR_UNITS / $E2_REFUTED in audit-coverage.ps1.
+# A row left pointing at a MERGED+CLOSED lane is the worst case: the report then shows the unit
+# as neither "in flight" nor "a gap".
 #
-# ---- P4 wave (2026-09-20): the four unowned giants ----
-MirClientContext	par/p4-rungate-mirclient
-ObjNpc	par/p4-m2-objnpc
+# Keys: "<unit>" matches EVERY copy with that basename; "<dir>/<unit>" matches that copy only.
+# Use the per-copy form whenever the same basename also exists somewhere else with a DIFFERENT
+# ruling or different bytes (see the sha256 column in the report's DUPLICATE-BASENAME section).
 #
-# ---- P2 wave, still in flight ----
-RunGateUtils	par/p2-rungate-impl
-IocpWinsock2	par/p2-rungate-impl
-IocpUtils	par/p2-rungate-impl
-IocpCommon	par/p2-rungate-impl
-uBuffer	par/p2-rungate-impl
-uFrmGameSpeed	par/p2-rungate-impl
-uFrmSafeFilter	par/p2-rungate-impl
-uFrmMagicCD	par/p2-rungate-impl
-uFrmItemEatCD	par/p2-rungate-impl
-uFrmInterval	par/p2-rungate-impl
-uFrmMessageFilter	par/p2-rungate-impl
-uFrmProcessBlacklist	par/p2-rungate-impl
-uFrmReadFileIP	par/p2-rungate-impl
-uFrmLogClientPacketSetting	par/p2-rungate-impl
-uFrmAddProcessBlack	par/p2-rungate-impl
-uFrmHitInterval	par/p2-rungate-impl
-uFrmAntiPlugUpdateSetting	par/p2-rungate-impl
-# NOTE: ParadoxDataSet.pas exists in BOTH RunGate and GameCenter (same basename,
-# 1240 lines each).  Ported ONCE into GXX.Core by par/p6-core-paradox.
-# ---- P3 wave, still in flight ----
-MySqlM2DataDB	par/p3-m2-dbdata
-SqliteM2DataDB	par/p3-m2-dbdata
-MySqlAuctionDB	par/p3-m2-dbdata
-SqliteAuctionDB	par/p3-m2-dbdata
-DIB	par/p3-dx-big
-DxMemo	par/p3-dx-big
-Nations	par/p3-m2-sweep
-PowerBase64	par/p3-m2-sweep
-MemoryModuleEx	par/p3-m2-sweep
-GameGoldDealDB	par/p3-m2-sweep
-HTTPService	par/p3-m2-sweep
-M2Locker	par/p3-m2-sweep
-ObjGuard	par/p3-m2-sweep
-M2Threads	par/p3-m2-sweep
-StringListHelper	par/p3-m2-sweep
-# ---- DxComponent tree ----
-# DONE (landed on main, now detected by E1/E2 -- rows removed):
-#   DxMagicBall, AsphyreTimer, StreamClipbrd, DxControlClpbrd, DxImageButtonEx
-# (verified 2026-09-21: DxImageButtonEx.cs exists -> E1, so its row was removed too)
+# ---------------------------------------------------------------------------
+# REMOVED 2026-09-21 (round 57, ledger 45): 40 rows whose units had landed while their lane was
+# already merged and closed -- the fourth batch of "permanently parked rows" (after ledger 38.2's
+# 22, 41.10's 5, and the earlier P2/P3 sweep).  Re-measured on main: every one of them now reads
+# MAPPED through E1/E2, so the rows only served to fake an in-flight set of 68 instead of 29:
+#   par/p4-rungate-mirclient : MirClientContext
+#   par/p4-m2-objnpc         : ObjNpc                      (partially ported; its E2-only claim is
+#                                                           under review by p12-e2only-review)
+#   par/p2-rungate-impl      : RunGateUtils, IocpWinsock2, IocpUtils, IocpCommon, uBuffer,
+#                              uFrmGameSpeed, uFrmSafeFilter, uFrmMagicCD, uFrmItemEatCD,
+#                              uFrmInterval, uFrmMessageFilter, uFrmProcessBlacklist,
+#                              uFrmReadFileIP, uFrmLogClientPacketSetting, uFrmAddProcessBlack,
+#                              uFrmHitInterval, uFrmAntiPlugUpdateSetting        (17 rows)
+#   par/p3-m2-dbdata         : MySqlM2DataDB, SqliteM2DataDB, MySqlAuctionDB, SqliteAuctionDB
+#   par/p3-dx-big            : DIB, DxMemo
+#   par/p3-m2-sweep          : Nations, PowerBase64, MemoryModuleEx, GameGoldDealDB, HTTPService,
+#                              M2Locker, ObjGuard, M2Threads, StringListHelper       (15 rows)
+#   par/p5-client-mirreturn  : MirReturnConfigDlg
+#   par/p5-m2-custommagic    : uFrmCustomMagic
+#   par/p9-m2-pathfind       : PathFindClient, PathFind_Hero, ClientPickItemsCfg,
+#                              StruckDamageAbsorbUtils   (lane CLOSED, 86/86 routines ported)
 #
-# ROWS REMOVED 2026-09-21 (ledger 41.10): the four rows below used to point at
-# par/p2-dxcontrols-rest, a lane that was MERGED AND CLOSED long ago -- i.e. exactly the
-# "permanently parked row" failure of ledger 38.2 (they were invisible as in-flight work and
-# invisible as gaps).  Their real state, re-measured after removal:
-#   DxSwitchButton     -> WEAK   (only a body mention in LoadDx/DxControlSeams.cs; unported)
-#   DxGroupAttackProgress -> WEAK (same; both are BLOCKED on the DxComponent<->LoadDx dedup
-#                                  batch of ledger 14.4/16.2 -- they must not be ported before it)
-#   GuiManage          -> UNMAPPED (no evidence anywhere; the closed lane judged it "not worth
-#                                  porting" and that judgement was NEVER accepted -- so it stays
-#                                  a visible gap rather than a silent one)
-#   LoginDlg           -> UNMAPPED (same)
-# They are re-assigned only together with the dedup ruling, as p10-client-dxrest.
-# ---- P5 wave ----
-MirReturnConfigDlg	par/p5-client-mirreturn
-uFrmCustomMagic	par/p5-m2-custommagic
-#
-# ---- P9 wave (2026-09-21, round 50): the TRUE remainder after the 30-unit
-# sweep.  Every row below was re-measured on main @ b48e4c43 with
-# tools/audit-coverage.ps1 and is still ASSIGNED (no E1/E2 evidence), i.e. a
-# real gap -- the P3/P2 lanes that used to hold them are merged and CLOSED.
-# Reassigned rather than duplicated: each unit keeps exactly one owner row.
-#
-# M2Engine leftovers that stayed unported when par/p3-m2-sweep closed:
-# par/p9-m2-monsters CLOSED 2026-09-21 (merged, ledger 41): ObjRobot 20/20, ObjFireDragon 14/14,
-# ObjDummy 19/19 -> all three now carry E1 (same-basename .cs) + E2 evidence, so rows removed.
-PathFindClient	par/p9-m2-pathfind
-PathFind_Hero	par/p9-m2-pathfind
-ClientPickItemsCfg	par/p9-m2-pathfind
-StruckDamageAbsorbUtils	par/p9-m2-pathfind
-# par/p9-m2-datalayer CLOSED 2026-09-21 (merged, ledger 41): ItemEvent 13/13 + DataManage 24/24 have
-# E1+E2 evidence -> rows removed.  UserShopDB_Old is DEAD CODE (zero refs in .pas/.dpr/.dpk,
-# undefined ACCOUNTLEN/ACTORNAMELEN, unit name collides with the new UserShopDB) -> registered in
-# audit-coverage.ps1 $VENDOR_UNITS as "not ported", NOT left here as a permanently-parked row.
+# ---------------------------------------------------------------------------
+# IN FLIGHT (29 rows) -- live lanes only.
+# ---- P9-m2-forms (M2Engine windows/misc) ----
 ConfigMerchant	par/p9-m2-forms
 ViewHeroRcd	par/p9-m2-forms
 ViewKernelInfo	par/p9-m2-forms
@@ -98,28 +52,40 @@ NoticeM	par/p9-m2-forms
 ConfigMonGen	par/p9-m2-forms
 uAliyunSendSMSThread	par/p9-m2-forms
 uFrmClientPlugManager	par/p9-m2-forms
-# RunGate leftovers that stayed unported when par/p2-rungate-impl closed:
-# par/p9-rungate-rest CLOSED 2026-09-21 (merged into main, ledger section 40): all four units
-# were ruled "not ported + evidence", so their rows are REMOVED here -- leaving them would be
-# exactly the "permanently parked row" failure of ledger 38.2.  They are now registered in
-# tools/audit-coverage.ps1 $VENDOR_UNITS (not-ported bucket), not here.
-#
-# ---- P10 wave (2026-09-21, round 51): the two giants the WEAK triage exposed.
-# Class-declaration evidence (ledger 38.6b): TMirConfigDlg has NO declaration
-# (only a stub seam), 24/27 DrawScrn classes have none.
+# ---- P10-client-mirconfig / P10-client-scrn (the two WEAK-triage giants) ----
 MirConfigDlg	par/p10-client-mirconfig
 JSYConfigDlg	par/p10-client-mirconfig
 DrawScrn	par/p10-client-scrn
 DropItemsMgr	par/p10-client-scrn
-#
-# ---- P10 wave, second batch (round 53, ledger 41.8): DB / Login / LogData remainder.
-# NOTE the per-copy key on ThreadPool: its SelGate/LoginGate copies are ruled "not ported"
-# (replaced by GatewayKit) in audit-coverage.ps1, so only the LogDataServer copy -- the real
-# gap -- may be assigned here.  A bare "ThreadPool" row would cover all three copies.
+# ---- P10-db-login-forms (per-copy key on ThreadPool: only the LogDataServer copy is a real gap;
+#      SelGate/LoginGate copies are registered as not-ported in audit-coverage.ps1) ----
 uFrmRoleDataEdit	par/p10-db-login-forms
 MasSock	par/p10-db-login-forms
 GrobalSession	par/p10-db-login-forms
 GHeroDBConfig	par/p10-db-login-forms
-GLoginServerRouteSet	par/p10-db-login-forms
+# GLoginServerRouteSet row REMOVED 2026-09-21 (ledger 47.3-1): the unit was already ported --
+# under the renamed class LoginServerRouteSetForm -- and its source-unit note sat at line 86 of
+# GLoginServer.cs, outside the 40-line E2 window.  Moving that note to the header made the unit
+# read MAPPED, so the row must go (a leftover row would re-park a finished unit).
 LogDataServer/ThreadPool	par/p10-db-login-forms
 FileSearchPool	par/p10-db-login-forms
+# ---- P10-m2-misc (the last unowned product-UI units; basenames verified unique) ----
+uFrmGlobalVarEdit	par/p10-m2-misc
+dlgReplaceText	par/p10-m2-misc
+dlgConfirmReplace	par/p10-m2-misc
+MemoryIniFiles	par/p10-m2-misc
+uFrmHumanExport	par/p10-m2-misc
+CreateChr	par/p10-m2-misc
+GateSet	par/p10-m2-misc
+# ---- P11-client-dxrest2 CLOSED 2026-09-21 (ledger 47): LoginDlg landed 8/8 (E1+E2 evidence ->
+#      row removed).  GuiManage was ruled NOT PORTABLE with three independent proofs (original
+#      references the non-existent TDxBackground; LoadDx already carries the job in evolved form;
+#      a 1:1 port would need 13 out-of-zone seams) -> moved to $VENDOR_UNITS, NOT re-parked here.
+LoginGate/Misc	par/p11-logingate-filter
+LoginGate/FuncForComm	par/p11-logingate-filter
+#
+# ---- P13 (round 59): ObjMon.pas was proven NOT ported (204 routines, 0 real implementations;
+# the 46 ObjMon*Core.cs hold ~1,917 bare `=> true;`).  The unit stays in $E2_REFUTED (so it never
+# reads MAPPED again) AND gets a lane row, so it is visible in both the REFUTED gap list and the
+# in-flight table.  Do NOT register the other six refuted giants here until lanes exist for them.
+ObjMon	par/p13-m2-objmon-real

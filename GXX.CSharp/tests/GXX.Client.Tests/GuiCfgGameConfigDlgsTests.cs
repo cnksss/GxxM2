@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GXX.Client.GUI.GameConfig;
 using GXX.Client.GUI.GameConfig.Seams;
@@ -83,7 +83,10 @@ public sealed class GuiCfgGameConfigDlgsTests : IDisposable
 
         Assert.Equal(2, m.ConfigDlgList.Count);
         Assert.IsType<TJSYConfigDlg>(m.ConfigDlgList.GetObject(0));
-        Assert.IsType<TStubGameConfigObject>(m.ConfigDlgList.GetObject(1));
+        // 集成方修正（台账 §47）：原断言写的是**桩**类型 `TStubGameConfigObject`，它描述的是"接缝尚未接线"的
+        // 旧状态；车道 p10-client-mirconfig 已把接缝接到真实现，且桩污染源（GuiCfgConfigShareTests:1011）
+        // 也已修掉 ⇒ 该断言若不改，会因"恰好被污染"而假绿（实测：整轮跑时它通过，单独跑时才暴露）。
+        Assert.IsType<GXX.Client.GUI.GameConfig.Mir.TMirConfigDlg>(m.ConfigDlgList.GetObject(1));
         Assert.Equal(TConfigDlgType.ptDefault, ((TGameConfigObject)m.ConfigDlgList.GetObject(1)).ConfigDlgType);
     }
 

@@ -173,14 +173,27 @@ public static class HUtil32
         return result;
     }
 
-    /// <summary>ArrestStringEx（WideString 版）。</summary>
+    /// <summary>
+    /// ArrestStringEx（WideString 版）。原文 HUtil32.pas:1761-1805（<c>ArrestStringEx_Ansi</c>，
+    /// Wide 版同体）。语义要点（原文如此，调用方靠它保住缓冲）：
+    /// <list type="bullet">
+    /// <item>默认返回**整个 Source**（<c>Result := Source</c>，原文 :1766）——**找不到 SearchStart 时原样返回**，调用方据此保留缓冲；</item>
+    /// <item>找到 SearchStart 但**找不到 SearchEnd** 时：<c>ArrestStr</c> 保持 <c>''</c>、<c>Result</c> 仍为整个 Source（原文 :1792-1804 的循环结束即返回，**没有任何 else 改写**）；</item>
+    /// <item>空 Source 才显式返回 <c>''</c>（原文 :1769-1773）。</item>
+    /// </list>
+    /// ★ 本函数在 2026-09-21 由集成方按原文修正（台账 §48.2）：此前托管实现把"默认值"初始化成 <c>""</c>
+    /// 并在"找不到 SearchEnd"分支里把剩余整串塞进 <c>ArrestStr</c>，与原文**两处语义不同**，
+    /// 影响所有 `ArrestStringEx` 调用点（典型：<c>MasSock.MSocketClientRead</c> 的粘包累积）。
+    /// </summary>
     public static string ArrestStringEx(string source, char searchStart, char searchEnd, ref string arrestStr)
     {
+        // 原文 :1766-1767 —— Result := Source; ArrestStr := '';
+        string result = source;
         arrestStr = "";
-        string result = "";
         int srcLen = source.Length;
+        if (srcLen == 0) return "";              // 原文 :1769-1773
         int startIdx = source.IndexOf(searchStart) + 1;
-        if (startIdx > 0)
+        if (startIdx > 0)                        // 原文 :1792 if P2 <> nil（找到 SearchStart 才进入）
         {
             int endIdx = -1;
             for (int i = startIdx + 1; i <= srcLen; i++)
@@ -192,7 +205,7 @@ public static class HUtil32
                 arrestStr = Copy(source, startIdx + 1, endIdx - startIdx - 1);
                 result = Copy(source, endIdx + 1, srcLen);
             }
-            else arrestStr = Copy(source, startIdx + 1, srcLen);
+            // else：原文不改写 ArrestStr / Result —— 二者都保持上面的初值。
         }
         return result;
     }
