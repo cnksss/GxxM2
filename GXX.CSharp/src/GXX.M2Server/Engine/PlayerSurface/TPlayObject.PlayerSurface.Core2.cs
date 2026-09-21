@@ -144,7 +144,7 @@ public partial class TPlayObject
         bool result = false;
 
         // 原文 3709：if (ProcessMsg.wIdent > 0) and (ProcessMsg.wIdent <= MAXCLIENTMESSAGECOUNT) then
-        // MAXCLIENTMESSAGECOUNT 是全局常量（M2Share/Grobal2 侧），托管侧未切出 —— 见 PlayerSurfaceOperateConst。
+        // MAXCLIENTMESSAGECOUNT = 30000（实测唯一定义在 ObjBase.pas:11）—— 见 PlayerSurfaceOperateConst。
         if (processMsg.wIdent > 0 && processMsg.wIdent <= PlayerSurfaceOperateConst.MAXCLIENTMESSAGECOUNT)
         {
             // 原文 3711：Result := True;
