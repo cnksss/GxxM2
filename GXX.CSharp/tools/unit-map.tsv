@@ -129,3 +129,13 @@ FileSearchPool	par/p10-db-login-forms
 # "in flight" and "a gap".
 LoginDlg	par/p11-client-dxrest2
 GuiManage	par/p11-client-dxrest2
+#
+# ---- P10 wave, third batch (round 55): the last unowned product-UI units (all basenames
+# verified UNIQUE, so bare keys are safe) + Common/MemoryIniFiles (888 lines, unowned gap).
+uFrmGlobalVarEdit	par/p10-m2-misc
+dlgReplaceText	par/p10-m2-misc
+dlgConfirmReplace	par/p10-m2-misc
+MemoryIniFiles	par/p10-m2-misc
+uFrmHumanExport	par/p10-m2-misc
+CreateChr	par/p10-m2-misc
+GateSet	par/p10-m2-misc

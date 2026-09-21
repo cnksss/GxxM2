@@ -234,9 +234,17 @@ foreach ($d in $Dir) {
                    elseif ($e3) { 'CHECKLIST_ONLY' }
                    else { 'UNMAPPED' }
 
+        # ---- UI dimension: a VCL form/dialog unit has a .dfm beside its .pas. ----
+        # The project's DoD is "code AND interface AND functionality fully translated", but the
+        # report only ever measured code units.  A sibling .dfm is an OBJECTIVE marker of "this
+        # unit is a window/dialog", so the 界面 dimension can be counted instead of guessed.
+        $hasDfm = $false
+        try { $hasDfm = (Test-Path ([System.IO.Path]::ChangeExtension($f.FullName, '.dfm'))) } catch { }
+
         $rows += [pscustomobject]@{
             Dir = $d; Unit = $unit; Lines = $lines; KB = [math]::Round($f.Length / 1KB)
             E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel; Lane = $e4lane
+            HasDfm = $hasDfm
         }
     }
 }
@@ -274,6 +282,17 @@ $tot = [pscustomobject]@{
 }
 Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
     $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
+
+# ---- UI dimension summary (objective marker: a sibling .dfm) --------------
+$uiRows = @($rows | Where-Object HasDfm)
+if ($uiRows.Count -gt 0) {
+    $uiMapped = @($uiRows | Where-Object Verdict -eq 'MAPPED').Count
+    Write-Host ''
+    Write-Host ("=== UI units (sibling .dfm present): total={0}  mapped={1}  NOT mapped={2} ===" -f `
+        $uiRows.Count, $uiMapped, ($uiRows.Count - $uiMapped)) -ForegroundColor Cyan
+    $uiRows | Where-Object Verdict -ne 'MAPPED' | Group-Object Verdict |
+        Select-Object Name, Count | Format-Table -AutoSize | Out-String -Width 200 | Write-Host
+}
 
 Write-Host ''
 Write-Host '=== top UNMAPPED by size (candidate next batches) ===' -ForegroundColor Yellow
@@ -366,6 +385,20 @@ if ($Report) {
         foreach ($r in ($g.Group | Sort-Object Dir)) {
             [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) |")
         }
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## UI units (a .dfm sits beside the .pas) -- the INTERFACE dimension')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('A sibling `.dfm` is the objective marker of "this Delphi unit is a window/dialog", so the')
+    [void]$sb.AppendLine('界面 half of the DoD can be counted rather than guessed.  Rows below are UI units that are')
+    [void]$sb.AppendLine('NOT yet MAPPED -- i.e. the remaining interface work (a MAPPED UI unit still needs its')
+    [void]$sb.AppendLine('DFM control/event reconciliation reviewed, which this script cannot judge).')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | verdict | lane / source |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object { $_.HasDfm -and $_.Verdict -ne 'MAPPED' } | Sort-Object KB -Descending)) {
+        $note = if ($r.Lane) { $r.Lane } else { "``$($r.Rel)``" }
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.Verdict) | $note |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## CHECKLIST_ONLY units (mentioned in Checklist.md but no direct .cs evidence)')

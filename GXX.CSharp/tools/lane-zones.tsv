@@ -78,3 +78,9 @@ p11-logingate-review	GXX.CSharp/docs/并行报告-p11-logingate-review.md
 # DxComponent<->LoadDx dedup types (ledger 14.4/16.2) -> the lane must ASSESS it first and
 # register a blocker rather than invent a second copy of those types (ledger 14.2).
 p11-client-dxrest2	GXX.CSharp/src/GXX.Client/DxComponent/Rest11/**;GXX.CSharp/tests/GXX.Client.Tests/DxRest11*;GXX.CSharp/docs/并行报告-p11-client-dxrest2.md
+# ---- P10 wave, third batch (round 55): the LAST unowned product-UI units.  After this lane,
+# every product form/dialog in the tree has an owner except Client-HGE/Login.pas, which ledger
+# 18.5#1 deliberately deferred (the launcher EXE is a separate deliverable).
+# NB the two binary DFMs (CreateChr, GateSet) must be decoded from Source/** by hand -- the
+# _analysis/utf8_mirror copy of a BINARY dfm is corrupted (ledger 41.3-1).
+p10-m2-misc	GXX.CSharp/src/GXX.M2Server/Sweep9b/Forms/**;GXX.CSharp/src/GXX.Core/MemoryIni/**;GXX.CSharp/src/GXX.DBServer/Forms2/**;GXX.CSharp/src/GXX.LoginSrv/Forms2/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9bForms*;GXX.CSharp/tests/GXX.Core.Tests/MemoryIni*;GXX.CSharp/tests/GXX.DBServer.Tests/P10b*;GXX.CSharp/tests/GXX.LoginSrv.Tests/P10b*;GXX.CSharp/docs/并行报告-p10-m2-misc.md
