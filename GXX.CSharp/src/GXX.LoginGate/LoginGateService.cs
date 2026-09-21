@@ -133,4 +133,25 @@ public class LoginGateService : GateService
         if (_serverConnected)
             SendToServer(GatewayProtocol.BuildServerPacket(0, GatewayProtocol.GM_CHECKSERVER, 0, null, 0));
     }
+
+    // ---------------- 可选（opt-in）Rest11 执法面 ----------------
+    //
+    // 车道 p11-logingate-filter 把 LoginGate 的执法面残部移植为**并存设施**
+    // （`src/GXX.GatewayKit/Rest11/**` + `src/GXX.LoginGate/Rest11/**`，
+    // 详见 `docs/并行报告-p11-logingate-filter.md`）。它**默认不生效**：
+    // 本类不构造 `GXX.LoginGate.Rest11.Rest11LoginGateKernel`，故 `GateService.CheckIP`
+    // 与既有 LoginGate/SelGate 运行路径一字未改。
+    //
+    // 若要启用 LoginGate 原文语义（两张黑名单表 + IP 段过滤 + 换 ID 频率限制 +
+    // 客户端超时踢线 + DelayClose + 协议/二级密码门控），宿主需：
+    //   1) `new Rest11LoginGateConfig(@".\Config.ini")`（原文段名 `[LoginGate]/[Integer]/[Switch]/[Method]`，
+    //      **与现有 Config.ini 不兼容**，见报告 D-P11-01）；
+    //   2) 用一个 `IRest11EnforcementChannel` 实现把 `FreeSocket` 接到 `ClientIocp.CloseSession`、
+    //      把 `AddToBlockIPList/AddToTempBlockIPList` 接到 `Rest11LoginGateIpFilter`；
+    //   3) `new Rest11LoginGateKernel(cfg, channel){ Enabled = true }`，并在
+    //      `OnClientAccept` / `OnClientDisconnect` / 计时器里调用
+    //      `OnClientAccepted` / `OnClientClosed` / `OnKeepAliveTimer` / `OnThreadInfoTimer`。
+    //
+    // ⚠ 不得借此把 SelGate 的差异"统一"掉（`SelGateIPAddrFilter.cs:17-25`、
+    //   `SelGateMisc.cs:11-16`、`SelGateSession.cs:17-24` 三处头注）。
 }
