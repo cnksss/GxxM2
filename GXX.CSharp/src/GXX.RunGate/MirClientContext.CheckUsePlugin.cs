@@ -32,7 +32,8 @@
 // **已完成**：
 //   * 局部常量 3467-3472（5 个）
 //   * 忠实前导段 3505-3519
-//   * **CM_SITDOWN 分支 8997-9469**（本轮，提取为 `CheckUsePluginSitDown`；474 行）
+//   * **CM_TURN 分支 5855-6681**（本轮，提取为 `CheckUsePluginTurn` + `TurnFamilySpeedBlock`）
+//   * **CM_SITDOWN 分支 8997-9469**（本轮，提取为 `CheckUsePluginSitDown`）
 //   * CM_DROPITEM 分支 9474-9487
 //   * CM_PICKUP  分支 9492-9505
 //   * else       分支 9506-9516
@@ -40,9 +41,8 @@
 //   * 异常兜底 9682-9686
 //
 // **未覆盖（显式早退，见 `UnportedIdentFamilies`）**：
-//   * CM_WALK 3528-4696 / CM_RUN 4697-5857 / CM_TURN 5858-6689 /
-//     攻击族 6690-7888 / CM_SPELL 7889-8999
-//     → 合计 **4,998 行**（本轮从 5,472 行减掉 CM_SITDOWN 的 474 行）
+//   * CM_WALK 3528-4696 / CM_RUN 4697-5857 / 攻击族 6690-7888 / CM_SPELL 7889-8999
+//     → 按上一版的口径（5,472 − CM_SITDOWN 474 − CM_TURN 832）计 **4,166 行**
 //
 // -------------------------------------------------------------------------------------
 // ★ 偏差（本车道唯一一处结构性偏差，必须登记）
@@ -105,8 +105,7 @@ public partial class TMirClientContext
         if (ident == CM_WALK) return true;
         // :4697 CM_RUN
         if (ident == CM_RUN) return true;
-        // :5858 CM_TURN
-        if (ident == CM_TURN) return true;
+        // :5858 CM_TURN —— **已移植**（见 CheckUsePluginTurn），故不在此早退。
         // :6690-6699 攻击族（CM_HIT..CM_115HIT + 自定义技能区间）
         if (ident == CM_HIT || ident == CM_HEAVYHIT || ident == CM_BIGHIT ||
             ident == CM_POWERHIT || ident == CM_LONGHIT || ident == CM_WIDEHIT ||
@@ -124,13 +123,14 @@ public partial class TMirClientContext
     /// <summary>
     /// 原文 :3465-9688 <c>function TMirClientContext.CheckUsePlugin(Msg: PProcessMsg): Boolean;</c>
     /// <para>
-    /// **已覆盖**：前导段 3505-3519、`CM_SITDOWN` 8997-9469（<see cref="CheckUsePluginSitDown"/>）、
+    /// **已覆盖**：前导段 3505-3519、`CM_TURN` 5855-6681（<see cref="CheckUsePluginTurn"/>）、
+    /// `CM_SITDOWN` 8997-9469（<see cref="CheckUsePluginSitDown"/>）、
     /// `CM_DROPITEM` 9474-9487、`CM_PICKUP` 9492-9505、`else` 9506-9516、
     /// 公共收尾 9521-9681（提取为 <see cref="CheckUsePluginPostlude"/>）、兜底 9682-9686。
     /// </para>
     /// <para>
-    /// **未覆盖**：3528-8999（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL，4,998 行）
-    /// —— 显式早退，见 <see cref="UnportedIdentFamilies"/>。
+    /// **未覆盖**：CM_WALK 3528-4696 / CM_RUN 4697-5857 / 攻击族 6690-7888 / CM_SPELL 7889-8999
+    /// （4,166 行）—— 显式早退，见 <see cref="UnportedIdentFamilies"/>。
     /// </para>
     /// </summary>
     public bool CheckUsePlugin(TProcessMsg Msg)
@@ -185,8 +185,8 @@ public partial class TMirClientContext
         try
         {
             // =========================================================================
-            // ★**未移植**族早退（原文 :3528 CM_WALK / :4697 CM_RUN / :5858 CM_TURN /
-            //   :6690 攻击族 / :7889 CM_SPELL —— CM_SITDOWN 已于本轮移植，不再早退）
+            // ★**未移植**族早退（原文 :3528 CM_WALK / :4697 CM_RUN / :6690 攻击族 /
+            //   :7889 CM_SPELL —— CM_TURN、CM_SITDOWN 已于本轮移植，不再早退）
             //   见本文件头 §偏差。
             // =========================================================================
             if (UnportedIdentFamilies(DefMsg.Ident))
@@ -196,13 +196,26 @@ public partial class TMirClientContext
 
             // 原文 :3522/3528 的 `{$IF NEED_REGISTER = 0} case DefMsg.Ident of {$ELSE} if DefMsg.Ident = CM_WALK`
             // 结构 → 活分支是 if/else-if 链；**已移植的分支按原文顺序排列在本链首部**：
-            //   * CM_SITDOWN :9000-9469 ✅（本轮）
-            //   * CM_WALK :3528 / CM_RUN :4697 / CM_TURN :5858 / 攻击族 :6690 / CM_SPELL :7889
+            //   * CM_TURN :5855-6681 ✅（本轮）
+            //   * CM_SITDOWN :8997-9469 ✅（本轮）
+            //   * CM_WALK :3528 / CM_RUN :4697 / 攻击族 :6690 / CM_SPELL :7889
             //     → 仍由上面的 `UnportedIdentFamilies` 早退拦下，后续车道按序插入本链首部。
             // 下面依次是原文 :9474 CM_DROPITEM / :9492 CM_PICKUP / :9506 else。
 
+            // {$IF NEED_REGISTER = 0} CM_TURN: {$ELSE}         :5855-5858
+            if (DefMsg.Ident == CM_TURN)
+            {
+                // ---- 分支体 :5860-6681（提取为 CheckUsePluginTurn）----
+                if (CheckUsePluginTurn(Msg, DefMsg, dwCurTick,
+                        ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode, ref dwCurrentInterval))
+                {
+                    // 原文 :5897 / :5927 / :5972 / :6007 的 `Exit`
+                    return Result;
+                }
+            }
+
             // {$IF NEED_REGISTER = 0} CM_SITDOWN: {$ELSE}     :8997-9000
-            if (DefMsg.Ident == CM_SITDOWN)
+            else if (DefMsg.Ident == CM_SITDOWN)
             {
                 // ---- 分支体 :9002-9469（提取为 CheckUsePluginSitDown）----
                 if (CheckUsePluginSitDown(Msg, DefMsg, dwCurTick,
@@ -825,6 +838,504 @@ public partial class TMirClientContext
     private static bool IsAssasinatePreAction(TBaseAction action) =>
         action == TBaseAction.baHit || action == TBaseAction.baSpell || action == TBaseAction.baWalk ||
         action == TBaseAction.baRun || action == TBaseAction.baTurn;
+
+    // =================================================================================
+    // 原文 :5855-6681  `else if DefMsg.Ident = CM_TURN then`（**转身**）分支体
+    //
+    // ★ 骨架
+    //   :5861      ErrorCode := 4;
+    //   :5862-5866 环形缓冲写入 baTurn
+    //   :5868-5930 暗杀检测（前导动作集合 = [baWalk, baRun, baHit, baSpell]，目标动作 = baTurn）
+    //   :5931      Inc(nRecordActionIndex)
+    //   :5933-6623 四个按 FLastAction 互斥的限速子块（见下表）
+    //   :6625-6673 按 FLastAction 打调试日志（ErrorCode 32/33/34/35/36）
+    //   :6675-6678 nDelayTime = 0 时**只**刷新 dwTicks[amTurn]
+    //   :6680      FLastAction := baTurn;
+    //
+    // ★ 四个限速子块的**逐字等价性（已用脚本机械化核对）**
+    //   把四个子块按“模式名/取 tick 的模式/ErrorCode/日志格式”归一化后做集合比较，
+    //   结果只差下表列出的 5 个轴（`div 3  then` 多一个空格是原文笔误，不影响语义）：
+    //
+    //   | 子块 | 原文行 | FLastAction | mode | 取 tick 的模式 | 连续超速断开块 | ErrorCode | 日志 |
+    //   |---|---|---|---|---|---|---|---|
+    //   | a | :5933-6114 | baTurn        | amTurn        | amTurn        | **有**（:5956-5974、:5989-6010） | 28 | 带 `; [移动速度%s]` + GetSpeedText(nMoveSpeed) |
+    //   | b | :6117-6282 | baHit         | amHitToTurn   | amHit         | 无（同一段被 `{}` 注释，:6139-6152、:6167-6179） | 29 | 无 |
+    //   | c | :6285-6450 | baSpell       | amSpellToTurn | amSpell       | 无（:6307-6320、:6335-6347） | 30 | 无 |
+    //   | d | :6453-6623 | baWalk/baRun  | amMoveToTurn  | amWalk/amRun（:6459-6462 按 FLastAction 选） | 无（:6480-6493、:6508-6520） | 31 | 无 |
+    //
+    //   故本车道把这一公共体提取为 `TurnFamilySpeedBlock(mode, tickMode, hasContinueSpeedBlock,
+    //   errorCode, logWithMoveSpeed, …)`（**结构性偏差 D-T1，与 `CheckUsePluginPostlude` 同类**）：
+    //   每个语句、判据、常量、顺序、注释都只写一遍，四个调用点各自传入上表的 5 个轴值。
+    //
+    // ★ 原文缺陷 / 易错点（照抄）
+    //   D-T2 :6667 `else if {(FLastAction = baTurn) and} g_Config.ActionList[amTurn].boDebug then`
+    //        —— `FLastAction = baTurn` 被 `{}` 注释掉 → 该分支对**任何**非
+    //        {baHit, baSpell, baWalk, baRun} 的 FLastAction（含 baOther/baCutMeat）都成立。
+    //   D-T3 :6675 的 `and (not Msg.boDelay)` 同样被注释 → 只判 `nDelayTime = 0`（与 CM_SITDOWN 的 D-S3 同型）。
+    //   D-T4 :6677 只刷新 `dwTicks[amTurn]` 一个槽（CM_SITDOWN 的 :9463-9465 刷三个，两者不同）。
+    //   D-T5 :5933-6623 是 if/else-if 链且**没有 else**：FLastAction = baOther 时四个限速子块全不执行；
+    //        而 :6667 的调试日志分支却会命中（见 D-T2）。
+    //   D-T6 :6445/:6618 `dwCurrentInterval - dwTempInterval` 是 LongWord 减法 → 回绕成负 int（同 D-S）。
+    // =================================================================================
+
+    /// <summary>
+    /// 原文 :5860-6681 —— <c>CM_TURN</c>（转身）分支体，1:1 移植。
+    /// 返回 <c>true</c> 表示原文执行了 <c>Exit</c>（:5897 / :5927 暗杀、:5972 / :6007 连续超速）。
+    /// </summary>
+    private bool CheckUsePluginTurn(TProcessMsg Msg, in TDefaultMessage DefMsg, uint dwCurTick,
+        ref string sSendMsg, ref int nDelayTime, ref TAntiPlugAction AntiPlugAction, ref int ErrorCode,
+        ref uint dwCurrentInterval)
+    {
+        // ---- 原文 :3474-3502 中被本分支独占的局部量（同名同类型）----
+        int I, PreIndex, PrePreIndex;                                       // :3483
+        int nAssasinate;                                                    // :3489
+
+        ErrorCode = 4;                                                      // :5861
+        if (nRecordActionIndex >= MirClientContextConst.MAX_RECORD_ACTION_COUNT || nRecordActionIndex < 0)
+            nRecordActionIndex = 0;                                         // :5863
+        RecordActionArr[nRecordActionIndex].Action = TBaseAction.baTurn;                    // :5864
+        RecordActionArr[nRecordActionIndex].Tick = MyGetTickCount();                        // :5865
+        RecordActionArr[nRecordActionIndex].DefMsg = DefMsg;                                // :5866
+
+        // 所有采集满了
+        if (RecordActionArr[MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1].Tick != 0)   // :5869
+        {
+            nAssasinate = 0;                                                // :5871
+            PreIndex = (nRecordActionIndex - 1 + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                % MirClientContextConst.MAX_RECORD_ACTION_COUNT;            // :5872
+
+            // 转向前面是其他包
+            if (IsTurnAssasinatePreAction(RecordActionArr[PreIndex].Action) &&      // :5875
+                RunGateTiming.TickDiff(RecordActionArr[PreIndex].Tick, MyGetTickCount()) <= 250)   // :5876
+            {
+                nAssasinate++;                                              // :5878 Inc
+
+                for (I = 2; I <= MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1; I++)   // :5880
+                {
+                    PreIndex = (nRecordActionIndex - I + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                        % MirClientContextConst.MAX_RECORD_ACTION_COUNT;    // :5882
+                    if (RecordActionArr[PreIndex].Action == TBaseAction.baTurn)     // :5883
+                    {
+                        PrePreIndex = (nRecordActionIndex - I - 1 + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                            % MirClientContextConst.MAX_RECORD_ACTION_COUNT;    // :5885
+                        if (IsTurnAssasinatePreAction(RecordActionArr[PrePreIndex].Action) &&   // :5886
+                            RunGateTiming.TickDiff(RecordActionArr[PrePreIndex].Tick,
+                                RecordActionArr[PreIndex].Tick) <= 250)         // :5887
+                        {
+                            nAssasinate++;                                  // :5889 Inc
+                        }
+                    }
+                }
+
+                if (nAssasinate >= 3)                                       // :5894
+                {
+                    ProcessAssasinate();                                    // :5896
+                    return true;                                            // :5897 Exit
+                }
+            }
+        }
+        else
+        {
+            nAssasinate = 0;                                                // :5903
+            PreIndex = nRecordActionIndex - 1;                              // :5904
+            if (PreIndex >= 0 && IsTurnAssasinatePreAction(RecordActionArr[PreIndex].Action) &&   // :5905
+                RunGateTiming.TickDiff(RecordActionArr[PreIndex].Tick, MyGetTickCount()) <= 250)   // :5906
+            {
+                nAssasinate++;                                              // :5908 Inc
+
+                for (I = 2; I <= MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1; I++)   // :5910
+                {
+                    PreIndex = nRecordActionIndex - I;                      // :5912
+                    if (PreIndex > 0 && RecordActionArr[PreIndex].Action == TBaseAction.baTurn)   // :5913
+                    {
+                        PrePreIndex = nRecordActionIndex - I - 1;           // :5915
+                        if (PrePreIndex > 0 && IsTurnAssasinatePreAction(RecordActionArr[PrePreIndex].Action) &&   // :5916
+                            RunGateTiming.TickDiff(RecordActionArr[PrePreIndex].Tick,
+                                RecordActionArr[PreIndex].Tick) <= 250)     // :5917
+                        {
+                            nAssasinate++;                                  // :5919 Inc
+                        }
+                    }
+                }
+
+                if (nAssasinate >= 3)                                       // :5924
+                {
+                    ProcessAssasinate();                                    // :5926
+                    return true;                                            // :5927 Exit
+                }
+            }
+        }
+        nRecordActionIndex++;                                               // :5931 Inc
+
+        if (FLastAction == TBaseAction.baTurn)                              // :5933
+        {
+            // 子块 a（:5935-6114）：amTurn，**唯一**带“连续超速断开”的活分支
+            if (TurnFamilySpeedBlock(TAntiPlugActionMode.amTurn, TAntiPlugActionMode.amTurn,
+                    hasContinueSpeedBlock: true, errorCode: 28, logWithMoveSpeed: true,
+                    Msg, dwCurTick, ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode,
+                    ref dwCurrentInterval))
+            {
+                return true;                                                // :5972 / :6007 Exit
+            }
+        }
+
+        // 攻击到转向
+        else if (FLastAction == TBaseAction.baHit)                          // :6117
+        {
+            // 子块 b（:6119-6281）：amHitToTurn/amHit，连续超速段被注释 → hasContinueSpeedBlock = false
+            if (TurnFamilySpeedBlock(TAntiPlugActionMode.amHitToTurn, TAntiPlugActionMode.amHit,
+                    hasContinueSpeedBlock: false, errorCode: 29, logWithMoveSpeed: false,
+                    Msg, dwCurTick, ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode,
+                    ref dwCurrentInterval))
+            {
+                return true;                                                // 该子块内的 Exit 均在被注释段内（不可达）
+            }
+        }
+
+        // 魔法到转向
+        else if (FLastAction == TBaseAction.baSpell)                        // :6285
+        {
+            // 子块 c（:6287-6449）
+            if (TurnFamilySpeedBlock(TAntiPlugActionMode.amSpellToTurn, TAntiPlugActionMode.amSpell,
+                    hasContinueSpeedBlock: false, errorCode: 30, logWithMoveSpeed: false,
+                    Msg, dwCurTick, ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode,
+                    ref dwCurrentInterval))
+            {
+                return true;                                                // 同上（不可达）
+            }
+        }
+
+        // 移动到转向
+        else if (FLastAction == TBaseAction.baWalk || FLastAction == TBaseAction.baRun)   // :6453
+        {
+            // :6459-6462 取 tick 的模式按 FLastAction 二选一
+            TAntiPlugActionMode tickMode = FLastAction == TBaseAction.baWalk
+                ? TAntiPlugActionMode.amWalk : TAntiPlugActionMode.amRun;
+            // 子块 d（:6455-6622）
+            if (TurnFamilySpeedBlock(TAntiPlugActionMode.amMoveToTurn, tickMode,
+                    hasContinueSpeedBlock: false, errorCode: 31, logWithMoveSpeed: false,
+                    Msg, dwCurTick, ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode,
+                    ref dwCurrentInterval))
+            {
+                return true;                                                // 同上（不可达）
+            }
+        }
+
+        // :6625-6673 调试日志
+        if (!Msg.boDelay)                                                   // :6625
+        {
+            if (FLastAction == TBaseAction.baHit)                           // :6627
+            {
+                if (g_Config.ActionList[(int)TAntiPlugActionMode.amHitToTurn].boDebug)   // :6629
+                {
+                    ErrorCode = 32;                                         // :6631
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",                   // :6632-6633
+                        AntiPlugActionModeNames3[(int)TAntiPlugActionMode.amHitToTurn],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amHit], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+
+            else if (FLastAction == TBaseAction.baSpell)                    // :6637
+            {
+                if (g_Config.ActionList[(int)TAntiPlugActionMode.amSpellToTurn].boDebug)   // :6639
+                {
+                    ErrorCode = 33;                                         // :6641
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",                   // :6642-6643
+                        AntiPlugActionModeNames3[(int)TAntiPlugActionMode.amSpellToTurn],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amSpell], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+
+            else if (FLastAction == TBaseAction.baWalk)                     // :6647
+            {
+                if (g_Config.ActionList[(int)TAntiPlugActionMode.amMoveToTurn].boDebug)   // :6649
+                {
+                    ErrorCode = 34;                                         // :6651
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",                   // :6652-6653
+                        AntiPlugActionModeNames3[(int)TAntiPlugActionMode.amMoveToTurn],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amWalk], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+
+            else if (FLastAction == TBaseAction.baRun)                      // :6657
+            {
+                if (g_Config.ActionList[(int)TAntiPlugActionMode.amMoveToTurn].boDebug)   // :6659
+                {
+                    ErrorCode = 35;                                         // :6661
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",                   // :6662-6663
+                        AntiPlugActionModeNames3[(int)TAntiPlugActionMode.amMoveToTurn],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amRun], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+
+            // :6667 原文 `else if {(FLastAction = baTurn) and} g_Config.ActionList[amTurn].boDebug then`
+            //       —— 前半被 `{}` 注释掉 → 对**任何**非 {baHit,baSpell,baWalk,baRun} 的 FLastAction 都成立（D-T2）
+            else if (/*{(FLastAction = baTurn) and}*/ g_Config.ActionList[(int)TAntiPlugActionMode.amTurn].boDebug)
+            {
+                ErrorCode = 36;                                             // :6669
+                AddMainLogMsg(Format("%s:%d; 用户:%s",                       // :6670-6671
+                    AntiPlugActionModeNames3[(int)TAntiPlugActionMode.amTurn],
+                    RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amTurn], dwCurTick),
+                    sChrName), 0);
+            }
+        }
+
+        if (nDelayTime == 0 /*{and (not Msg.boDelay)}*/)                    // :6675
+        {
+            GameSpeed.dwTicks[(int)TAntiPlugActionMode.amTurn] = dwCurTick; // :6677（**只刷这一个槽**，D-T4）
+        }
+
+        FLastAction = TBaseAction.baTurn;                                   // :6680
+
+        return false;   // 原文 :6681 分支体结束 → 继续进入公共收尾 9521-9681
+    }
+
+    /// <summary>
+    /// 原文 :5935-6114 / :6119-6281 / :6287-6449 / :6455-6622 —— CM_TURN 族四个
+    /// <c>FLastAction</c> 子块**逐字相同**的限速体（提取见本文件头 D-T1）。
+    /// <para>
+    /// 五个差异轴全部由形参给出：<paramref name="mode"/>（`g_Config.ActionList[…]` 的下标与
+    /// `LastLockAntiPlugActionMode` 的取值）、<paramref name="tickMode"/>（`GameSpeed.dwTicks[…]` 的取
+    /// 值下标）、<paramref name="hasContinueSpeedBlock"/>（`boContinueSpeedCloseSocket` 的
+    /// “连续超速直接断开”段：**只有 amTurn 子块是活代码**）、<paramref name="errorCode"/>
+    /// （`ErrorCode := 28/29/30/31`）、<paramref name="logWithMoveSpeed"/>（日志是否带
+    /// `; [移动速度%s]` + `GetSpeedText(nMoveSpeed)`）。
+    /// </para>
+    /// <para>
+    /// 行号注释以**子块 a** 为准（b/c/d 依次为 :6119-6281 / :6287-6449 / :6455-6622，逐行同构）。
+    /// 返回 <c>true</c> 表示原文执行了 <c>Exit</c>（仅子块 a 可达：:5972 / :6007）。
+    /// </para>
+    /// </summary>
+    private bool TurnFamilySpeedBlock(TAntiPlugActionMode mode, TAntiPlugActionMode tickMode,
+        bool hasContinueSpeedBlock, int errorCode, bool logWithMoveSpeed,
+        TProcessMsg Msg, uint dwCurTick, ref string sSendMsg, ref int nDelayTime,
+        ref TAntiPlugAction AntiPlugAction, ref int ErrorCode, ref uint dwCurrentInterval)
+    {
+        int m = (int)mode;
+        TAntiPlugAction action = g_Config.ActionList[m];
+        uint dwTempInterval;                                                // :3476
+        bool boCurrentSpeed, boCollectSpeed;                                // :3486
+        bool boContinueSpeed = false;                                       // :3486
+        bool boContinueSpeedPass;                                           // :3487
+        int nSpeedCount;                                                    // :3481
+        int I, nCollectIndex, nCollectCount;                                // :3483
+
+        // :5935 `if g_Config.ActionList[amTurn].boEnabled then begin … end` —— 提前返回等价
+        if (!action.boEnabled) return false;
+
+        dwTempInterval = action.nInterval;                                  // :5937
+        dwCurrentInterval = RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)tickMode], dwCurTick);   // :5938
+        boCurrentSpeed = dwCurrentInterval < dwTempInterval;                // :5939
+
+        nSpeedCount = 0;                                                    // :5941
+        boCollectSpeed = false;                                             // :5942
+
+        if (SumSpeedProcessArr[m, 0] == 0)                                  // :5944
+            SumSpeedProcessArr[m, 0] = MyGetTickCount();                    // :5945
+
+        if (g_Config.dwCollectCount /*{g_Config.ActionList[amTurn].nCollectCount}*/ >= 2)   // :5947
+        {
+            nCollectIndex = nCollectIntervalIndexArr[m];                    // :5949
+            nCollectCount = g_Config.dwCollectCount /*{g_Config.ActionList[amTurn].nCollectCount}*/;   // :5950
+
+            // 倒数第2条数据采集到，加本次就是最一条搞定
+            if (dwCollectIntervalArr[m, nCollectCount - 2] != 0)            // :5953
+            {
+                // 本次和上次都超速就算超速 chongchong 2016-10-07
+                // （**只有 amTurn 子块是活代码**；b/c/d 的同一段被 `{}` 注释 → hasContinueSpeedBlock = false）
+                if (hasContinueSpeedBlock)
+                {
+                    if (g_Config.boContinueSpeedCloseSocket && boCurrentSpeed)   // :5956
+                    {
+                        boContinueSpeed = true;                             // :5958
+                        for (I = 1; I <= g_Config.nContinueSpeedCount; I++) // :5959
+                        {
+                            if (dwCollectIntervalArr[m,
+                                    (nCollectIndex - I + nCollectCount) % nCollectCount] >= 0)   // :5961
+                            {
+                                boContinueSpeed = false;                    // :5963
+                                break;                                      // :5964 Break
+                            }
+                        }
+
+                        // 连续三次超速直接断开
+                        if (boContinueSpeed)                                // :5969
+                        {
+                            ContinuousSpeed(mode, dwCurrentInterval);       // :5971
+                            return true;                                    // :5972 Exit
+                        }
+                    }
+                }
+
+                for (I = 0; I <= nCollectCount - 1; I++)                    // :5976
+                {
+                    if (I != nCollectIndex && dwCollectIntervalArr[m, I] < 0)   // :5978
+                        nSpeedCount++;                                      // :5979 Inc
+                }
+                if (boCurrentSpeed) nSpeedCount++;                          // :5981 Inc
+                boCollectSpeed = nSpeedCount >= g_Config.dwSpeedValue;      // :5982  // g_Config.ActionList[amTurn].nCollectSpeedCount;
+            }
+            else
+            {
+                // 至少采集了1条
+                if (nCollectIndex >= 1)                                     // :5987
+                {
+                    // 本次和上次都超速就算超速 chongchong 2016-10-07（同上，只有 amTurn 是活代码）
+                    if (hasContinueSpeedBlock)
+                    {
+                        if (g_Config.boContinueSpeedCloseSocket && boCurrentSpeed)   // :5989
+                        {
+                            if (nCollectIndex >= g_Config.nContinueSpeedCount)   // :5991
+                            {
+                                boContinueSpeed = true;                     // :5993
+                                for (I = 1; I <= g_Config.nContinueSpeedCount; I++)   // :5994
+                                {
+                                    if (dwCollectIntervalArr[m, nCollectIndex - I] >= 0)   // :5996
+                                    {
+                                        boContinueSpeed = false;            // :5998
+                                        break;                              // :5999 Break
+                                    }
+                                }
+
+                                // 连续三次超速直接断开
+                                if (boContinueSpeed)                        // :6004
+                                {
+                                    ContinuousSpeed(mode, dwCurrentInterval);   // :6006
+                                    return true;                            // :6007 Exit
+                                }
+                            }
+                        }
+                    }
+
+                    for (I = 0; I <= nCollectIndex - 1; I++)                // :6012
+                    {
+                        if (dwCollectIntervalArr[m, I] < 0)                 // :6014
+                            nSpeedCount++;                                  // :6015 Inc
+                    }
+                    if (boCurrentSpeed) nSpeedCount++;                      // :6017 Inc
+
+                    if (dwCurrentInterval <= dwTempInterval / 3)            // :6019
+                    {
+                        boCollectSpeed = true;                              // :6021
+                    }
+                    else
+                    {
+                        if (nCollectIndex + 1 <= 3)                         // :6025
+                            boCollectSpeed = nSpeedCount >= 2;              // :6026
+                        else if (nCollectIndex + 1 <= 7)                    // :6027
+                        {
+                            boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2;   // :6029
+                        }
+                        else
+                        {
+                            boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2 - 1;   // :6033
+                        }
+                    }
+                }
+                // 网进入游戏，就双倍（表现为一个表正常，一个包间隔很小），第一个包不会被采集
+                else if (dwCurrentInterval <= dwTempInterval / 3)           // :6038
+                {
+                    boCollectSpeed = true;                                  // :6040
+                }
+            }
+        }
+        else if (dwCurrentInterval <= dwTempInterval / 3)                   // :6044
+        {
+            boCollectSpeed = true;                                          // :6046
+        }
+
+        // 连续加速主要用于卡刀反弹，因为卡刀反弹没有延时，所以会边续反弹 chongchong 2015-12-20
+        boContinueSpeedPass = GameSpeed.boContinueSpeed &&                  // :6050
+            (RunGateTiming.TickDiff(GameSpeed.dwStartSpeedTick, MyGetTickCount()) >=
+                dwTempInterval + g_Config.dwContinueSpeedPassIncTime);      // :6051
+
+        if ((dwCurrentInterval <= dwTempInterval / 10) ||                   // :6053
+            ((!boContinueSpeedPass) && boCurrentSpeed && boCollectSpeed))   // :6054
+        {
+            if (action.boShowHint)                                          // :6056
+                sSendMsg = action.sHintText;                                // :6057
+
+            AntiPlugAction = action;                                        // :6059 AntiPlugAction := @g_Config.ActionList[amTurn]
+            LastLockAntiPlugActionMode = mode;                              // :6060
+
+            if (RunGateTiming.TickDiff(SumSpeedProcessArr[m, 0], MyGetTickCount()) <=
+                g_Config.nSumSpeedCheckTime * 1000)                         // :6062
+                SumSpeedProcessArr[m, 1]++;                                 // :6063 Inc
+            else
+            {
+                SumSpeedProcessArr[m, 1] = 1;                               // :6066
+                SumSpeedProcessArr[m, 0] = MyGetTickCount();                // :6067
+            }
+
+            if (AntiPlugAction.ProcessMode == TActionProcessMode.apmDelay &&
+                dwCurrentInterval < dwTempInterval)                         // :6070
+            {
+                nDelayTime = (int)(dwTempInterval - dwCurrentInterval) + DELAY_TIME_ADD;   // :6072
+
+                // 修正加速一段时间后恢复到正常状态，一直提示加速
+                GameSpeed.nDelayCount[m] = GameSpeed.nDelayCount[m] + 1;    // :6075
+                if (GameSpeed.nDelayCount[m] > 8)                           // :6076
+                {
+                    GameSpeed.nDelayCount[m] = 0;                           // :6078
+                    nDelayTime = 0;                                         // :6079
+                    SendActionRet(true);                                    // :6080
+                }
+            }
+
+            if (g_Config.boShowAttackLog)                                   // :6084
+            {
+                ErrorCode = errorCode;                                      // :6086 / :6255 / :6423 / :6596
+                if (logWithMoveSpeed)
+                {
+                    // :6087-6091（**只有 amTurn 子块带 `; [移动速度%s]`**，b/c/d 见 :6256-6259 等）
+                    AddMainLogMsg(Format("【用户超速】%s:%d; [移动速度%s]; 用户:%s",
+                        AntiPlugActionModeNames3[m], dwCurrentInterval, GetSpeedText(nMoveSpeed), sChrName), 0);
+                }
+                else
+                {
+                    AddMainLogMsg(Format("【用户超速】%s:%d; 用户:%s",
+                        AntiPlugActionModeNames3[m], dwCurrentInterval, sChrName), 0);
+                }
+            }
+        }
+        else
+        {
+            if (!Msg.boDelay && !boContinueSpeedPass)                       // :6096
+            {
+                GameSpeed.nDelayCount[m] = 0;                               // :6098
+            }
+        }
+
+        if (nDelayTime == 0 && !Msg.boDelay)                                // :6102
+        {
+            nCollectIndex = nCollectIntervalIndexArr[m];                    // :6104
+
+            if (dwCurrentInterval >= dwTempInterval)                        // :6106
+                dwCollectIntervalArr[m, nCollectIndex] = 1;                 // :6107
+            else
+                dwCollectIntervalArr[m, nCollectIndex] =
+                    unchecked((int)(dwCurrentInterval - dwTempInterval));   // :6109
+
+            nCollectIntervalIndexArr[m] = (nCollectIndex + 1)
+                % g_Config.dwCollectCount /*{g_Config.ActionList[amTurn].nCollectCount}*/;   // :6111
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// 原文 `RecordActionArr[…].Action in [baWalk, baRun, baHit, baSpell]`
+    /// （:5875 / :5886 / :5905 / :5916 四处，CM_TURN 族的暗杀前导动作集合 —— **与 CM_SITDOWN 的不同**：
+    /// CM_SITDOWN 是 `[baHit, baSpell, baWalk, baRun, baTurn]`，这里是 `[baWalk, baRun, baHit, baSpell]`，
+    /// 即 CM_TURN 把 `baTurn` 换成自身并**不含** `baTurn`、CM_SITDOWN 含 `baTurn` 而不含 `baCutMeat`）。
+    /// </summary>
+    private static bool IsTurnAssasinatePreAction(TBaseAction action) =>
+        action == TBaseAction.baWalk || action == TBaseAction.baRun ||
+        action == TBaseAction.baHit || action == TBaseAction.baSpell;
 
     /// <summary>
     /// 原文 **9521-9681** —— 所有 ident 分支共用的公共收尾（逐行等价）。
