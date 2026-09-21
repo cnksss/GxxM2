@@ -114,7 +114,7 @@ public static class DrawScrnText
     /// </summary>
     public static void GetTextListEx(
         THGEFont hgeFont, string text, TColor fcolor, TColor bcolor,
-        TList textList, TColor lineBackColor, int maxWidth,
+        List<object> textList, TColor lineBackColor, int maxWidth,
         TColor? itemFColor = null, TColor? itemBColor = null)
     {
         var b = new MultiLineBuilder(hgeFont, text ?? "", fcolor, bcolor, textList, lineBackColor, maxWidth,
@@ -262,7 +262,7 @@ public static class DrawScrnText
         private readonly string _text;
         private readonly TColor _fcolor;
         private readonly TColor _bcolor;
-        private readonly TList _textList;
+        private readonly List<object> _textList;
         private readonly TColor _lineBackColor;
         private readonly int _maxWidth;
         private readonly TColor _itemFColor;
@@ -278,7 +278,7 @@ public static class DrawScrnText
         private string _sRemberCustom = "";
 
         public MultiLineBuilder(THGEFont hgeFont, string text, TColor fcolor, TColor bcolor,
-            TList textList, TColor lineBackColor, int maxWidth, TColor itemFColor, TColor itemBColor)
+            List<object> textList, TColor lineBackColor, int maxWidth, TColor itemFColor, TColor itemBColor)
         {
             _hgeFont = hgeFont;
             _text = text;

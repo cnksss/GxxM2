@@ -430,6 +430,21 @@ public static class DrawScrnEnv
     /// <summary>HGEFontEx.pas THGEFont.GetImageInfo(Text):TImageInfo。</summary>
     public static Func<THGEFont, string, TImageInfo> FontGetImageInfoFn;
 
+    /// <summary>HGEFontEx.pas THGEFont.TextOut(X, Y; ImageIndexs:TImageIndexs; Color:TColor)。</summary>
+    public static Action<THGEFont, int, int, List<int>, TColor> FontTextOutImageIndexsFn;
+
+    /// <summary>
+    /// 原文 `HGEFont.TextOut(X, Y, ImageInfo.ImageIndexs, Color)`（字形图集直绘，TMoveHintMsgList.Draw 用）。
+    /// 默认落到 <see cref="TDrawScrnCanvas.TextImageIndexs"/>（同一 headless 出口）。
+    /// </summary>
+    public static void FontTextOut(THGEFont font, int x, int y, List<int> imageIndexs, TColor color)
+    {
+        if (FontTextOutImageIndexsFn != null)
+            FontTextOutImageIndexsFn(font, x, y, imageIndexs, color);
+        else
+            GameCanvas.TextImageIndexs(x, y, color);
+    }
+
     /// <summary>HGEFontEx.pas THGEFont.GetImageInfo 的调用点。</summary>
     public static TImageInfo GetImageInfo(THGEFont font, string s)
     {
@@ -647,6 +662,7 @@ public static class DrawScrnEnv
         FontTextHeightFn = null;
         FontTextWidthFn = null;
         FontGetImageInfoFn = null;
+        FontTextOutImageIndexsFn = null;
         g_WNewopUIImages = new TGameImages(1200);
         g_WBagItemImages = new TLookImages();
         g_WDnItemImages = new TLookImages();
