@@ -77,6 +77,11 @@ public partial class TMerchant
     /// **它不是新 API** —— 名字直接标出它对应原文 `UserSelect` 内 `@repair` 的那两条 `case`。</para>
     /// <para>返回 `true` 表示 `nNF` 命中本分片的两条分支之一（已处理）；`false` 表示该命令号
     /// 不属 `@repair` 族 —— **调用方必须区分**，不要把它当成"命令未实现"的静默兜底。</para>
+    /// <para><b>★ 删除条件（可执行，勿留给后人猜）</b>：当 `TMerchant.UserSelect` 的派发体
+    /// （原文 2547-2899，含 `nIndex := NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)`
+    /// 后的 `switch (nIndex)`）落地时，把本方法 `switch` 里的两个 `case` 分支**原样搬进**那个
+    /// `switch`，然后**删除本方法**。判据：`UserSelect` 在登记表里由 `Missing` 变为
+    /// `Covered`，且 `UserSelectRepairCommands` 在 `src` 与 `tests` 中**零引用**（`grep` 可验）。</para>
     /// </summary>
     public bool UserSelectRepairCommands(TPlayObject PlayObject, int nNF)
     {
