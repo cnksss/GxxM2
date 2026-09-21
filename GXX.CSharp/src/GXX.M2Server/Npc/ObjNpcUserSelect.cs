@@ -68,34 +68,74 @@ public partial class TMerchant
     }
 
     /// <summary>
-    /// `UserSelect` 派发体里**本分片负责的两个 `case` 分支**（原文 2702-2706 / 2737-2741）：
+    /// 原文 `TMerchant.UserSelect` 内的**嵌套过程**
+    /// `procedure SellItem(User: TPlayObject); // 004A1544`（ObjNpc.pas:2257-2260）：
     /// <code>
-    ///   nNF_SuperRepair: begin if m_boS_repair then SuperRepairItem(PlayObject); end;
-    ///   nNF_Repair:      begin if m_boRepair   then RepairItem(PlayObject);      end;
+    ///   User.SendMsg(Self, RM_SENDUSERSELL, 0, NativeInt(Self), 0, 0, '');
     /// </code>
-    /// <para><b>为什么是一个独立方法</b>：`UserSelect` 的派发体（2547-2899）尚未移植，
-    /// 而本分片的两条分支是**可独立验证的完整语义单元**。等派发体移植时，
-    /// 这两条分支原样搬进 `case` 即可（本方法随之删除）。
-    /// **它不是新 API** —— 名字直接标出它对应原文 `UserSelect` 内 `@repair` 的那两条 `case`。</para>
-    /// <para>返回 `true` 表示 `nNF` 命中本分片的两条分支之一（已处理）；`false` 表示该命令号
-    /// 不属 `@repair` 族 —— **调用方必须区分**，不要把它当成"命令未实现"的静默兜底。</para>
+    /// <para>触发点：`nNF_Sell` 分支（原文 2732-2736），守卫 `m_boSell`。</para>
+    /// <para>⚠ 与 <see cref="RepairItem"/>/<see cref="ArmRemoveStoneItem"/> 是**三个不同的包号**，
+    /// 只有包号与守卫不同 —— 已写互相对照的差异断言（勿互相抄）。</para>
+    /// </summary>
+    public void SellItem(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_SENDUSERSELL, 0, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>
+    /// 原文 `TMerchant.UserSelect` 内的**嵌套过程**
+    /// `procedure ArmRemoveStoneItem(User: TPlayObject); // 004A1570`（ObjNpc.pas:2267-2270）：
+    /// <code>
+    ///   User.SendMsg(Self, RM_ARMREMOVESTONE, 0, NativeInt(Self), 0, 0, '');
+    /// </code>
+    /// <para>触发点：`nNF_ArmRemoveStone` 分支（原文 2742-2746），守卫 `m_boArmRemoveStone`。</para>
+    /// <para>⚠ 原文里本过程与 `RepairItem` 的注释都写 `// 004A1570`（**同一个地址注释**）——
+    /// 原文如此，**不是**我抄错；两者的包号仍不同（`RM_ARMREMOVESTONE` vs `RM_SENDUSERREPAIR`）。</para>
+    /// </summary>
+    public void ArmRemoveStoneItem(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_ARMREMOVESTONE, 0, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>
+    /// `UserSelect` 派发体里**本车道已移植的 `case` 分支**
+    /// （原文 2702-2706 / 2732-2736 / 2737-2741 / 2742-2746）：
+    /// <code>
+    ///   nNF_SuperRepair:    begin if m_boS_repair       then SuperRepairItem(PlayObject);    end;
+    ///   nNF_Sell:           begin if m_boSell           then SellItem(PlayObject);           end;
+    ///   nNF_Repair:         begin if m_boRepair         then RepairItem(PlayObject);         end;
+    ///   nNF_ArmRemoveStone: begin if m_boArmRemoveStone then ArmRemoveStoneItem(PlayObject); end;
+    /// </code>
+    /// <para><b>为什么是一个独立方法</b>：`UserSelect` 的派发体（2597-2899）尚未移植，而这几条分支是
+    /// **可独立验证的完整语义单元**。等派发体移植时，这些 `case` **原样搬进** `switch` 即可
+    /// （本方法随之删除）。**它不是新 API** —— 名字标出它对应原文 `UserSelect` 内的 `case` 片段。</para>
+    /// <para>返回 `true` 表示 `nNF` 命中本方法已移植的分支之一（已处理）；`false` 表示该命令号
+    /// **不在已移植集合内** —— **调用方必须区分**，不要把它当成"命令未实现"的静默兜底。</para>
     /// <para><b>★ 删除条件（可执行，勿留给后人猜）</b>：当 `TMerchant.UserSelect` 的派发体
     /// （原文 2547-2899，含 `nIndex := NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)`
-    /// 后的 `switch (nIndex)`）落地时，把本方法 `switch` 里的两个 `case` 分支**原样搬进**那个
+    /// 后的 `switch (nIndex)`）落地时，把本方法 `switch` 里的全部 `case` **原样搬进**那个
     /// `switch`，然后**删除本方法**。判据：`UserSelect` 在登记表里由 `Missing` 变为
-    /// `Covered`，且 `UserSelectRepairCommands` 在 `src` 与 `tests` 中**零引用**（`grep` 可验）。</para>
+    /// `Covered`，且 `UserSelectPortedArms` 在 `src` 与 `tests` 中**零引用**（`grep` 可验）。</para>
     /// </summary>
-    public bool UserSelectRepairCommands(TPlayObject PlayObject, int nNF)
+    public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF)
     {
         switch (nNF)
         {
-            case NpcProcessCmd.nNF_SuperRepair:   // 原文 2702-2706
+            case NpcProcessCmd.nNF_SuperRepair:        // 原文 2702-2706
                 if (m_boS_repair)
                     SuperRepairItem(PlayObject);
                 return true;
-            case NpcProcessCmd.nNF_Repair:        // 原文 2737-2741
+            case NpcProcessCmd.nNF_Sell:               // 原文 2732-2736
+                if (m_boSell)
+                    SellItem(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_Repair:             // 原文 2737-2741
                 if (m_boRepair)
                     RepairItem(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_ArmRemoveStone:     // 原文 2742-2746
+                if (m_boArmRemoveStone)
+                    ArmRemoveStoneItem(PlayObject);
                 return true;
             default:
                 return false;
