@@ -27,82 +27,87 @@ namespace GXX.Client.Tests;
 public sealed class ActorHiddenFieldDefectTests
 {
     // ══════════════════════════════════════════════════════════════════════
-    // H-1 ★ `m_nOldChrLight`：基类 byte 份 vs TCustomActor 派生 int 份
+    // H-1 ★ `m_nOldChrLight` —— **已修复（D-P17-08）**，本组用例改为锁修复后的形态
     // ══════════════════════════════════════════════════════════════════════
 
     /// <summary>
-    /// **H-1（最严重，且已确认可观测）**：`CustomActor.cs:1612` 声明
-    /// <c>public int m_nOldChrLight;</c>，而基类 `TActorCore` 已在
-    /// `ActorMessages.cs:53` 声明 <c>public byte m_nOldChrLight;</c>
-    /// —— **同名、不同存储、甚至不同类型**（`int` vs `byte`）。
+    /// **H-1 修复验证**：经**基类静态类型**（`TActorCore`，即 `PlaySceneMessages.cs:672/677`
+    /// 的真实情形）写入，必须落到 `TCustomActor` 的**真身存储**上。
     ///
-    /// <para><b>后果链（全部可用静态类型推出）</b>：</para>
-    /// <list type="number">
-    /// <item><c>PlaySceneCore.cs:153</c>：<c>ActorList</c> 是 <c>List&lt;TActorCore&gt;</c>；</item>
-    /// <item><c>PlaySceneMessages.cs:672 / 677</c>：<c>actor.m_nOldChrLight = actor.m_nChrLight;</c>
-    ///   —— <c>actor</c> 的静态类型是 <c>TActorCore</c> ⇒ 写的是**基类那一份（byte）**，
-    ///   而且 <c>ProcessActors</c> **每次都写**；</item>
-    /// <item><c>CustomActor.cs:1679 / 1806</c>：<c>TCustomActor</c> 自己的方法体读
-    ///   <c>m_nOldChrLight</c> ⇒ 读的是**派生那一份（int）**，而**全工程没有任何一处写它**；</item>
-    /// <item>于是自定义怪（`TCustomActor`）传给 <c>CustomActorLogic</c> 的
-    ///   <c>OldChrLight</c> **恒为 0**，98 行的 <c>m_nChrLight := m_nOldChrLight</c>
-    ///   也就把光照写成 0（原文语义是"沿用上一轮光照"）。</item>
-    /// </list>
+    /// <para><b>原文事实（取证）</b>：字段只声明在 <c>CustomActor.pas:33</c>（<c>Integer</c>）；
+    /// <c>PlayScn.pas:7852/8019/8023</c> 三处写点都是
+    /// <c>if Actor is TCustomActor then TCustomActor(Actor).m_nOldChrLight := Actor.m_nChrLight;</c>
+    /// —— 即"**类型守卫 + 写派生字段**"。</para>
     ///
-    /// <para><b>另注</b>：`Actor.pas` **根本没有** <c>m_nOldChrLight</c> —— 它只存在于
-    /// <c>CustomActor.pas:33</c>。基类那份是托管侧为"镜像"它而新增的
-    /// （`ActorMessages.cs:51` 的注释即如此写），却因为隐藏而**镜像不到**。</para>
-    ///
-    /// <para><b>建议修法</b>（三选一，推荐第 1 条）：① 删除基类的 <c>m_nOldChrLight</c>
-    /// （原文没有它），把 <c>ProcessActors</c> 的两处改写指向派生字段所属的真实需要
-    /// ——注意 <c>ProcessActors</c> 是基类静态类型，故需改成虚属性或接口；
-    /// ② 删除 `CustomActor.cs:1612`，让 <c>TCustomActor</c> 用继承的 <c>byte</c> 那份
-    /// （需同步把 1679/1806 的类型推导改为 <c>byte</c> 语义）；
-    /// ③ 基类改为 <c>public virtual int OldChrLight { get; set; }</c>，派生 <c>override</c>。</para>
-    ///
-    /// <para><b>修复后本用例应改为</b>：断言 <c>custom</c> 能读到基类写入的 7
-    /// （即两份合一），或直接删除本用例。</para>
+    /// <para><b>修复前</b>本用例断言的是"写基类 7 ⇒ 派生读到 0"（状态分裂）；
+    /// <b>修复后</b>（基类虚访问点 + 派生 <c>override</c> 存储）应读到 7。
+    /// 这正是当时注释里写明的"修复后应改成什么"。</para>
     /// </summary>
     [Fact]
-    public void H1_OldChrLight_HiddenFieldSplitsState_BetweenBaseByteAndDerivedInt()
+    public void H1_OldChrLight_WriteThroughBaseReferenceReachesCustomActorRealStorage()
     {
         var custom = new TCustomActor();
         TActorCore asBase = custom;
 
-        // 步骤 1：模拟 PlaySceneMessages.cs:672/677 经**基类静态类型**写入（ProcessActors 每次都做）
+        // 模拟 PlaySceneMessages.cs:672/677：经**基类静态类型**写入
         asBase.m_nChrLight = 5;
         asBase.m_nOldChrLight = 7;
 
-        // 基类那一份确实写进去了
-        Assert.Equal(7, asBase.m_nOldChrLight);
+        // ★ 修复后：写到真身，读得到（修复前恒为 0 ⇒ 自定义怪掉光）
+        Assert.Equal(7, custom.m_nOldChrLight);
+        Assert.Equal(7, asBase.m_nOldChrLight);      // 同一存储，两个视角一致
 
-        // ★ 步骤 2：`TCustomActor` 自己的方法体读的是**派生 int 那一份** ⇒ 恒为 0（缺陷仍在）
-        Assert.Equal(0, custom.m_nOldChrLight);
-
-        // ★ 两份是**独立存储**：写派生不影响基类，反之亦然
+        // 反向亦然
         custom.m_nOldChrLight = 9;
-        Assert.Equal(9, custom.m_nOldChrLight);
-        Assert.Equal(7, asBase.m_nOldChrLight);   // 基类那份没被改
+        Assert.Equal(9, asBase.m_nOldChrLight);
     }
 
     /// <summary>
-    /// H-1 的类型面：基类 <c>byte</c> / 派生 <c>int</c> —— 同一语义字段两种宽度，
-    /// 编译期**不报错**（C# 字段隐藏只给 CS0108 警告），运行期靠静态类型分流。
+    /// H-1 修复的结构面：两份存储已合一 ——
+    /// 两侧都**不再有**名为 <c>m_nOldChrLight</c> 的**字段**；
+    /// 基类是 <c>virtual</c> 属性，派生是 <c>override</c> 属性（真身存储在此）。
     /// </summary>
     [Fact]
-    public void H1_OldChrLight_BaseAndDerivedHaveDifferentFieldTypes()
+    public void H1_OldChrLight_IsVirtualPropertyOnBaseAndOverrideOnDerived_NoFieldHiding()
     {
-        var baseField = typeof(TActorCore).GetField(nameof(TActorCore.m_nOldChrLight));
-        var derivedField = typeof(TCustomActor).GetField(nameof(TCustomActor.m_nOldChrLight));
+        // ★ 字段层面：两侧都不再有同名字段（隐藏的载体消失）
+        Assert.Null(typeof(TActorCore).GetField(nameof(TActorCore.m_nOldChrLight)));
+        Assert.Null(typeof(TCustomActor).GetField(nameof(TCustomActor.m_nOldChrLight)));
 
-        Assert.NotNull(baseField);
-        Assert.NotNull(derivedField);
-        Assert.NotSame(baseField, derivedField);
-        Assert.Equal(typeof(byte), baseField!.FieldType);              // ActorMessages.cs:53
-        Assert.Equal(typeof(int), derivedField!.FieldType);            // CustomActor.cs:1612
-        // ★ GetField（Public|Instance）返回的是**最派生**那一份 ⇒ 声明类型必须是 TCustomActor，
-        //   即"确有隐藏"（若两份合一，这里会返回 DeclaringType == TActorCore）
-        Assert.Equal(typeof(TCustomActor), derivedField.DeclaringType);
+        var baseProp = typeof(TActorCore).GetProperty(nameof(TActorCore.m_nOldChrLight));
+        var derivedProp = typeof(TCustomActor).GetProperty(nameof(TCustomActor.m_nOldChrLight));
+
+        Assert.NotNull(baseProp);
+        Assert.NotNull(derivedProp);
+        Assert.Equal(typeof(TActorCore), baseProp!.DeclaringType);
+        Assert.Equal(typeof(TCustomActor), derivedProp!.DeclaringType);
+        Assert.Equal(typeof(int), baseProp.PropertyType);      // 原文 Integer
+        Assert.Equal(typeof(int), derivedProp.PropertyType);
+
+        // 基类访问器是 virtual，派生访问器是 override（同一 get/set 槽位）
+        Assert.True(baseProp.GetMethod!.IsVirtual);
+        Assert.True(baseProp.SetMethod!.IsVirtual);
+        Assert.True(derivedProp.GetMethod!.IsVirtual);
+        Assert.True(derivedProp.SetMethod!.IsVirtual);
+        Assert.NotSame(baseProp.GetMethod, derivedProp.GetMethod);
+        Assert.Same(baseProp.GetMethod, derivedProp.GetMethod!.GetBaseDefinition());
+    }
+
+    /// <summary>
+    /// 普通（非 <c>TCustomActor</c>）角色上基类那份存储仍可读写 ——
+    /// 这是**既有测试**（<c>FormJ73Tests.cs:744-745 / 760-761</c>）锁定的行为，
+    /// 原文对普通角色既不写也不读它（无读点）⇒ 保留存储是**不可观测**的超集。
+    /// <para>本用例把这一点显式记录下来，避免日后误以为"基类那份该整段删掉"而破坏既有断言。</para>
+    /// </summary>
+    [Fact]
+    public void H1_OldChrLight_BaseStorageStillRoundTripsForNonCustomActor()
+    {
+        var plain = new TActor();
+        TActorCore asBase = plain;
+
+        asBase.m_nOldChrLight = 123;
+        Assert.Equal(123, asBase.m_nOldChrLight);
+        Assert.Equal(123, plain.m_nOldChrLight);
     }
 
     // ══════════════════════════════════════════════════════════════════════

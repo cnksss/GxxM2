@@ -1608,8 +1608,22 @@ public class TCustomActor : TActor
     private int FClientActionIndex = -1;
 
     // ---- CustomActor.pas:33 ----
-    /// <summary>m_nOldChrLight（原文 public）。</summary>
-    public int m_nOldChrLight;
+    /// <summary>
+    /// `m_nOldChrLight`（原文 `public`，类型 <c>Integer</c>）—— **真身存储**。
+    ///
+    /// <para><b>★ 缺陷 H-1 的修复（D-P17-08）</b>：修复前本处是
+    /// <c>public int m_nOldChrLight;</c> —— 一个**字段**，它隐藏了基类
+    /// <c>TActorCore</c> 的同名 <c>byte</c> 字段。由于字段访问**不参与虚分派**，
+    /// <c>PlaySceneMessages.cs:672/677</c>（<c>actor</c> 静态类型 <c>TActorCore</c>）
+    /// 写的是基类那一份，而本类方法体（<c>1679</c> / <c>1806</c>）读的是自己这一份
+    /// ⇒ 自定义怪的 <c>m_nOldChrLight</c> **恒为 0**（原文语义是"沿用上一轮光照"），
+    /// 表现为**自定义怪掉光**，且编译与单测全部通过。</para>
+    ///
+    /// <para>现改为 <c>override</c> 自动属性：基类提供**虚访问点**（<c>ActorMessages.cs</c>），
+    /// 存储留在本类（与原文"字段只属于 <c>TCustomActor</c>"一致），
+    /// 写点经虚分派落到真身。</para>
+    /// </summary>
+    public override int m_nOldChrLight { get; set; }
 
     // ---- 基类未登记、但本单元需要的 TActor 成员（在本类补齐）----
     // ★ 车道 p7-client-actor-family「继承字段消重」：

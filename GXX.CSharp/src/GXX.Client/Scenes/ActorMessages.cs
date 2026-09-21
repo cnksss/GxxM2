@@ -48,9 +48,50 @@ public partial class TActorCore
     public int m_nChangeAppr = -1;           // 自定义怪变脸（>=0 生效）
 
     // ---- 批次J73：SendMsg / ProcessActors 引用字段 ----
-    /// <summary>m_nChrLight（HiByte(cdir) 承载；TCustomActor.m_nOldChrLight 镜像）。</summary>
+    /// <summary>m_nChrLight（HiByte(cdir) 承载）。</summary>
     public byte m_nChrLight;
-    public byte m_nOldChrLight;
+
+    /// <summary>
+    /// `m_nOldChrLight` 的**虚访问点**（缺陷 **H-1** 的修复，见 <c>D-P17-08</c>）。
+    ///
+    /// <para><b>① 原文事实（已取证）</b>：该字段**只**声明在 <c>TCustomActor</c>
+    /// （<c>CustomActor.pas:33</c>，类型 <c>Integer</c>）；<c>Actor.pas</c> 的 <c>TActor</c>
+    /// **没有**它。四处写点**全部带类型守卫</b>：</para>
+    /// <list type="bullet">
+    /// <item><c>PlayScn.pas:7852-7853</c>：<c>if Actor is TCustomActor then TCustomActor(Actor).m_nOldChrLight := Actor.m_nChrLight;</c></item>
+    /// <item><c>PlayScn.pas:8019-8020</c>：同上（<c>ident &lt;&gt; SM_BACKSTEP</c> 支）</item>
+    /// <item><c>PlayScn.pas:8023-8024</c>：同上（<c>SM_BACKSTEP</c> 支）</item>
+    /// <item><c>ClMain.pas:25644</c>：<c>TCustomActor(Actor).m_nOldChrLight := DefMsg.param;</c>（未移植）</item>
+    /// </list>
+    /// <para>两处读点都在 <c>TCustomActor</c> 内部（<c>CustomActor.pas:98</c> / <c>:596</c>）。</para>
+    ///
+    /// <para><b>② 托管改法</b>：<c>ProcessActors</c> 的 <c>actor</c> 静态类型是 <c>TActorCore</c>
+    /// （<c>PlaySceneCore.cs:153</c> 的 <c>List&lt;TActorCore&gt;</c>），而**字段访问不参与虚分派**
+    /// ⇒ 原先"基类一份 <c>byte</c> 字段 + <c>TCustomActor</c> 一份 <c>int</c> 字段"必然分裂
+    /// （写点写基类那份，<c>TCustomActor</c> 方法体读自己那份 ⇒ 自定义怪光照恒 0）。
+    /// 现改为：基类只提供**虚访问点**，**真身存储**在派生类覆写里
+    /// （<c>CustomActor.cs</c> 的 <c>public override int m_nOldChrLight { get; set; }</c>）。</para>
+    ///
+    /// <para><b>③ 是否偏离 ⇒ 是（D-P17-08）</b>：原文是"类型守卫 + 字段直写"，托管侧改为
+    /// "虚属性 + 派生覆写"。行为等价（非自定义角色上写点被基类吸收 = 原文守卫不匹配），
+    /// 但**访问机制变了**。基类实现**可计数**（<see cref="NonCustomActorOldChrLightWrites"/>），
+    /// 故它不是台帐 §25.2 禁止的"静默中性值"。</para>
+    ///
+    /// <para><b>★ 附带发现的第二处缺陷（已报，未在本车道修）</b>：
+    /// 原文三个写点**都带** <c>if Actor is TCustomActor</c> 守卫，而托管侧
+    /// <c>PlaySceneMessages.cs:672/677</c> **没有**该守卫（写成无条件 <c>actor.m_nOldChrLight = ...</c>）。
+    /// 由于原文对**非** <c>TCustomActor</c> 的角色**没有任何读点**，该缺失在当前
+    /// <b>不可观测</b>（基类这份存储不会被原文语义读到）——
+    /// 但守卫本身仍未补回，见报告 D-P17-09 与 §8.2 阻塞项。</para>
+    ///
+    /// <para><b>为什么基类这份仍带存储</b>（而不是做成 no-op）：
+    /// 既有 <c>FormJ73Tests.cs:744-745 / 760-761</c> 断言"普通角色也能读写
+    /// <c>m_nOldChrLight</c>"（那是按**无守卫的托管写点**写的）。
+    /// 原文对普通角色既不写也不读它，故保留存储是**不可观测**的超集；
+    /// 而本缺陷的实质（自定义怪读不到写点的值）已由派生覆写消除。
+    /// 若日后把写点的守卫补回，可再评估是否连基类这份一并删除。</para>
+    /// </summary>
+    public virtual int m_nOldChrLight { get; set; }
 
     /// <summary>近身好友名单（g_MySelf.m_FriendHitList：≤4 格内 race 0 角色名去重记录）。</summary>
     public readonly List<string> m_FriendHitList = new();
