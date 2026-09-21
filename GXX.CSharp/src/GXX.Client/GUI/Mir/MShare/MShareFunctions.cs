@@ -10,7 +10,10 @@ namespace GXX.Client.GUI.Mir;
 //
 // 命名 100% 保留 Delphi 原名与参数顺序；控制流、早退顺序、边界逐条照抄原文。
 // 行号 = `_analysis/utf8_mirror/Client-HGE/MShare.pas` 的 UTF-8 镜像行号。
-// 计数对账（本文件）：真实体 21 / NotPorted 0 / 原文如此 2 = 23。
+// 计数对账（本文件）：真实体 21 / NotPorted 0 / 原文如此 3 = 24。
+//   其中 3 条「原文如此」＝ ActorXYToMapXY·MapXYToActorXY 的 Y 轴恒等式（P17-ASIS-01）、
+//   IntToHexN 的 Digits 当进制 + `>10` 早退（P17-DEF-02）、
+//   GetInputBoxInFilterList 对 nil 过滤表无 Assigned 判断（P17-DEF-03）。
 // ============================================================================================
 
 /// <summary>

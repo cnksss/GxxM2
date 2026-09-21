@@ -11,7 +11,8 @@ namespace GXX.Client.GUI.Mir;
 // 可逐行对照；**不另起第二套 MShareGlobals**（`partial` 扩展 ClientGlobals.cs 里的同一个类）。
 //
 // 行号 = `_analysis/utf8_mirror/Client-HGE/MShare.pas` 的 UTF-8 镜像行号。
-// 计数对账（本文件新增成员）：真实体 202 / NotPorted 0 / 原文如此 0 = 202。
+// 计数对账（本文件新增成员）：真实体 204 / NotPorted 0 / 原文如此 0 = 204。
+//   （202 条 g_* 全局 + g_DefColorTable + g_InputBoxFilterList；另含 1 个私有 BuildDefColorTable 不计入。）
 // ============================================================================================
 
 public static partial class MShareGlobals
