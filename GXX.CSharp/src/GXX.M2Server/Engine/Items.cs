@@ -249,7 +249,8 @@ public class TItemRules
         }
         try
         {
-            File.WriteAllLines(System.IO.Path.Combine(M2Config.sEnvirDir, "ItemRuleList.txt"), saveList, System.Text.Encoding.GetEncoding(936));
+            // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+            File.WriteAllLines(System.IO.Path.Combine(M2Config.sEnvirDir, "ItemRuleList.txt"), saveList, GXX.Core.EncodingInit.GBK);
         }
         catch
         {

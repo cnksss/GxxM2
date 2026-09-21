@@ -135,7 +135,8 @@ public class TGroupItems
         string sFileName = M2Config.sEnvirDir + "GroupItemList.txt";
         if (File.Exists(sFileName))
         {
-            foreach (var raw in File.ReadLines(sFileName, Encoding.GetEncoding(936)))
+            // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+            foreach (var raw in File.ReadLines(sFileName, GXX.Core.EncodingInit.GBK))
             {
                 string sLineText = raw;
                 if (sLineText.Length == 0 || sLineText[0] == ';')
@@ -243,7 +244,7 @@ public class TGroupItems
 
         try
         {
-            File.WriteAllLines(sFileName, saveList, Encoding.GetEncoding(936));
+            File.WriteAllLines(sFileName, saveList, GXX.Core.EncodingInit.GBK);
         }
         catch
         {
@@ -275,7 +276,7 @@ public class TGroupItems
         }
         try
         {
-            File.WriteAllLines(sFileName, lines, Encoding.GetEncoding(936));
+            File.WriteAllLines(sFileName, lines, GXX.Core.EncodingInit.GBK);
         }
         catch
         {
@@ -316,7 +317,7 @@ public class TGroupItems
         if (string.IsNullOrEmpty(path) || !File.Exists(path))
             return ini;
         string section = "";
-        foreach (var line in File.ReadLines(path, Encoding.GetEncoding(936)))
+        foreach (var line in File.ReadLines(path, GXX.Core.EncodingInit.GBK))
         {
             string s = line.Trim();
             if (s.Length == 0 || s[0] == ';')

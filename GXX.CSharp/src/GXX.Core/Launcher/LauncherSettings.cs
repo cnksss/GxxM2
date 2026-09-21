@@ -183,7 +183,8 @@ public sealed class LauncherSettings
     {
         var s = new LauncherSettings();
         if (!File.Exists(path)) return s;
-        var gbk = Encoding.GetEncoding(936);
+        // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+        var gbk = GXX.Core.EncodingInit.GBK;
         var kv = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         foreach (var raw in File.ReadAllLines(path, gbk))
         {
@@ -324,6 +325,6 @@ public sealed class LauncherSettings
         for (int i = 0; i < hairKeys.Length && i < HairOffsets.Length; i++)
             W(hairKeys[i], HairOffsets[i].ToString(CultureInfo.InvariantCulture));
 
-        File.WriteAllText(path, sb.ToString(), Encoding.GetEncoding(936));
+        File.WriteAllText(path, sb.ToString(), GXX.Core.EncodingInit.GBK);
     }
 }

@@ -1,4 +1,4 @@
-﻿using GXX.Core.Util;
+using GXX.Core.Util;
 
 using GXX.Core.Rtl;
 
@@ -47,7 +47,8 @@ public static class ViewFormsData
         if (!File.Exists(fileName))
             return result;
 
-        foreach (var raw in File.ReadAllLines(fileName, System.Text.Encoding.GetEncoding(936)))
+        // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+        foreach (var raw in File.ReadAllLines(fileName, GXX.Core.EncodingInit.GBK))
         {
             var s = raw;
             var fields = new string[8];
