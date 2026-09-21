@@ -15,8 +15,8 @@
 | 新增源码文件 | **7**（GatewayKit/Rest11 **6** + LoginGate/Rest11 **1**） |
 | 修改既有文件 | **1**（`src/GXX.LoginGate/LoginGateService.cs`，仅**追加注释**，0 行逻辑改动） |
 | 新增测试文件 | **6**（`tests/GXX.GatewayKit.Tests/Rest11*.cs`） |
-| 新增测试用例 | **[Fact] 93 + [InlineData] 22 = 115 条声明 → 运行时 **122** 个用例** |
-| 新增代码行 | 2,679（src）+ 1,911（tests）= **4,590**（切片1 提交实测） |
+| 新增测试用例 | **[Fact] 93 + [Theory] 5（[InlineData] 22）= 115 条声明 → 运行时 **122** 个用例** |
+| 新增代码行 | 2,700（src：`Rest11Seams`356 + `IpFilter`483 + `Config`455 + `Misc`274 + `ProcMsg`507 + `Session`376 + `Kernel`228 + `LoginGateService`注释 21）+ 1,890（tests）= **4,590**（切片1 提交实测） |
 | 已移植源单元 | `Misc.pas`(321) / `FuncForComm.pas`(590) / `IPAddrFilter.pas`(400) / `ConfigManager.pas`(269) / `ClientSession.pas`(820) = **2,400 行，25 单元中的 5 单元** |
 | 对既有行为的影响 | **0**（全部设施 opt-in 且默认不构造；`SelGate.Tests` 163/163 全绿） |
 
