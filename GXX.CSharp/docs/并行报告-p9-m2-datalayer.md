@@ -35,11 +35,11 @@
 | 文件 | 用例数 | 覆盖 |
 |---|---|---|
 | `Sweep9DataLayerTestKit.cs` | — | 内存替身：`FakeAdoConnection` / `FakeAdoQuery` / `FakeItemGameEnvir` / `FakeBaseObject` / `Sweep9FakeClock` |
-| `Sweep9DataLayerItemEventTests.cs` | 37 | `TGameObject` 构造、`TItemObject` 构造/`Destroy`/`Run`/`MakeGhost` |
-| `Sweep9DataLayerItemManagerTests.cs` | 43 | `TItemManager` 全部 8 项过程函数 + 4 个 `FindItem` 重载 |
-| `Sweep9DataLayerDataManageTests.cs` | 50 | 4 个常量、`TAccessEngine` 11 方法、`TAccessTable` 14 方法/属性 |
+| `Sweep9DataLayerItemEventTests.cs` | 32 | `TGameObject` 构造、`TItemObject` 构造/`Destroy`/`Run`/`MakeGhost` |
+| `Sweep9DataLayerItemManagerTests.cs` | 38 | `TItemManager` 全部 8 项过程函数 + 4 个 `FindItem` 重载 |
+| `Sweep9DataLayerDataManageTests.cs` | 50 | 4 个常量、`TAccessEngine` 11 方法、`TAccessTable` 14 项过程函数名/属性 |
 | `Sweep9DataLayerMethodParityTests.cs` | 5 | **反射计数对账**（台账 §37.3）：逐类断言"原文过程函数数 == 托管公开成员数"；另一条反证 `UserShopDB_Old` 的 3 个类名在托管侧**零命中** |
-| **合计** | **135** | — |
+| **合计** | **125** 个测试方法（含 10 个 `[Theory]`，展开后 **135** 例） | 运行结果见 §1.2 |
 
 **门禁输出（实际，2026 本车道收尾运行）**
 
