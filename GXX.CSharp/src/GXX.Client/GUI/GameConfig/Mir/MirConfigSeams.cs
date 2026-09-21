@@ -299,6 +299,22 @@ public sealed class MirClientConfigFull
             c.boNotCanUseClientConfig = src.boNotCanUseClientConfig;
         return c;
     }
+
+    /// <summary>
+    /// 从 <see cref="ClientGlobalSeam"/>（GameConfigDlgs.cs 持有的 <c>g_ConfigClient</c>）
+    /// 把 <c>ClientConfigs[]</c> 桥接进 <see cref="TMirConfigDlg"/> 读的那份 <c>g_ConfigClient</c>。
+    ///
+    /// 原文只有一个 <c>g_ConfigClient</c>（MShare.pas:2180），托管侧因为
+    /// <see cref="ClientGlobalSeam"/> 与 <c>MirConfigGlobalSeam</c> 分处两个文件而不能共用同一实例
+    /// （前者在禁改区 GameConfigDlgs.cs，后者在只读的 Seams/ 下）。
+    /// 集成方把两处合成一个后即可删除本方法（报告 D-P10-03）。
+    /// </summary>
+    public static void BridgeClientConfigsFromGlobalSeam()
+    {
+        // __BridgeFromGlobalSeam 由 GameConfigDlgs.cs 所在程序集侧提供（见 MirConfigGlobalSeam）
+        MirConfigGlobalSeam.g_ConfigClient.ClientConfigs_Ex =
+            global::GXX.Client.GUI.GameConfig.ClientGlobalSeam.ConfigClientConfigs ?? Array.Empty<bool>();
+    }
 }
 
 /// <summary>

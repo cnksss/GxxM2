@@ -145,8 +145,14 @@ public static class MirActorSeam
 
     /// <summary>接缝：ClMain.pas <c>frmMain.Logout</c>（小退保护）。</summary>
     public static Action Logout = () => { };
-    /// <summary>接缝：ClMain.pas <c>frmMain.AutoTakeOnItem(Magic)</c>（自动练功）。</summary>
-    public static Action<object> AutoTakeOnItem = _ => { };
+    /// <summary>
+    /// 接缝：ClMain.pas <c>frmMain.AutoTakeOnItem(Magic)</c>（自动练功）。
+    /// 每次调用记一条到 <see cref="AutoTakeOnItemCalls"/>（与 MirReturnConfigGlobalSeam.ChangePoisonCharmCalls 同一做法）：
+    /// 让"练功到底有没有真的下发"变成**可断言**的事实，而不是只信任调用点。
+    /// </summary>
+    public static Action<object> AutoTakeOnItem = m => AutoTakeOnItemCalls.Add(m);
+    /// <summary>接缝调用留痕：<c>AutoTakeOnItem</c> 的实参序列。</summary>
+    public static readonly List<object> AutoTakeOnItemCalls = new List<object>();
     /// <summary>接缝：ClMain.pas <c>frmMain.UseMagic(X, Y, Magic)</c>（自动练功）。</summary>
     public static Action<int, int, object> UseMagic = (_, __, ___) => { };
     /// <summary>接缝：ClMain.pas <c>frmMain.RunGJ</c> 一族的开关（挂机按钮）。</summary>
@@ -187,7 +193,8 @@ public static class MirActorSeam
         SBindItemFileName = "%s.BindItem.set";
         g_nMouseX = 0; g_nMouseY = 0; g_IsWaitLogout = false; g_boGJRun = false;
         Logout = () => { };
-        AutoTakeOnItem = _ => { };
+        AutoTakeOnItemCalls.Clear();
+        AutoTakeOnItem = m => AutoTakeOnItemCalls.Add(m);
         UseMagic = (_, __, ___) => { };
         SetGJRun = _ => { };
         EatHumSpecialItem = (_, __) => { };

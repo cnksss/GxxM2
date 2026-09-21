@@ -172,7 +172,11 @@ public partial class TMirConfigDlg
         }
     }
 
-    /// <summary>绑定表里出现的 68 个处理器名（用于"派发无漏网"断言，与原文统计一致）。</summary>
+    /// <summary>
+    /// 绑定表里出现的 <b>72</b> 个不同处理器名（由 <c>MirConfigDlgEventBindings.g.cs</c> 统计得出）。
+    /// 用于"派发无漏网"断言：下面的 switch 必须覆盖全部 72 个，
+    /// 且不得多出绑定表里不存在的名字（测试 <c>绑定表处理器名_72个_全部被派发switch覆盖</c> 双向断言）。
+    /// </summary>
     public static readonly string[] AllHandlerNames = new string[]
     {
         "CheckBoxClickEx", "ComboBoxCheckHPValueChange", "ComboBoxCheckMPValueChange",
@@ -199,7 +203,5 @@ public partial class TMirConfigDlg
         "PlugBtnGJPointClick", "PlugBtnUnbindItemClick", "PlugConfigDlgCloseClickEx",
         "PlugEditHeroDodgeHPPercentChange", "PlugPageControlConfigActivePageChange",
         "PlugPageControlConfigInRealArea", "PlugScrollBoxUnbindItemsClick", "RefUseItemConfigClick",
-        // 原文 4609-4618 被 {} 注释掉的那批（MouseMoveEvent）与 2 处 OnGetImage 例外：
-        "MouseMoveEvent",
     };
 }

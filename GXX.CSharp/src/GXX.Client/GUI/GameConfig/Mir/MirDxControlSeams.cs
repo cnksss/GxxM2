@@ -237,26 +237,22 @@ public sealed class TStrings
     public List<string> Strings => _items;
     public List<object> Objects => _objects;
 
-    /// <summary>原文 <c>Items.Text</c>（一次性按换行赋值，1367-1368）。</summary>
+    /// <summary>原文 <c>TStrings.Text</c>（一次性按换行赋值，1367-1368）。</summary>
     public string Text
     {
         get => string.Join("\r\n", _items);
         set
         {
-            _items.Clear();
-            _objects.Clear();
+            Clear();
             if (string.IsNullOrEmpty(value)) return;
             foreach (var line in value.Replace("\r\n", "\n").Replace('\r', '\n').Split('\n'))
-                _items.Add(line);
+                Add(line);      // ★ 必须走 Add（同时维护 _items 与 _objects 两列）
         }
     }
 
     public void Clear() { _items.Clear(); _objects.Clear(); }
     public void Add(string s) { _items.Add(s); _objects.Add(null); }
     public void AddObject(string s, object o) { _items.Add(s); _objects.Add(o); }
-
-    /// <summary>原文 <c>AddObject(s, TObject(p))</c> 的强类型形式（本单元 522 处 AddObject 之一）。</summary>
-    public void AddObject(string s, int dummy) { _items.Add(s); _objects.Add(dummy); }
 
     public int IndexOf(string s) => _items.IndexOf(s);
     public void Delete(int index) { if (index >= 0 && index < _items.Count) { _items.RemoveAt(index); _objects.RemoveAt(index); } }

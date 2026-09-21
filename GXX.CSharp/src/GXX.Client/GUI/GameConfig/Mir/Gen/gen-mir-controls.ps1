@@ -76,6 +76,19 @@ foreach ($f in $fields) {
   $t = $TypeMap[$f.Type]
   [void]$sb.AppendLine("        $($f.Name) = new $t();")
 }
+[void]$sb.AppendLine('        RegisterAll();')
+[void]$sb.AppendLine('    }')
+[void]$sb.AppendLine('')
+[void]$sb.AppendLine('    /// <summary>')
+[void]$sb.AppendLine('    /// 把全部控件登记进名字表（<c>Find(name)</c>），对应原文 3325-3845 的')
+[void]$sb.AppendLine('    /// MakeControlAddressList 用到的"控件名 → 控件"对应关系（516 条）。')
+[void]$sb.AppendLine('    /// 对账：本方法里 Register 的条数必须 = 控件声明数 = 516。')
+[void]$sb.AppendLine('    /// </summary>')
+[void]$sb.AppendLine('    private void RegisterAll()')
+[void]$sb.AppendLine('    {')
+foreach ($f in $fields) {
+  [void]$sb.AppendLine("        Register(`"$($f.Name)`", $($f.Name));")
+}
 [void]$sb.AppendLine('    }')
 [void]$sb.AppendLine('}')
 

@@ -455,7 +455,10 @@ public partial class TMirConfigDlg : TGameConfigObject
     // MirConfigDlg.pas:1168-1262  访问器
     // ================================================================================
 
-    /// <summary>原文 1168-1171：<c>Result := ptDefault;</c></summary>
+    /// <summary>
+    /// 原文 <c>procedure TMirConfigDlg.GetType:TConfigDlgType;</c>（1168-1171）。
+    /// 子类 <c>TJSYConfigDlg</c>（JSYConfigDlg.pas）覆写为 <c>ptJSY</c>。
+    /// </summary>
     public override TConfigDlgType GetType() => TConfigDlgType.ptDefault;
 
     /// <summary>原文 1173-1176：直接返回 <c>FConfigCheckeds[Index]</c>，**无任何保护**。</summary>
