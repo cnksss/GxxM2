@@ -40,15 +40,30 @@ public static class Sweep9FormsReconcile
     public static int CountControlsExcludingForm(System.Windows.Forms.Form form)
         => CountChildren(form);
 
+    /// <summary>
+    /// 只数**有名字**的控件。
+    /// <para>
+    /// ★ 实测必需：WinForms 的复合控件会自带**匿名内部子控件**（`DataGridView` 内部两个
+    /// `ScrollBar`、`TabControl` 的内部 `UpDown` 等）。它们不是 DFM 节点，若计入会把
+    /// 「DFM 控件数」对账污染成假数字（本车道实测：ViewHeroRcd 11 张 `DataGridView`
+    /// ⇒ 多出 22 个匿名 `ScrollBar`，29 被数成 51）。DFM 节点**全部**有名字
+    /// （Delphi 的 `object` 名），故"非空名字"是与 DFM 对齐的正确判据。
+    /// </para>
+    /// </summary>
     private static int CountChildren(System.Windows.Forms.Control parent)
     {
         int n = 0;
         foreach (System.Windows.Forms.Control c in parent.Controls)
-            n += 1 + CountChildren(c);
+        {
+            if (c.Name.Length > 0) n += 1 + CountChildren(c);
+        }
         return n;
     }
 
-    /// <summary>控件树全部控件的 (名称, 类型) 列表（含窗体自身，深度优先、保持 Controls 顺序）。</summary>
+    /// <summary>
+    /// 控件树里**有名字**的控件的 (名称, 类型) 列表（含窗体自身，深度优先、保持 Controls 顺序）。
+    /// 匿名内部子控件（见 <see cref="CountChildren"/>）被排除。
+    /// </summary>
     public static List<(string Name, Type Type)> EnumerateControls(System.Windows.Forms.Form form)
     {
         var list = new List<(string, Type)> { (form.Name, form.GetType()) };
@@ -60,6 +75,7 @@ public static class Sweep9FormsReconcile
     {
         foreach (System.Windows.Forms.Control c in parent.Controls)
         {
+            if (c.Name.Length == 0) continue;                  // 匿名内部子控件：非 DFM 节点
             list.Add((c.Name, c.GetType()));
             Walk(c, list);
         }
@@ -87,7 +103,7 @@ public static class Sweep9FormsReconcile
     public static int CountEventBindings(System.Windows.Forms.Form form)
     {
         int n = CountEventBindingsOn(form);
-        foreach (System.Windows.Forms.Control c in AllControls(form))
+        foreach (System.Windows.Forms.Control c in DfmControls(form))
             n += CountEventBindingsOn(c);
         return n;
     }
@@ -139,14 +155,14 @@ public static class Sweep9FormsReconcile
         return f.GetValue(instance) != null;
     }
 
-    /// <summary>WinForms 式：静态键对象（`EventXxx` / `s_xxxEvent` 两种命名都实测存在）⇒ `EventHandlerList[key]` 非 null。</summary>
+    /// <summary>WinForms 式：静态键对象（`EventXxx` / `EVENT_XXX` / `s_xxxEvent` 等命名都实测存在）⇒ `EventHandlerList[key]` 非 null。</summary>
     private static bool TryKeyed(System.ComponentModel.EventHandlerList? events, Type declaringType, string eventName)
     {
         if (events == null) return false;
         foreach (var keyField in declaringType.GetFields(
                      BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
         {
-            if (keyField.FieldType != typeof(object)) continue;
+            if (keyField.FieldType != typeof(object) && keyField.FieldType != typeof(int)) continue;
             if (!IsKeyFieldNameFor(keyField.Name, eventName)) continue;
             object? key = keyField.GetValue(null);
             if (key != null && events[key] != null) return true;
@@ -155,19 +171,29 @@ public static class Sweep9FormsReconcile
     }
 
     /// <summary>
-    /// 判定静态字段名是否是对应事件的键。
-    /// .NET Framework：`Event` + 事件名（`EventDoubleClick`）；
-    /// .NET 8：`s_` + 首字母小写事件名 + `Event`（`s_doubleClickEvent`）。
-    /// 两种前缀/后缀都剥掉后做**整体**（非子串）比较 ⇒ 不会把 `EventClick` 误配给 `DoubleClick`。
+    /// 判定静态字段名是否是对应事件的键。实测三种命名约定：
+    /// <list type="bullet">
+    /// <item>`.NET Framework`：`Event` + 事件名（`EventDoubleClick`）</item>
+    /// <item>`.NET 8`：`s_` + 首字母小写事件名 + `Event`（`s_doubleClickEvent`）</item>
+    /// <item>另一些用全大写加下划线：`EVENT_LOAD`</item>
+    /// </list>
+    /// 归一化 = 去 `s_`/`_` 前缀 → 去 `Event`/`EVENT` 前后缀 → 去两端 `_`，然后**整体**比较
+    /// （非子串）⇒ 不会把 `EventClick` 误配给 `DoubleClick`。
     /// </summary>
     private static bool IsKeyFieldNameFor(string fieldName, string eventName)
     {
+        string s = NormalizeKeyName(fieldName);
+        return string.Equals(s, eventName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string NormalizeKeyName(string fieldName)
+    {
         string s = fieldName;
         if (s.StartsWith("s_", StringComparison.Ordinal)) s = s.Substring(2);
-        else if (s.StartsWith("_", StringComparison.Ordinal)) s = s.Substring(1);
-        if (s.StartsWith("Event", StringComparison.Ordinal) && s.Length > 5) s = s.Substring(5);
-        if (s.EndsWith("Event", StringComparison.Ordinal) && s.Length > 5) s = s.Substring(0, s.Length - 5);
-        return string.Equals(s, eventName, StringComparison.OrdinalIgnoreCase);
+        s = s.Trim('_');
+        while (s.Length > 5 && s.StartsWith("Event", StringComparison.OrdinalIgnoreCase)) s = s.Substring(5);
+        while (s.Length > 5 && s.EndsWith("Event", StringComparison.OrdinalIgnoreCase)) s = s.Substring(0, s.Length - 5);
+        return s.Trim('_');
     }
 
     private static System.ComponentModel.EventHandlerList? GetEventHandlerList(object instance)
@@ -190,7 +216,10 @@ public static class Sweep9FormsReconcile
         return null;
     }
 
-    /// <summary>枚举控件树全部控件（不含窗体自身）。</summary>
+    /// <summary>
+    /// 枚举控件树全部控件（不含窗体自身；**含**匿名内部子控件 —— 供"确认内部控件确实存在"
+    /// 这类取证用；对账请用 <see cref="EnumerateControls"/> / <see cref="CountControlsExcludingForm"/>）。
+    /// </summary>
     public static IEnumerable<System.Windows.Forms.Control> AllControls(System.Windows.Forms.Control root)
     {
         foreach (System.Windows.Forms.Control c in root.Controls)
@@ -200,9 +229,13 @@ public static class Sweep9FormsReconcile
         }
     }
 
+    /// <summary>枚举控件树里**有名字**（= DFM 节点）的控件，不含窗体自身。</summary>
+    public static IEnumerable<System.Windows.Forms.Control> DfmControls(System.Windows.Forms.Control root)
+        => AllControls(root).Where(c => c.Name.Length > 0);
+
     /// <summary>在控件树里按**字段名**找控件（DFM 名 → 托管字段名逐字同名）。</summary>
     public static System.Windows.Forms.Control? FindByName(System.Windows.Forms.Form form, string dfmName)
-        => AllControls(form).FirstOrDefault(c => c.Name == dfmName);
+        => DfmControls(form).FirstOrDefault(c => c.Name == dfmName);
 }
 
 /// <summary>
