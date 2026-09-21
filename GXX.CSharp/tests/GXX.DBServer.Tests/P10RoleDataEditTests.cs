@@ -173,9 +173,47 @@ public class P10RoleDataEditTests : TempDirTest
         return frm;
     }
 
+    /// <summary>
+    /// 触发控件的 `Click`（**真实事件派发**，不是直调处理过程）。
+    /// 为什么不用 `PerformClick()`：`TextBox`/`CheckBox` 在本目标框架下**没有**该公开方法
+    /// （只有 `Button` 有）；而 `Control.OnClick`（`protected virtual`）在**所有**控件上都在，
+    /// 且 `CheckBox.OnClick` 的重写会先翻转 `Checked` 再触发 `Click` —— 与真实鼠标点击同序。
+    /// </summary>
+    private static void RaiseClick(System.Windows.Forms.Control control)
+    {
+        System.Reflection.MethodInfo mi = control.GetType().GetMethod(
+            "OnClick", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(mi);
+        mi.Invoke(control, new object[] { EventArgs.Empty });
+    }
+
     // ========================================================================================
     // 1) DFM 对账（台账 §37.3 / §41.3：计数取证）
     // ========================================================================================
+
+    [Fact]
+    public void ZZBisectP10()
+    {
+        void Mark(string s) => File.AppendAllText(Path2("bisect.log"), s + "\n");
+        Mark("start");
+        using var scope = new P10RoleDataEditScope();
+        Mark("scope");
+        var h = Human();
+        Mark("human");
+        using var form = NewHumanForm(h, 5);
+        Mark("form");
+        form.strGridVarU.SetCells(1, 1, "1234");
+        Mark("set u1");
+        form.strGridVarU.SetCells(1, 2, "   ");
+        Mark("set u2");
+        form.strGridVarT.SetCells(1, 1, "tv");
+        Mark("set t1");
+        form.ButtonSaveDataClick(null);
+        Mark("saved");
+        Mark("u0=" + form.FHumData.UValues[0]);
+        Mark("t0=" + form.FHumData.TValues[0].Value);
+        Mark("done");
+    }
 
     [Fact]
     public void DFM对账_88个object节点与35条事件绑定()
@@ -263,8 +301,7 @@ public class P10RoleDataEditTests : TempDirTest
         scope.OpenDialogFileName = Path2("in.hum");
         File.WriteAllBytes(Path2("in.hum"), StructBytes.BytesOf(h));
 
-        form2.ButtonImportData.PerformClick();
-
+        form2.ButtonImportData.PerformClick();      // Button 上的 PerformClick 是公开 API（真实事件派发）
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据导入成功！！！");
         Assert.DoesNotContain(scope.Ui.MessageBoxes, m => m.Text == "角色数据导出成功！！！");
     }
@@ -868,14 +905,14 @@ public class P10RoleDataEditTests : TempDirTest
         // edtHomeMap 绑的是 OnClick（改 Text **不**触发；点一下才写回）
         form.edtHomeMap.Text = " hm ";
         Assert.Equal("1", form.FHumData.HomeMap);             // 未触发
-        form.edtHomeMap.PerformClick();
+        RaiseClick(form.edtHomeMap);
         Assert.Equal("hm", form.FHumData.HomeMap);
 
         // chkIsMaster 绑的是 OnClick
         Assert.Equal((byte)1, form.FHumData.boMaster);
-        form.chkIsMaster.PerformClick();                       // false → true，触发 Click
+        RaiseClick(form.chkIsMaster);                          // false → true，触发 Click
         Assert.Equal((byte)1, form.FHumData.boMaster);
-        form.chkIsMaster.PerformClick();                       // true → false
+        RaiseClick(form.chkIsMaster);                          // true → false
         Assert.Equal((byte)0, form.FHumData.boMaster);
     }
 
@@ -892,7 +929,7 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("", form.FHumData.StoragePwd);
 
         form.edtHomeMap.Text = "  ";
-        form.edtHomeMap.PerformClick();
+        RaiseClick(form.edtHomeMap);
         Assert.Equal("", form.FHumData.HomeMap);
     }
 
@@ -1461,7 +1498,7 @@ public class P10RoleDataEditTests : TempDirTest
         using var scope = new P10RoleDataEditScope();
         var h = Human();
         using var form = NewHumanForm(h, 5);
-        form.DoOpen();
+        //BISECT form.DoOpen();
         form.strGridVarU.SetCells(1, 1, "1234");
         form.strGridVarU.SetCells(1, 2, "   ");          // 空白 → StrToIntDef 默认 0
         form.strGridVarT.SetCells(1, 1, "tv");
@@ -1550,7 +1587,8 @@ public class P10RoleDataEditTests : TempDirTest
             Assert.Contains("炸给谁看", logs[0]);
             Assert.Single(scope.Ui.MessageBoxes);
             Assert.Equal("角色数据保存失败！！！", scope.Ui.MessageBoxes[0].Text);
-            Assert.Equal(0, scope.HumanDb.SaveCalls.Count);   // 记录在抛之前就 Add 了？→ 见下：Add 在抛之前
+            // DoSave 被调到了（替身在抛之前记了一笔），但异常被 THumanDBBase.Save 吞掉、Result 保持 False
+            Assert.Single(scope.HumanDb.SaveCalls);
         }
         finally
         {
@@ -1700,10 +1738,10 @@ public class P10RoleDataEditTests : TempDirTest
 
         foreach (var lv in new[] { form.lvMagic, form.lvUserItem, form.lvFenghaoItem, form.lvStorage })
         {
-            Assert.True(lv.GridLines);
-            Assert.True(lv.FullRowSelect);
-            Assert.True(lv.Columns.Count > 0);
-            Assert.Equal(6, lv.Columns.Count == 0 ? 0 : lv.Columns.Count);
+            Assert.True(lv.GridLines);              // DFM: GridLines=True
+            Assert.True(lv.FullRowSelect);          // DFM: RowSelect=True
+            Assert.Equal(System.Windows.Forms.View.Details, lv.View);   // DFM: ViewStyle=vsReport
+            Assert.True(lv.Columns.Count >= 6);
         }
     }
 }
