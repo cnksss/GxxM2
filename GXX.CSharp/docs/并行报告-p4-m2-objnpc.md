@@ -1360,3 +1360,128 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 `@buy` / `@sell` / `@repair` 分片。
 > `UpgradeWapon` 外层体的前置检查项：`m_UseItems[U_WEAPON]`（读写，**D35 同族**：改完需写回）、`GotoLable`（未移植）。
 > 若需要新的 Engine 侧成员，我会**先只提出那一个**再动手（沿用 `SetBagItem` 的做法）。
+---
+
+# 16. 第十轮（切片 28）：`UpgradeWapon` 外层体 1:1 + **`m_UseItems` 同型缺陷的精确提案** ★ 本节优先于 §15
+
+## 16.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 28 | `4c2c14cf` | `UpgradeWapon` 外层体(1830-1901，72 行) 1:1 + 5 接缝 + 4 常量 + 20 用例 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,221 passed / 0 failed**（main 基线 9,110 + 本车道 111）。越区检查为空。
+
+## 16.2 覆盖口径
+
+| 口径 | 切片 26 | **切片 28** |
+|---|---|---|
+| Covered / 112 | 65 | **66** |
+| Seam / 112 | 5 | **4** |
+| Missing / 112 | 42 | **42** |
+
+逐行 1:1 ≈ **2,740 / 10,546 = 26.0%**。
+`1684 UpgradeWapon` 由 **Seam → Covered**（嵌套 `sub_4A0218` + 外层体 1830-1901 现全覆盖）。
+
+## 16.3 前置核实②：`GotoLable` 未移植 → 走 Engine 既有接缝 ✅（已按预期处理）
+
+`PlayerSurfaceNpcSeams.GotoLable(this, User, label, false)`（`NpcSession.cs:44`）。
+本过程用到 3 个标签，均为**新声明常量**（原文出处是 **NpcCommon.pas**，不是 M2Share —— 易错点）：
+`sNF_Upgradeing='~@upgradenow_ing'`(:75)、`sNF_UpgradeOK='~@upgradenow_ok'`(:77)、`sNF_UpgradeFail='~@upgradenow_fail'`(:79)。
+
+## 16.4 ★★ 前置核实①：`m_UseItems` 是**视图类型** —— 与 `m_ItemList` **同型缺陷**，需裁定
+
+**核实结果（与调度方预期不同，故先报告后处理）**：
+| | 原文 | 托管现状 |
+|---|---|---|
+| 声明 | `ObjBase.pas:882 m_UseItems: THumanUseItems` | `Engine/RecalcChain.cs:101 public TUserItemView?[] m_UseItems` |
+| 元素类型 | `THumanUseItems = array[0..MAX_USE_ITEM_COUNT-1] of **TUserItem**`（`Grobal2.pas:4169`，**权威值类型**） | `**TUserItemView**`（只有 `wIndex`/`BtValue`/`CustomProperties`） |
+
+**后果**：`UpgradeWapon` 需要 `m_UseItems[U_WEAPON]` 的 **`MakeIndex`**（:1883 日志）、
+整件赋给 `UpgradeInfo.UserItem`（:1880，类型是权威 `TUserItem`）—— **视图类型承载不了**，
+`TUserItemView` → `TUserItem` 也**不是**无损转换。
+⇒ 这不是"改完写回"就够的，而是**元素类型选错**（正是 §26 对 `m_ItemList` 的那条教训在另一个字段上重现）。
+
+### 调用点全量（**同时搜了 `src` 与 `tests`**，台账 §28.3）：共 **33 处 / 8 个文件**
+
+| 文件 | 处数 | 归属 |
+|---|---|---|
+| `tests/.../PlayerSurfaceItemsTests.cs` | 18 | **本车道（已特批）** |
+| `tests/.../RecalcChainTests.cs` | 6 | p6-m2-playersurface |
+| `Engine/RecalcChain.cs` | 3 | **无人认领**（不在 `Engine/PlayerSurface/**` 内） |
+| `src/GXX.M2Server/StruckSettlementCore.cs` | 2 | 会话 A 常驻区 |
+| `src/GXX.M2Server/CopyMonActThinkCopyCore.cs` | 1 | 会话 A 常驻区 |
+| `tests/.../CopyMonActThinkCopyCoreTests.cs` | 1 | 其它车道 |
+| `Engine/PlayerSurface/TCreature.PlayerSurface.Base.cs` | 1 | p6-m2-playersurface |
+| `Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs` | 1 | **本车道（已特批）** |
+
+⇒ **要在本车道内完成该类型纠正是不可能的**（需动 4 个他人源文件 + 2 个他人测试文件）。
+
+### 本轮采取的处置（零跨文件，已落地且可逆）★ 请裁定
+
+**已做**：不动 Engine，在 Npc 侧用**两个按权威侧定名的接缝**表达"读写武器格"：
+- `NpcSeams.GetUseItemsWeapon`（**读**，此前已存在，`Func<TPlayObject, TUserItem>`）
+- `NpcSeams.SetUseItemsWeapon`（**写回**，本轮新增，`Action<TPlayObject, TUserItem>`）
+
+于是 `UpgradeWapon` 的 :1880/:1886 得以 1:1 落地（**D35 契约：取出 → 改 `wIndex := 0` → 写回**），
+代价是多留 **1 个**接缝。
+
+**请二选一**：
+1. **（推荐）扩展方案 A 到 `m_UseItems`**：把 `RecalcChain.cs:101` 的元素类型改为 **`TUserItem?[]`**（与 `m_ItemList` 完全同型），
+   `GetAccessory.Apply` 调用处按需现造视图（`TCreature.PlayerSurface.Items.cs` 已有 `ToItemView`）。
+   需要一并适配上表 **8 个文件 / 33 处**（其中 2 个源文件 + 2 个测试文件不在我分区）。
+   → 收益：`SetUseItemsWeapon` 接缝**可以删掉**，改为直读直写；`m_UseItems` 与 `m_ItemList` 口径统一。
+   → 需要你扩我的分区（或另派一个"物品容器口径统一"任务）。
+2. **保留现状**：`m_UseItems` 继续是视图数组，由**集成方**在 wiring 时实现
+   `GetUseItemsWeapon`/`SetUseItemsWeapon` 两个接缝的视图↔权威转换（有损：`MakeIndex` 拿不到，
+   除非另找来源）。**不推荐** —— 会重演 §26 的"双容器/双表示"问题。
+
+> 无论选哪个，**本轮交付不阻塞**：`UpgradeWapon` 已 1:1 落地并通过 20 例，接口是权威侧语义。
+
+## 16.5 ★ "先入包、后改物品"这一族的**逐点复核结果**（D36 同族普查）
+
+按调度方要求，我对 `UpgradeWapon` 外层体逐点核对了这一族：
+
+| 位置 | 原文动作 | 是否 D36 同族 | 处置 |
+|---|---|---|---|
+| `:1878-1880` | `UpgradeInfo.UserItem := User.m_UseItems[U_WEAPON]`（**存进记录**） | 否（只是读取+保存） | 直接赋值 |
+| `:1885-1886` | `SendDelItem(武器)` → `wIndex := 0`（**清空槽位**） | **是（D35 家族）** | 取出→改→`SetUseItemsWeapon` 写回 ✅ |
+| `:1893` | `m_UpgradeWeaponList.Add(UpgradeInfo)` | 否（`TUpgradeInfo` 是**引用类型**，无 D35 问题） | 直接 Add |
+
+**结论**：`UpgradeWapon` 内**没有**"先入包（`AddItemToBag`）后改物品"的调用点 —— 它不往背包加东西，
+只**摘除**武器并清空槽位。故 **D36 在此不适用**，唯一落点是 :1886 的槽位写回（已处理）。
+> 对照：`ClientBuyItem` 的 D36 落点是 `AddItemToBag` **之后**改 `ItemFrom`（§15.5）。
+> `UserSelect`(2087-2900) 分片时会继续做同族普查。
+
+## 16.6 本轮新增接缝 / 常量（5 接缝 + 4 常量）
+
+| 名称 | 精确签名 | 原文出处 |
+|---|---|---|
+| `SetUseItemsWeapon` | `Action<TPlayObject, TUserItem>` | `ObjNpc.pas:1886`（见 §16.4） |
+| `g_sCannotUpgradeWeapon` | `string`（默认 `"你的武器[%Item]不允许升级"`） | `M2Share.pas:8165`（`:21346/:21352` StringConf 覆盖） |
+| `g_boGameLogGold` | `bool` | `M2Share.pas:3748`；ObjNpc.pas:1862 |
+| `SysMsgFB` | `Action<TCreature, string, int, int, TMsgType>` | `ObjPlayer.pas:**1286**` `SysMsg(sMsg; FColor, BColor: Integer; MsgType)` —— **第二个重载**（第一个见既有 `SysMsg`） |
+| 常量 `LOG_ItemUpgrade` | `= 14` | `M2Share.pas:101` |
+| 常量 `sNF_Upgradeing/OK/Fail` | 见 §16.3 | `NpcCommon.pas:75/77/79` |
+
+## 16.7 `UpgradeWapon` 的照抄要点与原文缺陷
+
+- **:1858 的 `Exit` 跳过出口标签**：禁升级分支 `Exit` 得**早**，所以 :1897-1900 的 `GotoLable` **一次都不执行**
+  —— 已用 `Assert.Empty(_labels)` 锁死（"没有跳转"本身就是原文行为，不是遗漏）。
+- **规则号是 17**（不是 4/8）：已用"规则 ≠17 不拦"与"=17 拦住"两条差异断言锁死。
+- **:1854 的第二条件是 `Length(StdItem.Name) > 0`**，与规则判断**与**在一起 → 已单独用例（空名不拦）。
+- **:1850 用 `>=`**（恰好够钱可以升）→ 已用"499 拒 / 500 过"边界对锁死。
+- **:1856 的 `%Item` 带百分号**（不是 `%s`）→ 断言替换结果为 `你的武器[屠龙]不允许升级`。
+- **:1864 日志的 `(Data1, Data2) = (扣费后余额, OldGold)`**（**先存旧值**再扣）→ 断言 `.../9500/10000/扣费:500`。
+- **:1889 先 `RecalcAbilitys` 后 `FeatureChanged` 再 `SendMsg(RM_ABILITY)`**（顺序照抄）。
+- ⚠ **`sub_4A0218` 有副作用**：它**消耗背包里的黑铁矿**（并因此额外发包/写 `LOG_ItemDisappear` 日志）。
+  两个用例曾因此误判为失败（"期望 1 条消息、实得 2 条"）—— 已在用例注释里写明，
+  期望值改为"**包含**目标条目"；`Sub4A0218OutputsAreStored` 改为在**另一条等价玩家**上先算期望值。
+- ⚠ `UpgradeWapon` 的**税收块传的就是 `nUpgradeWeaponPrice`**，此处**不是** D33（D33 是 `ClientBuyItem`/`ClientSellItem` 的
+  管理器分支"传错了量"；这里两个分支本来就该传它）—— 已在用例注释里区分，避免后人误"修"。
+
+## 16.8 下一轮
+
+**`UserSelect`(2087-2900, 814 行)** 按 `@buy` / `@sell` / `@repair` **分片**，每片独立提交 + 独立门禁。
+首片建议 `@repair`（最小），随后 `@sell`、`@buy`。
+> `UserSelect` 的依赖普查会在首片开始前完成（含 D36 同族、"先入包后改物品"、`m_UseItems` 读写点）。
