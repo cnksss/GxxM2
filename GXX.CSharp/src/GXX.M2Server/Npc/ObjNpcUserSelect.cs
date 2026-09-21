@@ -26,6 +26,7 @@
 
 using System;
 using GXX.Core.Protocol;
+using GXX.Core.Util;
 using GXX.M2Server.Engine;
 
 namespace GXX.M2Server.Npc;
@@ -97,6 +98,81 @@ public partial class TMerchant
                 return true;
             default:
                 return false;
+        }
+    }
+}
+
+/// <summary>
+/// `TNormNpc.UserSelect` —— `UserSelect` **虚分派链的基类落点**（原文 `ObjNpc.pas:305` 声明 `virtual`，
+/// 实现 `:9807-9835`）。
+/// <para>★ 原文共 **4 个覆写点**（已核查，全仓 `.pas` 一并搜过）：
+/// `TMerchant`(2087)、`TGuildOfficial`(10101)、`TCastleOfficial`(1186)，
+/// 以及类声明区的 `:411`/`:444`/`:481` 三条 `override` 声明
+/// （实测分别属 `TMerchant`/`TGuildOfficial`/`TCastleOfficial` 的声明块，与前三者同一批）。</para>
+/// <para>⇒ 托管侧此方法**必须** `public virtual`，否则各处覆写的 `inherited` 全部落空
+/// （台账那条"基类方法 + 子类 `inherited` ⇒ 必须落虚方法"的规程）。</para>
+/// <para><b>★ 与调度方裁定的差异（已在报告登记）</b>：裁定(1)原本只要求"落虚外壳 + 接缝"，
+/// 前提是"基类实体 9807 起**长度未测**"。实测该实体**仅 30 行**，且**全部依赖已就位**
+/// （`m_nScriptGotoCount`、`HUtil32.GetValidStr3_Ex`、`GotoLable` 接缝、
+/// `m_sScriptCurrLable`/`m_sScriptGoBackLable`、`NpcProcessCmd.sNF_Back`），
+/// 故本车道**直接落真实现** —— 省掉一个一次性接缝，并收口登记表 `9807` 一条。
+/// （若调度方坚持只要外壳，删除本实体体、改为转发接缝即可，两处调用点不变。）</para>
+/// </summary>
+public partial class TNormNpc
+{
+    /// <summary>
+    /// 原文 `procedure TNormNpc.UserSelect(PlayObject: TPlayObject; sData: string);`
+    /// （ObjNpc.pas:9807-9835）——"脚本命令 `@back` 返回上级标签"的基类处理。
+    /// <para><b>照抄的原文细节</b>：</para>
+    /// <list type="bullet">
+    /// <item>9811：**先把 `m_nScriptGotoCount` 归零**（子类 `UserSelect` 的 `inherited` 先调到这里）。</item>
+    /// <item>9814：`(sData &lt;&gt; '') and (sData[1] = '@')` —— `sData[1]` 是 **1-based**，且**已先判空**。</item>
+    /// <item>9816：`sMsg := GetValidStr3_Ex(sData, sLabel, #13);` —— **原地改 `ref sLabel`、返回剩余串**；
+    ///   本方法**丢弃**返回的剩余串（原文的局部 `sMsg` 在此处未被使用），只用 `sLabel`。照抄 `ref` 语义。</item>
+    /// <item>9817-9818：`'@HeroMap'` **特殊直跳** `GotoLable`（注释：支持卧龙笔记移动），**不**走 9819 的标签栈。</item>
+    /// <item>9819：`m_sScriptCurrLable &lt;&gt; sLabel` 才动栈（**同标签重复点击不入栈**）。</item>
+    /// <item>9821-9825：**不是** `@back` 时：`GoBackLable := 旧 CurrLable; CurrLable := sLabel;`
+    ///   —— **赋值顺序照抄**（先存旧值再覆盖）。</item>
+    /// <item>9826-9831：**是** `@back` 时：若 `CurrLable &lt;&gt; ''` 则清 `CurrLable`，否则清 `GoBackLable`
+    ///   —— **只清一层**，照抄这个 else 链。</item>
+    /// </list>
+    /// </summary>
+    public virtual void UserSelect(TPlayObject PlayObject, string sData)
+    {
+        // 原文 9811
+        PlayObject.m_nScriptGotoCount = 0;
+
+        // 原文 9813-9814：处理脚本命令 @back 返回上级标签内容
+        if ((sData != "") && (sData[0] == '@'))
+        {
+            // 原文 9816：`sMsg := GetValidStr3_Ex(sData, sLabel, #13);`
+            // —— 原地改 `sLabel`（ref）、返回剩余串；与原文一致地**丢弃剩余串**。
+            string sLabel = "";
+            HUtil32.GetValidStr3_Ex(sData, ref sLabel, '\r');
+            // 原文 9817-9818：@HeroMap 特殊直跳（支持卧龙笔记移动 piaoyun 2013-08-20）
+            if (sLabel == "@HeroMap")
+            {
+                PlayerSurfaceNpcSeams.GotoLable(this, PlayObject, sLabel, false);
+            }
+            // 原文 9819
+            else if (PlayObject.m_sScriptCurrLable != sLabel)
+            {
+                // 原文 9821
+                if (!string.Equals(sLabel, NpcProcessCmd.sNF_Back, StringComparison.OrdinalIgnoreCase))
+                {
+                    // 原文 9823-9824（顺序照抄：先存旧值，再覆盖）
+                    PlayObject.m_sScriptGoBackLable = PlayObject.m_sScriptCurrLable;
+                    PlayObject.m_sScriptCurrLable = sLabel;
+                }
+                else
+                {
+                    // 原文 9828-9831：只清一层
+                    if (PlayObject.m_sScriptCurrLable != "")
+                        PlayObject.m_sScriptCurrLable = "";
+                    else
+                        PlayObject.m_sScriptGoBackLable = "";
+                }
+            }
         }
     }
 }
