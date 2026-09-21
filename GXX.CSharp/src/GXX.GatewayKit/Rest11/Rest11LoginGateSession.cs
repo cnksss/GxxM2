@@ -94,12 +94,18 @@ public class Rest11LoginGateSession : IRest11SessionObj
     /// <summary>`m_pUserOBJ.nIPAddr`。</summary>
     public int IPAddr { get; set; }
 
-    /// <summary>`m_nSvrObject`。</summary>
-    public int SvrObject => m_nSvrObject;
+    /// <summary>`m_nSvrObject`（`IRest11SessionObj.SvrObject` 的显式实现）。</summary>
+    int IRest11SessionObj.SvrObject { get => m_nSvrObject; set => m_nSvrObject = value; }
+
+    /// <summary>`m_IsCanSetL2Password`（`IRest11SessionObj` 的显式实现；底层字段同名）。</summary>
+    bool IRest11SessionObj.m_IsCanSetL2Password { get => m_IsCanSetL2Password; set => m_IsCanSetL2Password = value; }
+
+    /// <summary>`m_IsCanCheckL2Password`（`IRest11SessionObj` 的显式实现；底层字段同名）。</summary>
+    bool IRest11SessionObj.m_IsCanCheckL2Password { get => m_IsCanCheckL2Password; set => m_IsCanCheckL2Password = value; }
 
     // ---- IRest11SessionObj 接缝实现 ----
     bool IRest11SessionObj.KickFlag { get => m_fKickFlag; set => m_fKickFlag = value; }
-    byte IRest11SessionObj.HandleLogin => m_fHandleLogin;
+    byte IRest11SessionObj.HandleLogin { get => m_fHandleLogin; set => m_fHandleLogin = value; }
     bool IRest11SessionObj.LastGameSvrActive => m_fConnectedToGameSvr && m_fGameSvrActive;
     bool IRest11SessionObj.IsDelayClose { get => m_IsDelayClose; set => m_IsDelayClose = value; }
     uint IRest11SessionObj.dwDelayCloseTick { get => m_dwDelayCloseTick; set => m_dwDelayCloseTick = value; }
