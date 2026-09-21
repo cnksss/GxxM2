@@ -188,7 +188,7 @@ $PARTIAL_UNITS = @(
     # 78 real / 77 NotPorted / 4 as-is of 159 routines = 49.06%; four Actor.pas shell classes were
     # migrated out of PlaySceneNewActor.cs.  Remaining 81 need their own lane (THumActor's five
     # giant methods alone are ~5,400 source lines).
-    ,'Actor'           # 78/159 = 49.06%
+    ,'Actor'           # 87/159 = 54.72% (was 49.06%); 158 if the block-commented declaration is excluded
     # ledger 62.10: 'MShare' promoted by lane p17-client-mshare.  Honest split: class methods
     # 0/185 (0%), unit-level routines 21/168 (12.50%), routines total 21/353 = 5.95%, globals
     # ~228/460 = ~49.6%.  Its priority-1 job was to become the PROVIDER for FState's densest
