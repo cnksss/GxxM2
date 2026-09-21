@@ -259,6 +259,21 @@ public static class NpcSeams
     /// <summary>原文 `Self = g_MissionNPC`（ObjNpc.pas:2572/2581/2590）。</summary>
     public static Func<TNormNpc, bool> IsMissionNpc { get; set; } = _ => false;
 
+    /// <summary>
+    /// 原文 `PlayObject.LableIsCanJmp(sLabel): Boolean`（`ObjPlayer.pas` 的
+    /// `function TPlayObject.LableIsCanJmp`；`ObjNpc.pas:2573/2575` 调用）。
+    /// <para><b>默认 `false` 是忠实的（非占位）</b>：该函数查 `m_CanJmpScriptLableList`，
+    /// 而那张表在原文里**恒为空** —— 因为 `GetScriptLabel`(ObjPlayer.pas:15216) 在**原文中就是坏的**
+    /// （误用 `GetValidStr3_Ex`，永远填不进去）。⇒ 实际只命中 `@main`/`@HeroMap`/Yes/No 等**硬编码**分支，
+    /// 对一般标签返回"没查到"**就是原文的真实行为**。</para>
+    /// <para>判据（台账规程）：**能把默认值对应到原文某个已定义状态（此处 = 查表未命中 / 表恒空）
+    /// 就是忠实；对应不到才必须抛**（对照偏差 D37，那是"真值不可知"）。</para>
+    /// <para><b>★ 删除条件（可执行）</b>：当 `LableIsCanJmp` 在托管侧落地时删除本接缝、改为直调。
+    /// 判据：`grep -n 'LableIsCanJmp' src/GXX.M2Server/Engine/` 出现**代码声明**
+    /// （形如 `bool LableIsCanJmp(`）—— **不是**"某处注释提到过"。</para>
+    /// </summary>
+    public static Func<TPlayObject, string, bool> LableIsCanJmp { get; set; } = (_, _) => false;
+
     /// <summary>原文 `MainOutMessage(sMsg)`（M2Share.pas，ObjNpc.pas:5945 调用）。</summary>
     public static Action<string> MainOutMessage { get; set; } = _ => { };
 
@@ -748,6 +763,7 @@ public static class NpcSeams
         IsFunctionNpc = _ => false;
         IsManageNpc = _ => false;
         IsMissionNpc = _ => false;
+        LableIsCanJmp = (_, _) => false;
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);

@@ -1972,3 +1972,66 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 
 Covered **67** / Seam **4** / Missing **41**；**`UserSelect` 三条继续 `Missing`** ✅。
 `UserSelectPrepare` 的落点已在 `ObjNpcUserSelect.cs` 里留**注释块**（写明暂缓原因与所需接缝）。
+---
+
+# 23. 第十七轮（切片 41）：`UserSelect` **解析段 + 门控链**（2527-2596）1:1 ★ 本节优先于 §22
+
+## 23.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 41 | `9c23c909` | `UserSelectPrepare`（原文 2527-2596）1:1 + 新接缝 `LableIsCanJmp`（默认 `false`）+ 29 用例 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,354 passed / 0 failed**。越区检查为空。
+
+## 23.2 五个易抄错点**全部写成差异断言**（本轮的核心交付）
+
+| # | 原文 | 我写的差异断言 | 若误抄会怎样 |
+|---|---|---|---|
+| ① | 2529 `ClassNameIs(TMerchant.ClassName)` = **精确类名** | `Prepare_DerivedClassInstance_ReturnsFalse_LikeClassNameIs`：先断言 `d is TMerchant` **为真**，再断言 `UserSelectPrepare` **返回 false** | 抄成 `is` → 派生类不再 `Exit`，**行为放宽** |
+| ② | 2533 **Delphi 优先级 `not` > `and` > `or`** | `Prepare_CastleNpcWithUnderWar_DoesNotEnterParseBranch` + 两条对照（no-underWar / no-castle 均**进入**） | 抄成 `(not A or not X) and Y` → 城堡 NPC 的解析**整体反过来** |
+| ③ | 2538 `GetValidStr3_Ex` **两个出口**（`ref sLabel` + 返回剩余串） | `Prepare_BothOutletsArePopulated`（同时断言 `sLabel` 与 `sMsg`） | 抄成"只取一个" → 丢掉标签或丢掉输入数据 |
+| ④ | 2542 `Pos('(')` **找不到返回 0** | `Prepare_LabelWithParenButNoClosingParen_IsNotTruncated` + `Prepare_LabelWithoutSecondAt_IsNotTruncated` | 抄成"没找到也截断" → 标签被截掉尾巴 |
+| ⑤ | 2578 长度参数是 **`Length(sLabel)`** | `Prepare_MessageBoxBranch_UsesLabelLengthAsPrefixLength`（Yes 标签**带长后缀**仍命中） | 抄成被比较串长度 → 前缀比较退化为全等 |
+
+## 23.3 切分处**差异断言**（按纪律：空串 / 仅分隔符 / 连续分隔符 / 首尾分隔符）
+
+| 输入 `sData` | 期望 `sLabel` | 期望 `sMsg`（剩余串） | 说明 |
+|---|---|---|---|
+| `"@标签\r剩余串"` | `"@标签"` | `"剩余串"` | 常规 |
+| `"\r"` | `""` | — | **仅分隔符** |
+| `"\r@a"` | `""` | — | **首分隔符**：`sData[0]='\r'` ≠ `'@'` ⇒ 2535 门不通过（`m_sScriptLable` 也**未**被写） |
+| `"@a\r\rb"` | `"@a"` | `"\rb"` | **连续分隔符**：剩余串**原样**不再切 |
+| `"@a\r"` | `"@a"` | `""` | **尾分隔符** |
+
+**未写任何依赖 `Pos("")` 的断言**（台账记录其 Delphi 语义至今未修）。
+
+## 23.4 新接缝 / 其它
+
+- **`NpcSeams.LableIsCanJmp`** : `Func<TPlayObject, string, bool>`，**默认 `false`** ——
+  忠实依据：`m_CanJmpScriptLableList` 在原文里**恒为空**（`GetScriptLabel`(`ObjPlayer.pas:15216`) **原文就是坏的**），
+  实际只命中 `@main`/`@HeroMap`/Yes/No 等**硬编码**分支 ⇒ "查表未命中"是原文真实行为。
+  删除条件（可执行）：`grep -n 'LableIsCanJmp' src/GXX.M2Server/Engine/` 出现**代码声明**（`bool LableIsCanJmp(`）。
+- `using GXX.Core.Rtl;` 已加（`DelphiRTL.Pos`/`Copy`）。
+- **2535 的 `sData[1]` 1-based 且已先判空** → `sData[0]`，已由"首分隔符"用例覆盖。
+- **2586 / 2595 两处早退**已各有正反两例（`Prepare_FunctionNpcWithDisallowedSelect_ExitsAndMessages`；
+  `Prepare_SendMsgLabelWithEmptyMsg_Exits` + `...WithNonEmptyMsg_Continues`）。
+- **2527 `inherited` 真的落到基类**：`Prepare_CallsBaseUserSelect_ResettingGotoCount` 断言
+  `m_nScriptGotoCount` 被基类归零；`Prepare_DerivedClass_StillCallsBaseBeforeExiting` 断言
+  派生类即使立刻 `Exit`，**基类也已经被调用**（顺序正确）。
+- `nCode` 的 `try/catch` 已照抄（异常里报 `sData` + `Code: {nCode}`）；本轮**未**构造触发异常的用例
+  （需要让被测路径抛异常，属人为注入，收益低 —— 如实登记为**未覆盖**项）。
+
+## 23.5 覆盖口径（未变，继续克制）
+
+Covered **67** / Seam **4** / Missing **41**；**`UserSelect` 三条（`TMerchant` 2087 / `TGuildOfficial` 10101 /
+`TCastleOfficial` 1186）继续 `Missing`** ✅ —— 本方法是**解析段**，派发体（2597-2899）仍未落地。
+`UserSelectPrepare` 已在代码注释里写明**删除条件**（`UserSelect` 由 `Missing`→`Covered` 且本方法零引用）。
+
+## 23.6 下一轮
+
+`UserSelect` 只剩**派发体 2597-2899**（约 300 行）：`switch (NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel))`
++ 30+ 个 `nNF_*` 分支。届时：
+1. 把 `UserSelectPrepare` 内联进 `TMerchant.UserSelect`、并把 `UserSelectRepairCommands` 的两个 `case`
+   搬进新 `switch`，两个临时方法一并删除（两处删除条件都已写明）；
+2. `UserSelect` 三条登记同时由 `Missing` → `Covered`。
