@@ -45,12 +45,12 @@
 
 ```
 $ dotnet build GXX.CSharp/GXX.slnx -c Debug --nologo -m:1 -p:BuildInParallel=false
-    94 个警告
+    169 个警告
     0 个错误
-已用时间 00:00:07.96
+已用时间 00:00:14.88
 
 $ dotnet test GXX.CSharp/tests/GXX.M2Server.Tests/GXX.M2Server.Tests.csproj -c Debug --nologo -m:1 -p:BuildInParallel=false
-已通过! - 失败:     0，通过:   9612，已跳过:     0，总计:   9612，持续时间: 26 s - GXX.M2Server.Tests.dll (net8.0)
+已通过! - 失败:     0，通过:   9617，已跳过:     0，总计:   9617，持续时间: 32 s - GXX.M2Server.Tests.dll (net8.0)
 ```
 
 本车道专项过滤（135 例）：
@@ -60,9 +60,11 @@ $ dotnet test ... --filter "FullyQualifiedName~Sweep9DataLayer"
 已通过! - 失败:     0，通过:    135，已跳过:     0，总计:    135，持续时间: 139 ms
 ```
 
-> `M2Server.Tests` 单工程为 **9,612**；台账 §38.1 记的 `18,576` 是**全解决方案**（含
-> `GXX.Core.Tests`/`GXX.Client.Tests`/`GXX.LoginSrv.Tests` 等）的口径。
+> `M2Server.Tests` 单工程 **9,617** 例。台账 §38.1 记的 `18,576` 是**全解决方案**口径
+> （含 `GXX.Core.Tests`/`GXX.Client.Tests`/`GXX.LoginSrv.Tests` 等）。
 > 本车道按派发纪律**只跑自己的测试工程**。
+> 本车道在 `M2Server.Tests` 里**新增 135 例**（130 + 5 条方法数对账），
+> 全部在同一工程内，未改动任何既有用例。
 
 ---
 
