@@ -4,12 +4,13 @@
 //   嵌套过程 `sub_4A0218`(1686-1828) 已在切片 8 覆盖（`ObjNpcMerchant.cs`）；
 //   本文件补齐外层：查重 → 扣费 → 摘除武器 → 生成/入列升级记录 → 跳转提示标签。
 //
-// 前置核实（本轮已完成）：
-//   ① `m_UseItems[U_WEAPON]` 是**读写**：`Engine/RecalcChain.cs:101` 目前是
+// 前置核实（第十轮完成；第十一轮口径统一后改为**直读直写**）：
+//   ① `m_UseItems[U_WEAPON]` 是**读写**：`Engine/RecalcChain.cs:101` 原先是
 //      **视图类型** `TUserItemView?[]`，而原文 `ObjBase.pas:882 m_UseItems: THumanUseItems`
 //      是 `array[..] of TUserItem`（**权威值类型数组**）—— 与 `m_ItemList` 同型缺陷。
-//      本车道**不改他人文件**，故读写各走一个按权威侧定名的接缝：
-//      `NpcSeams.GetUseItemsWeapon`（读，已存在）/ `NpcSeams.SetUseItemsWeapon`（写回，本轮新增）。
+//      ★ 第十一轮已按方案 A 统一为 **`TUserItem?[]`**（报告 §17），故此处**直读直写**
+//      （`User.m_UseItems[U_WEAPON]`）；原先的 `GetUseItemsWeapon`/`SetUseItemsWeapon`
+//      两个替身接缝**已删除**（"正式归属落地后去掉替身"）。
 //      按偏差 **D35** 的调用方契约："取出 → 改 → 写回"（原文 :1886 是就地改 `wIndex := 0`）。
 //   ② `GotoLable`(9263-9574) 未移植 → 走 Engine 既有接缝 `PlayerSurfaceNpcSeams.GotoLable`。
 // ============================================================================
@@ -67,8 +68,9 @@ public partial class TMerchant
             }
         }
         // 原文 1850：三合一门
-        // ★ D35：先"取出"武器（原文此处是解引用指针；托管经接缝取权威记录）
-        TUserItem Weapon = NpcSeams.GetUseItemsWeapon(User);
+        // ★ D35：先"取出"武器（原文此处是解引用指针；托管是值类型元素 → 取出的是副本）
+        //   `m_UseItems` 现在是权威 `TUserItem?[]`（报告 §17 的方案 A 口径统一），故直读。
+        TUserItem Weapon = User.m_UseItems[UseSlots.U_WEAPON] ?? default;
         if ((Weapon.wIndex != 0) && (User.m_nGold >= (uint)M2Config.nUpgradeWeaponPrice)
             && (User.CheckItems(NpcSeams.sBlackStone, out _) != -1))
         {
@@ -124,9 +126,9 @@ public partial class TMerchant
             }
             // 原文 1885
             User.SendDelItem(Weapon);
-            // 原文 1886：`User.m_UseItems[U_WEAPON].wIndex := 0;`（就地改 → 托管写回）
+            // 原文 1886：`User.m_UseItems[U_WEAPON].wIndex := 0;`（就地改 → 托管写回槽位，D35 契约）
             Weapon.wIndex = 0;
-            NpcSeams.SetUseItemsWeapon(User, Weapon);
+            User.m_UseItems[UseSlots.U_WEAPON] = Weapon;
             // 原文 1887-1889（顺序照抄）
             User.RecalcAbilitys();
             User.FeatureChanged();

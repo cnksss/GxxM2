@@ -427,11 +427,11 @@ public static class NpcSeams
         set => PlayerSurfaceMsgSeams.GetStdItemName = value;
     }
 
-    /// <summary>
-    /// 原文 `TPlayObject.m_UseItems[U_WEAPON]`（ObjPlayer.pas 装备格数组）。
-    /// ObjNpc.pas:3257/3259 只**读**该格。接缝：待 ObjPlayer.pas 移植后接入。
-    /// </summary>
-    public static Func<TPlayObject, TUserItem> GetUseItemsWeapon { get; set; } = _ => default;
+    // ★ 2026 第十一轮：`GetUseItemsWeapon` 与 `SetUseItemsWeapon` 两个替身接缝**已删除**。
+    //   `Engine/RecalcChain.cs` 的 `m_UseItems` 已按方案 A 统一为权威类型 **`TUserItem?[]`**
+    //   （与 `m_ItemList` 同口径，报告 §17），故 ObjNpc 侧一律**直读直写**：
+    //   `User.m_UseItems[UseSlots.U_WEAPON]`（读）/ `User.m_UseItems[UseSlots.U_WEAPON] = item;`（写回）。
+    //   这正是"正式归属落地后去掉替身"。
 
     /// <summary>
     /// 原文 `TNormNpc.SendCustemMsg`（ObjNpc.pas:9837-9862）—— **已由虚方法外壳升级为真实现**
@@ -503,19 +503,9 @@ public static class NpcSeams
     // TMerchant.UpgradeWapon 外层体（ObjNpc.pas:1830-1901）需要的宿主面。
     // -----------------------------------------------------------------------
 
-    /// <summary>
-    /// 原文 `TPlayObject.m_UseItems[U_WEAPON] := &lt;item&gt;;` 的**写回**（ObjNpc.pas:1886
-    /// `User.m_UseItems[U_WEAPON].wIndex := 0;`）。
-    /// <para><b>为什么需要写回接缝</b>：`Engine/RecalcChain.cs:101` 的 `m_UseItems` 目前是
-    /// **视图类型** `TUserItemView?[]`（只有 `wIndex`/`BtValue`/`CustomProperties`），
-    /// 而原文 `ObjBase.pas:882 m_UseItems: THumanUseItems` 是
-    /// `array[0..MAX_USE_ITEM_COUNT-1] of TUserItem`（**权威值类型数组**，`Grobal2.pas:4169`）——
-    /// 与 `m_ItemList` 是**同型缺陷**。本接缝按权威侧（`TUserItem`）定名，
-    /// 使 `UpgradeWapon` 能 1:1 落地；`m_UseItems` 类型被纠正后本接缝即可删除、改为直读直写。
-    /// 配对读取接缝见 <see cref="GetUseItemsWeapon"/>。</para>
-    /// <para>⚠ 属偏差 **D35** 同族（值语义）：调用方须"取出 → 改 → 写回"。</para>
-    /// </summary>
-    public static Action<TPlayObject, TUserItem> SetUseItemsWeapon { get; set; } = (_, _) => { };
+    // ★ 第十一轮：`SetUseItemsWeapon` 写回接缝**已删除**（见上方 `m_UseItems` 口径统一的说明）。
+    //   原先它是"`m_UseItems` 元素类型选错"的权宜替身；口径统一后改为直写
+    //   `User.m_UseItems[UseSlots.U_WEAPON] = item;`（ObjNpc.pas:1886 / D35 契约）。
 
     /// <summary>
     /// 原文 `g_sCannotUpgradeWeapon`（M2Share.pas:8165，默认
@@ -738,7 +728,6 @@ public static class NpcSeams
         sNpc_def = @"Npc_def\";
         sNpcIcons = @"NpcIcons\";
         GetStdItemName = _ => "";
-        GetUseItemsWeapon = _ => default;
         boSendCustemMsg = false;
         g_sSendCustMsgCanNotUseNowMsg = "当前无法使用喊话功能";
         GetFilterTexts = () => null;
@@ -765,7 +754,6 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
-        SetUseItemsWeapon = (_, _) => { };
         g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
         g_boGameLogGold = false;
         SysMsgFB = (_, _, _, _, _) => { };

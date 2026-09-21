@@ -1485,3 +1485,95 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 **`UserSelect`(2087-2900, 814 行)** 按 `@buy` / `@sell` / `@repair` **分片**，每片独立提交 + 独立门禁。
 首片建议 `@repair`（最小），随后 `@sell`、`@buy`。
 > `UserSelect` 的依赖普查会在首片开始前完成（含 D36 同族、"先入包后改物品"、`m_UseItems` 读写点）。
+---
+
+# 17. 第十一轮（切片 30）：`m_UseItems` **口径统一**（两容器现已同口径）★ 本节优先于 §16
+
+## 17.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 30 | `f1d5d0a2` | `m_UseItems` 元素类型 `TUserItemView?[]` → **`TUserItem?[]`**；8 文件一次性适配；**删除 2 个替身接缝**；`ToItemView` 上移 `TCreature` |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,264 passed / 0 failed**（合并 main 后复跑）。
+越区检查为空。**动手前后各 `merge main` 一次，均无冲突**（按调度方要求）。
+
+## 17.2 结果：两个容器现已**完全同口径**
+
+| 容器 | 原文 | 统一前（托管） | **统一后（托管）** |
+|---|---|---|---|
+| `m_ItemList`（背包） | `ObjBase.pas:322 TList` of `pTUserItem` | `List<TUserItemView>`（且零调用方/双容器） | **`List<TUserItem?>`**（§13，方案 A 第①步） |
+| `m_UseItems`（装备槽） | `ObjBase.pas:882 THumanUseItems` = `array[..] of **TUserItem**` | **`TUserItemView?[]`**（视图类型选错） | **`TUserItem?[]`** |
+
+⇒ `GXX.Core.Protocol.TUserItem` 现为**两个容器的唯一存储与权威**；
+`Engine.TUserItemView` 在**两处**都退化为"能力聚合用的轻量视图"，由调用处按需现造（`TCreature.ToItemView`）。
+
+## 17.3 一次性适配的全部改动点（8 文件，编译一次通过）
+
+| 文件 | 改动 |
+|---|---|
+| `Engine/RecalcChain.cs` | ① 声明 `m_UseItems` → `TUserItem?[]`（含口径统一说明）；② `RecalcAbilitys` 循环：`userItem.Value.wIndex`，并**现造视图** `TUserItemView view = TCreature.ToItemView(userItem.Value);` 供 `GetItemAddValue`/`GetAccessory.Apply` |
+| `Engine/PlayerSurface/TCreature.PlayerSurface.Items.cs` | `ToItemView` **由 `TPlayObject` 上移到 `TCreature`**（`RecalcChain` 以 `TCreature.ToItemView` 调用，必须在那一层可见）；另更新两处过时注释 |
+| `Npc/ObjNpcMerchantUpgrade.cs` | `UpgradeWapon` 的武器格读写改**直读直写**：`User.m_UseItems[UseSlots.U_WEAPON] ?? default` / `= Weapon` |
+| `Npc/ObjNpcMerchant.cs` | `$USERWEAPON`(`GetVariableText`) 的武器格读取改直读 |
+| `Npc/ObjNpcSeams.cs` | **删除 `GetUseItemsWeapon` 与 `SetUseItemsWeapon` 两个替身接缝**（声明 + `ResetDefaults` 各 2 行）→ 留注释说明为何删 |
+| `tests/RecalcChainTests.cs` | 6 处 `new TUserItemView { wIndex = N }` → `new TUserItem { wIndex = N }`（`replace_all` 一次） |
+| `tests/PlayerSurfaceItemsTests.cs` | 2 个 `UseItems_*` 用例：① 反射守卫类型断言 `typeof(TUserItemView[])` → **`typeof(TUserItem?[])`**；② 把"就地改 `wIndex`"改写为 **D35 契约**（取出 → 改 → 写回），因为值类型元素**不能**原地改（原地写**不可编译**） |
+| `tests/NpcObjNpcUpgradeWaponTests.cs` / `NpcObjNpcMerchant2Tests.cs` | 去掉接缝接线，改为直填 `p.m_UseItems[UseSlots.U_WEAPON]`；武器格断言改为直接读槽位 |
+
+### ★ 两个文件**零改动**（正是"最小化改动"要求的达成）
+| 文件 | 为何零改动 |
+|---|---|
+| `src/GXX.M2Server/StruckSettlementCore.cs` | 仅 **2 处字符串字面量/注释**提到 `m_UseItems`（`:328` 中文标签、`:474` 注释掉的 Delphi 行）—— 无需类型适配 |
+| `src/GXX.M2Server/CopyMonActThinkCopyCore.cs` | 仅 **1 处**（`:461` 注释掉的 Delphi 行 `// m_UseItems := TSmartObject(Source).m_UseItems;`） |
+| （同族）`tests/.../CopyMonActThinkCopyCoreTests.cs`、`Engine/PlayerSurface/TCreature.PlayerSurface.Base.cs` | 同上，均为注释/文档 |
+
+⇒ **顺序会话的常驻区（`StruckSettlementCore.cs`/`CopyMonActThinkCopyCore.cs`）实际零改动**，
+因此**不存在冲突风险**（这也是"动手前后各 merge 一次都无冲突"的原因）。
+
+## 17.4 等价性论证（为何"现造视图"不改变行为）
+
+`RecalcBonus.GetItemAddValue(TUserItemView userItem, TStdItemView std)` 的**全部写入**都是 `std.X = ...`
+（已逐行核对：`RecalcBonus.cs:56-63` 共 8 处，全是 `std.DC1/DC2/MC1/MC2/SC1/SC2/AC1/AC2`），**从不写物品本身**。
+⇒ 传入"由权威记录现造的一次性视图"与原文"就地改权威记录"在**本循环内**行为一致；
+且 `GetAccessory.Apply` 随后消费**同一个视图**，故聚合结果不变。
+（`:1889` 的 `RecalcAbilitys` 在 `UpgradeWapon` 里被调用后，装备槽内容本身未变，仅槽位 `wIndex` 被清空 —— 两者互不影响。）
+
+`GetAccessory.Apply` 的入参**保持 `TUserItemView`**（视图 ≠ 存储），与 `m_ItemList` 完全同构 ✅。
+
+## 17.5 去接缝化的净收益
+
+| | 统一前 | **统一后** |
+|---|---|---|
+| `m_UseItems` 读写接缝 | `GetUseItemsWeapon` + `SetUseItemsWeapon`（2 个） | **0（已删除）** |
+| 视图↔权威转换责任 | 落在**集成方 wiring**（且有损：拿不到 `MakeIndex`） | 落在 `TCreature.ToItemView`（**唯一一处**，有损点与 `SendAddItem` 共用、已登记） |
+| `UpgradeWapon` 的 :1880/:1886 | 经接缝（权威侧语义，但需宿主实现） | **直读直写**，1:1 无中间层 |
+
+这正是调度方强调的"**正式归属落地后去掉替身**"。**本轮净减 2 个接缝。**
+
+## 17.6 D35 的适用范围**扩大**（登记更新）
+
+原 D35 只覆盖 `m_ItemList`（§14.3）。本轮后 **D35 同时覆盖 `m_UseItems`**：
+两者元素都是可空**值类型** → "取出 → 改 → **写回槽位**"的调用方契约**对两个容器都成立**。
+- `m_ItemList` → 写回入口 `TCreature.SetBagItem(int, TUserItem?)`
+- `m_UseItems` → 直接写 `arr[i] = item;`（数组索引器**可**赋值；`List<T>` 索引器不可 `ref` 但**可**赋值，两者都行）
+
+> ⚠ 之前 `m_UseItems` 是**引用**类型数组时，`p.m_UseItems[i]!.wIndex = 0` 能编译 —— 现在**编译不过**了，
+> 这正是 D35 从"隐性风险"变成"编译期强制"的地方（`PlayerSurfaceItemsTests` 的两个用例已按新契约改写）。
+
+## 17.7 ⚠ 分区表授权路径有笔误（请修正）
+
+调度方本轮把两个文件写成 `GXX.CSharp/src/GXX.M2Server/**Engine**/...`，但**真实路径在 `src/GXX.M2Server/` 根下**：
+```
+分区表写的 .../Engine/StruckSettlementCore.cs        -> Test-Path = False   ← 不存在
+分区表写的 .../Engine/CopyMonActThinkCopyCore.cs     -> Test-Path = False   ← 不存在
+真实路径   src/GXX.M2Server/StruckSettlementCore.cs   -> True
+真实路径   src/GXX.M2Server/CopyMonActThinkCopyCore.cs -> True
+```
+本车道按**具名直接授权**执行，且这两个文件**恰好零改动**（见 §17.3），故实际未触碰；
+但**若将来真要改它们，`verify-lanes.ps1` 会因路径不匹配而报 OUT-OF-ZONE**。请把分区表两条改为实际路径。
+
+## 17.8 下一轮
+
+按调度方顺序：**`UserSelect`(2087-2900, 814 行)** 按 `@buy` / `@sell` / `@repair` **分片**，
+每片独立提交 + 独立门禁；**首片建议 `@repair`**（最小）。开工前做依赖普查（D36 同族 / `m_UseItems` 读写点 —— 后者现已直读直写）。
