@@ -26,10 +26,29 @@ $Handwritten = @(
   'IsInputChatEdit','ShowChatEdit','HideChatEdit',
   'ClearScreenMagicButtons','AddScreenMagicButton','DelScreenMagicButton','FindMagicButton',
   'OnMagicButtonClick','OnMagicButtonDblClick','OnMagicButtonMove',
-  'SaveMagicButtons','OpenGuildViewMemeberInfo'
+  'SaveMagicButtons','OpenGuildViewMemeberInfo',
+  # ---- lane p14-client-fstate slice 1 (TFrmDlg.Handlers.cs) --------------------------------
+  # These members have real 1:1 bodies in TFrmDlg.Handlers.cs. They MUST be skipped here:
+  # in this compilation a member declared in this generated file cannot be implemented by
+  # another partial file (override -> CS0115, same signature -> CS0111). Measured proof and
+  # the full rationale are in TFrmDlg.Handlers.cs's header and in
+  # docs/parallel-report-p14-client-fstate.md section "generated shell contract".
+  'HideAllControls','RestoreHideControls',
+  'DStateWinClick','AttactkModeChange','DChgGamePwdDirectPaint','MerchantDlgPaint',
+  'DBotPlusAbilDirectPaint','DGameGoldDealCancelClick','OpenDUpgradeDlg','CloseDUpgradeDlg',
+  'OpenDRandomCodeDlg','CloseDRandomCodeDlg','DChgGamePwdCloseClick',
+  'DBottomInRealArea','DscSelect1InRealArea','DUserState1MouseDown',
+  'DMinMapDlgShow','DMinMapDlgHide','DMinMapDlgResize',
+  'DMouseMoveClearHints','DUpdateStatusDlgMouseLeave','DItemBagMouseMove',
+  'DSayItemDlgCloseClick','DSayItemDlgMouseDown','DSayItemDlgMouseMove'
 )
 
-$lines = Get-Content -LiteralPath $Src -Encoding Default
+# NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**
+# (`_analysis/utf8_mirror/...`), not the GBK `Source/` copy. Reading it with an explicit
+# UTF-8 decoder is what keeps the Delphi comments that are echoed into the generated C#
+# readable; `Get-Content -Encoding Default` is not portable (PS 5.1 = ANSI, PS 7 = UTF-8),
+# which is how the first generation of these files ended up with mojibake comments.
+$lines = [System.IO.File]::ReadAllLines($Src, [System.Text.Encoding]::UTF8)
 
 # ---------------------------------------------------------------- const section
 $consts = New-Object System.Collections.ArrayList
@@ -183,6 +202,25 @@ function Map-Type([string]$s) {
   }
 }
 
+# ---------------------------------------------------------------- C# type overrides
+# A few Delphi declarations lose their real type during Map-Type (the original spells them
+# with a type that does not exist under that name in the managed tree). For those the real
+# managed type is pinned here BY HAND so the .g.cs stays fully reproducible.
+#
+#   FSayItemHintWin : Delphi `object`  ->  GXX.Client.Scenes.THintWindows
+#     original FState.pas:503 is `FSayItemHintWin:TObject;` and is only ever written at
+#     FState.pas:1555 as `FSayItemHintWin := DrawScrn.THintWindows.Create;`.
+#     D-P10-06 puts THintWindows' home in GXX.Client.Scenes (DrawScrn.pas:408),
+#     so the managed field type is THintWindows instead of a bare `object`.
+$CsTypeOverrides = @{
+  'FSayItemHintWin' = 'THintWindows'
+}
+
+function Map-FieldType([string]$name, [string]$delphiType) {
+  if ($CsTypeOverrides.ContainsKey($name)) { return $CsTypeOverrides[$name] }
+  return (Map-Type $delphiType)
+}
+
 function Map-Default([string]$s) {
   $s = $s.Trim()
   if ($s -eq 'True')  { return 'true' }
@@ -274,7 +312,7 @@ foreach ($t in $types) { [void]$sb.Append('        "' + $t.Kind + '", // ' + $t.
 [void]$sb.Append('    public const string NamesSha256 = "' + (Sha256-Lines ($fields | ForEach-Object { $_.Name })) + '";').Append($nl).Append($nl)
 [void]$sb.Append('    /// <summary>Field names in source declaration order.</summary>').Append($nl)
 [void]$sb.Append('    public static readonly string[] Names =').Append($nl).Append('    {').Append($nl)
-foreach ($f in $fields) { [void]$sb.Append('        "' + $f.Name + '", // line ' + $f.Line + ' : ' + (Map-Type $f.Type)).Append($nl) }
+foreach ($f in $fields) { [void]$sb.Append('        "' + $f.Name + '", // line ' + $f.Line + ' : ' + (Map-FieldType $f.Name $f.Type)).Append($nl) }
 [void]$sb.Append('    };').Append($nl)
 [void]$sb.Append('}').Append($nl).Append($nl)
 
@@ -325,7 +363,7 @@ $sb2 = New-Object System.Text.StringBuilder
 
 foreach ($f in $fields) {
   if ($f.Visibility -eq 'private') { $v = 'private' } elseif ($f.Visibility -eq 'protected') { $v = 'protected' } else { $v = 'public' }
-  $ct = Map-Type $f.Type
+  $ct = Map-FieldType $f.Name $f.Type
   [void]$sb2.Append('    /// <summary>Source line ' + $f.Line + ' : ' + (XmlEscape $f.Type) + ' (' + $f.Visibility + ')</summary>').Append($nl)
   if ($ct -match '^(.+)\[(\d+)\]$') {
     # Delphi `array[a..b] of T` is a value field; C# needs an initialiser for the element count.

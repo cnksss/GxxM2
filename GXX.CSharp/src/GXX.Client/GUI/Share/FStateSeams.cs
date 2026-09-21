@@ -401,55 +401,16 @@ public class TMemo
 }
 
 // ---------------------------------------------------------------------------------------------
-// DrawScrn.pas 的提示行/提示窗（GetHitLines 与 FSayItemHintWin 依赖）
+// DrawScrn.pas 的提示行/提示窗
+//
+// ★ D-P10-06 已结清（车道 p14-client-fstate，台账 §47.5）：原先这里的
+//   `THintLines`（旧 407-452）与 `THintWindows` + `DrawScrn` 静态接缝（旧 599-612）
+//   三个接缝段**已删除**，正式归属是 `GXX.Client.Scenes`
+//   （`Scenes/DrawScrn/HintMessageFamily.cs:1046` 的 THintLines、
+//     `Scenes/DrawScrn/HintWindowFamily.cs:451` 的 THintWindows + `DrawScrnEnv.HintWindows`）。
+//   删除条件（须核对 `FStatePure.cs:75 GetHitLines` 是否用了接缝 `Add` 的 int 返回值）：
+//   **未使用** —— 原文三处 `HintLines.Add` 全丢弃返回值，核对记录见交付报告 §D-P10-06。
 // ---------------------------------------------------------------------------------------------
-
-/// <summary>
-/// DrawScrn.pas:318 THintLines（提示文本行容器）。
-/// 【接缝：待 DrawScrn.pas 移植后接入】本波次只复刻 GetHitLines 与解构循环用到的成员。
-/// 注意：车道8 已在其 TStateWindowsText.cs 中登记同一缺口，但归属为 DrawScrn.pas，
-/// **不是** FState.pas —— 见本车道交付报告的"既往车道事实更正"一节。
-/// </summary>
-public class THintLines
-{
-    /// <summary>DrawScrn.pas THintLines.Add(Text:string; Color:TColor)。</summary>
-    public int Add(string text, TColor color) => Add(text, color, 9, TFontStyles.fsNone, false);
-
-    /// <summary>
-    /// DrawScrn.pas THintLines.Add(Text:string; Color:TColor; Size:Integer; Style:TFontStyles; Stroke:Boolean)。
-    /// 原文 GetHitLines（FState.pas:3650）调用的就是这个 5 参形态。
-    /// </summary>
-    public int Add(string text, TColor color, int size, TFontStyles style, bool stroke)
-    {
-        Lines.Add(new HintLine(text, color, size, style, stroke));
-        return Lines.Count - 1;
-    }
-
-    /// <summary>DrawScrn.pas THintLines.Count。</summary>
-    public int Count => Lines.Count;
-
-    /// <summary>逐行的文本与颜色（对应原文 THintLines 内部的记录项）。</summary>
-    public readonly List<HintLine> Lines = new();
-
-    /// <summary>DrawScrn.pas THintLines 内一项：Text + Color（+ 字号/字型/描边）。</summary>
-    public readonly struct HintLine
-    {
-        public readonly string Text;
-        public readonly TColor Color;
-        public readonly int Size;
-        public readonly TFontStyles Style;
-        public readonly bool Stroke;
-
-        public HintLine(string text, TColor color, int size, TFontStyles style, bool stroke)
-        {
-            Text = text;
-            Color = color;
-            Size = size;
-            Style = style;
-            Stroke = stroke;
-        }
-    }
-}
 
 /// <summary>
 /// 原文 `MyGetTickCount`（= Windows GetTickCount，MShare.pas）的可用性接缝。
@@ -596,20 +557,9 @@ public static class MagicButtonIniSeam
     }
 }
 
-/// <summary>DrawScrn.pas:408 THintWindows。【接缝：待 DrawScrn.pas 移植】</summary>
-public class THintWindows
-{
-}
-
-/// <summary>
-/// DrawScrn.pas 单元级命名空间接缝：原文 TFrmDlg.Create 写的是 `DrawScrn.THintWindows.Create`。
-/// 【接缝：待 DrawScrn.pas 移植】
-/// </summary>
-public static class DrawScrn
-{
-    /// <summary>DrawScrn.pas:408 THintWindows（原文以 `DrawScrn.THintWindows` 限定引用）。</summary>
-    public static THintWindows CreateHintWindows() => new();
-}
+// ★ D-P10-06（续）：原 `THintWindows`（旧 599-602）与 `DrawScrn.CreateHintWindows`（旧 604-612）
+//   两个接缝段已删除；`TFrmDlg.Create` 的 `FSayItemHintWin := DrawScrn.THintWindows.Create`
+//   改指 `GXX.Client.Scenes.THintWindows`（字段类型同步由 object 改为 THintWindows）。
 
 /// <summary>
 /// MShare.pas 中 FState.pas 引用、而车道1 的 `GXX.Client.GUI.Mir.MShareGlobals` 尚未承载的全局。
