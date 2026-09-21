@@ -442,10 +442,21 @@ public static class MShareGlobalsReset
         MShareGlobals.g_nRankingsTableType = 0;
         MShareGlobals.g_nRankingsPage = -1;
         MShareGlobals.g_nRankingsPageCount = 0;
-        // ---- P17 切片3：平台族 / 黑名单 / 连击限流配置 ----
+        // ---- P17 切片3：平台族 / 黑名单 ----
         MShareGlobals.g_MyBlacklist = null;
         MShareGlobals.g_boContinuous = false;
-        MShareWarrConfigSeam.ResetForTests();
+        // ---- P17 切片A/B：TConfigClient 新增字段复位（原 MShareWarrConfigSeam 已退役） ----
+        MShareGlobals.g_ConfigClient.boDisableWarrContinueHit = 0;
+        MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval = 0;
+        for (int wi = 0; wi < 10; wi++)
+            MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs[wi] = 0;
+        MShareGlobals.g_ConfigClient.ShowHintFontName = "";
+        MShareGlobals.g_ConfigClient.btShowHintNameFontSize = 0;
+        MShareGlobals.g_ConfigClient.btShowHintNameFontBold = 0;
+        MShareGlobals.g_ConfigClient.btShowHintNameFontStroke = 0;
+        MShareGlobals.g_ConfigClient.btShowHintOtherFontSize = 0;
+        MShareGlobals.g_ConfigClient.btShowHintOtherFontBold = 0;
+        MShareGlobals.g_ConfigClient.btShowHintOtherFontStroke = 0;
         MShareFunctions.PerformanceCounterProvider = null;
         MShareFunctions.QueryPerformanceCounterFailsForTests = false;
         MShareFunctions.RandomProvider = null;
