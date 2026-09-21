@@ -16,9 +16,12 @@ namespace GXX.RunGate.Tests;
 // =====================================================================================
 // CheckUsePlugin（原文 3465-9688）的**已覆盖切片**测试。
 //
-// 已覆盖：前导段 3505-3519、CM_DROPITEM 9474-9487、CM_PICKUP 9492-9505、
-//         else 9506-9516、公共收尾 9521-9681（CheckUsePluginPostlude）、兜底 9682-9686。
-// 未覆盖：3528-9473（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL / CM_SITDOWN）
+// 已覆盖：前导段 3505-3519、CM_TURN 5858-6681（独立测试类
+//         MirClientContextCheckUsePluginTurnTests）、CM_SITDOWN 9000-9469（
+//         MirClientContextCheckUsePluginSitDownTests）、CM_DROPITEM 9474-9487、
+//         CM_PICKUP 9492-9505、else 9506-9516、公共收尾 9521-9681（CheckUsePluginPostlude）、
+//         兜底 9682-9686。
+// 未覆盖：3528-5857（CM_WALK / CM_RUN）、6690-8999（攻击族 / CM_SPELL）
 //         → 显式早退，见 MirClientContext.CheckUsePlugin.cs 文件头 §偏差。
 // =====================================================================================
 [Collection("RunGateFormLane")]
@@ -59,17 +62,17 @@ public class MirClientContextCheckUsePluginTests
     [Theory]
     [InlineData(CM_WALK)]
     [InlineData(CM_RUN)]
-    [InlineData(CM_TURN)]
     [InlineData(CM_HIT)]
     [InlineData(CM_HEAVYHIT)]
     [InlineData(CM_115HIT)]
     [InlineData(CM_CUSTOM_HIT001)]
     [InlineData(CM_CUSTOM_HIT001 + 299)]     // 自定义技能区间上界内
     [InlineData(CM_SPELL)]
-    [InlineData(CM_SITDOWN)]
+    // CM_SITDOWN 与 CM_TURN 已于本轮移植
+    // （见 MirClientContextCheckUsePluginSitDownTests / …TurnTests），故**不再**出现在本早退名单里。
     public void CheckUsePlugin_UnportedIdentFamilies_ReturnFalseWithoutSideEffects(ushort ident)
     {
-        // ★ 本车道的**已知缺口**（原文 3528-9473 未移植）：
+        // ★ 本车道的**已知缺口**（原文 3528-8999 未移植）：
         //   这些 ident 在原文里会记录动作（walk→baWalk、spell→baSpell…）并进入公共收尾；
         //   本车道却早退。差异断言：返回 false 且**不写** RecordActionArr、**不动** boContinueSpeed。
         _ctx.GameSpeed.boContinueSpeed = true;         // 若进入收尾会被置 False
