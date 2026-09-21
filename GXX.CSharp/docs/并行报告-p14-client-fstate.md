@@ -10,20 +10,20 @@
 ## 0. 一句话结论（本轮）
 
 把"515 个 `throw` 壳"这件事从**传闻**变成**逐条实测的对账表**（533 行，见附录 A），
-并按原文 1:1 落地了**五个切片共 67 条**成员，同时把 D-P10-06 的三段接缝按既定条件**核对并删除**。
+并按原文 1:1 落地了**六个切片共 69 条**成员，同时把 D-P10-06 的三段接缝按既定条件**核对并删除**。
 
 | 指标 | 本轮实测值 | 取证方式 |
 |---|---|---|
-| `TFrmDlg.Decl.g.cs` 内 `throw new NotSupportedException` | **448**（本轮起始 **515**，净减 67） | `Select-String ... \| Measure-Object` |
+| `TFrmDlg.Decl.g.cs` 内 `throw new NotSupportedException` | **446**（本轮起始 **515**，净减 69） | `Select-String ... \| Measure-Object` |
 | TFrmDlg 声明面成员（去重名字） | **533**（`TFrmDlgMethodTable` 538 条声明，含 5 组重载同名） | `FStateDeclManifest.g.cs` |
-| `REAL`（已有 1:1 真实现） | **88**（其中本车道 **67**：切片 1..5 = 25/25/6/5/6） | 生成器 `$Handwritten` + `TFrmDlg.Handlers.cs` |
-| `PENDING`（原文有体、托管仍是 throw 壳） | **172** | `gen-recon-table.py` |
-| `ORIGINAL_EMPTY`（原文空体/仅注释） | **41** | 同上 |
+| `REAL`（已有 1:1 真实现） | **90**（其中本车道 **69**：切片 1..6 = 25/25/6/5/6/2） | 生成器 `$Handwritten` + `TFrmDlg.Handlers.cs` |
+| `PENDING`（原文有体、托管仍是 throw 壳） | **171** | `gen-recon-table.py` |
+| `ORIGINAL_EMPTY`（原文空体/仅注释） | **40** | 同上 |
 | `ABSTRACT_NO_BODY`（原文无实现体） | **232** | 同上 |
-| **当前真实覆盖率** | **88/533 = 16.51%** | 同上 |
-| 可移植面完成率（分母 `REAL+PENDING+ORIGINAL_EMPTY` = 301） | **88/301 = 29.24%** | 同上 |
-| 本车道落地的成员 | **67** | `TFrmDlgPortLedger.LaneCount` |
-| 本车道新增用例 | **约 121**（实测 4904 → 4995） | `GXX.Client.Tests` |
+| **当前真实覆盖率** | **90/533 = 16.89%** | 同上 |
+| 可移植面完成率（分母 `REAL+PENDING+ORIGINAL_EMPTY` = 301） | **90/301 = 29.90%** | 同上 |
+| 本车道落地的成员 | **69** | `TFrmDlgPortLedger.LaneCount` |
+| 本车道新增用例 | **约 125**（实测 4904 → 4999） | `GXX.Client.Tests` |
 
 > 与 p12 复核的差异说明：p12 的"约 31/367 真移植"是**以 `implementation` 段例程为分母**；
 > 本表以**声明面成员**为分母（更严：把 232 条原文根本没有实现体的声明也算进分母）。
@@ -42,6 +42,7 @@
 | `02759641` | 并行批次P5：切片 4 tick 守卫族 **2 条** + 商铺/排行/好友入口 **3 条**（剩余 throw 454） |
 | `e4d55ede` | 并行批次P6：报告同步（切片 3/4、D-P14-11..15、B-5..B-7）+ 对账表刷新（真实体 82） |
 | `92b6d7d1` | 并行批次P7：切片 5 交易/挑战守卫族 **6 条**（剩余 throw 448） |
+| `831618e7` | 并行批次P8：切片 6 帮助按钮差判据节流 **1 条** + 更新状态框重连 **1 条**（剩余 throw 446） |
 
 工作树基线：`main @ 838ad9ae`。
 
@@ -53,11 +54,11 @@
 
 | 文件 | 变更 |
 |---|---|
-| `GUI/Share/TFrmDlg.Handlers.cs` | **新增**：切片 1..5 共 **67** 条 1:1 真实现 + `TFrmDlgPortLedger` 机器可读台账 |
+| `GUI/Share/TFrmDlg.Handlers.cs` | **新增**：切片 1..6 共 **69** 条 1:1 真实现 + `TFrmDlgPortLedger` 机器可读台账 |
 | `GUI/Share/FStateScreenSeam.cs` | **新增**：`DScreen.ClearHint` 的显式留痕接缝（真实对象未落地，调一次记一次） |
 | `GUI/Share/FStateResStrSeam.cs` | **新增**：`DecodeResStr` + 3 条 `S*` resourcestring 注入接缝（切片 2 用；默认值=常量名，不静默成空串） |
-| `GUI/Share/FStateDeclGen.ps1` | `$Handwritten` 由 20 条扩到 88 条（切片 1..5 = 25/25/6/5/6，另 21 条为前任车道）；新增 `$CsTypeOverrides`（`FSayItemHintWin`）；源码改显式 UTF-8 读取 |
-| `GUI/Share/TFrmDlg.Decl.g.cs` | 生成器重跑：67 个成员不再声明（`throw` 515→448）；`FSayItemHintWin` 类型 `object` → `THintWindows` |
+| `GUI/Share/FStateDeclGen.ps1` | `$Handwritten` 由 20 条扩到 90 条（切片 1..6 = 25/25/6/5/6/2，另 21 条为前任车道）；新增 `$CsTypeOverrides`（`FSayItemHintWin`）；源码改显式 UTF-8 读取 |
+| `GUI/Share/TFrmDlg.Decl.g.cs` | 生成器重跑：69 个成员不再声明（`throw` 515→446）；`FSayItemHintWin` 类型 `object` → `THintWindows` |
 | `GUI/Share/FStateDeclManifest.g.cs` | 生成器重跑（字段表 `FSayItemHintWin` 类型同步；西文注释乱码修复为正确中文） |
 | `GUI/Share/FStatePure.cs` | `GetHitLines` 的 `THintLines` 形参改指 `GXX.Client.Scenes.THintLines`（D-P10-06） |
 | `GUI/Share/FStateSeams.cs` | **删除** `THintLines`（旧 407-452）、`THintWindows` + `DrawScrn` 静态接缝（旧 599-612） |
@@ -148,7 +149,20 @@
 测试 `ForwardersDelegateToTheOriginalTarget` 用"异常消息里必须出现 `TFrmDlg.<目标方法>:`"
 把"真的转发了"这一事实锁死（而不是靠注释自证）。
 
-**壳内剩余 `throw` 数**：**448**（切片 2 起点 490 → 切片 3 459 → 切片 4 454 → 切片 5 448；起始 515）。
+**壳内剩余 `throw` 数**：**446**（切片 2 起点 490 → 3: 459 → 4: 454 → 5: 448 → 6: 446；起始 515）。
+
+---
+
+## 3f. 切片 6 的 2 条成员（真实体 2 / NotPorted 0 / 原文如此 0）
+
+| # | 成员 | 原文行 | 判据 | 说明 |
+|---:|---|---|---|---|
+| 1 | `DControlHelpClick` | 21054-21060 | `Now - dwControlHelpCickTick > 1000` | **差**判据（不是序判据）；命中后 `:= Now`（**不是 +1000**）；时间戳是**本单元字段**（原文 486）⇒ 无接缝依赖 |
+| 2 | `DUpdateStatusDlgDblClick` | 24469-24472 | — | 转发 `FrmMain.ReConnectClientSocketGate`（双击更新状态框 = 重连网关） |
+
+**与切片 4/5 的差异断言**：`DControlHelpClick` 用的是**无符号差**而非"当前 tick > 计数器"；
+`> 1000` 严格（差 == 1000 不触发）；重装是**赋值当前 tick**（不是 `+N`）。
+（`dwControlHelpCickTick` 在原文是 protected ⇒ 测试经反射读写。）
 
 ---
 
@@ -363,9 +377,9 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 > 故以 `-Repo <本车道工作树>` 指过来运行；`-Log` 指向临时目录以避免在仓库内留日志。
 > 三个判据（build exit 0 / test exit 0 / 无崩溃标记）全部为脚本自身打印的实测值。
 
-（基线：本轮开工前 `GXX.Client.Tests` 为 4904 例全绿；切片 1..5 累计新增 → **4995**。）
+（基线：本轮开工前 `GXX.Client.Tests` 为 4904 例全绿；切片 1..6 累计新增 → **4999**。）
 
-**新增用例分布（`GuiShareHandlersTests.cs`，约 121 例）**
+**新增用例分布（`GuiShareHandlersTests.cs`，约 125 例）**
 
 | 组 | 例数 | 覆盖 |
 |---|---:|---|
@@ -377,6 +391,7 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | 切片 3：B-2 解锁四条 + 骑马两条 | 11 | `Navigate` 取 sHomePage、空选中名不发、`is TDxImageButton` 分支、骑马两条件 `[Theory]` 5 行 + 缺 nil 保护 |
 | 切片 4：tick 守卫族 + 三个入口 | 7 | **严格 `>`** 边界、`+3000` 重装、`BoGuildChat` 在守卫体内、两条共享计数器 |
 | 切片 5：交易/挑战守卫族 | 6 | **不重装**的两条、`not *End and > 0` 两条件、交易与挑战各自时间戳 |
+| 切片 6：帮助按钮 + 重连 | 4 | **差判据** `> 1000` 边界、重装赋当前 tick、反射读写 protected 字段 |
 | B/E/F/G/H 其余 | 11 | Hide/Restore 往返、SayItem 三态、HintWindows 清理顺序、D-P10-06 类型归属与接缝消失 |
 
 ---
@@ -422,7 +437,7 @@ python "$share\gen-recon-table.py" `
     --out      $env:TEMP\recon.md
 # 期望输出：
 # MANIFEST=538 DECLARED_THROW_NAMES=450 HANDWRITTEN=82 DISTINCT=533
-# REAL=88 PENDING=172 ORIGINAL_EMPTY=41 ABSTRACT=232 THROW_NOW=448
+# REAL=90 PENDING=171 ORIGINAL_EMPTY=40 ABSTRACT=232 THROW_NOW=446
 
 # 3) 重新生成声明面（改了 $Handwritten 之后）
 & "$share\FStateDeclGen.ps1" `
@@ -436,18 +451,16 @@ python "$share\gen-recon-table.py" `
 
 ### 11.1 未完成（本车道明确的待办主体）
 
-- **`PENDING` 172 条**：原文有实现体、托管侧仍是 `throw` 壳。这是本车道的**主战场**。
+- **`PENDING` 171 条**：原文有实现体、托管侧仍是 `throw` 壳。这是本车道的**主战场**。
   建议按"依赖半径"从小到大推进：
   1. **纯字段读写 / 单跳转发** —— 切片 1/2 已把"无依赖 + 转发"这一层基本扫完；
-  2. **tick / 动作守卫族** —— 切片 4/5 已吃掉 8 条，**这一族只剩三条被接缝挡住**：
-     `DControlHelpClick`（要 `dwControlHelpCickTick`，本单元字段，**其实可以直接做**）、
+  2. **tick / 动作守卫族** —— 切片 4/5/6 已吃掉 9 条，**这一族只剩 1 条**：
      `DBotGroupMouseDown` / `DGrpAllowGroupClick`（要 `g_dwChangeGroupModeTick` + `g_boAllowGroup` +
-     `SendGroupMode`）、`DBotGroupMouseDown` 还多一个 `Button = mbRight` 前置判据。
-     ⇒ **下一刀：把 `g_dwChangeGroupModeTick`/`g_boAllowGroup`/`SendGroupMode` 补上即可拿 2 条，
-     再顺手做 `DControlHelpClick`。**
+     `SendGroupMode`；`DBotGroupMouseDown` 另需 `Button = mbRight` 前置判据）。
+     ⇒ **下一刀：补那 3 个接缝即可拿 2 条。**
   3. **提示窗族**（`DMessageDlg*` / `HintWindows` 交互）——需补 `frmMain.SendSay`（B-2 余项）；
   4. **绘制族**（`*DirectPaint`，依赖 `GameCanvas`/纹理，接缝最厚，放最后）。
-- **`ORIGINAL_EMPTY` 41 条**：原文空体，**零风险**，可一次性批量照抄（工作量 ≈ 0，
+- **`ORIGINAL_EMPTY` 40 条**：原文空体，**零风险**，可一次性批量照抄（工作量 ≈ 0，
   但必须先按 §5.3 的四步走，否则编译不过）。
 
 ### 11.2 阻塞（如实登记）
@@ -465,7 +478,7 @@ python "$share\gen-recon-table.py" `
 
 ### 11.3 给调度方的状态建议
 
-- 本车道证据已足以把 `FState` 从 **REFUTED** 推进到 **PARTIAL（部分，**16.51%**）**：
+- 本车道证据已足以把 `FState` 从 **REFUTED** 推进到 **PARTIAL（部分，**16.89%**）**：
   分母与算法在 §0 与 §9 全部给出，可独立复算。
 - **建议继续加宽本车道分区**：`PENDING` 里相当一部分成员只差**一个接缝**
   （`g_dwQueryMsgTick` / `g_boMagicMoving` / `g_nMinMapX` 一类 `MShare` 全局）。
@@ -482,16 +495,16 @@ python "$share\gen-recon-table.py" `
 本表由 `src/GXX.Client/GUI/Share/gen-recon-table.py` 从**原文镜像 + 当前生成壳 + 生成器 `$Handwritten`** 实测生成（非手抄；随时可重跑复现）。
 
 - **TFrmDlg 声明面成员**（`FStateDeclManifest.g.cs` 的 `TFrmDlgMethodTable`：538 条声明，其中 5 组重载同名 ⇒ 去重后 **533** 个名字）：**538**
-  - 生成壳 `TFrmDlg.Decl.g.cs` **仍声明并 `throw`** 的名字：**444**（`throw` 语句实测 **448** 条）
-  - `FStateDeclGen.ps1` 的 `$Handwritten` 跳过、由手写 partial 供给真体的名字：**88**
-- 生成壳内 `throw new NotSupportedException` 实测条数：**448**
-- `REAL`（托管侧已有 1:1 真实现）：**88**
-- `PENDING`（原文有实现体、托管侧仍是 throw 壳 ⇒ **本车道待办主体**）：**172**
-- `ORIGINAL_EMPTY`（原文自带空体/仅注释 ⇒ 可零风险照抄为 空体）：**41**
+  - 生成壳 `TFrmDlg.Decl.g.cs` **仍声明并 `throw`** 的名字：**442**（`throw` 语句实测 **446** 条）
+  - `FStateDeclGen.ps1` 的 `$Handwritten` 跳过、由手写 partial 供给真体的名字：**90**
+- 生成壳内 `throw new NotSupportedException` 实测条数：**446**
+- `REAL`（托管侧已有 1:1 真实现）：**90**
+- `PENDING`（原文有实现体、托管侧仍是 throw 壳 ⇒ **本车道待办主体**）：**171**
+- `ORIGINAL_EMPTY`（原文自带空体/仅注释 ⇒ 可零风险照抄为 空体）：**40**
 - `ABSTRACT_NO_BODY`（原文声明但本单元无实现体 ⇒ 保持 throw 壳）：**232**
 
-**当前真实覆盖率（分母 = 全部声明成员 533）= 88/533 = 16.51%**
-**可移植面完成率（分母 = REAL+PENDING+ORIGINAL_EMPTY = 301）= 88/301 = 29.24%**
+**当前真实覆盖率（分母 = 全部声明成员 533）= 90/533 = 16.89%**
+**可移植面完成率（分母 = REAL+PENDING+ORIGINAL_EMPTY = 301）= 90/301 = 29.90%**
 
 `State` 取值：`REAL` = 真实现已落；`PENDING` = 待办（原文有体）；`ORIGINAL_EMPTY` = 原文空体；`ABSTRACT_NO_BODY` = 原文无实现体。
 
@@ -921,7 +934,7 @@ python "$share\gen-recon-table.py" `
 | 420 | 980 | `DChallengeGridGridMouseMove` | `20989-21003` | 15 | PENDING |
 | 421 | 981 | `DChallengeRemoteGridGridPaint` | `21010-21031` | 22 | PENDING |
 | 422 | 982 | `DChallengeRemoteGridGridMouseMove` | `21038-21052` | 15 | PENDING |
-| 423 | 983 | `DControlHelpClick` | `21055-21060` | 6 | PENDING |
+| 423 | 983 | `DControlHelpClick` | `21055-21060` | 6 | REAL |
 | 424 | 984 | `DRandomCodeDlgDirectPaint` | `21080-21086` | 7 | PENDING |
 | 425 | 985 | `DItemBagDirectPaint` | `21091-21093` | 3 | ORIGINAL_EMPTY |
 | 426 | 986 | `DStPageUpClick` | `21096-21098` | 3 | ORIGINAL_EMPTY |
@@ -998,7 +1011,7 @@ python "$share\gen-recon-table.py" `
 | 497 | 1073 | `DUpdateStatusDlgPaint` | `24389-24398` | 10 | PENDING |
 | 498 | 1074 | `DUpdateStatusDlgMouseEnter` | `24407-24462` | 56 | PENDING |
 | 499 | 1075 | `DUpdateStatusDlgMouseLeave` | `24465-24467` | 3 | REAL |
-| 500 | 1076 | `DUpdateStatusDlgDblClick` | `24470-24472` | 3 | ORIGINAL_EMPTY |
+| 500 | 1076 | `DUpdateStatusDlgDblClick` | `24470-24472` | 3 | REAL |
 | 501 | 1079 | `UpdateBusinessStatusText` | n/a | n/a | ABSTRACT_NO_BODY |
 | 502 | 1080 | `UpdateShopMoneyInfo` | n/a | n/a | ABSTRACT_NO_BODY |
 | 503 | 1082 | `GetLastHistroySendSay` | n/a | n/a | REAL |
