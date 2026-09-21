@@ -137,5 +137,10 @@ p17-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/Actor*;!GXX.CSharp/src/GXX.Cl
 #     host, so nothing is verified end-to-end.  This lane (1) produces the seam work-order table
 #     and (2) proves ONE real host loop end-to-end on M2Server's own entry point (Program.cs).
 p17-m2-hostwire	!GXX.CSharp/src/GXX.M2Server/Program.cs;GXX.CSharp/tests/GXX.M2Server.Tests/HostWire*;!GXX.CSharp/docs/接线工单表.md;!GXX.CSharp/docs/并行报告-p17-m2-hostwire.md
+# (c) MShare.pas (13,522 lines / 22 classes / 185 routines) -- the CLIENT global-state unit.
+# Lane p14-client-fstate named it the densest blocker of its remaining 171 PENDING members
+# (its FStateMShareSeam is the interface; this lane is the PROVIDER side).  ClientGlobals.cs is
+# granted because that is the file that already holds MShareGlobals; the rest goes in a new subdir.
+p17-client-mshare	!GXX.CSharp/src/GXX.Client/GUI/Mir/ClientGlobals.cs;GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/**;GXX.CSharp/tests/GXX.Client.Tests/MShare*;!GXX.CSharp/docs/并行报告-p17-client-mshare.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1
