@@ -177,7 +177,126 @@ public partial class TMerchant
     /// 且 `UserSelectPortedArms` 在 `src`/`tests` 中**零引用**（`grep` 可验）。</para>
     /// <para>`sMsg` 仅为 `nNF_OfflineMsg` → <see cref="AutoGetExp"/> 保留（其余分支不用）。</para>
     /// </summary>
-    public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "")
+    /// <summary>
+    /// 原文 `procedure RemoteMsg(User: TPlayObject; sLabel, sMsg: string); // 接受歌曲`（ObjNpc.pas:2177-2204）。
+    /// <para><b>照抄要点</b>：2182 先 `Trim(sMsg)`（改写的是**局部** `sMsg`）；2183 `sMsg &lt;&gt; ''` 才继续；
+    /// 2185 按**玩家名**查对象；2190 `sLabel := Copy(sLabel, 2, Length(sLabel) - 1)`（去掉第 1 个字符，
+    /// 因标签形如 `@@rmst`）；2196 与 2201 **两处提示都保留已 Trim 的 `sMsg` 前缀**，照抄。</para>
+    /// <para>触发点：`nNF_Rmst` 分支（原文 2717-2721），守卫 `m_boofflinemsg`。</para>
+    /// </summary>
+    public void RemoteMsg(TPlayObject User, string sLabel, string sMsg)
+    {
+        // 原文 2182
+        sMsg = sMsg.Trim();
+        // 原文 2183
+        if (sMsg != "")
+        {
+            // 原文 2185
+            TPlayObject? TargetObject = ObjNpcInputSeams.GetPlayObject(sMsg);
+            // 原文 2186
+            if (TargetObject != null)
+            {
+                // 原文 2188
+                if (ObjNpcInputSeams.GetBoRemoteMsg(TargetObject))
+                {
+                    // 原文 2190-2192
+                    sLabel = DelphiRTL.Copy(sLabel, 2, sLabel.Length - 1);
+                    string sSENDMSG = "你的好友 " + User.m_sCharName + " 给你发送音乐\\ \\<播放歌曲/"
+                        + sLabel + ">\\";
+                    SendMsgToUser(TargetObject, sSENDMSG);
+                }
+                else
+                {
+                    // 原文 2196：**保留 sMsg 前缀**
+                    NpcSeams.SysMsg(User, sMsg + "你的好友 " + TargetObject.m_sCharName + " 拒绝接受歌曲！",
+                        TMsgColor.c_Red, TMsgType.t_Hint);
+                }
+            }
+            else
+            {
+                // 原文 2201：**保留 sMsg 前缀** + 全局串
+                NpcSeams.SysMsg(User, sMsg + ObjNpcInputSeams.g_sUserNotOnLine,
+                    TMsgColor.c_Red, TMsgType.t_Hint);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 原文 `procedure InPutInteger(User: TPlayObject; sLabel, sMsg: string);`（ObjNpc.pas:2461-2484）。
+    /// <para><b>★ 与 <see cref="InPutString"/> 是"看起来一样实则不同"的一对（四处差异）</b>：</para>
+    /// <list type="number">
+    /// <item>`Copy` **起点/长度不同**：本过程 `Copy(sLabel, **15**, Len-14)`（2477）vs 字符串版 `(…, **14**, Len-13)`（2490）；</item>
+    /// <item>**过滤检查位置不同**：本过程在 `StrToIntDef` **之前**（2470）vs 字符串版在**之后**（2496）；</item>
+    /// <item>写入目标：`m_nInteger[nNo]`（2480）vs `m_sString[nNo]`（2503）；</item>
+    /// <item>过滤命中标签：`'@InputIntegerFilter'`（2472）vs `'@InputStringFilter'`（2498）。</item>
+    /// </list>
+    /// <para>⚠ 2476 的 `StrToIntDef(sMsg, 0)` 是 **Integer**（原文）；2478 范围门 `(nNo &gt;= 0) and (nNo &lt;= 999)`
+    /// —— 超范围**什么都不做**（连 `GotoLable` 都不发）。</para>
+    /// </summary>
+    public void InPutInteger(TPlayObject User, string sLabel, string sMsg)
+    {
+        // 原文 2466
+        if (HUtil32.IsStringNumber(sMsg))
+        {
+            // 原文 2468：`if (g_InputBoxFilterList <> nil) then`
+            if (ObjNpcInputSeams.GetInputBoxFilterList() != null)
+            {
+                // 原文 2470：★ 过滤检查在 StrToIntDef **之前**
+                if (ObjNpcInputSeams.GetInputBoxInFilterList(sMsg))
+                {
+                    // 检测用户输入是否有非法字符
+                    PlayerSurfaceNpcSeams.GotoLable(this, User, "@InputIntegerFilter", false);
+                    return;
+                }
+            }
+            // 原文 2476-2477
+            int nValue = (int)DelphiRTL.StrToInt64Def(sMsg, 0);
+            int nNo = (int)DelphiRTL.StrToInt64Def(DelphiRTL.Copy(sLabel, 15, sLabel.Length - 14), -1);
+            // 原文 2478
+            if ((nNo >= 0) && (nNo <= 999))
+            {
+                // 原文 2480-2481
+                User.m_nInteger[nNo] = nValue;
+                PlayerSurfaceNpcSeams.GotoLable(this, User, DelphiRTL.Copy(sLabel, 2, sLabel.Length - 1), false);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 原文 `procedure InPutString(User: TPlayObject; sLabel, sMsg: string);`（ObjNpc.pas:2486-2506）。
+    /// <para>★ 与 <see cref="InPutInteger"/> 的四处差异见该方法的文档。特别地：
+    /// 本过程**先** `StrToIntDef(Copy(sLabel, **14**, Len-13), -1)`（2490）、**后**才进范围门与过滤检查
+    /// —— 与整数版**顺序相反**。照抄。</para>
+    /// <para>2491/2502 两处 `MainOutMessage` 是**注释**，保留。</para>
+    /// </summary>
+    public void InPutString(TPlayObject User, string sLabel, string sMsg)
+    {
+        // 原文 2490
+        int nNo = (int)DelphiRTL.StrToInt64Def(DelphiRTL.Copy(sLabel, 14, sLabel.Length - 13), -1);
+        // 原文 2491：`// MainOutMessage('InPutString:' + ...)` —— 原文如此，保留
+        // 原文 2492
+        if ((nNo >= 0) && (nNo <= 999))
+        {
+            // 原文 2494
+            if (ObjNpcInputSeams.GetInputBoxFilterList() != null)
+            {
+                // 原文 2496：★ 过滤检查在范围门**之后**（与整数版相反）
+                if (ObjNpcInputSeams.GetInputBoxInFilterList(sMsg))
+                {
+                    // 检测用户输入是否有非法字符
+                    PlayerSurfaceNpcSeams.GotoLable(this, User, "@InputStringFilter", false);
+                    return;
+                }
+            }
+            // 原文 2502：`// MainOutMessage('User.m_sString');` —— 原文如此，保留
+            // 原文 2503-2504
+            User.m_sString[nNo] = sMsg;
+            PlayerSurfaceNpcSeams.GotoLable(this, User, DelphiRTL.Copy(sLabel, 2, sLabel.Length - 1), false);
+        }
+    }
+
+    /// <summary>原文 `Self = g_MissionNPC` 同型的占位说明见 <see cref="UserSelectPortedArms"/>。</summary>
+    public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "", string sLabel = "")
     {
         switch (nNF)
         {
@@ -252,6 +371,10 @@ public partial class TMerchant
             case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
                 if (m_boofflinemsg)
                     AutoGetExp(PlayObject, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_Rmst:               // 原文 2717-2721（接受歌曲 → RemoteMsg）
+                if (m_boofflinemsg)
+                    RemoteMsg(PlayObject, sLabel, sMsg);
                 return true;
             default:
                 return false;
@@ -380,6 +503,56 @@ public partial class TMerchant
                     {
                         if (sMsg == "")
                             return false;
+                    }
+                    // 原文 2597-2631：**派发体前置段**（与 `case nNF_*` 派发体区分）
+                    //   —— `sNF_InputInteger` / `sNF_InputString` / `@@copytoclipboard` 三个**前缀识别**分支。
+                    //   ⚠ 这三条**将来会被派发体取代吗？不会** —— 它们按 `sLabel` 的**前缀**判定（`CompareLStr`），
+                    //   而派发体按 `g_NpcProcessCommand` 表**精确查表**；`@InputInteger1(...)` 这类带参标签
+                    //   根本不在表里（表里只有 `@@InputInteger`），故本节与派发体**并存**、各司其职。
+                    nCode = 10;
+                    if (MonGenParseCore.CompareLStr(sLabel, NpcProcessCmd.sNF_InputInteger,
+                            NpcProcessCmd.sNF_InputInteger.Length))
+                    {
+                        // 原文 2600：防止非法刷变量 2020-11-04 23:27:59
+                        if (boCanGoto || (NpcSeams.IsMissionNpc(this) && boAllowSelect))
+                        {
+                            nCode = 11;
+                            // 原文 2603
+                            if (sMsg.Length > 10)
+                            {
+                                NpcSeams.MainOutMessage($"{sLabel}长度错误; 用户:{PlayObject.m_sCharName}; 长度:{sMsg.Length}");
+                                return false;
+                            }
+                            // 原文 2608-2609
+                            InPutInteger(PlayObject, sLabel, sMsg);
+                            return false;
+                        }
+                    }
+                    else if (MonGenParseCore.CompareLStr(sLabel, NpcProcessCmd.sNF_InputString,
+                        NpcProcessCmd.sNF_InputString.Length))
+                    {
+                        // 原文 2614
+                        if (boCanGoto || (NpcSeams.IsMissionNpc(this) && boAllowSelect))
+                        {
+                            nCode = 12;
+                            // 原文 2617
+                            if (sMsg.Length > M2Config.nMaxInputStringLen)
+                            {
+                                NpcSeams.MainOutMessage($"{sLabel}长度错误; 用户:{PlayObject.m_sCharName}; 长度:{sMsg.Length}");
+                                return false;
+                            }
+                            // 原文 2622-2623
+                            InPutString(PlayObject, sLabel, sMsg);
+                            return false;
+                        }
+                    }
+                    else if (MonGenParseCore.CompareLStr(sLabel, "@@copytoclipboard", "@@copytoclipboard".Length))
+                    {
+                        // 原文 2628-2630：`Copy(sLabel, 2, MaxInt)` —— 去掉第 1 个字符后跳转
+                        nCode = 12;
+                        PlayerSurfaceNpcSeams.GotoLable(this, PlayObject,
+                            DelphiRTL.Copy(sLabel, 2, int.MaxValue), false);
+                        return false;
                     }
                     // 原文 2597 起是派发体（本方法不含）—— `true` = 继续派发
                     return true;
