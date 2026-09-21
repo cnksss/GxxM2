@@ -125,13 +125,21 @@ public static class P10FormReconcile
     }
 
     /// <summary>
-    /// 实测已知的"事件名 ↔ 承载字段名不同源"例外表（.NET 实现细节）。
-    /// `System.Windows.Forms.Timer.Tick` 由实例委托字段承载，字段名是 `onTimer`。
+    /// 实测已知的"事件名 ↔ 承载键/字段名**不同源**"例外表（.NET 实现细节）。
+    /// <list type="bullet">
+    /// <item>`System.Windows.Forms.Timer.Tick` 由**实例委托字段**承载，字段名是 `onTimer`；</item>
+    /// <item>★ `Control.TextChanged` 由**静态键**承载，键名是 `s_textEvent`（归一化后得到 `text`，
+    /// 与事件名 `TextChanged` 无法机械对齐）—— **本条由 p10 车道 uFrmRoleDataEdit 子车道实测发现
+    /// （跨区项 B-P10-21）**：修复前 <see cref="TryKeyed"/> 不查本表 ⇒ 该事件**恒计 0（假绿）**，
+    /// 实测 `uFrmRoleDataEdit` 的 DFM 35 条绑定被数成 31 条。现已让
+    /// <see cref="TryFieldLike"/> 与 <see cref="TryKeyed"/> **两条路都查本表**。</item>
+    /// </list>
     /// **只登记实测确认过的条目，不猜。**
     /// </summary>
     private static readonly Dictionary<(Type Type, string Event), string[]> KnownBackingFieldAliases = new()
     {
         [(typeof(System.Windows.Forms.Timer), "Tick")] = new[] { "onTimer", "_onTimer", "s_onTimer" },
+        [(typeof(System.Windows.Forms.Control), "TextChanged")] = new[] { "s_textEvent", "EventText" },
     };
 
     private static bool TryFieldLike(Type declaringType, object instance, string eventName)
@@ -152,11 +160,16 @@ public static class P10FormReconcile
     private static bool TryKeyed(System.ComponentModel.EventHandlerList? events, Type declaringType, string eventName)
     {
         if (events == null) return false;
+        // ★ 静态键这条路**也要**查别名表（B-P10-21）：`Control.TextChanged` 的键名是 `s_textEvent`，
+        //   归一化得 `text` ≠ `TextChanged` ⇒ 不查别名就会恒计 0（假绿）。
+        KnownBackingFieldAliases.TryGetValue((declaringType, eventName), out var aliases);
         foreach (var keyField in declaringType.GetFields(
                      BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
         {
             if (keyField.FieldType != typeof(object) && keyField.FieldType != typeof(int)) continue;
-            if (!IsKeyFieldNameFor(keyField.Name, eventName)) continue;
+            bool nameMatches = IsKeyFieldNameFor(keyField.Name, eventName)
+                || (aliases != null && aliases.Contains(keyField.Name, StringComparer.Ordinal));
+            if (!nameMatches) continue;
             object? key = keyField.GetValue(null);
             if (key != null && events[key] != null) return true;
         }
