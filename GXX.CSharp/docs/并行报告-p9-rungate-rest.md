@@ -13,11 +13,11 @@
 |---|---|
 | 裁定 | **4 个单元全部「不移植 + 证据」**，0 个 1:1 移植 |
 | 新建源码 | `GXX.CSharp/src/GXX.RunGate/Rest9/Rest9NotPortedEvidence.cs`（证据数据 + 3 个纯判定函数，**无运行时算法**） |
-| 新建测试 | `GXX.CSharp/tests/GXX.RunGate.Tests/Rest9NotPortedEvidenceTests.cs`（**30 例，全绿**） |
-| 新增测试用例 | **30** |
+| 新建测试 | `GXX.CSharp/tests/GXX.RunGate.Tests/Rest9NotPortedEvidenceTests.cs`（**31 例，全绿**） |
+| 新增测试用例 | **31** |
 | 改动文件数 | **3**（2 新建 + 本报告） |
-| `dotnet build GXX.slnx -c Debug` | 见 §5（0 error） |
-| `dotnet test tests\GXX.RunGate.Tests\...` | 见 §5 |
+| `dotnet build GXX.slnx -c Debug` | **0 error**（165 warnings，均来自既有文件） |
+| `dotnet test tests\GXX.RunGate.Tests\...` | **1922 通过 / 0 失败 / 0 跳过** |
 | 与 GatewayKit 的逐函数对照 | §2 |
 | 原文缺陷/易错点 | §3（7 条） |
 | 偏离登记 D-P9-xx | §4（6 条） |
@@ -356,16 +356,18 @@ dotnet build GXX.CSharp/GXX.slnx -c Debug --nologo -m:1 -p:BuildInParallel=false
 dotnet test GXX.CSharp/tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj -c Debug --nologo -m:1 -p:BuildInParallel=false
 ```
 
-**结果**
+**结果（最终门禁，实测输出）**
 
-| 门禁 | 结果 |
-|---|---|
-| `dotnet build GXX.slnx -c Debug` | **0 error**（152 warnings，全部来自其它车道的既有文件） |
-| `dotnet test GXX.RunGate.Tests`（全工程） | 见下方回填 |
-| 本车道切片（`--filter FullyQualifiedName~Rest9NotPortedEvidenceTests`） | `已通过! - 失败: 0，通过: 30，已跳过: 0，总计: 30` |
+| 门禁 | 命令 | 结果 |
+|---|---|---|
+| 门禁 1 | `dotnet build GXX.CSharp/GXX.slnx -c Debug --nologo -m:1 -p:BuildInParallel=false` | `已成功生成。` / **0 个错误** / 165 个警告（全部来自其它车道的既有文件） |
+| 门禁 2 | `dotnet test GXX.CSharp/tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj -c Debug --nologo -m:1 -p:BuildInParallel=false` | `已通过! - 失败: 0，通过: 1922，已跳过: 0，总计: 1922`（10 s） |
+| 本车道切片 | 同上 + `--filter FullyQualifiedName~Rest9NotPortedEvidenceTests` | `已通过! - 失败: 0，通过: 31，已跳过: 0，总计: 31` |
 
 > 内存受限提醒：全机仅约 1.1GB 空闲、5 条车道并行编译时，本车道的所有 `dotnet` 命令
-> **一律带 `-m:1 -p:BuildInParallel=false`**（调度方 2026 提醒），已实测可稳定通过。
+> **一律带 `-m:1 -p:BuildInParallel=false`**（调度方提醒），已实测可稳定通过。
+> 门禁 2 的 1922 例含本车道新增的 **31** 例（其余为本区既有车道 `p2-rungate-impl` / `p4-rungate-mirclient` 的用例，
+> 本车道**未改动任何一个既有测试文件**，因此它们全绿说明本车道没有引入回归）。
 
 ### 5.1 本车道的自我纠错记录（4 处，全部由取证用例抓出）
 
@@ -410,7 +412,7 @@ dotnet test GXX.CSharp/tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj -c Debug
 | 文件 | 大小 | 说明 |
 |---|---|---|
 | `GXX.CSharp/src/GXX.RunGate/Rest9/Rest9NotPortedEvidence.cs` | 约 20 KB | 四单元的证据数据（成员清单/行号/计数/调用点）+ 3 个纯判定函数（`UsesClauseContainsUnit`、`StripPascalComments`），**无运行时算法** |
-| `GXX.CSharp/tests/GXX.RunGate.Tests/Rest9NotPortedEvidenceTests.cs` | 约 38 KB | **30 例**，全部**直接读仓库里的 Delphi 原文 / C# 既有源码**重新抽取计数（不是 C# 自证），否定性断言全部先数总数再断言（§37.3） |
+| `GXX.CSharp/tests/GXX.RunGate.Tests/Rest9NotPortedEvidenceTests.cs` | 约 40 KB | **31 例**，全部**直接读仓库里的 Delphi 原文 / C# 既有源码**重新抽取计数（不是 C# 自证），否定性断言全部先数总数再断言（§37.3） |
 | `GXX.CSharp/docs/并行报告-p9-rungate-rest.md` | 本文件 | — |
 
 **未改动的文件数 = 0**（`GXX.slnx` / `*.csproj` / `Directory.Build.props` / `docs/Checklist.md` /
