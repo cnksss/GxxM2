@@ -3,8 +3,9 @@
 > 分支：`par/p4-rungate-mirclient` ｜ 工作树：`.worktrees/p4-rungate-mirclient`
 > 目标单元：`Source/RunGate/MirClientContext.pas`（GBK，**实测 11,125 LF / 11,126 物理行**）
 > 规程：`docs/转换开发文档.md`、`docs/并行派发台账.md` §9.4/§10/§11/§12、`docs/并行报告-p2-rungate-impl.md`
-> 状态：**build 0 error / RunGate.Tests 1,809 例 0 失败**；`CheckUsePlugin` 的 6 个 ident 族已移植
-> **3/6**（`CM_SITDOWN` / `CM_TURN` / `CM_SPELL`，见 **§10**），剩余 `CM_WALK` / `CM_RUN` / 攻击族。
+> 状态：**build 0 error / RunGate.Tests 1,845 例 0 失败**；`CheckUsePlugin` 的 6 个 ident 族已移植
+> **5/6**（`CM_WALK` / `CM_RUN` / `CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11**），
+> 仅剩**攻击族** 6690-7888。
 
 ---
 
@@ -95,7 +96,7 @@ git grep -l -E "(class|struct|enum|interface|delegate) +(partial +)?<TypeName>\b
 | 24d | ├ `else` 分支 | 9506-9516 | **已完成** | 同上 |
 | 24e | ├ **公共收尾**（所有分支共用） | **9521-9681** | **已完成**（提取为 `CheckUsePluginPostlude`，逐行等价） | 同上 |
 | 24f | ├ 异常兜底 | 9682-9686 | **已完成** | 同上 |
-| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **3/6 已移植**（`CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10**）；剩余 `CM_WALK` 3528-4696 / `CM_RUN` 4697-5857 / 攻击族 6690-7888 → 仍走 `UnportedIdentFamilies` 早退 | 同上 |
+| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **5/6 已移植**（`CM_WALK` / `CM_RUN` / `CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11**）；仅剩**攻击族** 6690-7888 → 仍走 `UnportedIdentFamilies` 早退 | 同上 |
 | 25 | `GetConcurrentPacketCount` | 9689-9708 | **已完成** | `MirClientContext.cs` |
 | 26 | `ClearConcurrentPacket` | 9710-9735 | **已完成** | 同上 |
 | 27 | `SendWarnMsg` | 9737-9745 | **已完成** | 同上 |
@@ -631,4 +632,101 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
   需要新加的参数只有：前导动作集合（各不同）、`dwTempInterval` 来源（`ActionList[].nInterval` vs
   `g_wActionSpeedIntervals[][…]` vs 攻击族的 hit 间隔表）、日志模板（是否带 `[攻击速度%s]`）。
 - **未做的验证**：与 §7.4 相同（无端到端回环；socket 侧仍走接缝）。
+
+---
+
+## 11. 第二轮续跑：`CM_RUN` + `CM_WALK` —— 已移植 **5/6**
+
+> 基线：main 上 `GXX.RunGate.Tests` **1,809 例**（第一轮 3 族并入后）→ 本轮 **1,845 例**（+21+17，其中 2 例从旧早退用例移出）。
+
+### 11.1 本轮 commit hash
+
+| # | hash | 内容 | 门禁 |
+|---|---|---|---|
+| 1 | `14146f2d` | **族 4 `CM_RUN`** 4694-5853 移植 + 21 例测试；`CollectSpeedDetect` 增 `SpeedStageCodes` 阶段码 | ✅ build 0 error / RunGate.Tests **1,829** |
+| 2 | `9a2558fb` | **族 1 `CM_WALK`** 3525-4692 移植 + 17 例测试 | ✅ build 0 error / RunGate.Tests **1,845** |
+| 3 | 本报告 §11 | 文档 | ✅ |
+
+**HEAD = `9a2558fb`**（文档提交紧随其后）。**0 新增失败**。
+
+### 11.2 逐族判定表（更新到 5/6）
+
+| 序 | 族 | 行区间 | 状态 | 早退表 | 落点 |
+|---|---|---|---|---|---|
+| 1 | `CM_WALK` | 3525-4692 | ✅ **已完成** | 删 1 行 | `CheckUsePluginWalk`（+ `RunFamilySpeedBlock` / `MoveSpeedInterval`） |
+| 2 | `CM_RUN` | 4694-5853 | ✅ **已完成** | 删 1 行 | `CheckUsePluginRun`（同上） |
+| 3 | `CM_TURN` | 5855-6681 | ✅ 已完成（§10） | — | `CheckUsePluginTurn` |
+| 4 | `CM_SPELL` | 7886-8995 | ✅ 已完成（§10） | — | `CheckUsePluginSpell` |
+| 5 | `CM_SITDOWN` | 8997-9469 | ✅ 已完成（§10） | — | `CheckUsePluginSitDown` |
+| 6 | **攻击族** | 6690-7888 | ❌ **未覆盖**（唯一剩余） | 1 行 | 仍早退 |
+
+`UnportedIdentFamilies` 现在**只剩 1 条判断**（攻击族）。
+
+### 11.3 `CM_WALK` vs `CM_RUN`：逐条差异（★ 本轮的核心，全部有独立断言）
+
+两族是"同构但不同"的一对；**没有照抄骨架**，差异逐条断言：
+
+| 差异 | CM_WALK | CM_RUN | 测试 |
+|---|---|---|---|
+| 基础/阶段 ErrorCode | 2 / 201 / 202 / 203 | 3 / 301 / 302 / 303 / 304 | （ErrorCode 不可观测，代码内注释；无伪造断言） |
+| `ConcurrentCount := 0` 与 `nCompensationValue := 0` 先后 | 并发计数在前（:3541/:3545） | 在前者相反（:4710/:4713）（D-W1/D-R1） | 同上（不可观测） |
+| 四个子块的 mode | amHitToWalk / amSpellToWalk / **amTurnToMove** / **amCutMeatToMove** | amHitToRun / amSpellToRun / **amTurnToMove** / **amCutMeatToMove** | ✅ 逐块断言 `LastLockAntiPlugActionMode` |
+| baHit 子块前置 ErrorCode | **有**（:3600 = 204） | **无**（D-W2） | 不可观测（注释） |
+| baSpell 子块的 `btJob <> 0` 守卫 | 有（:3782） | 有（:4950） | ✅ 两个族各一组（btJob=0 不判定 / ≠0 判定） |
+| 第五子块 | amWalk：**无** `if not boCollectSpeed` 包裹 | amRun：**有**（:5589，D-R3） | 该包裹恒真 → **无观测差异**（诚实结论，仅注释登记） |
+| 第五子块丢弃并发 | `Result := True` + Exit（:4367-4368） | 同（:5525-5526） | ✅ 两族各一例（返回值 True + 1 帧 + tick 未刷新 + FLastAction 未改） |
+| 第五子块 `boChangeMap` 抬升 | :4343 | :5501 | ✅ 两族各一例（抬到 `nInterval+10` 后不再判丢弃并发） |
+| 补偿池 | :4371-4418（nCompensationArr[amWalk]） | :5531-5578（amRun） | ✅ 累加 + Min 夹紧 + `<4` 清池 + 池夹紧 |
+| tick 刷新槽 | OldLastWalkTick + dwTicks[amWalk] + amWalkToHit + amWalkToSpell（:4684-4688） | OldLastRunTick + dwTicks[amRun] + amRunToHit + amRunToSpell（:5845-5849） | ✅ 基础用例逐个断言旧值槽与两个 ToXxx 槽 |
+| 尾部调试分支 | 8/9/10/11 + `else if amWalk.boDebug`（:4640） | 21/22/23/24 + `else if amRun.boDebug`（:5802） | ✅ 两族各两例（`am*` 分支对任意 `FLastAction` 成立 + hit 分支的 mode/槽） |
+| 共同点 | **都没有暗杀检测**；并发块都用 `amMoveConcurrent`；`*ToMove` 两个 mode 两族共用 | 同 | ✅ 两族各一例（满环 + 交替链也不触发 `ProcessAssasinate`） |
+
+### 11.4 本轮新增的原文缺陷（带行号，照抄不改）
+
+| 编号 | 位置 | 内容 |
+|---|---|---|
+| D-W1 / D-R1 | `:3541/:3545` vs `:4710/:4713` | 两族的 `ConcurrentCount := 0` 与 `nCompensationValue := 0` **顺序相反** |
+| D-W2 | `:3600` | WALK 的 baHit 子块有前置 `ErrorCode := 204`，RUN 的同一位置没有（不对称） |
+| D-R2 / D-W3 | `:5488` / `:4329` / `:4640` / `:5802` | `FLastAction = baRun/baWalk` 被 `{}` 注释 → 第五子块与尾部调试分支对**任意** FLastAction 成立 |
+| D-R3 | `:5589`（RUN）vs `:4430`（WALK） | RUN 的 amRun 子块把采集段包在 `if not boCollectSpeed then` 里（此时刚置 False → 恒真）；WALK 无此包裹 |
+| D-R4 | `:5694` 与 `:5746` | RUN 的 `ErrorCode := 323` **重复赋值两次**（WALK 处是 225 → 226） |
+| D-R5 | `:4767/:5126/:5306` vs `:4950` | RUN 四个子块里**只有 baSpell 有** `btJob <> 0`（WALK 相同） |
+| D-R6 | `:5845` / `:4684` | 先存 `OldLast*Tick := dwTicks[am*]` 再覆盖同一槽 |
+| D-R7 | `:5841` / `:4680` | `and (not Msg.boDelay)` 被 `{}` 注释（同 D-S3/D-T3） |
+| D-R8 | `:5804` | RUN 的 amRun 调试分支注释写的是"**走路**间隔"（:5492 写的是"跑行"）—— 复制粘贴遗留，已照抄并注释 |
+| D-R9 | `:7043` | RUN/WALK 之外的攻击族里 `dwCollectIntervalArr[amRunToHit, I]< 0` **缺空格**（原文笔误；移植时按语义写作 `< 0`） |
+
+### 11.5 结构性变更
+
+| 变更 | 说明 |
+|---|---|
+| `SpeedStageCodes`（新 struct） | CM_WALK/CM_RUN 每个子块在 6 个固定位置写 `ErrorCode := 2xx/3xx`（位置随子块不同）。为保持 1:1 又不复制采集体，`CollectSpeedDetect` 增加 `stages` 形参；**0 = 该位置原文没有赋值**（原文从未写过 `ErrorCode := 0`）。CM_TURN/CM_SPELL 传 `default`（它们没有阶段码） |
+| `MoveSpeedInterval(mode)` | `nMoveSpeed` 的三支取值（与 `SpellSpeedInterval` 同构） |
+| `RunFamilySpeedBlock(...)` | WALK/RUN 共用的子块包装（两族的四个子块体逐字相同，只有 mode/tick/阶段码/日志码不同） |
+| `CheckUsePluginWalk` / `CheckUsePluginRun` | 两族分支体（**各自独立写**，未共享：因为第五子块有实质差异 —— 见 §11.3） |
+
+### 11.6 未完成：攻击族 6690-7888（唯一剩余，含接管侦察结论）
+
+已完成的**侦察**（供接管者直接开工，不必重新摸索）：
+
+- **骨架**：`:6700-6707` 记录 `baHit` + `Inc`；`:6709-6771` **暗杀检测**（前导集合 `[baTurn, baCutMeat]`、
+  目标动作 `baHit` —— **与 CM_SPELL 的前导集合相同**）；`:6774-6816` **攻击并发块**（`amHitConcurrent`，
+  内部 `FLastAction = baHit` 时按 **`nAttackSpeed`** 取 `g_wActionSpeedIntervals[amHit][…]`）；
+  `:6819` 起 `if AntiPlugAction = nil then` 的按 `FLastAction` 子块链：
+  `baWalk → amWalkToHit`（:6822）、`baRun → amRunToHit`（:6997）、`baTurn → amTurnToHit`（:7155）、
+  `baCutMeat → amCutMeatToHit`（:?），末尾还有一个 `amHit` 子块（其 `FLastAction` 判据很可能同样被 `{}` 注释）。
+- **与已移植 5 族的实质差异**（★ 接管者最容易踩的坑）：
+  1. 子块里的"连续超速"段**不是** `boContinueSpeedCloseSocket` 版本，而是**旧写法**：
+     `if boCurrentSpeed then begin boContinueSpeed := dwCollectIntervalArr[…, idx-1] < 0;
+      if boContinueSpeed and (…idx-2… < 0) then begin ContinuousSpeed(…); Exit; end; end;`
+     （即其它族里被 `{}` 注释掉的那段，在攻击族**是活代码**）→ `CollectSpeedDetect` 的
+     `hasContinueSpeedBlock` **不能直接复用**，需要新增一种"旧式连续超速"分支。
+  2. `dwTempInterval` 用 **`nAttackSpeed`**（而不是 `nMoveSpeed`/`nSpellSpeed`）→ 需要
+     `AttackSpeedInterval(mode)`（与 `MoveSpeedInterval` 同构）。
+  3. 日志的 `ErrorCode` 是 **37/38/…**，且 `:7809-7847` 是"动作名 → 日志文本"的**二级 if 链**（20 种攻击动作）。
+  4. `:7043` 有一处原文笔误 `[amRunToHit, I]< 0`（缺空格）。
+- **仍然早退**（`UnportedIdentFamilies` 只剩它），行为 = 不判定 = 放行、**无副作用**，与移植前一致。
+- 行数口径：区间长度 1,199 行；按报告历史减法口径 725 行（两种口径的差额固定在这一族，见文件头说明）。
+- **未做的验证**：与 §7.4 相同（无端到端回环；socket 侧仍走接缝）。
+
 
