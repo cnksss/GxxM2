@@ -97,7 +97,10 @@ p11-logingate-filter	GXX.CSharp/src/GXX.GatewayKit/Rest11/**;GXX.CSharp/src/GXX.
 # ---- P13 (round 59): replaces the 1,917 bare `=> true;` stubs inside the 46 ObjMon*Core.cs.
 # It gets '!' grants on those EXISTING files on purpose: fixing them in place is the only correct
 # move -- creating a second ObjMon implementation would be a third copy of the unit (ledger 14.2).
-p13-m2-objmon-real	!GXX.CSharp/src/GXX.M2Server/ObjMon*Core.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/ObjMon*CoreTests.cs;GXX.CSharp/tests/GXX.M2Server.Tests/ObjMonReal*;GXX.CSharp/docs/并行报告-p13-m2-objmon-real.md
+p13-m2-objmon-real	!GXX.CSharp/src/GXX.M2Server/ObjMon*.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/ObjMon*;GXX.CSharp/docs/并行报告-p13-m2-objmon-real.md
+# (zone widened 2026-09-21: the lane added ObjMonRealSource.cs, a source-LINE reader that lets its
+#  assertions quote the real ObjMon.pas line instead of being bare `=> true;` -- that is exactly the
+#  right fix for the stub problem, and it is not a second implementation.)
 # ---- P13 (round 60): ObjPlayer.pas -- the largest refuted gap (49,232 lines / 4 classes /
 # 815 routines) and the documented TPlayObject bottleneck (ledger 18.7).  Its partial port already
 # lives in Engine/PlayerSurface/**, so that directory gets a '!' grant: extending the existing
