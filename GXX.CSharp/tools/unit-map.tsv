@@ -21,13 +21,8 @@ ObjNpc	par/p4-m2-objnpc
 RunGateUtils	par/p2-rungate-impl
 IocpWinsock2	par/p2-rungate-impl
 IocpUtils	par/p2-rungate-impl
-IocpTcpClient	par/p2-rungate-impl
-IocpTcpServer	par/p2-rungate-impl
 IocpCommon	par/p2-rungate-impl
 uBuffer	par/p2-rungate-impl
-IODataPool	par/p2-rungate-impl
-Qos	par/p2-rungate-impl
-DllUpdateCommon	par/p2-rungate-impl
 uFrmGameSpeed	par/p2-rungate-impl
 uFrmSafeFilter	par/p2-rungate-impl
 uFrmMagicCD	par/p2-rungate-impl
@@ -41,8 +36,7 @@ uFrmAddProcessBlack	par/p2-rungate-impl
 uFrmHitInterval	par/p2-rungate-impl
 uFrmAntiPlugUpdateSetting	par/p2-rungate-impl
 # NOTE: ParadoxDataSet.pas exists in BOTH RunGate and GameCenter (same basename,
-# 1240 lines each).  No lane owns it yet -- deliberately left UNMAPPED so the
-# duplicate-source decision is made once, by the integrator.
+# 1240 lines each).  Ported ONCE into GXX.Core by par/p6-core-paradox.
 # ---- P3 wave, still in flight ----
 MySqlM2DataDB	par/p3-m2-dbdata
 SqliteM2DataDB	par/p3-m2-dbdata
@@ -52,29 +46,13 @@ DIB	par/p3-dx-big
 DxMemo	par/p3-dx-big
 Nations	par/p3-m2-sweep
 PowerBase64	par/p3-m2-sweep
-ItemEvent	par/p3-m2-sweep
 MemoryModuleEx	par/p3-m2-sweep
 GameGoldDealDB	par/p3-m2-sweep
 HTTPService	par/p3-m2-sweep
-PathFindClient	par/p3-m2-sweep
-PathFind_Hero	par/p3-m2-sweep
 M2Locker	par/p3-m2-sweep
-ObjDummy	par/p3-m2-sweep
-ObjRobot	par/p3-m2-sweep
 ObjGuard	par/p3-m2-sweep
-ObjFireDragon	par/p3-m2-sweep
-UserShopDB_Old	par/p3-m2-sweep
-ConfigMerchant	par/p3-m2-sweep
-ViewHeroRcd	par/p3-m2-sweep
-ViewKernelInfo	par/p3-m2-sweep
-uAliyunSendSMSThread	par/p3-m2-sweep
-DataManage	par/p3-m2-sweep
 M2Threads	par/p3-m2-sweep
-NoticeM	par/p3-m2-sweep
-StruckDamageAbsorbUtils	par/p3-m2-sweep
 StringListHelper	par/p3-m2-sweep
-ClientPickItemsCfg	par/p3-m2-sweep
-ConfigMonGen	par/p3-m2-sweep
 # ---- DxComponent tree, owned wholesale by one lane ----
 # DONE (landed on main, now detected by E1/E2 -- rows removed):
 #   DxMagicBall, AsphyreTimer, StreamClipbrd, DxControlClpbrd
@@ -83,8 +61,38 @@ DxImageButtonEx	par/p2-dxcontrols-rest
 DxSwitchButton	par/p2-dxcontrols-rest
 DxGroupAttackProgress	par/p2-dxcontrols-rest
 # PENDING integrator decision (lane judged "not worth porting"; NOT yet accepted):
-LoginDlg	par/p2-dxcontrols-rest
 GuiManage	par/p2-dxcontrols-rest
+LoginDlg	par/p2-dxcontrols-rest
 # ---- P5 wave ----
 MirReturnConfigDlg	par/p5-client-mirreturn
 uFrmCustomMagic	par/p5-m2-custommagic
+#
+# ---- P9 wave (2026-09-21, round 50): the TRUE remainder after the 30-unit
+# sweep.  Every row below was re-measured on main @ b48e4c43 with
+# tools/audit-coverage.ps1 and is still ASSIGNED (no E1/E2 evidence), i.e. a
+# real gap -- the P3/P2 lanes that used to hold them are merged and CLOSED.
+# Reassigned rather than duplicated: each unit keeps exactly one owner row.
+#
+# M2Engine leftovers that stayed unported when par/p3-m2-sweep closed:
+ObjDummy	par/p9-m2-monsters
+ObjRobot	par/p9-m2-monsters
+ObjFireDragon	par/p9-m2-monsters
+PathFindClient	par/p9-m2-pathfind
+PathFind_Hero	par/p9-m2-pathfind
+ClientPickItemsCfg	par/p9-m2-pathfind
+StruckDamageAbsorbUtils	par/p9-m2-pathfind
+UserShopDB_Old	par/p9-m2-datalayer
+ItemEvent	par/p9-m2-datalayer
+DataManage	par/p9-m2-datalayer
+ConfigMerchant	par/p9-m2-forms
+ViewHeroRcd	par/p9-m2-forms
+ViewKernelInfo	par/p9-m2-forms
+NoticeM	par/p9-m2-forms
+ConfigMonGen	par/p9-m2-forms
+uAliyunSendSMSThread	par/p9-m2-forms
+uFrmClientPlugManager	par/p9-m2-forms
+# RunGate leftovers that stayed unported when par/p2-rungate-impl closed:
+IODataPool	par/p9-rungate-rest
+Qos	par/p9-rungate-rest
+IocpTcpClient	par/p9-rungate-rest
+DllUpdateCommon	par/p9-rungate-rest

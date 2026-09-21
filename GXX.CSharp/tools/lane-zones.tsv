@@ -50,3 +50,11 @@ p7-db-selectclient	!GXX.CSharp/src/GXX.DBServer/SelectClient*.cs;!GXX.CSharp/src
 # ---- P8 wave: remaining whole-unit gaps from the ledger section 18.4 triage ----
 p8-m2-dummysetting	!GXX.CSharp/src/GXX.M2Server/Forms/DummySetting/**;!GXX.CSharp/tests/GXX.M2Server.Tests/DummySetting*;!GXX.CSharp/docs/并行报告-p8-m2-dummysetting.md
 p8-m2-itemprop-misc	!GXX.CSharp/src/GXX.M2Server/Forms/ItemProperty/**;!GXX.CSharp/src/GXX.M2Server/Misc/SellPlayer*.cs;!GXX.CSharp/src/GXX.Core/Encoding/**;!GXX.CSharp/src/GXX.M2Server/Engine/M2ShareFuncs.cs;!GXX.CSharp/src/GXX.M2Server/Forms/ViewOnlineHumanForm.cs;!GXX.CSharp/src/GXX.Core/Util/FastIniFile.cs;!GXX.CSharp/src/GXX.Core/Util/TStringList.cs;GXX.CSharp/src/GXX.M2Server/Misc/StringListHelper*.cs;GXX.CSharp/tests/GXX.M2Server.Tests/ItemProperty*;GXX.CSharp/tests/GXX.M2Server.Tests/SellPlayer*;GXX.CSharp/tests/GXX.M2Server.Tests/StringListHelper*;!GXX.CSharp/tests/GXX.M2Server.Tests/FormViewOnlineHumanTests.cs;!GXX.CSharp/tests/GXX.Core.Tests/EncodingHelper*;!GXX.CSharp/docs/并行报告-p8-m2-itemprop-misc.md
+# ---- P9 wave (2026-09-21): the true remainder, reassigned after the P3/P2
+# lanes closed.  Every zone below is NEW FILES ONLY (no '!' grants), so a P9
+# lane can never touch a file that another writer already owns.
+p9-m2-monsters	GXX.CSharp/src/GXX.M2Server/Sweep9/Monsters/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9Monsters*;GXX.CSharp/docs/并行报告-p9-m2-monsters.md
+p9-m2-pathfind	GXX.CSharp/src/GXX.M2Server/Sweep9/PathFind/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9PathFind*;GXX.CSharp/docs/并行报告-p9-m2-pathfind.md
+p9-m2-datalayer	GXX.CSharp/src/GXX.M2Server/Sweep9/DataLayer/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9DataLayer*;GXX.CSharp/docs/并行报告-p9-m2-datalayer.md
+p9-m2-forms	GXX.CSharp/src/GXX.M2Server/Sweep9/Forms/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9Forms*;GXX.CSharp/docs/并行报告-p9-m2-forms.md
+p9-rungate-rest	GXX.CSharp/src/GXX.RunGate/Rest9/**;GXX.CSharp/tests/GXX.RunGate.Tests/Rest9*;GXX.CSharp/docs/并行报告-p9-rungate-rest.md
