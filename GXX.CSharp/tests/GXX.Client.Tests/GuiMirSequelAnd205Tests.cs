@@ -398,7 +398,7 @@ public sealed class GuiMirNewUI205Tests
         GuiSta.Run(() =>
         {
             var w = Make();
-            var self = new THumActor();
+            var self = new TActor();   // ★ p17-client-actor 切片3：原 new THumActor()（基类替身应直接用 TActor）
             GXX.Client.GUI.Mir.ActorUiFields.SetGold(self, 500);
             MShareGlobals.g_MySelf = self;
             MShareGlobals.GetGoldStrHandler = g => "G" + g;
@@ -430,7 +430,7 @@ public sealed class GuiMirNewUI205Tests
         GuiSta.Run(() =>
         {
             var w = Make();
-            var self = new THumActor();
+            var self = new TActor();   // ★ p17-client-actor 切片3：原 new THumActor()
             GXX.Client.GUI.Mir.ActorUiFields.SetGold(self, 1);
             GXX.Client.GUI.Mir.ActorUiFields.SetGameGold(self, 2000);
             MShareGlobals.g_MySelf = self;
@@ -470,7 +470,7 @@ public sealed class GuiMirNewUI205Tests
         GuiSta.Run(() =>
         {
             var w = Make();
-            var self = new THumActor();
+            var self = new TActor();   // ★ p17-client-actor 切片3：原 new THumActor()
             GXX.Client.GUI.Mir.ActorUiFields.SetGameGold(self, 2000);
             MShareGlobals.g_MySelf = self;
             MShareGlobals.GetGoldStrHandler = g => "S" + g;
@@ -500,7 +500,7 @@ public sealed class GuiMirNewUI205Tests
         GuiSta.Run(() =>
         {
             var w = Make();
-            var self = new THumActor();
+            var self = new TActor();   // ★ p17-client-actor 切片3：原 new THumActor()
             MShareGlobals.g_MySelf = self;
             MShareGlobals.GetGoldStrHandler = g => g.ToString();
             MShareGlobals.g_ConfigClient.boShowBagGameInfo = 1;
