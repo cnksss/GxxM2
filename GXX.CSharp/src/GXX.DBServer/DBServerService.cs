@@ -48,6 +48,11 @@ public class DBServerService : IGateUiService
     /// ★ **本类当前只建实例，不自动 OpenConnect**：`IIDSocClientSocket` 适配器尚未提供，
     ///   调用它只会抛（那是接缝的正确默认）。启停接线留给宿主，见报告 §14.4。
     /// </summary>
+    /// <summary>
+    /// `IDSocCli` 的四组宿主设施（socket / 两个定时器 / 在线数）—— 见构造里的说明。
+    /// </summary>
+    private readonly IDSocCliHost _idSocHost;
+
     public TFrmIDSoc FrmIDSoc { get; }
 
     private readonly ConcurrentDictionary<int, TcpLink> _gateLinks = new();
@@ -72,22 +77,20 @@ public class DBServerService : IGateUiService
         // `FrmIDSoc: TFrmIDSoc`（DBShare.pas 全局；原文 DBServer.dpr:36 `Application.CreateForm(TFrmIDSoc, FrmIDSoc)`）。
         // 做完这一步，`CM_QUERYCHR`/`CM_RANDOMNAME`/`CM_NEWCHR`/`CM_DELCHR`/`CM_SELCHR` 不再抛
         // NotSupportedException，而是按会话表**真实判定**；`%X` 也回到原文的清理分支。
-        // （`DBShare.pas` 名校验族仍未接线 ⇒ `CM_NEWCHR` 走到名校验时会抛。）
         //
         // ★ 不调用 `FrmIDSoc.FormCreate()`：那两行要动**定时器接缝**（宿主设施，默认抛），
         //   而构造阶段"定时器尚未安装"本身就是 `Enabled = False` 的同一状态 ⇒ 见偏差 D-p7-15。
         FrmIDSoc = new TFrmIDSoc();
         IDSocCliSeam.FrmIDSoc = FrmIDSoc;
 
-        // ★ 诚实提示（只提示一次）：`IDSocCliSeam.IDSocket` 是**宿主设施**（JSocket/TClientSocket 未移植），
-        //   默认抛。在它接线之前 TFrmIDSoc 连不上 LoginSrv ⇒ **会话表恒为空** ⇒
-        //   凡需 `CheckSession` 的命令都会被**拒绝**（回 OutOfConnect / SM_QUERYCHR_FAIL），
-        //   **不是**被放行 —— 方向是刻意的（宁拒不放）。接缝签名见报告 §14.4。
-        if (IDSocCliSeam.IDSocket == null)
-        {
-            SendLog("提示：IDSocCliSeam.IDSocket 未接线（JSocket/TClientSocket 未移植）⇒ 全局会话表将恒为空，"
-                  + "凡需校验会话的命令都会被拒绝（不会放行）。", 2);
-        }
+        // ★★ 2026 第 5 轮：`IDSocCli` 的 **4 组宿主设施全部接线**（`IDSocCliHost`）——
+        //   `IDSocket`（TcpLink 适配器）+ `Timer1`(3000ms) + `KeepAliveTimer`(10ms) + `GetSelectCharCount`。
+        //   ⇒ 全局会话表**会被 LoginSrv 的真实推送填充**，6 条走 `CheckSession` 的命令不再被无条件拒绝。
+        //   `GetSelectCharCount` 取 SelGate 连接数 —— 对应原文 `DBSUSETHREAD=0` 分支下的
+        //   `SelectSocket.Socket.ActiveConnections`（uFrmMain.pas:434-453）。
+        //   **注意**：构造**不发起连接**（`TcpLink` 构造是惰性的）；真正连出去发生在 `StartService` → `OpenConnect`。
+        _idSocHost = new IDSocCliHost(FrmIDSoc, () => _gateLinks.Count,
+                                      IDSocCliSeam.g_sIDServerAddr, IDSocCliSeam.g_nIDServerPort);
     }
 
     public RoleDatabase Roles => _roles;
@@ -113,6 +116,10 @@ public class DBServerService : IGateUiService
             _m2Thread = new Thread(M2AcceptLoop) { IsBackground = true, Name = "DBServer-M2" };
             _m2Thread.Start();
 
+            // `uFrmMain.pas:909 FrmIDSoc.OpenConnect;`（服务启动 ⇒ 连 LoginSrv/ID 服务器并开 Timer1）。
+            // ★ 非阻塞：适配器把阻塞的 `TcpLink.Connect()` 派发到后台线程（偏差 D-p7-16）。
+            FrmIDSoc.OpenConnect();
+
             SendLog($"数据库服务器启动（SelGate 端口 {GatePort}，M2 数据端口 {M2Port}）");
             return true;
         }
@@ -126,6 +133,15 @@ public class DBServerService : IGateUiService
     public void StopService()
     {
         _running = false;
+        // `uFrmMain.pas:960 FrmIDSoc.CloseConnect;`（服务停止 ⇒ 关 Timer1 并断开 ID 服务器连接）。
+        // ★ **必须在 `_idSocHost.Dispose()` 之前**：`CloseConnect` 要动定时器与 socket 接缝。
+        // 本方法会被 `Dispose()` 调用，届时 `_idSocHost` 仍然存活 ⇒ 正常路径不会撞"未接线即抛"。
+        try { FrmIDSoc.CloseConnect(); }
+        catch (NotSupportedException ex)
+        {
+            // 不静默：只有"宿主已把接缝拆掉之后又调 StopService"才会走到这里（正常路径不可达）。
+            SendLog("停止服务：IDSocCli 接缝未接线，跳过 CloseConnect —— " + ex.Message, 2);
+        }
         try { _gateListener?.Close(); } catch { }
         try { _m2Listener?.Close(); } catch { }
         foreach (var kv in _gateLinks) kv.Value.Close();
@@ -291,7 +307,11 @@ public class DBServerService : IGateUiService
 
     public void Dispose()
     {
+        // 顺序关键：`StopService` 里要调 `FrmIDSoc.CloseConnect()`（动定时器与 socket 接缝）
+        // ⇒ 必须在 `_idSocHost.Dispose()`（会把接缝还原成"未接线即抛"）**之前**。
         StopService();
+        _idSocHost.Dispose();
+
         // 断开 `g_RoleDB.HumanDB/HeroDB` 与 `FrmIDSoc`，避免留下指向已释放对象的悬垂接缝。
         SelectClientRoleDbSeam.DetachRoleDatabase();
         if (ReferenceEquals(IDSocCliSeam.FrmIDSoc, FrmIDSoc)) IDSocCliSeam.FrmIDSoc = null;
