@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GXX.Core;
 using GXX.Core.Protocol;
 using GXX.Core.Rtl;
 using GXX.DBServer;
@@ -219,15 +220,16 @@ public class SelectClientHostWiringTests : TempDirTest
     }
 
     [Fact]
-    public void 帧X_命中槽位时也抛_因为CloseUser要问IDSocCli会话状态()
+    public void 帧X_命中槽位时不抛_跳过清理_留痕_且不断连接()
     {
-        // ★ 这是 §12 里最容易漏掉的一条影响面：`CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）
-        //   在**命中槽位**时会碰 FrmIDSoc ⇒ SelGate 每次"用户离开"都会抛，
-        //   经 `FeedSafe` 被接住后**断开整条 SelGate 连接**（一个连接上通常挂着多个玩家）。
-        //   原文这一小段是**清理通知**（"会话已失效 → 叫 LoginSrv 关掉它"），不是校验判定；
-        //   是否有必要为它单独放宽，由集成方裁定（本车道按裁定 (a) 保持抛）。
+        // ★ 裁定（偏差 **D-p7-13**，唯一窄口子）：`CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）
+        //   在 FrmIDSoc 未接线时 **记日志 + 跳过清理 + 继续**，**不抛**、**不断连接**。
+        //   理由：它只决定"要不要发一条清理通知"，不是校验判定；而抛出去的代价是
+        //   **整条 SelGate 连接被断开**（一条连接上通常挂着多个无关玩家）。
+        //   其余接缝（CheckSession / 名校验族 / 主动网关路由）**一条都不放宽** —— 见本文件的另两条用例。
         using var srv = new DBServerService(Path2("host.db"));
-        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
         byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
         SelectClientGateWiring.Feed(c, open, 0, open.Length);
         c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
@@ -235,9 +237,66 @@ public class SelectClientHostWiringTests : TempDirTest
         byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
         Exception? ex = SelectClientGateWiring.FeedSafe(c, close, 0, close.Length);
 
-        Assert.IsType<NotSupportedException>(ex);
-        Assert.Contains("IDSocCli", ex!.Message);
-        Assert.Equal("", c.m_sReceiveText);                                       // 帧被完整吃掉后再抛
+        Assert.Null(ex);                                                          // 不抛
+        Assert.Equal(1, SelectClientGateWiring.Count);                            // 绑定还在 ⇒ 宿主没有 Detach
+        Assert.Empty(sent);                                                       // 清理通知确实被跳过（没发包给 LoginSrv）
+        Assert.Contains(Logs, s => s.Contains("D-p7-13") && s.Contains("99"));     // 每次触发都留痕，带编号与会话号
+        Assert.Equal(0, c.SelectCharList.OnLineCount);                            // 槽位照常回收（原文 :719 的 Finalize 仍然执行）
+        Assert.Equal("", c.m_sReceiveText);
+    }
+
+    [Fact]
+    public void 帧X_命中槽位但FrmIDSoc已接线时_回到原文分支()
+    {
+        // 对照组：一旦 IDSocCli 移植并接线，窄口子自动失效（`CloseUser_ShouldCloseSession` 直接问 FrmIDSoc）。
+        using var srv = new DBServerService(Path2("host.db"));
+        var idSoc = new FakeFrmIDSoc { SessionStatus = false };                    // 会话已失效 ⇒ 应当清理
+        IDSocCliSeam.FrmIDSoc = idSoc;
+        try
+        {
+            var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+            byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+            SelectClientGateWiring.Feed(c, open, 0, open.Length);
+            c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
+            c.SelectCharList.OnLineItems(0)!.sAccount = "acct";
+
+            byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
+            Assert.Null(SelectClientGateWiring.FeedSafe(c, close, 0, close.Length));
+
+            Assert.Single(idSoc.SocketMsgs);
+            Assert.Equal((ushort)CommonConst.SS_SOFTOUTSESSION, idSoc.SocketMsgs[0].Ident);
+            Assert.Single(idSoc.ClosedSessions);
+            Assert.DoesNotContain(Logs, s => s.Contains("D-p7-13"));               // 接线后不留 D-p7-13 痕迹
+        }
+        finally
+        {
+            IDSocCliSeam.Reset();
+        }
+    }
+
+    [Fact]
+    public void 帧X_会话仍活跃时不做清理()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+        var idSoc = new FakeFrmIDSoc { SessionStatus = true };
+        IDSocCliSeam.FrmIDSoc = idSoc;
+        try
+        {
+            var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+            byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+            SelectClientGateWiring.Feed(c, open, 0, open.Length);
+            c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
+
+            byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
+            Assert.Null(SelectClientGateWiring.FeedSafe(c, close, 0, close.Length));
+
+            Assert.Empty(idSoc.SocketMsgs);                                       // 原文 `if not ...Status` 为假 ⇒ 不清理
+            Assert.Single(idSoc.StatusCalls);
+        }
+        finally
+        {
+            IDSocCliSeam.Reset();
+        }
     }
 
     [Fact]
