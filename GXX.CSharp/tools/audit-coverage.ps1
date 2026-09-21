@@ -195,7 +195,7 @@ $PARTIAL_UNITS = @(
     # blocker (the seven FStateMShareSeam globals) -- done, plus 15 more, plus 2 seam bodies.
     # 185 class methods all remain (image/resource loaders, HTTP and user-centre families whose
     # host types are themselves unported) -- do NOT fake them with unconsumed shells.
-    ,'MShare'          # 21/353 routines = 5.95% (globals ~49.6%)
+    ,'MShare'          # 39/168 unit routines = 23.21% (globals ~231/~460 = ~50%)
     # ledger 62.4 / B-9 (lane p14-client-fstate, round 4): of the 428 dedup names still throwing in
     # TFrmDlg, EXACTLY 220 are declared `virtual; abstract` in the original with NO body anywhere in
     # the unit (verified by line-scanning the whole TFrmDlg class body: 220 abstract + 208 concrete,

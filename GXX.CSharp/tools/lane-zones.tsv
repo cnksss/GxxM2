@@ -151,3 +151,8 @@ p17-client-mshare	!GXX.CSharp/src/GXX.Client/GUI/Mir/ClientGlobals.cs;!GXX.CShar
 p18-m2-monsterworld	!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;!GXX.CSharp/src/GXX.M2Server/Engine/Envir.cs;!GXX.CSharp/src/GXX.M2Server/Engine/UsrEngn.cs;!GXX.CSharp/src/GXX.M2Server/Program.cs;GXX.CSharp/src/GXX.M2Server/Engine/MonsterWorld/**;GXX.CSharp/tests/GXX.M2Server.Tests/MonsterWorld*;!GXX.CSharp/tests/GXX.M2Server.Tests/MonsterRun*;!GXX.CSharp/docs/并行报告-p18-m2-monsterworld.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1
+# ---- P18b (round 77): ObjHero.pas (14,664 lines / ONE class THeroObject at :13 extending TSmartObject /
+# 136 routines) -- the last large REFUTED server unit besides ObjMon.  Its home is a NEW Engine/Hero/**
+# directory; the existing PlayerSurface/TPlayObject.PlayerSurface.Hero.cs only holds TPlayObject-side hero
+# FIELDS (ObjPlayer.pas:372-380) and needs extension for cross-references.
+p18-m2-objhero	!GXX.CSharp/src/GXX.M2Server/Engine/Hero/**;!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/TPlayObject.PlayerSurface.Hero.cs;GXX.CSharp/tests/GXX.M2Server.Tests/Hero*;!GXX.CSharp/docs/并行报告-p18-m2-objhero.md
