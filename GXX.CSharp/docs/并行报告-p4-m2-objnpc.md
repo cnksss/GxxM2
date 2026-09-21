@@ -1812,3 +1812,86 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 - **本轮未落任何代码**：普查发现 §20.2/§20.3 两处前置需裁定，故**停下报告**（与第十三轮同做法）。
 - 工作树**干净**，最后一次提交 `4ceb74b0` **全绿**（9,308 例），**无** `WIP` 提交。
 - `UserSelect` 登记**继续 `Missing`**（未变）。
+---
+
+# 21. 第十五轮（切片 37）：`TNormNpc.UserSelect` 基类落点 + **对裁定前提的修正** + 偏差 D37 ★ 本节优先于 §20
+
+## 21.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 37 | `8a9dc8e3` | `TNormNpc.UserSelect`(9807-9835) **真实现**（虚分派链基类落点）+ 新接缝 `GetCastleUnderWar`（偏差 **D37**）+ 17 用例 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,325 passed / 0 failed**。越区检查为空。
+
+## 21.2 ★★ 对裁定 (1) 前提的修正：基类实体**实测只有 30 行**，故落**真实现**而非外壳
+
+裁定 (1) 选"只落虚外壳 + 接缝"，前提写的是"**基类实体（9807 起）长度未测**"。动手前先测：
+
+| 项 | 实测 |
+|---|---|
+| `TNormNpc.UserSelect` 实体长度 | **9807-9835 = 30 行** |
+| 依赖 | **全部已就位**：`m_nScriptGotoCount`（第七轮补的字段）、`HUtil32.GetValidStr3_Ex`（`HUtil32.cs:303`）、`GotoLable` 接缝、`m_sScriptCurrLable`/`m_sScriptGoBackLable`、`NpcProcessCmd.sNF_Back` |
+| 需要的新接缝 | **0 个** |
+
+⇒ **直接落真实现**，比"外壳 + 一次性接缝"更省：**少一个必须日后删除的接缝**，且**多收口一条登记**（`9807` Missing → **Covered**）。
+> 若调度方仍偏好外壳形态：删除实体体、改为转发接缝即可，**两处调用点不变**（已在代码注释写明）。
+
+## 21.3 裁定要求的**动手前核查**：`UserSelect` 覆写链共 **4 处**（已全仓 `.pas` 搜过）
+
+| 原文行 | 形态 | 属主 |
+|---|---|---|
+| `:305` | `procedure UserSelect(...); **virtual**;` | **`TNormNpc`**（虚声明） |
+| `:411` | `override;`（声明区） | `TMerchant` |
+| `:444` | `override; // FFEA`（声明区） | `TGuildOfficial` |
+| `:481` | `override; // FFEA`（声明区） | `TCastleOfficial` |
+| `:9807` | 实现体 | **`TNormNpc`** ← 本轮落地 |
+| `:1186` | 实现体 | `TCastleOfficial` |
+| `:2087` | 实现体 | `TMerchant` |
+| `:10101` | 实现体 | `TGuildOfficial` |
+
+⇒ 覆写者是 **`TMerchant`/`TGuildOfficial`/`TCastleOfficial` 三个**（声明区 411/444/481 与实现体一一对应，**无第四者**）。
+托管侧这三者都还存在且都未移植 `UserSelect` —— 它们日后落 `override` 时 `inherited` 会落到本轮这个基类体上 ✅（**虚链完整**）。
+
+**已验证**：`UserSelect_IsVirtual`（反射 `IsVirtual`）；`UserSelect_IsOverridableViaBaseCall`
+（用派生 `ProbeNpc` 覆写并调 `base`，断言**基类体真的被执行**）—— 直接针对"**只写外壳不接 `base` = 完全无效果**"那条实测教训。
+
+## 21.4 照抄的原文细节（9811-9831）
+
+- **9811 在 9814 之前** → 非标签串也归零 `m_nScriptGotoCount`（已单测）。
+- **9816** `GetValidStr3_Ex(sData, sLabel, #13)`：**原地改 `ref sLabel`**、返回剩余串；本方法**丢弃**剩余串。**照抄 `ref` 语义**，未改成"返回元组"风格。
+- **9819 的守卫在 9821 之先** → 若 `CurrLable` 恰等于 `@back`，清栈逻辑**根本不执行**（已写**差异断言**）。
+- **9823-9824 赋值顺序照抄**（先存旧值进 `GoBackLable`，再覆盖 `CurrLable`）。
+- **9826-9831 只清一层**（`CurrLable <> ''` 清 `CurrLable`，否则清 `GoBackLable`）。
+- **9817-9818 `@HeroMap` 特殊直跳** `GotoLable`，**不**走标签栈（已单测栈未动）。
+
+## 21.5 ★ 偏差 **D37**：`GetCastleUnderWar` 接缝（裁定 B①，默认**抛异常**）
+
+| 项 | 内容 |
+|---|---|
+| **编号** | **D37** |
+| **位置** | `Npc/ObjNpcSeams.cs`（`Func<object,bool> GetCastleUnderWar`） |
+| **原文** | `ObjNpc.pas:2533` `TUserCastle(m_Castle).m_boUnderWar` |
+| **为何不落字段** | `TUserCastle` 已移植，但该字段的**赋值点在未移植的城堡战逻辑里** → 加字段会**恒为 false**，即"伪装成正式归属的**静默中性值**"，比接缝更糟 |
+| **默认行为** | **抛 `NotSupportedException`**（台账 §25.2）——未接线时**立即暴露**，不静默 false |
+| **删除条件（可执行）** | 当 `TUserCastle.m_boUnderWar` 落地**且赋值点接通**时删除本接缝、改直读。判据：`grep -n 'm_boUnderWar' src/GXX.M2Server/Engine/Castle.cs` 出现**赋值**（`=` 左侧）而非仅声明 |
+| **触发面（窄路径，明确写出）** | **`m_boCastle = true` 的城堡 NPC 调用 `UserSelect` 时目前会抛**；绝大多数 NPC 的 `m_boCastle` 为假，**不会走到**该接缝 |
+
+## 21.6 覆盖口径
+
+| 口径 | 切片 34 | **切片 37** |
+|---|---|---|
+| Covered / 112 | 66 | **67** |
+| Seam / 112 | 4 | **4** |
+| Missing / 112 | 42 | **41** |
+
+**`UserSelect` 三条（`TMerchant` 2087 / `TGuildOfficial` 10101 / `TCastleOfficial` 1186）继续 `Missing`** ✅（派发体未落地）。
+累计去替身：§13 减 8、§14 减 1、§17 减 2、§19 减 1、**本轮 ±0**（按裁定新增 D37）。
+
+## 21.7 下一轮
+
+仍待办：**`TMerchant.UserSelect` 解析段 2526-2566 + 门控链 2569-2590**（易抄错点清单见 §20.4）。
+**本轮新查出的额外依赖**（供下轮直接申请）：
+- `g_FunctionNPC` —— 已在 `DamageHealthCore.cs:78` 出现（**他人文件**），需确认托管暴露形态；
+- `g_ManageNPC` —— **全仓缺** → 需 **1 个新接缝**；
+- `g_MissionNPC` —— 本车道已有（`ObjNpcLabels.cs:64`）。
