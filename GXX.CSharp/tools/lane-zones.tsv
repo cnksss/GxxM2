@@ -94,3 +94,9 @@ p12-e2only-review	GXX.CSharp/docs/并行报告-p12-e2only-review.md
 # MUST be kept, so every new facility has to be OPT-IN and must never unify/replace SelGate
 # behaviour.  LoginGate has no test project of its own -> tests go in GXX.GatewayKit.Tests.
 p11-logingate-filter	GXX.CSharp/src/GXX.GatewayKit/Rest11/**;GXX.CSharp/src/GXX.LoginGate/Rest11/**;GXX.CSharp/tests/GXX.GatewayKit.Tests/Rest11*;GXX.CSharp/docs/并行报告-p11-logingate-filter.md
+# ---- P13 (round 59): replaces the 1,917 bare `=> true;` stubs inside the 46 ObjMon*Core.cs.
+# It gets '!' grants on those EXISTING files on purpose: fixing them in place is the only correct
+# move -- creating a second ObjMon implementation would be a third copy of the unit (ledger 14.2).
+p13-m2-objmon-real	!GXX.CSharp/src/GXX.M2Server/ObjMon*Core.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/ObjMon*CoreTests.cs;GXX.CSharp/tests/GXX.M2Server.Tests/ObjMonReal*;GXX.CSharp/docs/并行报告-p13-m2-objmon-real.md
+# READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
+stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1

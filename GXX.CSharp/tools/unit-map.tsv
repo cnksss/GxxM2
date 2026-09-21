@@ -83,3 +83,9 @@ GateSet	par/p10-m2-misc
 #      a 1:1 port would need 13 out-of-zone seams) -> moved to $VENDOR_UNITS, NOT re-parked here.
 LoginGate/Misc	par/p11-logingate-filter
 LoginGate/FuncForComm	par/p11-logingate-filter
+#
+# ---- P13 (round 59): ObjMon.pas was proven NOT ported (204 routines, 0 real implementations;
+# the 46 ObjMon*Core.cs hold ~1,917 bare `=> true;`).  The unit stays in $E2_REFUTED (so it never
+# reads MAPPED again) AND gets a lane row, so it is visible in both the REFUTED gap list and the
+# in-flight table.  Do NOT register the other six refuted giants here until lanes exist for them.
+ObjMon	par/p13-m2-objmon-real
