@@ -398,4 +398,264 @@ public sealed class ActorHumActorTests : IDisposable
     {
         Assert.Equal(5002, THumActor.CM_TAKEHORSE);   // Common/Grobal2.pas:446
     }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 9. Create（11130-11210）—— 切片 3c
+    // ══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Create_FrameTimeIs150UnlikePlainActor()
+    {
+        // ★ 对照：TActor 的 m_dwFrameTime 保持 0；THumActor.Create 11147 把它置 150
+        Assert.Equal(0u, new TActor().m_dwFrameTime);
+        Assert.Equal(150u, new THumActor().m_dwFrameTime);
+    }
+
+    [Fact]
+    public void Create_ThreeEffectIndexesAreMinusOneButDbWeaponOffsetIsZero()
+    {
+        var hum = new THumActor();
+
+        Assert.Equal(-1, hum.m_nDressEffectIndex);        // 11151
+        Assert.Equal(-1, hum.m_nWeaponEffectIndex);       // 11152
+        Assert.Equal(-1, hum.m_nShieldEffectIndex);       // 11154
+        Assert.Equal(-1, hum.m_nMedalEffectIndex);        // 11162
+        // ★ 同段里 11153 写的是 **0**，不是 -1
+        Assert.Equal(0, hum.m_wDBWeaponEffectOffSet);
+    }
+
+    [Fact]
+    public void Create_UsesTwoDifferentClocksInTheSameConstructor()
+    {
+        // ★ 11148 用 TimeGetTime()；11184 用 MyGetTickCount —— 两个不同接缝
+        ActorNpcEnv.TimeGetTimeFn = () => 1111;
+        ActorNpcEnv.MyGetTickCountFn = () => 2222;
+
+        var hum = new THumActor();
+
+        Assert.Equal(1111u, hum.m_dwFrameTick);              // 11148
+        Assert.Equal(2222u, hum.m_nDressAddEffectLastTick);   // 11184
+    }
+
+    [Fact]
+    public void Create_AddDressEffectKitDefaults()
+    {
+        var hum = new THumActor();
+
+        Assert.Equal(-1, hum.m_nDressAddEffectIndex);   // 11176
+        Assert.Equal(0, hum.m_bDressAddEffectOrder);    // 11177
+        Assert.Equal(0, hum.m_wDressAddEffectOffSet);   // 11178
+        Assert.Equal(0, hum.m_wDressAddEffectCount);    // 11179
+        Assert.Equal(0, hum.m_wDressAddEffectTime);     // 11180
+        Assert.False(hum.m_boDressAddEffectNoBlend);    // 11181
+        Assert.Equal(0, hum.m_nDressAddEffectCurIndex); // 11183
+    }
+
+    [Fact]
+    public void Create_NoBlendAndNoSexSwitchesAllFalse()
+    {
+        var hum = new THumActor();
+
+        Assert.False(hum.m_boDressEffectNoBlend);         // 11157
+        Assert.False(hum.m_boDressEffectNoSex);           // 11158
+        Assert.False(hum.m_boWeaponEffectNoBlend);        // 11159
+        Assert.False(hum.m_boWeaponEffectNoSex);          // 11160
+        Assert.False(hum.m_boMedalEffectNoBlend);         // 11163
+        Assert.False(hum.m_boMedalEffectNoSex);           // 11164
+        Assert.False(hum.m_boShieldEffectNoBlend);        // 11169
+        Assert.False(hum.m_boShieldEffectNoSex);          // 11170
+        // ★ 三个 *DrawNoBlend 是**另一组**字段（11172-11174）
+        Assert.False(hum.m_boDressEffectDrawNoBlend);
+        Assert.False(hum.m_boWeaponEffectDrawNoBlend);
+        Assert.False(hum.m_boShieldEffectDrawNoBlend);
+    }
+
+    [Fact]
+    public void Create_TrainingJewelryAndGodBlessDefaults()
+    {
+        var hum = new THumActor();
+
+        Assert.False(hum.m_boTrainingNG);       // 11186
+        Assert.False(hum.m_boTrainingXF);       // 11187
+        Assert.Equal(TJewelryBoxStatus.jbsNoActive, hum.m_nJewelryBoxStatus);   // 11189
+        Assert.False(hum.m_boShowGodBless);     // 11190
+    }
+
+    [Fact]
+    public void Create_ZeroesNgAlcoholAndMeridianStructs()
+    {
+        var hum = new THumActor();
+
+        // 11192-11194 的三处 FillChar(...,0)
+        Assert.Equal(0, hum.m_AbilNG.Level);
+        Assert.Equal(0, hum.m_AbilNG.NH);
+        Assert.Equal(0, hum.m_AbilNG.MaxNH);
+        Assert.Equal(0u, hum.m_AbilNG.Exp);
+        Assert.Equal(0, hum.m_Alcohol.Alcohol);
+        Assert.Equal(0, hum.m_Alcohol.MedicineLevel);
+        Assert.Equal(0, hum.m_HumMeridians[0].Level);
+        Assert.Equal(0, hum.m_HumMeridians[4].Level);   // array[0..4] 的末项
+    }
+
+    [Fact]
+    public void Create_HeroM2AndBrokenShieldDefaults()
+    {
+        var hum = new THumActor();
+
+        Assert.Equal(0, hum.m_wHeroM2DressEffect);        // 11196
+        Assert.False(hum.m_boHeroM2DressNoBlend);         // 11197
+        Assert.Equal(0, hum.m_wOldHeroM2DressEffect);     // 11199
+        Assert.False(hum.m_boOldHeroM2DressNoBlend);      // 11200
+        Assert.Equal(0, hum.m_nHeroM2DressEffectX);       // 11202
+        Assert.Equal(0, hum.m_nHeroM2DressEffectY);       // 11203
+        Assert.Null(hum.m_HeroM2DressEffect);             // 11204
+        Assert.False(hum.m_boBrokenShield);               // 11206
+    }
+
+    [Fact]
+    public void Create_WeaponEffectFlagFalseAndShopStallSurfacesUntouched()
+    {
+        var hum = new THumActor();
+
+        Assert.False(hum.m_boWeaponEffect);      // 11146
+        Assert.Null(hum.m_HairSurface);          // 11133
+        Assert.Null(hum.m_WeaponSurface);        // 11134
+        Assert.Null(hum.m_ShieldSurface);        // 11135
+        Assert.Null(hum.m_HorseSurface);         // 11137
+        Assert.Null(hum.m_HorseWingsEffectSurface);   // 11138
+        Assert.Null(hum.m_HorseEffectSurface);        // 11139
+        Assert.Null(hum.m_HorseHairSurface);          // 11141
+        Assert.Null(hum.m_HorseHumSurface);           // 11142
+        Assert.Null(hum.m_HumWinSurface);             // 11144
+        Assert.Null(hum.m_HumWinSurface_30);          // 11145
+        // ★ Create 11133-11145 **不清** m_ShopStallSurface / m_ShopHeadSurface
+        //   （它们只在 Finalize 11244-11245 被清）—— 此处它们仍为字段默认 null，
+        //   该不对称由 Finalize 侧用例（Create 不清 ⇒ Finalize 清）正向锁定。
+        Assert.Null(hum.m_ShopStallSurface);
+        Assert.Null(hum.m_ShopHeadSurface);
+    }
+
+    [Fact]
+    public void Create_FriendHitListIsCreatedAndEmpty()
+    {
+        var hum = new THumActor();
+
+        Assert.NotNull(hum.m_FriendHitList);    // 11209 TStringList.Create
+        Assert.Empty(hum.m_FriendHitList);
+    }
+
+    [Fact]
+    public void Create_RecordsNotPortedForUnportedInheritedCreate()
+    {
+        // ★ 11132 的 `inherited Create` 指向 TActor.Create(2777-2944, 168 行)，**未移植**
+        //   ⇒ 构造函数里显式留痕，使"跳过了 168 行基类初始化"可观测（而非静默省略）
+        TActorCore.NotPortedCapture = new List<string>();
+        try
+        {
+            _ = new THumActor();
+
+            Assert.Contains("TActor.Create(inherited@11132)@2777", TActorCore.NotPortedCapture);
+        }
+        finally
+        {
+            TActorCore.NotPortedCapture = null;
+        }
+    }
+
+    [Fact]
+    public void HeroActorInheritsHumActorConstruction()
+    {
+        // 原文 2049 THeroActor : THumActor ⇒ 也走 THumActor.Create
+        Assert.Equal(150u, new THeroActor().m_dwFrameTime);
+        Assert.Equal(-1, new THeroActor().m_nDressEffectIndex);
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 10. Destroy / Initialize / Finalize（11212-11258）—— 切片 3c
+    // ══════════════════════════════════════════════════════════════════════
+
+    [Fact]
+    public void Destroy_ClearsFriendHitListAndReachesBaseSlot()
+    {
+        TActorCore.NotPortedCapture = new List<string>();
+        try
+        {
+            var hum = new THumActor();
+            hum.m_FriendHitList.Add("someone");
+
+            hum.Destroy();
+
+            Assert.Empty(hum.m_FriendHitList);                       // 11215
+            Assert.Contains("Destroy@2945", TActorCore.NotPortedCapture);   // 11214 落到 NotPorted 槽位
+        }
+        finally
+        {
+            TActorCore.NotPortedCapture = null;
+        }
+    }
+
+    [Fact]
+    public void Initialize_DoesNotAlterFields()
+    {
+        var hum = new THumActor { m_dwFrameTime = 777, m_nFrame = 5 };
+
+        hum.Initialize();      // 11220：只有 inherited Initialize（基类空体）
+
+        Assert.Equal(777u, hum.m_dwFrameTime);
+        Assert.Equal(5, hum.m_nFrame);
+    }
+
+    [Fact]
+    public void Finalize_ClearsThirteenTextureSlotsIncludingShopStallOnes()
+    {
+        var hum = new THumActor();
+        hum.m_HairSurface = "a";                  // 11230
+        hum.m_WeaponSurface = "b";                // 11231
+        hum.m_ShieldSurface = "c";                // 11232
+        hum.m_HorseSurface = "d";                 // 11234
+        hum.m_HorseWingsEffectSurface = "e";      // 11235
+        hum.m_HorseEffectSurface = "f";           // 11236
+        hum.m_HorseHairSurface = "g";             // 11238
+        hum.m_HorseHumSurface = "h";              // 11239
+        hum.m_HumWinSurface = "i";                // 11241
+        hum.m_HumWinSurface_30 = "j";             // 11242
+        hum.m_ShopStallSurface = "k";             // 11244 ★ Create 不清、Finalize 清
+        hum.m_ShopHeadSurface = "l";              // 11245 ★ 同上
+        hum.m_HeroM2DressEffect = "m";            // 11246 ★ 同上
+
+        hum.Finalize();
+
+        Assert.Null(hum.m_HairSurface);
+        Assert.Null(hum.m_WeaponSurface);
+        Assert.Null(hum.m_ShieldSurface);
+        Assert.Null(hum.m_HorseSurface);
+        Assert.Null(hum.m_HorseWingsEffectSurface);
+        Assert.Null(hum.m_HorseEffectSurface);
+        Assert.Null(hum.m_HorseHairSurface);
+        Assert.Null(hum.m_HorseHumSurface);
+        Assert.Null(hum.m_HumWinSurface);
+        Assert.Null(hum.m_HumWinSurface_30);
+        Assert.Null(hum.m_ShopStallSurface);
+        Assert.Null(hum.m_ShopHeadSurface);
+        Assert.Null(hum.m_HeroM2DressEffect);
+    }
+
+    [Fact]
+    public void Finalize_NullsPlayEffectTexturesButKeepsQueueLength()
+    {
+        var hum = new THumActor();
+        var e1 = hum.m_ActorEffects.Add();
+        var e2 = hum.m_ActorEffects.Add();
+        e1.Texture = "t1";
+        e2.Texture = "t2";
+
+        hum.Finalize();
+
+        // ★ 11248-11257：只把 Texture 置 nil，**既不置 boWantDelete 也不清空队列**
+        Assert.Null(e1.Texture);
+        Assert.Null(e2.Texture);
+        Assert.False(e1.boWantDelete);
+        Assert.False(e2.boWantDelete);
+        Assert.Equal(2, hum.m_ActorEffects.Items.Count);
+    }
 }

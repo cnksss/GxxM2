@@ -49,9 +49,20 @@ public sealed class ActorFamilyBaseTests : IDisposable
     // 构造工具
     // ══════════════════════════════════════════════════════════════════════
 
-    /// <summary>最小的 TActor 实例（用现成的 THumActor 作载体，避免新造类型）。
-    /// ★ 车道 p7-client-actor-family：本体已接上虚槽位，故返回类型由 TActorCore 收紧为 <see cref="TActor"/>。</summary>
-    private static TActor NewActor() => new THumActor();
+    /// <summary>
+    /// 最小的 <see cref="TActor"/> 实例。
+    ///
+    /// <para><b>★ 车道 p17-client-actor 切片 3 的次序修正（D-P17-02）</b>：此处原为
+    /// <c>new THumActor()</c> —— 那是"把派生类当基类替身用"。在 <c>THumActor</c> 只有
+    /// <c>ActorClass</c> 时它恰好等价于 <c>TActor</c>，但一旦给 <c>THumActor</c> 补上原文的
+    /// <c>override</c>（<c>CalcActorFrame</c> 11338 / <c>LoadSurface</c> 14532 /
+    /// <c>DrawChr</c> 16501 / <c>Run</c> 14084 / <c>GetDefaultFrame</c> 13217 …），
+    /// 本文件的断言就会**静默改成在测派生类** —— 而本文件每一条断言标的都是
+    /// <b><c>TActor</c> 本体</b>（5480-5593 / 6067-6129 / 6788-6901 / 6903-7095）。
+    /// 故**先**改成直接构造 <c>TActor</c>，**再**给派生类加 <c>override</c>
+    /// —— 反过来（改测试以适配实现）会把"多态调用点变空操作"伪装成通过（台帐 §63.1）。</para>
+    /// </summary>
+    private static TActor NewActor() => new TActor();
 
     private static TMonsterClientAction Act(int start, int play, int empty, int actionFile = -1)
         => new()

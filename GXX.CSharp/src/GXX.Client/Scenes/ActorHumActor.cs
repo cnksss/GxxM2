@@ -46,6 +46,209 @@ public partial class THumActor : TActor
     public override string ActorClass => "THumActor";
 
     // ══════════════════════════════════════════════════════════════════════
+    // 0/12  Create  ——  Actor.pas 11130-11210（81 行）
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// `THumActor.Create`（**11130-11210，81 行**）1:1（C# 构造函数承载 Delphi 构造器）。
+    ///
+    /// <para><b>流程与顺序（顺序即语义）</b>：</para>
+    /// <list type="number">
+    /// <item><b>11132 <c>inherited Create;</c></b> —— 指向 <c>TActor.Create</c>（**2777-2944，168 行**），
+    ///   而该本体**尚未移植**（<c>TActorCore</c> 上没有 <c>Create</c> 成员）⇒ 此处**没有可转调的目标**，
+    ///   以 <c>NotPorted("…", 2777)</c> **显式留痕**（台帐 §48.1），使"跳过了 168 行基类初始化"
+    ///   在运行期可观测，而不是静默省略。</item>
+    /// <item><b>11133-11145</b>：10 个纹理槽置 nil（头发/武器/盾牌/坐骑四件/人物窗两件）。
+    ///   ★ <c>m_ShopStallSurface</c>/<c>m_ShopHeadSurface</c>/<c>m_HeroM2DressEffect</c>
+    ///   在 <c>Create</c> 里**不清**（只在 <c>Finalize</c> 11244-11246 清）—— 这一**不对称**逐字保留。</item>
+    /// <item><b>11146-11150</b>：<c>m_boWeaponEffect := False</c>；<c>m_dwFrameTime := 150</c>；
+    ///   <c>m_dwFrameTick := TimeGetTime()</c>；<c>m_nFrame := 0</c>；<c>m_nHumWinOffset := 0</c>。</item>
+    /// <item><b>11151-11155</b>：三个 EffectIndex 置 <b>-1</b>、<c>m_wDBWeaponEffectOffSet := 0</c>
+    ///   （★ **0 而非 -1**，与同段三个 -1 形成对照）、<c>m_OnShopStall := nil</c>。</item>
+    /// <item><b>11157-11181</b>：NoBlend/NoSex 开关全 False；<c>m_nMedalEffectIndex := -1</c>；
+    ///   两个 DIY 字节置 0；三个 <c>*DrawNoBlend</c> 置 False；
+    ///   附加衣服特效六件套（Index <b>-1</b> / Order 0 / OffSet 0 / Count 0 / Time 0 / NoBlend False）。</item>
+    /// <item><b>11183-11184</b>：<c>m_nDressAddEffectCurIndex := 0</c>；
+    ///   ★ <c>m_nDressAddEffectLastTick := MyGetTickCount</c> —— **另一个时钟**，
+    ///   与 11148 的 <c>TimeGetTime</c> **不是同一个接缝**（本工程两者可分设，已用测试夹住）。</item>
+    /// <item><b>11186-11194</b>：内功/心法开关 False；首饰盒 <c>jbsNoActive</c>；神佑袋 False；
+    ///   三段 <c>FillChar(..., SizeOf(...), 0)</c>（内功属性 / 酒属性 / 人物经络）⇒ 托管侧 <c>default</c>。</item>
+    /// <item><b>11196-11206</b>：HeroM2 五件 + <c>m_boBrokenShield := False</c>；
+    ///   ★ <b>11207 是一个孤立的 <c>;</c></b>（原文如此，无副作用）。</item>
+    /// <item><b>11209</b>：<c>m_FriendHitList := TStringList.Create;</c> ⇒ 托管侧该字段是
+    ///   <c>readonly List&lt;string&gt;</c>（<c>ActorMessages.cs:55</c>）**已在字段初始化器里建好**，
+    ///   故此处不赋值（语义等价，且 <c>readonly</c> 不允许）。</item>
+    /// </list>
+    ///
+    /// <para><b>对既有测试的影响（已核对，见 D-P17-02）</b>：本构造函数把 <c>m_dwFrameTime</c>
+    /// 从 0 改成 150、把四个 EffectIndex 从 0 改成 -1。切片 3a 已把"把 <c>THumActor</c> 当
+    /// <c>TActor</c> 替身"的 5 处测试（<c>ActorFamilyBaseTests.NewActor()</c> 与
+    /// <c>GuiMirSequelAnd205Tests</c>×4）改成直接构造 <c>TActor</c>，故这些改值**不再影响**那些断言；
+    /// 本切片另加用例**正向**锁住新初值。</para>
+    /// </summary>
+    public THumActor()
+    {
+        // 11132：inherited Create → TActor.Create（2777-2944，168 行）**未移植**，显式留痕
+        NotPorted(SourceLine2777_InheritedCreate, 2777);
+
+        // 11133-11145：纹理槽（headless 无 TTexture，以 object? 承载）
+        m_HairSurface = null;                        // 11133
+        m_WeaponSurface = null;                      // 11134
+        m_ShieldSurface = null;                      // 11135 盾牌 chongchong 2013-09-16
+
+        m_HorseSurface = null;                       // 11137 骑马 chongchong 2013-10-12
+        m_HorseWingsEffectSurface = null;            // 11138 骑马 马特效 chongchong 2013-10-16
+        m_HorseEffectSurface = null;                 // 11139
+
+        m_HorseHairSurface = null;                   // 11141 骑马 马上人物的头发 chongchong 2013-10-17
+        m_HorseHumSurface = null;                    // 11142 骑马 马上人物 chongchong 2013-10-17
+
+        m_HumWinSurface = null;                      // 11144
+        m_HumWinSurface_30 = null;                   // 11145
+
+        m_boWeaponEffect = false;                    // 11146
+        m_dwFrameTime = 150;                         // 11147
+        m_dwFrameTick = ActorNpcEnv.TimeGetTimeFn(); // 11148 TimeGetTime()
+        m_nFrame = 0;                                // 11149
+        m_nHumWinOffset = 0;                         // 11150
+
+        m_nDressEffectIndex = -1;                    // 11151 长发发光效外观wil 编号
+        m_nWeaponEffectIndex = -1;                   // 11152
+        m_wDBWeaponEffectOffSet = 0;                 // 11153 ★ 0 而非 -1（2020-11-11 00:51:03）
+        m_nShieldEffectIndex = -1;                   // 11154
+        m_OnShopStall = null;                        // 11155
+
+        m_boDressEffectNoBlend = false;              // 11157
+        m_boDressEffectNoSex = false;                // 11158
+        m_boWeaponEffectNoBlend = false;             // 11159
+        m_boWeaponEffectNoSex = false;               // 11160
+
+        m_nMedalEffectIndex = -1;                    // 11162 勋章发光效外观wil 编号
+        m_boMedalEffectNoBlend = false;              // 11163
+        m_boMedalEffectNoSex = false;                // 11164
+
+        m_btCboDressUseDiyImage = 0;                 // 11166
+        m_btCboWeaponUseDiyImage = 0;                // 11167
+
+        m_boShieldEffectNoBlend = false;             // 11169
+        m_boShieldEffectNoSex = false;               // 11170
+
+        m_boDressEffectDrawNoBlend = false;          // 11172
+        m_boWeaponEffectDrawNoBlend = false;         // 11173
+        m_boShieldEffectDrawNoBlend = false;         // 11174
+
+        m_nDressAddEffectIndex = -1;                 // 11176 附加衣服特效
+        m_bDressAddEffectOrder = 0;                  // 11177 附加衣服特效绘制顺序
+        m_wDressAddEffectOffSet = 0;                 // 11178 附加衣服特效偏移
+        m_wDressAddEffectCount = 0;                  // 11179 附加衣服特效数量
+        m_wDressAddEffectTime = 0;                   // 11180 附加衣服特效时间
+        m_boDressAddEffectNoBlend = false;           // 11181 附加衣服特效 - 普通绘制
+
+        m_nDressAddEffectCurIndex = 0;               // 11183
+        m_nDressAddEffectLastTick = ActorNpcEnv.MyGetTickCountFn();   // 11184（★ 另一个时钟）
+
+        m_boTrainingNG = false;                      // 11186 是否学习过内功
+        m_boTrainingXF = false;                      // 11187 是否学习过心法
+
+        m_nJewelryBoxStatus = TJewelryBoxStatus.jbsNoActive;   // 11189 chongchong 2013-10-19
+        m_boShowGodBless = false;                    // 11190 chongchong 2014-04-18
+
+        m_AbilNG = default;                          // 11192 FillChar(m_AbilNG, SizeOf(TAbilityNG), 0)
+        m_Alcohol = default;                         // 11193 FillChar(m_Alcohol, SizeOf(TAbilityAlcohol), 0)
+        m_HumMeridians = default;                    // 11194 FillChar(m_HumMeridians, SizeOf(THumMeridians), 0)
+
+        m_wHeroM2DressEffect = 0;                    // 11196 HeroM2 ChangeDressEffect
+        m_boHeroM2DressNoBlend = false;              // 11197
+
+        m_wOldHeroM2DressEffect = 0;                 // 11199
+        m_boOldHeroM2DressNoBlend = false;           // 11200
+
+        m_nHeroM2DressEffectX = 0;                   // 11202
+        m_nHeroM2DressEffectY = 0;                   // 11203
+        m_HeroM2DressEffect = null;                  // 11204
+
+        m_boBrokenShield = false;                    // 11206
+        // 11207：原文此处是一个**孤立的 `;`**（空语句）—— 逐字保留为注释，不加任何副作用。
+
+        // 11209：m_FriendHitList := TStringList.Create
+        //   托管侧 m_FriendHitList 是 readonly List<string>（ActorMessages.cs:55），
+        //   已在字段初始化器里建好 ⇒ 此处不重复赋值（语义等价）。
+    }
+
+    /// <summary>
+    /// 11132 的 <c>NotPorted</c> 留痕名：它留痕的是**未移植的 <c>TActor.Create</c>**
+    /// （不是本类的 <c>Create</c> —— 本类 <c>Create</c> 已 1:1 落地）。
+    /// 名字里带原文行号，以免与 <c>NotPortedLog</c> 既有三条例目混淆。
+    /// </summary>
+    private const string SourceLine2777_InheritedCreate = "TActor.Create(inherited@11132)";
+
+    // ══════════════════════════════════════════════════════════════════════
+    // 0b/12  Destroy / Initialize / Finalize  ——  Actor.pas 11212-11258
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// `THumActor.Destroy`（**11212-11216**）1:1。
+    /// <para>11214 <c>inherited Destroy</c> → <c>TActor.Destroy</c>（2945-2968，25 行）**未移植**
+    /// （<c>TActorCore.Destroy()</c> 上是 <c>NotPorted(2945)</c> 槽位），故 <c>base.Destroy()</c>
+    /// 会记一条留痕。</para>
+    /// <para>11215 <c>m_FriendHitList.Free</c> ⇒ 托管侧该字段是 <c>readonly List&lt;string&gt;</c>，
+    /// "释放"的等价动作是 <c>Clear()</c>（对象由 GC 回收，且 <c>readonly</c> 不允许置 nil）。</para>
+    /// </summary>
+    public override void Destroy()
+    {
+        base.Destroy();                    // 11214 inherited Destroy（→ NotPorted(2945) 留痕）
+        m_FriendHitList.Clear();           // 11215 m_FriendHitList.Free（见 D-P17-10）
+    }
+
+    /// <summary>
+    /// `THumActor.Initialize`（**11218-11221**）：**只有 <c>inherited Initialize</c> 一句**。
+    /// <para>转调 <c>TActor.Initialize</c>（5420-5423，**空体**，原文如此）⇒ 本方法净效果是
+    /// "什么都不做"，但**必须显式转调**：原文是虚方法链，若省略则一旦基类实体变化就会静默绕过。</para>
+    /// </summary>
+    public override void Initialize()
+    {
+        base.Initialize();                 // 11220
+    }
+
+    /// <summary>
+    /// `THumActor.Finalize`（**11223-11258，36 行**）1:1。
+    ///
+    /// <para><b>顺序即语义</b>：11228 先 <c>inherited Finalize</c>，**再**清纹理槽。
+    /// 清理清单与 <c>Create</c> 11133-11145 **不对称** —— 这里**多了**
+    /// <c>m_ShopStallSurface</c>(11244) / <c>m_ShopHeadSurface</c>(11245) / <c>m_HeroM2DressEffect</c>(11246)
+    /// 三个，逐字保留。</para>
+    ///
+    /// <para><b>11248-11257 的队列段</b>：<c>m_ActorEffects</c> 加锁遍历，**只把每项
+    /// <c>Texture := nil</c>**，既不置 <c>boWantDelete</c> 也不清空队列
+    /// ⇒ 由 <see cref="ActorPlayEffectQueue.FinalizeEffects"/> 1:1 承载（已用测试夹住"队列长度不变"）。</para>
+    /// </summary>
+    public override void Finalize()
+    {
+        base.Finalize();                           // 11228
+
+        m_HairSurface = null;                      // 11230
+        m_WeaponSurface = null;                    // 11231
+        m_ShieldSurface = null;                    // 11232 盾牌 chongchong 2013-09-16
+
+        m_HorseSurface = null;                     // 11234 骑马 chongchong 2013-10-12
+        m_HorseWingsEffectSurface = null;          // 11235 骑马 马特效 chongchong 2013-10-16
+        m_HorseEffectSurface = null;               // 11236
+
+        m_HorseHairSurface = null;                 // 11238 骑马 马上人物的头发 chongchong 2013-10-17
+        m_HorseHumSurface = null;                  // 11239 骑马 马上人物 chongchong 2013-10-17
+
+        m_HumWinSurface = null;                    // 11241
+        m_HumWinSurface_30 = null;                 // 11242
+
+        m_ShopStallSurface = null;                 // 11244（★ Create 不清这三个）
+        m_ShopHeadSurface = null;                  // 11245
+        m_HeroM2DressEffect = null;                // 11246
+
+        // 11248-11257：脚本命令播放特效——逐项 Texture := nil（不置 boWantDelete、不清队列）
+        m_ActorEffects.FinalizeEffects();
+    }
+
+    // ══════════════════════════════════════════════════════════════════════
     // 1/8  UseMagicDelayTime  ——  Actor.pas 13121-13134（14 行）
     // ══════════════════════════════════════════════════════════════════════
 
@@ -296,4 +499,100 @@ public partial class TActorCore
     /// <summary>`m_nDressAddEffectX` / `m_nDressAddEffectY`（原文 13452-13455 的 <c>out</c> 偏移）。</summary>
     public int m_nDressAddEffectX;
     public int m_nDressAddEffectY;
+
+    // ──────────────────────────────────────────────────────────────────────
+    // THumActor.Create（11130-11210）/ Finalize（11223-11258）直接读写
+    // ──────────────────────────────────────────────────────────────────────
+
+    /// <summary>`m_HairSurface` / `m_WeaponSurface` / `m_ShieldSurface`（11133-11135；11230-11232 清）。</summary>
+    public object? m_HairSurface;
+    public object? m_WeaponSurface;
+    public object? m_ShieldSurface;
+
+    /// <summary>坐骑四件：`m_HorseSurface`(11137) / `m_HorseWingsEffectSurface`(11138) /
+    /// `m_HorseEffectSurface`(11139) / `m_HorseHairSurface`(11141) / `m_HorseHumSurface`(11142)。</summary>
+    public object? m_HorseSurface;
+    public object? m_HorseWingsEffectSurface;
+    public object? m_HorseEffectSurface;
+    public object? m_HorseHairSurface;
+    public object? m_HorseHumSurface;
+
+    /// <summary>`m_HumWinSurface` / `m_HumWinSurface_30`（11144-11145；11241-11242 清；
+    /// 11264/11273 的 <c>DrawDressEffect</c> 读）。</summary>
+    public object? m_HumWinSurface;
+    public object? m_HumWinSurface_30;
+
+    /// <summary>`m_ShopStallSurface` / `m_ShopHeadSurface`（原文 **Create 不清**、只在 11244-11245 清）。</summary>
+    public object? m_ShopStallSurface;
+    public object? m_ShopHeadSurface;
+
+    /// <summary>`m_HeroM2DressEffect`（11196-11204 一族；11246 清）。</summary>
+    public object? m_HeroM2DressEffect;
+
+    /// <summary>`m_dwFrameTick`（11148 初值 <c>TimeGetTime()</c>；<c>DefaultMotion</c> 13144 的节流基准）。</summary>
+    public uint m_dwFrameTick;
+
+    /// <summary>`m_nFrame`（11149 初值 0；<c>DefaultMotion</c> 的自增游标）。</summary>
+    public int m_nFrame;
+
+    /// <summary>`m_nHumWinOffset`（11150 初值 0）。</summary>
+    public int m_nHumWinOffset;
+
+    /// <summary>`m_OnShopStall:TNotifyEvent`（11155 置 nil；原文 2042 是属性
+    /// <c>OnShopStall read m_OnShopStall write m_OnShopStall</c>）。</summary>
+    public Action? m_OnShopStall;
+
+    /// <summary>`m_boDressEffectDrawNoBlend` / `m_boWeaponEffectDrawNoBlend` / `m_boShieldEffectDrawNoBlend`
+    /// （11172-11174）。<para>与既有的 <c>m_boDressEffectNoBlend</c> 等**是两组不同字段**
+    /// （前者是"绘制时"开关，后者是"效果"开关），不可合并。</para></summary>
+    public bool m_boDressEffectDrawNoBlend;
+    public bool m_boWeaponEffectDrawNoBlend;
+    public bool m_boShieldEffectDrawNoBlend;
+
+    /// <summary>
+    /// `m_boMedalEffectDrawNoBlend`（原文声明 **1400**；使用点 11297；
+    /// 赋值点 **16307** `<c>m_boMedalEffectDrawNoBlend := m_boMedalEffectNoBlend;</c>`，在 <c>LoadSurface</c> 段内）。
+    /// <para>★ 它与 <c>m_boMedalEffectNoBlend</c>（已存在于 <c>PlaySceneActors.cs:164</c>）**是两个字段**：
+    /// 后者是配置来源，前者是绘制判据 —— 直接合并会让 16307 的赋值消失。</para>
+    /// </summary>
+    public bool m_boMedalEffectDrawNoBlend;
+
+    /// <summary>`m_boTrainingXF`（11187 是否学习过心法）。<c>m_boTrainingNG</c> 已在 PlaySceneActors.cs:205。</summary>
+    public bool m_boTrainingXF;
+
+    /// <summary>`m_nJewelryBoxStatus`（11189；原文 <c>jbsNoActive</c>，枚举见 <c>Grobal2.Types1.cs:14</c>）。</summary>
+    public TJewelryBoxStatus m_nJewelryBoxStatus;
+
+    /// <summary>`m_boShowGodBless`（11190 显示神佑袋）。</summary>
+    public bool m_boShowGodBless;
+
+    /// <summary>`m_Alcohol:TAbilityAlcohol`（11193 的 <c>FillChar(...,0)</c>）。</summary>
+    public TAbilityAlcohol m_Alcohol;
+
+    /// <summary>
+    /// `m_HumMeridians:THumMeridians`（11194 的 <c>FillChar(...,0)</c>）。
+    /// <para>原文 <c>THumMeridians = array [0..4] of TMeridian</c>（Grobal2.pas:4185）；
+    /// 托管侧协议层已有等价承载 <c>TMeridianArray5</c>（<c>Grobal2.Types4.cs:271</c>），
+    /// 故**不另造类型**，直接用它。</para>
+    /// </summary>
+    public TMeridianArray5 m_HumMeridians;
+
+    /// <summary>HeroM2 五件：`m_wHeroM2DressEffect`(11196) / `m_boHeroM2DressNoBlend`(11197) /
+    /// `m_wOldHeroM2DressEffect`(11199，原文 <c>Byte</c>) / `m_boOldHeroM2DressNoBlend`(11200) /
+    /// `m_nHeroM2DressEffectX`+`Y`(11202-11203)。</summary>
+    public ushort m_wHeroM2DressEffect;
+    public bool m_boHeroM2DressNoBlend;
+    public byte m_wOldHeroM2DressEffect;
+    public bool m_boOldHeroM2DressNoBlend;
+    public int m_nHeroM2DressEffectX;
+    public int m_nHeroM2DressEffectY;
+
+    /// <summary>
+    /// `m_ActorEffects`（原文 11248-11257 遍历的脚本命令特效表）。
+    /// <para>托管侧由 <see cref="ActorPlayEffectQueue"/>（本车道 <c>Actor*.cs</c> 分区内）承载，
+    /// 此前**没有**任何 <c>TActorCore</c> 字段指向它（只有类定义）—— 本切片补上这一字段，
+    /// 使 <c>THumActor.Finalize</c> 的队列段可 1:1 落地。
+    /// 实例在字段初始化器里建好（对应 Delphi 侧 <c>TActor.Create</c> 里的 <c>TGList.Create</c>）。</para>
+    /// </summary>
+    public readonly ActorPlayEffectQueue m_ActorEffects = new();
 }

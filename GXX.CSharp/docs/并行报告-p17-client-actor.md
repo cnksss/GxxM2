@@ -9,18 +9,28 @@
 
 ## 0. 一句话结论
 
-**真实覆盖率 = 78 / 159 = 49.06%**（`真实体 78 / NotPorted 77 / 原文如此 4 = 159`）。
+**真实覆盖率 = 87 / 159 = 54.72%**（`真实体 87 / NotPorted 67 / 原文如此 5 = 159`）。
+
+> 分档：`TActor` 46/109（42.20%）· `TNpcActor` **10/10（100%）** ·
+> `THumActor` 16/25（64.00%）· `THeroActor` **6/6（100%）** · `TStatuaryNpcActor` **9/9（100%）**。
 
 本轮把 `Actor.pas` 里**三个整类**从「一行空壳」做成 **1:1 全量**（`TNpcActor` 10/10、
 `TStatuaryNpcActor` 9/9、`THeroActor` 6/6，且**更正了 `THeroActor` 的基类**），
-把 `THumActor` 的空壳**迁出** `PlaySceneNewActor.cs` 并落下 8 条确定性方法，
-并补齐 `TActor` 若干此前**没有任何槽位**的虚成员（`light` / `Initialize` /
-`CheckLoadUserName` / `CheckLoadSurface` / `Destroy` / `DrawEffSurface` / `StretchDrawEffSurface`）。
+把 `THumActor` 的空壳**迁出** `PlaySceneNewActor.cs` 并把它从 8/25 推进到 **17/25**
+（含 `Create` 81 行 / `Finalize` 36 行 / `DrawDressEffect` / `DefaultMotion` /
+`GetDefaultFrame` / `RunFrameAction`），并补齐 `TActor` 若干此前**没有任何槽位**的虚成员
+（`light` / `Initialize` / `CheckLoadUserName` / `CheckLoadSurface` / `Destroy` /
+`DrawEffSurface` / `StretchDrawEffSurface` / `DrawDressEffect`）。
 
-**未完成的主体是 `TActor` 的 60 条**（消息层、16 个属性访问器、名字/喊话渲染族、
-移动 `DoSmoothMove`、血条构造族）**与 `THumActor` 的 17 条**（含 5 条巨型方法：
-`CalcActorFrame` 1,783 行 / `LoadSurface` 1,969 行 / `DrawChr` 925 行 / `Run` 436 行 /
-`PlayMagicEffect` 326 行）。**本报告不把这些填成 0** —— 逐条见 §3。
+**另修掉一处已确认可观测的托管侧缺陷（H-1，切片 3b）**：`TCustomActor.m_nOldChrLight`
+字段隐藏基类同名字段 ⇒ **自定义怪光照恒 0（掉光）**；并顺手把 `DefaultMotion` /
+`RunFrameAction` 两个"原文 virtual 而托管非虚"的槽位补虚（否则子类覆写被整段旁路）。
+
+**未完成的主体是 `THumActor` 的 5 条巨型 + 2 条中等**（`CalcActorFrame` 1,783 行 /
+`LoadSurface` 1,969 行 / `DrawChr` 925 行 / `Run` 436 行 / `PlayMagicEffect` 326 行 /
+`CheckLoadSurface` 172 行 / `OnTargetFinished` 108 行 / `CheckLoadUserName` 52 行）
+**与 `TActor` 的 59 条**（消息层、16 个属性访问器、名字/喊话渲染族、
+移动 `DoSmoothMove`、血条构造族）。**本报告不把这些填成 0** —— 逐条见 §3。
 
 ---
 
@@ -55,6 +65,18 @@ $inv.Class | Sort-Object -Unique # → TActor / TNpcActor / TStatuaryNpcActor / 
 > 而 159 是按 `T<类>.<方法>` 实现头严格抽取的结果 —— 两个口径的**实现条数都是 176 行原文**，
 > 本报告按任务书给定的「159 条方法实现」为准，并在表中**逐条给原文行号**以便对账）。
 
+> ★ **本抽取口径的一处已知盲区（切片 3d 实测）**：该正则是**按行首例程头**匹配的，
+> **无法识别块注释** —— 例如 `THumActor.DrawDressEffectEx`（**11306-11336**）整段被
+> `{...}` 包住、其**声明行 2019 也被注释**，但它仍被计入了 159。
+> 这类行在 §3 表里判为 `as-is`（原文如此），**不计入分子**。
+> 故 159 是"原文出现过的例程头"数，其中至少 1 条是注释体；
+> 若按"真实存在的实现"计，分母应为 **158**（覆盖率 87/158 = 55.06%）——
+> 本报告仍以 159 为准（任务书口径），并把这一差异显式登记。
+
+> ★ **另一处抽取盲区（同类，供后续车道避坑）**：`\{?\s*` 前缀让 `{` 与例程头**同一行**时也能匹配，
+> 但**隔行**的 `{`（如 11306 与 11307）不会阻止匹配。若要机械过滤注释体，
+> 需先做 Delphi 块注释/行注释的状态机剥离，再抽取。
+
 ### 1.2 覆盖率复算（**机械**：只读本报告 §3 表的第 1 列与第 4 列）
 
 ```powershell
@@ -68,8 +90,8 @@ $np   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}notported\*{0,2}\s*\|' })
 $ai   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}as-is\*{0,2}\s*\|' }).Count
 "rows=$($rows.Count) real=$real notported=$np as-is=$ai"
 "coverage = {0:N2}%" -f (100.0*$real/($real+$np+$ai))
-# 实测输出： rows=159 real=78 notported=77 as-is=4
-#            coverage = 49.06%
+# 实测输出： rows=159 real=87 notported=67 as-is=5
+#            coverage = 54.72%
 ```
 
 ### 1.3 状态判据（三档 + 一个补充档）
@@ -127,7 +149,7 @@ $ai   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}as-is\*{0,2}\s*\|' }).Cou
 > 列义：**原文行号** / **方法** / **原文行数** / **状态** / **托管侧承载与说明**。
 > 状态三档见 §1.3；"说明"里的 `file:line` 是**我逐条核对过**的承载位置。
 
-### 3.1 `TActor`（109 条；real 45 / notported 60 / as-is 4 → 41.28%）
+### 3.1 `TActor`（109 条；real 46 / notported 59 / as-is 4 → 42.20%）
 
 | 原文行号 | 方法 | 行数 | 状态 | 托管侧承载与说明 |
 |---|---:|---|---|---|
@@ -190,7 +212,7 @@ $ai   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}as-is\*{0,2}\s*\|' }).Cou
 | 5888 | `DrawWeaponGlimmer` | 27 | notported | 无（`ActorDrawDispatch.cs:75` 只有**文档提及**，无方法） |
 | 5915 | `DrawShieldEffect` | 20 | notported | 近似物：`DressEffectRender.cs:39` 只给「是否画」的规划（`ShieldEffectGate`），非 20 行本体 |
 | 5935 | `DrawPlayEffect` | 39 | **real** | `ActorPlayEffectQueue.cs:113` |
-| 5974 | `DrawDressEffect` | 18 | notported | 无（`TActor` 版，非 `THumActor` 11260 那条） |
+| 5974 | `DrawDressEffect` | 18 | **real** | ★ 切片 3d：**此前托管侧没有这个名字**（原文 1756 声明 `virtual`）。落点 `TActor.DrawDressEffect`（`ActorHumMotion.cs`）→ 既有规划层 `DressEffectRender.cs:61 DrawBaseDressEffect`（5974-5987）；`m_boDressEffectDrawNoBlend` **为真走 Draw** |
 | 5992 | `DrawDressEffectEx` | 16 | notported | 无 |
 | 6008 | `GetDrawEffectValue` | 59 | notported | 无 |
 | 6067 | `DrawChr` | 64 | **real** | `ActorFamilyBase.cs:94` → `ActorFamilyImpl.cs:182`（方向守卫 + 施法层） |
@@ -281,21 +303,21 @@ $ai   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}as-is\*{0,2}\s*\|' }).Cou
 | 17502 | `Protect` | 5 | **real** | `SendClientMessage(CM_HEROPROTECT, 0, 鼠标 X, 鼠标 Y, 0)` |
 | 17507 | `Target` | 30 | **real** | 锁内快照两引用；17521 的 `or` 形态（**非**德摩根）+ else 分支**不判 `m_boDeath`** 的不对称，逐字 |
 
-### 3.5 `THumActor`（25 条；real 8 / notported 17 → 32.00%）
+### 3.5 `THumActor`（25 条；real 16 / notported 8 / as-is 1 → 64.00%）
 
 | 原文行号 | 方法 | 行数 | 状态 | 托管侧承载与说明 |
 |---|---:|---|---|---|
-| 11130 | `Create` | 82 | notported | 近似物：**未落**。★ 刻意不落：它会改 `m_nDressInd…`/`m_nMedalEffectIndex` 等初值（-1），从而改变既有 `new THumActor()` 的初始状态与那些以 `THumActor` 作 `TActor` 替身的测试语义（见 D-P17-02） |
-| 11212 | `Destroy` | 6 | notported | 近似物：`TActorCore.Destroy()` = `NotPorted(2945)` 槽位；`m_FriendHitList.Free` 未落 |
-| 11218 | `Initialize` | 5 | notported | 近似物：只 `base.Initialize()`（10256 族）；未在本类加 `override`（同 D-P17-02 理由） |
-| 11223 | `Finalize` | 37 | notported | 近似物：只落到 `TActorCore.Finalize()`（空体）；12 个纹理槽 + `m_ActorEffects` 遍历未落 |
-| 11260 | `DrawDressEffect` | 47 | notported | 无（需 `m_HumWinSurface`/`m_HumWinSurface_30`/`m_nSpX/m_nSpY/m_nSpX_30/m_nSpY_30`） |
-| 11307 | `DrawDressEffectEx` | 31 | notported | 无 |
+| 11130 | `Create` | 82 | **real** | ★ 切片 3c：C# 构造函数承载（`ActorHumActor.cs`），11133-11209 逐句；**11132 的 `inherited Create` 指向未移植的 `TActor.Create`(2777,168 行) ⇒ 在构造函数里 `NotPorted(…,2777)` 显式留痕**（可观测，非静默省略）；★ 11148 用 `TimeGetTime` 而 11184 用 `MyGetTickCount`（同一构造函数两个时钟，已用测试夹住） |
+| 11212 | `Destroy` | 6 | **real** | ★ 切片 3c：`base.Destroy()`（→ 2945 留痕）+ `m_FriendHitList.Clear()`（11215；`readonly List` 无 `Free` 语义 ⇒ D-P17-10） |
+| 11218 | `Initialize` | 5 | **real** | ★ 切片 3c：只有 `base.Initialize()`（11220；基类空体 = 原文如此） |
+| 11223 | `Finalize` | 37 | **real** | ★ 切片 3c：`base.Finalize()` 后清 **13** 个纹理槽；★ 与 `Create` **不对称**（多 `m_ShopStallSurface` 11244 / `m_ShopHeadSurface` 11245 / `m_HeroM2DressEffect` 11246）；11248-11257 队列段由 `ActorPlayEffectQueue.FinalizeEffects()` 承载（只置 `Texture=nil`，**不清队列**，已用测试夹住） |
+| 11260 | `DrawDressEffect` | 47 | **real** | ★ 切片 3d：覆写 5974 槽位；四块**各自独立**（非 else 链）+ 11303 的 `inherited` **排最后**；混合极性 ①② 用 `not m_boEffectNormalDraw/_30`、③④ 用 `m_boHeroM2DressNoBlend`/`m_boMedalEffectDrawNoBlend`（**最终行为一致但字段名不同**）；★ **形参 `blend`/`ceff` 全文未被使用**；逻辑由既有 `DressEffectRender.cs:90 DrawHumDressEffect` 承载 |
+| 11307 | `DrawDressEffectEx` | 31 | **as-is** | ★ **原文如此：11306-11336 整段被 `{...}` 注释**（声明行 2019 也被注释）⇒ 托管侧**不提供**该方法（既有 `DressEffectRender.cs:146 DrawDressEffectExIsCommentedOut` 已记录，并指出 11332 的原文笔误：判据用 `m_HeroM2DressEffect` 却传 `m_HumWinSurface`）。**提取口径提醒**：本报告的 159 行按"行首例程头"机械抽取，**无法识别块注释**，故这一行是被计进来的注释体 —— 见 §1.1 的口径说明 |
 | 11338 | `CalcActorFrame` | **1783** | notported | 无（★ 本单元最大单块；人类动作表的 `ActWalk/ActRun/ActHorseRun/ActAttack` 全表展开） |
 | 13121 | `UseMagicDelayTime` | 15 | **real** | ★ 本切片：13125-13130 的加速公式**整段被原文注释**，生效仅 13133 `200 + dwDelayTime` |
-| 13136 | `DefaultMotion` | 81 | notported | 近似物：`ActorMotion.cs:279` 是**基类** `TActor.DefaultMotion`，不是本类覆写（`m_wEffect = 50` 等分支未落） |
-| 13217 | `GetDefaultFrame` | 93 | notported | 近似物：`ActorMotion.cs:192` 基类版 + `CustomMonsterFrameCalc.cs` 规划层；本类覆写的 `matDie/matStoneRevive` 分支未逐字落 |
-| 13310 | `RunFrameAction` | 45 | notported | 近似物：`ActorMotion.cs:301` 是**基类** `TActor.RunFrameAction`（原文 7097 空体），本类 45 行覆写未落 |
+| 13136 | `DefaultMotion` | 81 | **real** | ★ 切片 3d：两段**同形**块（`m_wEffect` / `m_wEffect_30`）**共用** `nFrame` 与 `m_dwFrameTick`（第二段能看到第一段刚刷新的 tick，已用测试夹住）；`=50` 支 20 帧/100ms 并**翻转** `m_bo2D0`，`<>0` 支 8 帧/`m_dwFrameTime`；13170/13203 是**空 `else begin end`**；★ 返回语义是"仅当 `m_nFrame` 变了才覆盖为 True"；★ 13140 的 `inherited DefaultMotion` **会先改写 `m_nCurrentFrame`**（基类内部调虚 `GetDefaultFrame`）⇒ 13160 的 `<64` 判据读的是**改写后**的值 |
+| 13217 | `GetDefaultFrame` | 93 | **real** | ★ 切片 3d：13222 的 `m_nChangeAppr >= 0` 是**整段前置门 + 13276 无条件 Exit**（骑马修正与 `HA.Act*` 三支全不执行）；`>=100000` 支查 `g_CustomMonsterConfig`（复用 `CustomMonsterFrameCalc.BaseFrame`），**配置 nil ⇒ 保持 0**；骨架死取 `Actions[matDie].StartIndex`（**不加 TempDir**）、普通死落末帧；`[0,100000)` 支**转调基类**；`<0` 支含 `wmode and m_btHorse<>0 ⇒ wmode:=False`（骑马强制落站立支）、骑马双载死亡的魔数 `256+dir*8+8-1`、以及**只在站立支写**的 `m_nDefFrameCount` |
+| 13310 | `RunFrameAction` | 45 | **real** | ★ 切片 3d：13316 `m_boHideWeapon:=False` 无条件首句；`SM_HEAVYHIT` 帧 5 + `m_boDigFragment` ⇒ 清标志 + 碎石化请求（`8*m_btDir`/`3`/`g_WEffectImg`/`80`/`s_strike_stone`/`ET_PILESTONES`）；`SM_THROW` 帧 3 + `m_boThrow` ⇒ 清标志 + 飞斧请求（`ReadyFrame=40`/`Indexs[3]`/`FLYOMAAXEBASE`）；★ 13350 的 `frame >= 3` 与 13334 的 `frame = 3` 是**独立判据**（不在上面的 if 内）；两条效果接缝未接线时 `null` ⇒ **不请求** |
 | 13355 | `DoWeaponBreakEffect` | 6 | **real** | ★ 本切片 |
 | 13361 | `DoBrokenShieldEffect` | 6 | **real** | ★ 本切片（与上一条写**两组不同字段**，测试已夹住互不干扰） |
 | 13367 | `CheckLoadUserName` | 52 | notported | 近似物：`TActorCore.CheckLoadUserName` = `NotPorted(7120)` 槽位；本类 52 行（含双人骑马只显名、`m_boShopStall` 商店名判据）未落 |
@@ -317,9 +339,13 @@ $ai   = ($rows | Where-Object { $_ -match '\|\s*\*{0,2}as-is\*{0,2}\s*\|' }).Cou
 
 | 切片 | 成员数 | 真实体 | NotPorted | 原文如此 | 壳内剩余空壳（脚本实测） |
 |---|---:|---:|---:|---:|---|
-| 切片 1（`TNpcActor` + `TStatuaryNpcActor` + `THeroActor` + `TActor` 两个落点） | 30 | 29 | 1 | 0 | `PlaySceneNewActor.cs` 内 `Actor.pas` 空壳 **4 → 0** |
-| 切片 2（`THumActor` 确定性 8 条 + `TActor.light`/`Initialize`/`CheckLoadUserName`/`CheckLoadSurface`/`Destroy`） | 13 | 9 | 4 | 1 | `THumActor` 空壳 **1 → 0**（声明已迁，方法体 17 条待补） |
-| **累计去重（全部 159 条）** | **159** | **78** | **77** | **4** | — |
+| 切片 1（`TNpcActor` 10 + `TStatuaryNpcActor` 9 + `THeroActor` 6 + `TActor` 两个落点 + 7 新虚槽位） | 30 | 29 | 1 | 0 | `PlaySceneNewActor.cs` 内 `Actor.pas` 空壳 **4 → 0** |
+| 切片 2（`THumActor` 确定性 8 条 + `TActor.light`） | 9 | 8 | 1 | 0 | `THumActor` 空壳 **1 → 0**（声明已迁，方法体 17 条待补） |
+| 切片 3a（纪律：D-P17-02 次序修正 5 处 + H-1..H-4 缺陷锁 8 例 + `NotPorted` 条目数锁） | — | — | — | — | 无新实体（**纪律切片**） |
+| 切片 3b（**H-1 修复**：`m_nOldChrLight` 字段隐藏 ⇒ 自定义怪掉光） | — | 1 | 0 | 0 | 托管侧缺陷修复（不是 159 表内条目） |
+| 切片 3c（`THumActor.Create`/`Destroy`/`Initialize`/`Finalize` + 30 字段 + `m_ActorEffects`） | 4 | 4 | 0 | 0 | — |
+| 切片 3d（`THumActor.DrawDressEffect`/`DefaultMotion`/`GetDefaultFrame`/`RunFrameAction` + `TActor.DrawDressEffect` + `DrawDressEffectEx` 判 `as-is`） | 6 | 5 | 0 | 1 | — |
+| **累计去重（全部 159 条）** | **159** | **87** | **67** | **5** | — |
 
 `PlaySceneNewActor.cs` 空壳数复算：
 
@@ -441,7 +467,131 @@ else begin … 设帧 … end;
 ```
 无害但说明该处被改过；托管侧若逐字移植应保留注释，不要"顺手删"成看似不同的结构。
 
+### 5.13 ★★ H-1：`m_nOldChrLight` 的字段隐藏导致**自定义怪掉光**（已修，切片 3b）
+
+> 这一节按父 agent 要求写成**三段式**：原文事实 → 托管改法 → 是否偏离。
+
+#### ① 原文事实（逐行取证）
+
+```powershell
+$m = 'D:\chuanqi\daima\GXX原版_Delphi7\_analysis\utf8_mirror\Client-HGE'
+Get-ChildItem $m -Recurse -Filter *.pas |
+  ForEach-Object { $r = Select-String -Path $_.FullName -Pattern 'm_nOldChrLight'
+                    if ($r) { foreach ($x in $r) { "$($_.Name):$($x.LineNumber): $($x.Line.Trim())" } } }
+```
+
+实测命中**仅 8 处**：
+
+| 位置 | 内容 | 性质 |
+|---|---|---|
+| `CustomActor.pas:33` | `m_nOldChrLight:Integer;` | **唯一声明**（`Actor.pas` 全文**没有**它 —— 已用全目录扫描确认） |
+| `CustomActor.pas:98` | `m_nChrLight := m_nOldChrLight;` | 读点在 **TCustomActor 内部** |
+| `CustomActor.pas:596` | 同上 | 读点同上 |
+| `PlayScn.pas:7852-7853` | `if Actor is TCustomActor then TCustomActor(Actor).m_nOldChrLight := Actor.m_nChrLight;` | 写点，**带类型守卫** |
+| `PlayScn.pas:8019-8020` | 同型（`ident <> SM_BACKSTEP` 支） | 写点，**带类型守卫** |
+| `PlayScn.pas:8023-8024` | 同型（`SM_BACKSTEP` 支） | 写点，**带类型守卫** |
+| `ClMain.pas:25644` | `TCustomActor(Actor).m_nOldChrLight := DefMsg.param;` | 写点（**未移植**） |
+
+⇒ 语义是「**类型守卫 + 写 TCustomActor 的字段**」，且**只被 TCustomActor 自己读**。
+
+#### ② 托管改法（切片 3b）
+
+修复前：`TActorCore.m_nOldChrLight` 是 **`byte` 字段**（托管侧为"镜像"而新增），
+`TCustomActor` 另有一个 **`int` 字段同名**（`CustomActor.cs:1612`）——**字段访问不参与虚分派**，
+于是 `PlaySceneMessages.cs:672/677`（`actor` 静态类型 `TActorCore`，来自 `PlaySceneCore.cs:153`
+的 `List<TActorCore>`）写**基类那一份**，而 `CustomActor.cs:1679/1806` 读**派生那一份**
+⇒ 自定义怪传给 `CustomActorLogic` 的 `OldChrLight` **恒为 0** ⇒ `CustomActor.cs:303`
+的 `m_nChrLight := m_nOldChrLight` 把光照写成 0 ⇒ **掉光**，且编译与单测全绿。
+
+修复：
+- `ActorMessages.cs`：`public byte m_nOldChrLight;` → **`public virtual int m_nOldChrLight { get; set; }`**
+  （类型对齐原文 `Integer`；提供虚分派点）。
+- `CustomActor.cs`：`public int m_nOldChrLight;` → **`public override int m_nOldChrLight { get; set; }`**
+  （**真身存储留在派生类**，与"字段只属于 TCustomActor"一致）。
+- 效果：写点**一行都不用改**，经虚分派落到真身 ⇒ **H-1 消除**。
+
+#### ③ 是否偏离 ⇒ **是，登记 D-P17-08**
+
+原文是"类型守卫 + 字段直写"，托管侧是"虚属性 + 派生覆写"：**行为等价**
+（自定义角色落真身；普通角色在原文里既无写点也无读点），但**访问机制变了**。
+`PlaySceneMessages.cs` 不在本车道分区，故**未改动**（见 D-P17-09）。
+
+#### ★ 同族第 2 处缺陷（已报，登记 D-P17-09，未修）
+
+原文三个写点**都带** `if Actor is TCustomActor` 守卫，托管侧
+`PlaySceneMessages.cs:672/677` **把守卫丢了**（写成无条件 `actor.m_nOldChrLight = actor.m_nChrLight;`）。
+当前**不可观测**（普通角色那份存储原文从不读），但守卫确实缺失 ⇒
+建议该文件归属方补回 `if (actor is TCustomActor customActor) customActor.m_nOldChrLight = actor.m_nChrLight;`
+（补回后本车道的虚属性可退化为普通属性，是一条**可无损退役**的偏离）。
+
+> **过程记录（如实）**：第一版把基类做成"no-op + 计数"，修完立刻让
+> **既有 `FormJ73Tests.cs:744-745 / 760-761` 变红** —— 它们断言"普通角色也能读写 `m_nOldChrLight`"
+> （按**无守卫**的托管写点写的）。因该文件不在本分区，最终采用"基类保留存储 + 派生 `override`"：
+> 既修好 H-1，又保持那 2 条既有断言为绿，且对原文**不可观测**。
+> 这一点已写进 `ActorMessages.cs` 注释与用例
+> `H1_OldChrLight_BaseStorageStillRoundTripsForNonCustomActor`，以免日后误删基类那份而破坏既有断言。
+
+### 5.14 ★ 「同名但非 `override`」隐藏审计（H-1..H-4 的同族普查）
+
+用**类体 brace-depth 感知**的脚本扫 `Actor*`/`CustomActor*`/`PlaySceneActors`/`PlaySceneCore` 全族
+（只收类体直接成员，排除方法内局部变量），并沿已知继承链逐级比对：
+
+| 子类.成员 | 基类.成员 | 类型 | 读/写点 | 触发条件（何时会真的炸） |
+|---|---|---|---|---|
+| `TCustomActor.m_nOldChrLight` | `TActorCore.m_nOldChrLight` | `int` / `byte` | 见 §5.13 | **已触发**（自定义怪掉光）⇒ **已修** |
+| `TCustomActor.m_CurMagicEffectNumber` | `TActorCore.m_CurMagicEffectNumber`（ActorMotion.cs:58） | `int`/`int` | 基类那份被 `ActorFamilyImpl.cs:204`（`DrawChr` 施法层，静态类型 `TActor`）与 `ActorMotion.cs:314`（连击判定）读；派生那份被 `CustomActor.cs:1871/1875/1937` 读 | 一旦有人把自定义怪的魔法状态接到**派生**那份：`DrawChr` 施法层仍读**基类**那份 ⇒ **施法特效不出现**，且编译/单测全绿。当前两份**都无人写** ⇒ 未触发 |
+| `TCustomActor.m_nTargetRecog` | `ActorFamilyHerbEnv.cs:271` | `long`/`long` | 派生那份被 `CustomActor.Run` 853/942 用；基类那份被 HerbActor 族用 | **`Actor.pas:1475` 只有一个该字段，且 `Actor.pas:3706` 在一处 `TActor` 本体方法里用它** ⇒ 那个方法一移植就会读**基类**那份 ⇒ 与 `CustomActor.Run` 分裂。基类注释自称"两者无交集，无需消重"，该结论依赖这一**未来会被打破**的前提 |
+| `TCustomActor.m_CustomMagicStatusEffect_Struck` | `ActorFamilyHerbEnv.cs:252` | `int`/`int` | 基类那份被 HerbActor 族写（`ActorFamilyHerb.cs:139/351`、`ActorFamilyStructures.cs:178`），派生那份被 `CustomActor.cs:1718` 写；**两份都无读点** | 任何 `TActorCore` 静态类型的读取都会拿到基类那份 —— 与 H-2 同型。当前只是"两份死存储" |
+
+**方法层面**：本族**没有**同名非 override 的方法（12 个本车道新增槽位全部是真 `override`，
+`SetEffigyState` 合原文 1930 为**独立新虚成员**），已用反射用例
+`ActorFamily_MethodLevel_NoHidingForTheSlotsThisLaneAdded` 正面锁定。
+
+**H-2/H-3/H-4 本切片只登记 + 用例锁死，不顺手一起改**（它们当前无读点或读点未移植，
+现在改会引入无法验证的行为）；四条缺陷锁用例在
+`tests/GXX.Client.Tests/ActorHiddenFieldDefectTests.cs`（H-1 三条验修复、H-2..H-4 各一条锁现状）。
+
+### 5.15 ★ 切片 3d 发现的两处**原文顺序/极性**陷阱
+
+1. **`DrawDressEffect` 的混合极性在四个块里写法不一致**：①② 用 `not m_boEffectNormalDraw`
+   / `not m_boEffect_30NormalDraw`，③ 用 `m_boHeroM2DressNoBlend`、④ 用 `m_boMedalEffectDrawNoBlend`。
+   **最终行为一致**（标志为真 ⇒ `Draw`），但**字段名与判据写法不同** ⇒ "统一成一种写法"会改变
+   其中一个块的语义（例如把 ③ 写成 `not m_boHeroM2DressNoBlend` 会让它**反过来**）。
+   已用 `DrawDressEffect_HumBlendPolarityDiffersPerBlockButBehaviourMatches` 逐块夹住。
+
+2. **`DefaultMotion` 的 `inherited` 会先改写 `m_nCurrentFrame`**：13140 的
+   `Result := inherited DefaultMotion` 不只是取返回值 —— 基类实体会执行
+   `m_nCurrentFrame := GetDefaultFrame(...)`，而 `GetDefaultFrame` 是**虚的** ⇒
+   它被 `THumActor.GetDefaultFrame` 求值并写回后，13143/13160 的效果块**才**读 `m_nCurrentFrame`。
+   于是"调用前 `m_nCurrentFrame >= 64` ⇒ 应停止推进"的场景，会因为基类把它改写成默认帧（常为 0）
+   而**继续推进**。已用
+   `DefaultMotion_BaseRunsFirstAndOverwritesCurrentFrameBeforeEffectBlocks` 与
+   `DefaultMotion_EffectNot50StopsAdvancingWhenFrameReallyStaysAboveSixtyFour`（用 `m_boDeath`
+   让基类写回 `ActDie` 的 >=64 帧号）**双向**夹住。
+
+3. **`RunFrameAction` 的两条帧判据互相独立**：13334 是 `frame = 3`（投掷请求），
+   13350 是 `frame >= 3`（隐藏武器），**后者不在前者的 `if` 里** ⇒ 把 `>= 3` 并进
+   上面的 `if` 会让"帧 4..N 隐藏武器"失效。已用
+   `RunFrameAction_ThrowFrameAtLeastThreeHidesWeaponIndependentlyOfFlag` 夹住。
+
+### 5.16 `THumActor.DrawDressEffectEx`（11306-11336）**整段被注释** ⇒ 原文如此
+
+声明行 2019 也被注释。故托管侧**不提供**该方法；若"补全"，各块会改用
+`DrawColorAlpha(..., LightColor, LightAlpha, Blend_SrcAlphaColor)`，且第 ③ 块有**原文笔误**
+（判据用 `m_HeroM2DressEffect` 但传 `m_HumWinSurface`，11332）—— 照抄会画错图。
+既有 `DressEffectRender.cs:146 DrawDressEffectExIsCommentedOut` 已记录此事。
+
+### 5.17 `THumActor.GetDefaultFrame` 的**前置门 + 无条件 Exit**
+
+13222 `if m_nChangeAppr >= 0` 一旦成立，13276 的 `Exit` 会让 13279-13307
+（骑马修正与 `HA.Act*` 三支）**全部不执行**；且门内 `[0,100000)` 只转调基类。
+⇒ 给"换了外观的自定义怪"与普通人物用的是**两套完全不同的默认帧来源**。
+已用 `GetDefaultFrame_ChangeApprBelowHundredThousandDelegatesToBase`
+与 `GetDefaultFrame_HorseForcesWarModeOffIntoStandBranch` 等夹住各支。
+
 ---
+
+## 6. 新增虚槽位与虚分派（台帐 §18.8）
 
 ## 6. 新增虚槽位与虚分派（台帐 §18.8）
 
@@ -486,6 +636,11 @@ public static bool NotPorted(string member, int sourceLine)   // ActorNpcActor.c
 | **D-P17-05** | `THumActor.OnTargetExplosion` 经 `ActorNpcEnv.MonFlyEffectExplosionSoundFn` 取音（`null` = 非飞行特效，空串 = 未配音） | `TCustomMonFlyEffect` 属魔法批次（`MagicEffectsCustomMon.cs`） | 两级判据在类型层面可区分，非静默中性值 |
 | **D-P17-06** | `TActor.ReadyAction`（3776）与 `TActor.Run`（7391）标为**真实体**，但其原文中确有未覆盖行段（`ReadyAction` 的 `m_Saying`/特效分支；`Run` 的魔法路径 `/1.8`） | 主分支已 1:1 且被测试夹住；未覆盖段不改变已覆盖段的控制流 | 计数上计入真实体；行段差异在本表"说明"列写明，**未隐藏** |
 | **D-P17-07** | `TNpcActor.CalcActorFrame` 10186 的 `Randomize`（全局随机种子重置）未移植 | headless 无全局种子状态；且 `Random` 本身已是接缝 `ActorNpcEnv.RandomFn` | 随机序列语义由接缝提供方负责 |
+| **D-P17-08** | `m_nOldChrLight`：原文是"`if Actor is TCustomActor` 守卫 + **字段直写**"（`PlayScn.pas:7852/8019/8023`、`ClMain.pas:25644`），托管侧改为**虚属性 + 派生 `override`** | 原文该字段**只属于 `TCustomActor`**，而托管侧写点静态类型是 `TActorCore`（`List<TActorCore>`），字段访问不虚分派 ⇒ 必然两份存储分裂（H-1）。虚属性是"保留可观测行为"的最小改动 | 行为等价；**访问机制变了**。修复见 §5.13。收尾建议：**可无损退役**——补回写点守卫后，基类的 `virtual` 可降为普通属性（或整段删除，需同步改 `FormJ73Tests` 两条断言） |
+| **D-P17-09** | 托管侧 `PlaySceneMessages.cs:672/677` **丢失**了原文的 `if Actor is TCustomActor` 守卫（写成无条件写） | 该文件不在本车道分区；当前**不可观测**（原文对非自定义角色既不写也不读该字段） | 建议归属方补回守卫；不补也不改变当前可观测行为。**已报给父 agent** |
+| **D-P17-10** | `THumActor.Destroy` 11215 的 `m_FriendHitList.Free` 由 `Clear()` 承载 | 托管侧该字段是 `readonly List<string>`（`ActorMessages.cs:56`），无 `Free` 语义且 `readonly` 不允许置 nil；对象由 GC 回收 | `Destroy` 后列表为空（已用测试夹住）；"释放句柄"本身在托管侧不存在 |
+| **D-P17-11** | `THumActor.RunFrameAction` 的效果实例化（`TMapEffect` / `TFlyingAxe` / `EventMan` / `g_PlaySound`）经两条**结构化请求**接缝出去（`ActorNpcEnv.SpawnDigFragmentEffectFn` / `SpawnThrowAxeFn`） | 特效/地图事件/音频三个子系统属其它批次；本车道不持有其句柄。接缝携带原文**全部实参**，默认 `null` = **未接线 ⇒ 不请求**（非"请求了没效果"） | 标志位与帧判据留在方法内（1:1）；效果落地由接线方负责 |
+| **D-P17-12** | `THumActor.DrawDressEffect` / `TActor.DrawDressEffect` 是**薄落点**（转调既有 `DressEffectRender` 规划层） | 台帐 §14.2：不造第三份实现。规划层已 1:1 覆盖 5974-5987 与 11260-11304（含 11303 的 `inherited` 与 11332 的原文笔误说明） | 落点只做"规划 → 绘制出口"的映射（`Kind` → 纹理槽），零逻辑重写 |
 
 ---
 
@@ -495,25 +650,57 @@ public static bool NotPorted(string member, int sourceLine)   // ActorNpcActor.c
 
 | 项 | 剩余量 | 性质 |
 |---|---|---|
-| `THumActor.CalcActorFrame`（11338，**1,783 行**） | 人类动作表全表（Walk/Run/HorseRun/Attack/Magic/Struck/Die 的 start/frame/skip/ftime 展开 + 武器/发型/坐骑/翅膀/摆摊/勋章状态机） | 纯逻辑，**可无头单测**。最大单块，建议单独车道 |
-| `THumActor.LoadSurface`（14532，**1,969 行**） | 人类图集三大段 + 六张表选择 + 越界判据 + 大量 `out` 偏移 | 取图接缝已备（`ActorNpcEnv` 全套） |
-| `THumActor.DrawChr`（16501，**925 行**） | 人类绘制层序（约 30 个绘制点） | 需先落 `DrawDressEffect/Ex`（11260/11307） |
-| `THumActor.Run`（14084，**436 行**） | 人类帧推进 + 坐骑/摆摊/翅膀/勋章/破盾/破武 | 依赖 `Create` 的字段初值（11130） |
-| `THumActor.PlayMagicEffect`（13758，**326 行**） | 魔法特效建实例 + 目标联动 | 依赖魔法批次（`MagicEffects*`） |
-| `TActor` 的 60 条 | 见 §3.1：消息层 2975/3041/3295/3329/3350/3391/4398/4441（+5 条钩子待实体化）、16 个属性访问器、`CharWidth/CharHeight`、名字/喊话族 `ShowSay/CheckLoadSay/ShowName/ShowShopName/ShowNumberLable`、`DrawWeaponGlimmer/DrawDressEffect/DrawDressEffectEx/GetDrawEffectValue`、`DoSmoothMove`、`NewHealthNumberFromGroup/AddHealthNumber`、`CheckLoadActorIcon/CheckLoadFengHaoSurface`、`FindMsg`、`Create(168 行)`、`Destroy(25 行)`、`Finalize(55 行)` | 其中 16 个访问器要**先**落 `Makecode_T/Cutecode_T`（见 §5.11），否则会写成错误的直通 |
-| `THumActor.Create`（11130，82 行） | 40+ 字段初值 | ★ 落地前**先**把既有 `new THumActor()` 的替身测试改为 `new TActor()`（见 D-P17-02） |
-| `THumActor` 的 8 条中等方法 | `DrawDressEffect/Ex`、`DefaultMotion`、`GetDefaultFrame`、`RunFrameAction`、`CheckLoadUserName`、`CheckLoadSurface`、`OnTargetFinished` | 需要新字段（`m_HumWinSurface`/`m_nSpX/m_nSpY`/`m_ActorEffects`/`m_FriendHitList`…） |
+| `THumActor.CalcActorFrame`（11338，**1,783 行**） | 人类动作表全表（Walk/Run/HorseRun/Attack/Magic/Struck/Die 的 start/frame/skip/ftime 展开 + 武器/发型/坐骑/翅膀/摆摊/勋章状态机）；结构见 §8.3 的骨架 | 纯逻辑，**可无头单测**。最大单块 ⇒ 建议按动作族拆 2~3 个切片，先落**规划层**（照 `CustomActorLogic` 的既有形态）再在最后一个切片挂 `override`；**不要在未完成时先挂 `override`**（会静默吞掉未落分支） |
+| `THumActor.LoadSurface`（14532，**1,969 行**） | 人类图集三大段 + 六张表选择 + 越界判据 + 大量 `out` 偏移 | 取图接缝已备（`ActorNpcEnv` 全套：`WeaponImageFn`/`HumImageFn`/`HairImageFn`/`ShieldImageFn`/`HumEffectImageFn`/`WeaponEffectImageFn`/`EffectList`），比 `TNpcActor.LoadSurface` 多 `m_nSpX/m_nSpY/m_nSpX_30/m_nSpY_30` 与六张发型表 |
+| `THumActor.DrawChr`（16501，**925 行**） | 人类绘制层序（约 30 个绘制点） | ★ 前置 `DrawDressEffect`(11260) 已于切片 3d 落地；仍需 `m_HairSurface`/`m_WeaponSurface`/`m_ShieldSurface` 的实际取图（接缝已备） |
+| `THumActor.Run`（14084，**436 行**） | 人类帧推进 + 坐骑/摆摊/翅膀/勋章/破盾/破武 | ★ 依赖 `Create`(11130) 的字段初值 —— **已于切片 3c 落地** ⇒ 本项的前置已解除 |
+| `THumActor.PlayMagicEffect`（13758，**326 行**） | 魔法特效建实例 + 目标联动 | 依赖魔法批次（`MagicEffects*`）；与 `OnTargetFinished`(13650) 同族 |
+| `THumActor` 的 3 条中等 | `CheckLoadUserName`(13367, 52 行) / `CheckLoadSurface`(13465, 172 行) / `OnTargetFinished`(13650, 108 行) | `CheckLoadSurface` 172 行是"人类图集装载节流 + 越界"，需 `m_HairSurface` 等槽；`CheckLoadUserName` 需 `g_MySelf`/`ckOnlyShowCharName`/`m_dwShowShopNameTimeTick` 等接缝 |
+| `TActor` 的 59 条 | 见 §3.1：消息层 2975/3041/3295/3329/3350/3391/4398/4441（+5 条钩子待实体化）、16 个属性访问器、`CharWidth/CharHeight`、名字/喊话族 `ShowSay/CheckLoadSay/ShowName/ShowShopName/ShowNumberLable`、`DrawWeaponGlimmer`/`DrawDressEffectEx`/`GetDrawEffectValue`、`DoSmoothMove`、`NewHealthNumberFromGroup/AddHealthNumber`、`CheckLoadActorIcon/CheckLoadFengHaoSurface`、`FindMsg`、`Create(168 行)`、`Destroy(25 行)`、`Finalize(55 行)` | 其中 16 个访问器要**先**落 `Makecode_T/Cutecode_T`（见 §5.11），否则会写成错误的直通 |
+| `THumActor` 的 2 条 `as-is`/既有近似 | `DrawDressEffectEx`(11307) 是**原文如此（整段注释）**，**不需要**实现；`TActor.Finalize`(5425) 等仍为空体承载 | — |
 
 ### 8.2 阻塞项（精确到成员名 + 原文行号）
 
 | 阻塞项 | 精确依赖 | 影响 |
 |---|---|---|
 | `Makecode_T` / `Cutecode_T` | `Source/Common/*`（坐标编解码函数）未在托管侧发现同名实现 | 阻塞 `TActor` 的 16 个属性访问器（4201-4327） |
-| `TCustomMonFlyEffect` 载体 | `MagicEffectsCustomMon.cs` 的构造函数签名 + `ClientConfig.Sounds[custMagicExplosion]` | `THumActor.OnTargetFinished`(13650) / `PlayMagicEffect`(13758) |
-| `m_ActorEffects`（脚本命令特效表） | `pTClientActorEffect` 列表（`ActorData.cs:52` 有 `TClientActorEffect` 结构体，但**实例表**未在 `TActorCore` 上） | `THumActor.Finalize`(11223) |
-| `TStringList m_FriendHitList` | 托管侧已有 `List<string> m_FriendHitList`（`ActorMessages.cs:56`）—— **部分**满足；`THumActor.Destroy` 的 `Free` 无对象语义 | `THumActor.Destroy`(11212) |
+| `TCustomMonFlyEffect` 载体 | `MagicEffectsCustomMon.cs` 的构造函数签名 + `ClientConfig.Sounds[custMagicExplosion]` | `THumActor.OnTargetFinished`(13650) / `PlayMagicEffect`(13758)（`OnTargetExplosion` 13637 **已于切片 2 经 `ActorNpcEnv.MonFlyEffectExplosionSoundFn` 落地**） |
+| ~~`m_ActorEffects`~~ | ★ **已解除**：切片 3c 已在 `TActorCore` 上补 `readonly ActorPlayEffectQueue m_ActorEffects`（`ActorHumActor.cs`），`Finalize` 11248-11257 已落地 | — |
+| ~~`TStringList m_FriendHitList`~~ | ★ **已解除**：`Destroy` 用 `Clear()` 承载（D-P17-10） | — |
 | `g_WNpcImgImages.Indexs[11]` 等图集实例 | 取图接缝已备（`ActorNpcEnv.FetchNpcImageFn`），**未接线**到真实图集 | 所有 `LoadSurface` 的**真实像素**（headless 下不影响逻辑正确性） |
 | `m_wAppearance` 的构造期可读性 | `PlayScn.NewActor` 的"先构造后赋值"次序（原文一致） | `TNpcActor.Create` 10241 分支不可达（§5.2）——**不是**本车道的缺陷，是原文缺陷 |
+| `TMapEffect` / `TFlyingAxe` / `EventMan` 句柄 | 未接线；已按 D-P17-11 用两条结构化请求接缝隔离 | `THumActor.RunFrameAction`(13310) 的**效果落地**（判据已 1:1） |
+
+### 8.3 `THumActor.CalcActorFrame`（11338-13120）的结构骨架（供接手车道直接施工）
+
+```powershell
+# 只打印缩进 <= 10 的 case/else/end —— 即该方法的**主结构线**
+$L = [System.IO.File]::ReadAllLines('D:\chuanqi\daima\GXX原版_Delphi7\_analysis\utf8_mirror\Client-HGE\Actor.pas')
+11338..13120 | ForEach-Object {
+  if ($L[$_-1] -match '^\s{0,10}(case|else)\b') { "$_`: $($L[$_-1].Trim())" }
+}
+```
+
+实测骨架（**顺序即语义**）：
+
+| 原文行 | 结构 | 说明 |
+|---|---|---|
+| 11338-11366 | 前导：`m_boUseMagic`/`m_nCurrentFrame`/`ActiveClientAction` 等清零 | |
+| 11385 | **`case m_nCurrentAction of`** —— 方法主体 | 覆盖到 13090+ |
+| 11522 / 11539 / 11542 / 11547 | 内层 else 链 | 行走族与外貌分支 |
+| 11629-11652 | `case m_btHair of` → `case m_btSex of` → 头盔分支 | 发型偏移 |
+| 11661 / 11667 | `m_wEffect <> 0` / `m_wEffect_30 <> 0` | 翅膀/30 号效果 |
+| 11778 / 11792-11811 | 内层 `case m_nCurrentAction of` + else 链 | 攻击族 |
+| 11854 / 11874 / 11954 | `case m_CurMagic.NewLevel of` | 施法帧 |
+| 12209-12554 | **八段同形**的 `end else begin … end else if g_ClientConfig.nAttackSpeed > 0 then begin …` | 攻速修正（每段一个攻击动作） |
+| 12581 / 12617 / 12660 | `case CustomMagicConfig.MagicBaseConfig.MagicActionType of` → `case m_CurMagic.NewLevel of` | 自定义魔法 |
+| 12671-12996 | `case m_CurMagic.EffectNumber of`（**最大的一段**，~325 行） | 特效编号分派 |
+| 13040-13094 | `end else begin … end else if g_ClientConfig.nSpellSpeed > 0 then begin …` + 尾部 else 链 | 施法速度修正与收尾 |
+
+> **建议切法（3 片）**：① 11338-11800（前导 + 行走族 + 发型/翅膀）；② 11800-12580（攻击族 + 八段攻速修正）；
+> ③ 12580-13120（自定义魔法 + 特效编号 + 施法速度 + 收尾）。
+> 每片先做**规划层**（照 `CustomActorLogic` 的形态，输入是字段快照、输出是"要写哪些帧/特效字段"的 record），
+> 直接对规划层写单测；**三片齐了再在 `THumActor` 上挂 `override`**（否则未落分支会被静默吞掉）。
 
 ---
 
@@ -524,10 +711,12 @@ public static bool NotPorted(string member, int sourceLine)   // ActorNpcActor.c
 | 文件 | 例数 | 覆盖分布 |
 |---|---:|---|
 | `tests/GXX.Client.Tests/ActorNpcActorTests.cs` | **151** | `TNpcActor.CalcActorFrame` 22 · `Create/Initialize/Finalize` 3 · `CheckLoadUserName` 9 · `DrawChr` 17 · `DrawEff` 2 · `GetDefaultFrame` 6 · `LoadSurface` 17 · `Run` 10 · `TStatuaryNpcActor` 28 · `THeroActor` 20 · 层级/常量 5（部分为 `Theory`，实际断言数更多） |
-| `tests/GXX.Client.Tests/ActorHumActorTests.cs` | **31** | `UseMagicDelayTime` 5 · `light` 6 · 破武/破盾 3 · `CheckLoadDressAddEffect` 7 · `LoadDressAddEffect` 4 · `OnTargetExplosion` 3 · `TakeHorse` 3 |
-| **合计** | **182** | — |
+| `tests/GXX.Client.Tests/ActorHumActorTests.cs` | **47** | 切片2 的 31（`UseMagicDelayTime` 5 · `light` 6 · 破武/破盾 3 · `CheckLoadDressAddEffect` 7 · `LoadDressAddEffect` 4 · `OnTargetExplosion` 3 · `TakeHorse` 3）+ **切片3c 的 16**（`Create` 12 项初值/两时钟/ShopStall 不对称 · `Destroy` · `Initialize` · `Finalize` 13 槽 + 队列长度不变 · `NotPorted@2777`） |
+| `tests/GXX.Client.Tests/ActorHiddenFieldDefectTests.cs` | **11** | 切片3a/3b：H-1 修复验证 3 · H-2/H-3/H-4 缺陷锁 3 · 方法层无隐藏（反射）1 · `NotPorted` 条目数锁 3 |
+| `tests/GXX.Client.Tests/ActorHumMotionTests.cs` | **36** | 切片3d：`DrawDressEffect` 6（含基类槽位 2）· `DefaultMotion` 8 · `GetDefaultFrame` 13 · `RunFrameAction` 9 |
+| **合计** | **245** | — |
 
-**计数**：`GXX.Client.Tests` 基线 **4,999** → 现 **5,181**（= 4,999 + 182），**0 失败**。
+**计数**：`GXX.Client.Tests` 基线 **4,999** → 现 **5,243**（= 4,999 + 245 − 1；其中切片 3b 有 1 例因修复而**改写**而非新增），**0 失败**。
 
 **差异断言（"看起来一样实则不同"）**：
 
@@ -563,12 +752,34 @@ public static bool NotPorted(string member, int sourceLine)   // ActorNpcActor.c
 | `LightIsVirtualSoBaseStaticTypeDispatchesToHum` | 经基类静态类型的**虚分派**落到 `THumActor.light` |
 | `HeroActorInheritsFromHumActorNotFromActorDirectly` | 基类层级（原文 2049） |
 | `Target_InvalidTargetFallsToElseBranchWithoutDeathCheck` | 17529 的 else **不判 `m_boDeath`** |
+| `H1_OldChrLight_WriteThroughBaseReferenceReachesCustomActorRealStorage` | ★ H-1：经**基类静态类型**写 ⇒ 派生真身读得到（修复前恒 0） |
+| `H1_OldChrLight_BaseAccessor…` / `H1_..._IsVirtualPropertyOnBaseAndOverrideOnDerived_NoFieldHiding` | 两侧**都不再有**同名字段；基类 `virtual` / 派生 `override` |
+| `H2/H3/H4_..._HiddenFieldSplits…` | 三处**尚未修**的字段隐藏 → 锁现状 + 写清触发条件 |
+| `ActorFamily_MethodLevel_NoHidingForTheSlotsThisLaneAdded` | 本车道 12 个槽位**方法层全部真 override**（反射 `GetBaseDefinition`） |
+| `NotPortedLog_ExactEntriesAreLocked` | 留痕条目**逐条锁死**（实现任一条即红）—— 用 `[ThreadStatic] NotPortedCapture` 免并行污染 |
+| `Create_UsesTwoDifferentClocksInTheSameConstructor` | 同一构造函数里 `TimeGetTime`(11148) 与 `MyGetTickCount`(11184) **两个时钟** |
+| `Create_ThreeEffectIndexesAreMinusOneButDbWeaponOffsetIsZero` | 11151-11154 里**三个 -1 夹一个 0** |
+| `Finalize_ClearsThirteenTextureSlotsIncludingShopStallOnes` | `Create` 不清 / `Finalize` 清的**三处不对称** |
+| `Finalize_NullsPlayEffectTexturesButKeepsQueueLength` | 队列段**只置 Texture=nil**，不清队列、不置 `boWantDelete` |
+| `DrawDressEffect_HumBlendPolarityDiffersPerBlockButBehaviourMatches` | 四块的混合判据**写法不同**（见 §5.15.1） |
+| `DrawDressEffect_HumIgnoresBlendAndColorEffectArguments` | ★ 两个形参 `blend`/`ceff` **全文未被使用** |
+| `DefaultMotion_BaseRunsFirstAndOverwritesCurrentFrameBeforeEffectBlocks` | ★ `inherited` **先改写** `m_nCurrentFrame`（见 §5.15.2） |
+| `DefaultMotion_TwoBlocksShareTickAndFrameCounter` | 两段同形块**共用** tick 与 `nFrame`（第二段被节流卡住） |
+| `GetDefaultFrame_CustomSkeletonDeathUsesRawStartIndexWithoutTempDir` | 骨架死取 `StartIndex`（**不加 TempDir、不减 1**） |
+| `GetDefaultFrame_HorseDeathUsesHardcodedMagicNumber` | `256 + dir*8 + 8 - 1` 魔数，且需 `m_btDoubleHumHorse <> 0` |
+| `GetDefaultFrame_HorseForcesWarModeOffIntoStandBranch` | 骑马把 `wmode` 强制成 `False` ⇒ 落站立支 |
+| `RunFrameAction_ThrowFrameAtLeastThreeHidesWeaponIndependentlyOfFlag` | 13350 与 13334 是**独立判据** |
+| `RunFrameActionIsVirtualSoBaseStaticTypeDispatchesToHum` | 补 `virtual`（原文 1821）后基类静态类型调用才落到 `THumActor` |
 
 ### 9.2 门禁（官方脚本，三项同时成立）
 
+**按父 agent 指示**：用 **main 工作树的** `run-gate.ps1`（它已去掉会重放陈旧结果的 `--no-build`）
++ `-Repo` 指到本工作树：
+
 ```powershell
-cd D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p17-client-actor
-powershell -NoProfile -ExecutionPolicy Bypass -File GXX.CSharp/tools/run-gate.ps1 `
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File "D:\chuanqi\daima\GXX原版_Delphi7\GXX.CSharp\tools\run-gate.ps1" `
+  -Repo "D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p17-client-actor" `
   -Project GXX.CSharp/tests/GXX.Client.Tests/GXX.Client.Tests.csproj
 ```
 
@@ -581,6 +792,8 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 
 > ★ 按台帐 §52.3：**不**以 `已通过!` 摘要行作为判据 —— 该行在 testhost 崩溃时**照样打印"通过"**。
 > 本报告的三行证据取自 `run-gate.ps1` 的 `gate evidence` 段。
+> ★ 按台帐 §62.9（`p17-client-mshare` 实测）：**`dotnet test --no-build` 会重放陈旧结果**，
+> 故门禁**不使用**该开关（main 的脚本已修）。
 
 ### 9.3 巨型结构体的栈安全（台帐 §52.3）
 
@@ -602,9 +815,16 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | `dfabe7ce` | 起点（`main` @ 本轮开始时） |
 | `2cfa1f6e` | **切片 1**：NPC 族三空壳迁移 + 1:1 落地（`TNpcActor` 10 / `TStatuaryNpcActor` 9 / `THeroActor` 6）+ `TActor.DrawEffSurface`/`StretchDrawEffSurface` 落点 + 151 例（真实体 29 / NotPorted 1 / 原文如此 0 = 本切片 30 个成员） |
 | `0d2a3ad0` | **切片 2**：`THumActor` 8 条确定性方法 + `TActor.light`/`Initialize`/`CheckLoadUserName`/`CheckLoadSurface`/`Destroy` 虚槽位 + 31 例 + 本报告（真实体 9 / NotPorted 4 / 原文如此 1 = 本切片 14 个成员；累计 78 / 77 / 4） |
+| `08c74402` | **切片 3a**（纪律）：D-P17-02 次序修正（`NewActor` 等 5 处 `new THumActor()` → `new TActor()`）+ H-1..H-4 缺陷锁 8 例 + `NotPorted` 条目数用例锁（**无新实体**） |
+| `bb363b39` | **切片 3b**：**修复 H-1** —— `m_nOldChrLight` 字段隐藏 ⇒ 自定义怪掉光；基类改虚属性、派生 `override` 持真身；取证 `PlayScn.pas:7852/8019/8023`；登记 D-P17-08（改法偏离）/ D-P17-09（写点守卫缺失，已报） |
+| `08778b9d` | **切片 3c**：`THumActor.Create`(11130,81 行)/`Destroy`/`Initialize`/`Finalize`(11223,36 行) + 30 个实例字段 + `m_ActorEffects` 队列字段 + `NotPortedLog` 改 `ConcurrentQueue` 并加 `[ThreadStatic]` 精确采集（真实体 4/NotPorted 0/原文如此 0） |
+| `e2273e2a` | **切片 3d**：`THumActor.DrawDressEffect`/`DefaultMotion`/`GetDefaultFrame`/`RunFrameAction` + `TActor.DrawDressEffect` 基类槽位(5974) + `DrawDressEffectEx` 判 `as-is` + 补 `DefaultMotion`/`RunFrameAction` 的 `virtual`（原文 1750/1821）（真实体 5/NotPorted 0/原文如此 1） |
 
-复算：`git -C <工作树> log --oneline main..HEAD` → 2 条（本车道的 2 个切片）。
-10 个改动文件全部落在本车道独占分区内（`git diff --name-only main...HEAD`）。
+复算：`git -C <工作树> log --oneline 50b8c0ff..HEAD` → 本条之后的切片笔数；
+`git -C <工作树> log --oneline main..HEAD` → 本车道从起点起的全部切片。
+全部改动文件落在本车道独占分区内（`Actor*` / `CustomActor*` / `PlaySceneNewActor.cs` /
+`tests/Actor*.cs` / `docs/并行报告-p17-client-actor.md`）——
+复算：`git -C <工作树> diff --name-only main...HEAD`。
 
 ---
 
@@ -618,7 +838,7 @@ $Src = 'D:\chuanqi\daima\GXX原版_Delphi7\_analysis\utf8_mirror\Client-HGE\Acto
 ((Get-Content $Src) | Select-String -Pattern '^\s*\{?\s*(constructor|destructor|procedure|function)\s+T\w+\.\w+').Count   # 159
 
 # 2) 覆盖率复算（解析本报告 §3 的表）
-#    见 §1.2；实测 real=78 notported=77 as-is=4 → 49.06%
+#    见 §1.2；实测 real=87 notported=67 as-is=5 → 54.72%
 
 # 3) 只看本车道的证据
 cd $wt

@@ -253,6 +253,26 @@ public static class ActorNpcEnv
     /// </summary>
     public static Action<TActor>? RequestLoadSurfaceFn;
 
+    // ══════════════════════════════════════════════════════════════════════
+    // 八、THumActor.RunFrameAction（13310-13353）的两条**结构化效果接缝**
+    // ══════════════════════════════════════════════════════════════════════
+
+    /// <summary>
+    /// 13320-13330 的碎石化效果请求（<c>TMapEffect.Create(8*m_btDir, 3, x, y)</c> +
+    /// <c>ImgLib := g_WEffectImg</c> + <c>NextFrameTime := 80</c> +
+    /// <c>g_PlaySound.PlaySound(s_strike_stone)</c> + <c>PlayScene.AddEffectList</c> +
+    /// <c>EventMan.GetEvent(ET_PILESTONES)</c> 命中则 <c>m_nEventParam + 1</c>）。
+    /// <para><c>null</c> = **未接线 ⇒ 不请求**（而不是"请求了但没效果"）。</para>
+    /// </summary>
+    public static Action<HumDigFragmentEffect>? SpawnDigFragmentEffectFn;
+
+    /// <summary>
+    /// 13336-13347 的飞斧请求（<c>PlayScene.NewFlyObject(Self, x, y, tx, ty, recog, mtFlyAxe)</c>
+    /// + <c>ReadyFrame := 40</c> / <c>ImgLib := g_WMonImages.Indexs[3]</c> /
+    /// <c>FlyImageBase := FLYOMAAXEBASE</c>）。<c>null</c> = 未接线 ⇒ 不请求。
+    /// </summary>
+    public static Action<HumThrowAxeEffect>? SpawnThrowAxeFn;
+
     /// <summary>
     /// 复位本类全部接缝为构造期默认值（台帐 §29.4；不含各实例字段）。
     /// </summary>
@@ -299,6 +319,8 @@ public static class ActorNpcEnv
         ConfigDlgCkShowNpcName = false;
         IsFocusActorFn = _ => false;
         RequestLoadSurfaceFn = null;
+        SpawnDigFragmentEffectFn = null;
+        SpawnThrowAxeFn = null;
     }
 }
 
