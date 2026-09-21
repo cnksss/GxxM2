@@ -486,9 +486,6 @@ public partial class TFrmDlg
     /// <summary>Source line 552 : procedure DSWWeaponClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DSWWeaponClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DSWWeaponClick: not ported yet (FState.pas:552)");
-    /// <summary>Source line 553 : procedure DCloseBagClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DCloseBagClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DCloseBagClick: not ported yet (FState.pas:553)");
     /// <summary>Source line 554 : procedure DBelt1Click(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBelt1Click(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBelt1Click: not ported yet (FState.pas:554)");
@@ -504,9 +501,6 @@ public partial class TFrmDlg
     /// <summary>Source line 559 : procedure DMerchantDlgClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DMerchantDlgClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMerchantDlgClick: not ported yet (FState.pas:559)");
-    /// <summary>Source line 560 : procedure DMenuCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DMenuCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMenuCloseClick: not ported yet (FState.pas:560)");
     /// <summary>Source line 561 : procedure DMenuDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DMenuDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DMenuDlgDirectPaint: not ported yet (FState.pas:561)");
@@ -516,9 +510,6 @@ public partial class TFrmDlg
     /// <summary>Source line 563 : procedure DMenuDlgMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DMenuDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMenuDlgMouseMove: not ported yet (FState.pas:563)");
-    /// <summary>Source line 564 : procedure DSellDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DSellDlgCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DSellDlgCloseClick: not ported yet (FState.pas:564)");
     /// <summary>Source line 565 : procedure DSellDlgSpotClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DSellDlgSpotClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DSellDlgSpotClick: not ported yet (FState.pas:565)");
@@ -564,9 +555,6 @@ public partial class TFrmDlg
     /// <summary>Source line 579 : procedure DStMag1MouseUp(Sender:TObject; Button:TMouseButton; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DStMag1MouseUp(object Sender, TMouseButton Button, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DStMag1MouseUp: not ported yet (FState.pas:579)");
-    /// <summary>Source line 582 : procedure DKsOkClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DKsOkClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DKsOkClick: not ported yet (FState.pas:582)");
     /// <summary>Source line 583 : procedure DDealOkClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DDealOkClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DDealOkClick: not ported yet (FState.pas:583)");
@@ -606,24 +594,12 @@ public partial class TFrmDlg
     /// <summary>Source line 595 : procedure DUserState1MouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DUserState1MouseMove(object Sender, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DUserState1MouseMove: not ported yet (FState.pas:595)");
-    /// <summary>Source line 596 : procedure DCloseUS1Click(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DCloseUS1Click(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DCloseUS1Click: not ported yet (FState.pas:596)");
     /// <summary>Source line 597 : procedure DNecklaceUS1DirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DNecklaceUS1DirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DNecklaceUS1DirectPaint: not ported yet (FState.pas:597)");
     /// <summary>Source line 598 : procedure DGuildDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGuildDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGuildDlgDirectPaint: not ported yet (FState.pas:598)");
-    /// <summary>Source line 599 : procedure DGDUpClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDUpClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDUpClick: not ported yet (FState.pas:599)");
-    /// <summary>Source line 600 : procedure DGDDownClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDDownClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDDownClick: not ported yet (FState.pas:600)");
-    /// <summary>Source line 601 : procedure DGDCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDCloseClick: not ported yet (FState.pas:601)");
     /// <summary>Source line 602 : procedure DGDHomeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DGDHomeClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGDHomeClick: not ported yet (FState.pas:602)");
@@ -636,18 +612,6 @@ public partial class TFrmDlg
     /// <summary>Source line 605 : procedure DGDDelMemClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DGDDelMemClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGDDelMemClick: not ported yet (FState.pas:605)");
-    /// <summary>Source line 606 : procedure DGDEditNoticeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDEditNoticeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDEditNoticeClick: not ported yet (FState.pas:606)");
-    /// <summary>Source line 607 : procedure DGDEditGradeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDEditGradeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDEditGradeClick: not ported yet (FState.pas:607)");
-    /// <summary>Source line 608 : procedure DNewGuildDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DNewGuildDlgCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DNewGuildDlgCloseClick: not ported yet (FState.pas:608)");
-    /// <summary>Source line 609 : procedure DNewGuildNoticeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DNewGuildNoticeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DNewGuildNoticeClick: not ported yet (FState.pas:609)");
     /// <summary>Source line 610 : procedure DGuildEditNoticeDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGuildEditNoticeDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGuildEditNoticeDirectPaint: not ported yet (FState.pas:610)");
@@ -750,12 +714,6 @@ public partial class TFrmDlg
     /// <summary>Source line 655 : procedure LoadJsonControl(DOwner:TDxControl; aJson:ISuperObject);</summary>
     public virtual void LoadJsonControl(TDxControl DOwner, ISuperObject aJson)
         => throw new NotSupportedException("TFrmDlg.LoadJsonControl: not ported yet (FState.pas:655)");
-    /// <summary>Source line 656 : procedure DBotRankClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotRankClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotRankClick: not ported yet (FState.pas:656)");
-    /// <summary>Source line 657 : procedure DBotWhisperClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotWhisperClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotWhisperClick: not ported yet (FState.pas:657)");
     /// <summary>Source line 658 : procedure DBotHorseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotHorseClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotHorseClick: not ported yet (FState.pas:658)");
@@ -771,15 +729,6 @@ public partial class TFrmDlg
     /// <summary>Source line 662 : procedure DShopDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DShopDlgCloseClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DShopDlgCloseClick: not ported yet (FState.pas:662)");
-    /// <summary>Source line 663 : procedure DMissionDlgClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DMissionDlgClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMissionDlgClick: not ported yet (FState.pas:663)");
-    /// <summary>Source line 664 : procedure DMissionDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DMissionDlgCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMissionDlgCloseClick: not ported yet (FState.pas:664)");
-    /// <summary>Source line 665 : procedure DGrpDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGrpDlgCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGrpDlgCloseClick: not ported yet (FState.pas:665)");
     /// <summary>Source line 666 : procedure DBotGroupClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotGroupClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotGroupClick: not ported yet (FState.pas:666)");
@@ -804,15 +753,9 @@ public partial class TFrmDlg
     /// <summary>Source line 675 : procedure DBotRankingClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotRankingClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotRankingClick: not ported yet (FState.pas:675)");
-    /// <summary>Source line 676 : procedure DBotRankingCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotRankingCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotRankingCloseClick: not ported yet (FState.pas:676)");
     /// <summary>Source line 677 : procedure DBotFriendClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotFriendClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotFriendClick: not ported yet (FState.pas:677)");
-    /// <summary>Source line 678 : procedure DFrdCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DFrdCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DFrdCloseClick: not ported yet (FState.pas:678)");
     /// <summary>Source line 680 : procedure DGameGoldDealDlgMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DGameGoldDealDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGameGoldDealDlgMouseMove: not ported yet (FState.pas:680)");
@@ -1413,27 +1356,15 @@ public partial class TFrmDlg
     /// <summary>Source line 903 : procedure ProgressButtonStartSubDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void ProgressButtonStartSubDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.ProgressButtonStartSubDirectPaint: not ported yet (FState.pas:903)");
-    /// <summary>Source line 904 : procedure DCloseStateClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DCloseStateClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DCloseStateClick: not ported yet (FState.pas:904)");
     /// <summary>Source line 905 : procedure DSSrvCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DSSrvCloseClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DSSrvCloseClick: not ported yet (FState.pas:905)");
-    /// <summary>Source line 906 : procedure DOpenShopClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DOpenShopClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DOpenShopClick: not ported yet (FState.pas:906)");
     /// <summary>Source line 907 : procedure DMyHeroStateClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DMyHeroStateClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMyHeroStateClick: not ported yet (FState.pas:907)");
-    /// <summary>Source line 908 : procedure DMyHeroStateCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DMyHeroStateCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMyHeroStateCloseClick: not ported yet (FState.pas:908)");
     /// <summary>Source line 909 : procedure DMyHeroBagClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DMyHeroBagClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DMyHeroBagClick: not ported yet (FState.pas:909)");
-    /// <summary>Source line 910 : procedure DMyHeroBagCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DMyHeroBagCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DMyHeroBagCloseClick: not ported yet (FState.pas:910)");
     /// <summary>Source line 911 : procedure LabelDStateWinCharNameClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void LabelDStateWinCharNameClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.LabelDStateWinCharNameClick: not ported yet (FState.pas:911)");
@@ -1799,9 +1730,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1050 : procedure DLieDragonClosePaint(Sender:TObject); stdcall;</summary>
     public virtual void DLieDragonClosePaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DLieDragonClosePaint: not ported yet (FState.pas:1050)");
-    /// <summary>Source line 1052 : procedure DLieDragonCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DLieDragonCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DLieDragonCloseClick: not ported yet (FState.pas:1052)");
     /// <summary>Source line 1054 : procedure DLieDragonNextPagePaint(Sender:TObject); stdcall;</summary>
     public virtual void DLieDragonNextPagePaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DLieDragonNextPagePaint: not ported yet (FState.pas:1054)");
@@ -1820,9 +1748,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1064 : procedure DLieDragonNpcPaint(Sender:TObject); stdcall;</summary>
     public virtual void DLieDragonNpcPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DLieDragonNpcPaint: not ported yet (FState.pas:1064)");
-    /// <summary>Source line 1066 : procedure DLieDragonNpcCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DLieDragonNpcCloseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DLieDragonNpcCloseClick: not ported yet (FState.pas:1066)");
     /// <summary>Source line 1069 : procedure DSayItemDlgPaint(Sender:TObject); stdcall;</summary>
     public virtual void DSayItemDlgPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DSayItemDlgPaint: not ported yet (FState.pas:1069)");

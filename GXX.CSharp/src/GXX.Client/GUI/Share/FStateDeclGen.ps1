@@ -40,7 +40,17 @@ $Handwritten = @(
   'DBottomInRealArea','DscSelect1InRealArea','DUserState1MouseDown',
   'DMinMapDlgShow','DMinMapDlgHide','DMinMapDlgResize',
   'DMouseMoveClearHints','DUpdateStatusDlgMouseLeave','DItemBagMouseMove',
-  'DSayItemDlgCloseClick','DSayItemDlgMouseDown','DSayItemDlgMouseMove'
+  'DSayItemDlgCloseClick','DSayItemDlgMouseDown','DSayItemDlgMouseMove',
+  # ---- lane p14-client-fstate slice 2 (TFrmDlg.Handlers.cs) --------------------------------
+  # Close/open forwarders, guild list line scrolling, and the LieDragon close handlers.
+  'DSellDlgCloseClick','DMenuCloseClick','DKsOkClick','DCloseUS1Click',
+  'DNewGuildDlgCloseClick','DNewGuildNoticeClick',
+  'DGDCloseClick','DGDUpClick','DGDDownClick','DGDEditNoticeClick','DGDEditGradeClick',
+  'DCloseStateClick','DCloseBagClick','DBotRankClick','DBotWhisperClick',
+  'DMissionDlgClick','DMissionDlgCloseClick','DOpenShopClick',
+  'DBotRankingCloseClick','DGrpDlgCloseClick','DFrdCloseClick',
+  'DMyHeroStateCloseClick','DMyHeroBagCloseClick',
+  'DLieDragonCloseClick','DLieDragonNpcCloseClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

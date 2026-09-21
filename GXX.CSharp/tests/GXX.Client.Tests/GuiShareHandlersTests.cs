@@ -6,6 +6,7 @@ using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.GUI.Share;
 using GXX.Client.Scenes;
+using GXX.Core.Util;
 using Xunit;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 // 车道1 的 GXX.Client.GUI.Mir.TFrmDlg 是同一 Delphi 类型的早期接缝，与本车道同名 → CS0104；
@@ -59,6 +60,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         FStateClMainSeam.ResetForTests();
         FStateGlobal.ResetForTests();
         FStateScreenSeam.ResetForTests();
+        FStateResStrSeam.ResetForTests();
         DrawScrnEnv.HintWindows = new THintWindows();
     }
 
@@ -70,14 +72,27 @@ public sealed class GuiShareHandlersTests : IDisposable
     public void LedgerSlice1RegistersTwentyFiveMembers()
     {
         Assert.Equal(25, TFrmDlgPortLedger.Slice1Count);
-        Assert.Single(TFrmDlgPortLedger.AllSlices);
+    }
+
+    [Fact]
+    public void LedgerSlice2RegistersTwentyFiveMembers()
+    {
+        Assert.Equal(25, TFrmDlgPortLedger.Slice2Count);
+    }
+
+    [Fact]
+    public void LedgerAllSlicesHaveNoDuplicateNames()
+    {
+        var all = TFrmDlgPortLedger.AllSlices.SelectMany(s => s).Select(m => m.Name).ToList();
+        Assert.Equal(all.Count, all.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+        Assert.Equal(TFrmDlgPortLedger.LaneCount, all.Count);
     }
 
     [Fact]
     public void EveryLedgerEntryCarriesAPlausibleSourceLineRange()
     {
         // 原文 FState.pas 是 25,165 行；每条登记的区间都必须落在文件内且 起<=止。
-        foreach (var m in TFrmDlgPortLedger.Slice1)
+        foreach (var m in TFrmDlgPortLedger.AllSlices.SelectMany(s => s))
         {
             Assert.False(string.IsNullOrWhiteSpace(m.Name), "成员名不得为空");
             Assert.Matches(@"^\d{1,5}-\d{1,5}$", m.SourceLines);
@@ -98,24 +113,71 @@ public sealed class GuiShareHandlersTests : IDisposable
             .Select(m => m.Name)
             .ToHashSet(StringComparer.Ordinal);
 
-        foreach (var m in TFrmDlgPortLedger.Slice1)
+        foreach (var m in TFrmDlgPortLedger.AllSlices.SelectMany(s => s))
         {
             Assert.True(seen.Add(m.Name), "台账重复登记: " + m.Name);
             Assert.Contains(m.Name, methods);
         }
     }
 
+    /// <summary>本车道（p14）落地的全部成员名（切片 1 + 切片 2）。</summary>
+    private static IEnumerable<TFrmDlgPortLedger.PortedMember> LaneEntries()
+        => TFrmDlgPortLedger.AllSlices.SelectMany(s => s);
+
     [Fact]
-    public void LedgerOnlyContainsMembersThatNoLongerThrow()
+    public void LedgerMembersAreNoLongerShellsInTheGeneratedFile()
     {
-        // 反静默 / 反"假完成"：台账里登记的每一条都必须**可调用且不抛 NotSupportedException**。
+        // ★ 反"假完成"闸门（本测试是本车道对"515 个 throw 壳"最直接的锁）：
+        //   若某个成员**仍然**是生成壳（体里只有 throw new NotSupportedException），
+        //   它的方法体 IL 会包含 `newobj NotSupportedException(string)`。
+        //   真实现（无论是不是转发）都**不会**构造该异常。
+        //   因此这一条能同时覆盖"纯实现"与"转发给仍未移植的方法"两种形态。
         var frm = NewForm();
-        foreach (var m in TFrmDlgPortLedger.Slice1)
+        var accidentalShells = new List<string>();
+        foreach (var m in LaneEntries())
         {
-            var ex = Record.Exception(() => InvokeMember(frm, m.Name));
-            Assert.False(ex is NotSupportedException,
-                m.Name + " 仍在台账中却抛 NotSupportedException（生成壳被重跑回 throw？）: " + ex);
+            var method = FindMethod(frm, m.Name);
+            Assert.False(method == null, "台账成员在类型上找不到: " + m.Name);
+            if (BodyConstructsNotSupportedException(method))
+                accidentalShells.Add(m.Name + " (FState.pas:" + m.SourceLines + ")");
         }
+        Assert.Empty(accidentalShells);
+    }
+
+    private static System.Reflection.MethodInfo FindMethod(TFrmDlg frm, string name)
+        => frm.GetType()
+            .GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+            .FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.Ordinal));
+
+    /// <summary>
+    /// 方法体里是否**新建**了 NotSupportedException（= 仍是"未移植壳"的身体特征）。
+    /// 注意：转发形态（`CloseDSellDlg();`）**不会**命中 —— 它只是 call 另一个方法。
+    /// </summary>
+    private static bool BodyConstructsNotSupportedException(System.Reflection.MethodInfo method)
+    {
+        var body = method.GetMethodBody();
+        if (body == null) return false;
+        var il = body.GetILAsByteArray();
+        if (il == null) return false;
+        for (int i = 0; i < il.Length; i++)
+        {
+            // 0x73 = newobj <ctor token>
+            if (il[i] != 0x73) continue;
+            if (i + 4 >= il.Length) break;
+            int token = BitConverter.ToInt32(il, i + 1);
+            try
+            {
+                var m = method.Module.ResolveMethod(token, method.DeclaringType.GetGenericArguments(),
+                    method.GetGenericArguments());
+                if (m != null && m.DeclaringType == typeof(NotSupportedException))
+                    return true;
+            }
+            catch (ArgumentException)
+            {
+                // 无法解析的 token：不是我们关心的构造，继续扫
+            }
+        }
+        return false;
     }
 
     /// <summary>
@@ -390,6 +452,197 @@ public sealed class GuiShareHandlersTests : IDisposable
         Assert.Null(Record.Exception(() => frm.DMinMapDlgShow(null)));
         Assert.Null(Record.Exception(() => frm.DMinMapDlgHide(null)));
         Assert.Null(Record.Exception(() => frm.DMinMapDlgResize(null)));
+    }
+
+    // =====================================================================================
+    // 切片 2：17854-17866  公会成员列表翻行（本单元字段，可直接断言）
+    // =====================================================================================
+
+    [Fact]
+    public void DGDUpClickDecrementsByThreeAndClampsAtZero()
+    {
+        var frm = NewForm();
+        frm.GuildTopLine = 10;
+
+        frm.DGDUpClick(null, 0, 0);
+        Assert.Equal(7, frm.GuildTopLine);      // 17857：Dec(..., 3)
+
+        frm.GuildTopLine = 1;
+        frm.DGDUpClick(null, 0, 0);
+        Assert.Equal(0, frm.GuildTopLine);      // 1 - 3 = -2 → 17859 夹回 0
+    }
+
+    [Fact]
+    public void DGDUpClickDoesNothingWhenAlreadyAtZero()
+    {
+        var frm = NewForm();
+        frm.GuildTopLine = 0;
+
+        frm.DGDUpClick(null, 0, 0);
+
+        Assert.Equal(0, frm.GuildTopLine);      // 17856 的 > 0 不成立
+    }
+
+    [Fact]
+    public void DGDDownClickUsesStrictLessThanOnTopLinePlusTwelve()
+    {
+        var frm = NewForm();
+        frm.GuildStrs = new TStringList();
+        for (int i = 0; i < 12; i++) frm.GuildStrs.Add("m" + i);   // Count = 12
+
+        // 判据 `GuildTopLine + 12 < Count`：TopLine=0 ⇒ 12 < 12 = False ⇒ 不动
+        frm.GuildTopLine = 0;
+        frm.DGDDownClick(null, 0, 0);
+        Assert.Equal(0, frm.GuildTopLine);      // 差异断言：**严格小于**，不是 <=
+
+        // Count = 16 ⇒ 0 + 12 < 16 = True ⇒ +3
+        frm.GuildStrs.Add("m12");
+        frm.GuildStrs.Add("m13");
+        frm.GuildStrs.Add("m14");
+        frm.GuildStrs.Add("m15");
+        frm.DGDDownClick(null, 0, 0);
+        Assert.Equal(3, frm.GuildTopLine);      // 17865：Inc(..., 3)
+    }
+
+    // =====================================================================================
+    // 切片 2：17906-17926  公会编辑入口（原文先把资源串解码进 GuildEditHint）
+    // =====================================================================================
+
+    [Fact]
+    public void DGDEditNoticeClickStoresTheDecodedResourceStringThenForwards()
+    {
+        var frm = NewForm();
+        FStateResStrSeam.SGuildEditNotice = "SGuildEditNotice";
+        FStateResStrSeam.DecodeResStr = s => "<" + s + ">";
+
+        // 17909 的 OpenDGuildEditNoticeDlg 尚未移植 ⇒ 转发后仍抛（**抛点在被转发方**）
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DGDEditNoticeClick(null, 0, 0));
+        Assert.Contains("OpenDGuildEditNoticeDlg", ex.Message);
+
+        // 但 17908 的赋值**已经发生**（顺序：先写 GuildEditHint，再转发）
+        Assert.Equal("<SGuildEditNotice>", frm.GuildEditHint);
+    }
+
+    [Fact]
+    public void DGDEditGradeClickStoresTheDecodedGradeHintThenForwards()
+    {
+        var frm = NewForm();
+        FStateResStrSeam.SGuildEditGradeHint = "SGuildEditGradeHint";
+        FStateResStrSeam.DecodeResStr = s => "[" + s + "]";
+
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DGDEditGradeClick(null, 0, 0));
+        Assert.Contains("OpenGuildEditGradeDlg", ex.Message);
+        Assert.Equal("[SGuildEditGradeHint]", frm.GuildEditHint);
+    }
+
+    // =====================================================================================
+    // 切片 2：24206-24314  卧龙对话框关闭（直接置 Visible）
+    // =====================================================================================
+
+    [Fact]
+    public void DLieDragonCloseClickHidesTheDialog()
+    {
+        var frm = NewForm();
+        frm.DLieDragon = new TDxImageForm();
+        frm.DLieDragon.Visible = true;
+
+        frm.DLieDragonCloseClick(null, 0, 0);
+
+        Assert.False(frm.DLieDragon.Visible);   // 24208
+    }
+
+    [Fact]
+    public void DLieDragonNpcCloseClickHidesTheNpcDialog()
+    {
+        var frm = NewForm();
+        frm.DLieDragonNpc = new TDxImageForm();
+        frm.DLieDragonNpc.Visible = true;
+
+        frm.DLieDragonNpcCloseClick(null, 0, 0);
+
+        Assert.False(frm.DLieDragonNpc.Visible); // 24313
+    }
+
+    [Fact]
+    public void DLieDragonCloseDoesNotTouchTheOtherDialog()
+    {
+        // 差异断言：两条只动各自的控件（原文没有交叉）。
+        var frm = NewForm();
+        frm.DLieDragon = new TDxImageForm();
+        frm.DLieDragonNpc = new TDxImageForm();
+        frm.DLieDragon.Visible = true;
+        frm.DLieDragonNpc.Visible = true;
+
+        frm.DLieDragonCloseClick(null, 0, 0);
+
+        Assert.False(frm.DLieDragon.Visible);
+        Assert.True(frm.DLieDragonNpc.Visible);
+    }
+
+    // =====================================================================================
+    // 切片 2：关闭/打开转发族 —— 转发体必须真的转发（断言**抛点行号**是每个目标自己的）
+    // =====================================================================================
+
+    public static IEnumerable<object[]> ForwarderMembers()
+    {
+        // 成员名, 被转发的方法名
+        yield return new object[] { "DSellDlgCloseClick", "CloseDSellDlg" };
+        yield return new object[] { "DMenuCloseClick", "CloseDMenuDlg" };
+        yield return new object[] { "DCloseStateClick", "CloseDStateWinDlg" };
+        yield return new object[] { "DCloseBagClick", "CloseDItemBagDlg" };
+        yield return new object[] { "DBotRankClick", "OpenDRankingDlg" };
+        yield return new object[] { "DBotWhisperClick", "OpenDWhisperDlg" };
+        yield return new object[] { "DMissionDlgClick", "OpenDMissionDlg" };
+        yield return new object[] { "DMissionDlgCloseClick", "CloseDMissionDlg" };
+        yield return new object[] { "DOpenShopClick", "OpenDShopDlg" };
+        yield return new object[] { "DBotRankingCloseClick", "CloseDRankingDlg" };
+        yield return new object[] { "DGrpDlgCloseClick", "CloseDGroupDlg" };
+        yield return new object[] { "DFrdCloseClick", "CloseDFriendDlg" };
+        yield return new object[] { "DMyHeroStateCloseClick", "CloseDHeroStateWinDlg" };
+        yield return new object[] { "DMyHeroBagCloseClick", "CloseDHeroItemBagDlg" };
+        yield return new object[] { "DKsOkClick", "CloseDKeySelDlg" };
+        yield return new object[] { "DCloseUS1Click", "CloseDUserState1Dlg" };
+        yield return new object[] { "DNewGuildDlgCloseClick", "CloseDGuildDlg_New" };
+        yield return new object[] { "DNewGuildNoticeClick", "OpenDGuildEditNoticeDlg_New" };
+    }
+
+    [Theory]
+    [MemberData(nameof(ForwarderMembers))]
+    public void ForwardersDelegateToTheOriginalTarget(string member, string target)
+    {
+        var frm = NewForm();
+        var ex = Assert.Throws<NotSupportedException>(() => InvokeLaneMember(frm, member));
+        // 转发的证据：异常消息里带的是**被转发方法自己**的 "TFrmDlg.<target>"
+        Assert.Contains("TFrmDlg." + target + ":", ex.Message);
+    }
+
+    /// <summary>切片 2 的转发族调用表（参数一律给最小合法值）。</summary>
+    private static void InvokeLaneMember(TFrmDlg frm, string name)
+    {
+        switch (name)
+        {
+            case "DSellDlgCloseClick": frm.DSellDlgCloseClick(null, 0, 0); break;
+            case "DMenuCloseClick": frm.DMenuCloseClick(null, 0, 0); break;
+            case "DKsOkClick": frm.DKsOkClick(null, 0, 0); break;
+            case "DCloseUS1Click": frm.DCloseUS1Click(null, 0, 0); break;
+            case "DNewGuildDlgCloseClick": frm.DNewGuildDlgCloseClick(null, 0, 0); break;
+            case "DNewGuildNoticeClick": frm.DNewGuildNoticeClick(null, 0, 0); break;
+            case "DCloseStateClick": frm.DCloseStateClick(null, 0, 0); break;
+            case "DCloseBagClick": frm.DCloseBagClick(null, 0, 0); break;
+            case "DBotRankClick": frm.DBotRankClick(null, 0, 0); break;
+            case "DBotWhisperClick": frm.DBotWhisperClick(null, 0, 0); break;
+            case "DMissionDlgClick": frm.DMissionDlgClick(null, 0, 0); break;
+            case "DMissionDlgCloseClick": frm.DMissionDlgCloseClick(null, 0, 0); break;
+            case "DOpenShopClick": frm.DOpenShopClick(null, 0, 0); break;
+            case "DBotRankingCloseClick": frm.DBotRankingCloseClick(null, 0, 0); break;
+            case "DFrdCloseClick": frm.DFrdCloseClick(null, 0, 0); break;
+            case "DGrpDlgCloseClick": frm.DGrpDlgCloseClick(null, 0, 0); break;
+            case "DMyHeroStateCloseClick": frm.DMyHeroStateCloseClick(null, 0, 0); break;
+            case "DMyHeroBagCloseClick": frm.DMyHeroBagCloseClick(null, 0, 0); break;
+            default:
+                Assert.Fail("未登记的切片 2 成员: " + name);
+                break;
+        }
     }
 
     // =====================================================================================

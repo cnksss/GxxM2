@@ -282,6 +282,210 @@ public partial class TFrmDlg
         DrawScrnEnv.HintWindows.Clear();                    // 24370
         FStateScreenSeam.ClearHint();                       // 24371
     }
+
+    // ==========================================================================================
+    // 切片 2：关闭/打开转发面 + 公会列表翻行 + 卧龙相关关闭
+    //
+    // 说明：这一族原文都是"一行转发"，被转发的方法在托管侧**都还是 NotSupportedException 壳**
+    // （见各条注释）。托管侧按原文 1:1 保留转发形态 —— 既不内联被调者（会造第三份实现，§14.2），
+    // 也不加"目标未移植则跳过"的保护（会把缺口静默掉）。因此这一族**调用时会抛**
+    // NotSupportedException，抛点在被转发的方法里，**消息里带的是被转发的原文行号**。
+    // 台账 `TFrmDlgPortLedger` 只登记"转发体已 1:1 落地"，不声称整条调用链已通。
+    // ==========================================================================================
+
+    /// <summary>FState.pas:17362-17365 procedure TFrmDlg.DSellDlgCloseClick（转 `CloseDSellDlg`）。</summary>
+    public virtual void DSellDlgCloseClick(object Sender, int X, int Y)
+    {
+        CloseDSellDlg();                                    // 17364
+    }
+
+    /// <summary>FState.pas:17446-17449 procedure TFrmDlg.DMenuCloseClick（转 `CloseDMenuDlg`）。</summary>
+    public virtual void DMenuCloseClick(object Sender, int X, int Y)
+    {
+        CloseDMenuDlg();                                    // 17448
+    }
+
+    /// <summary>FState.pas:17506-17509 procedure TFrmDlg.DKsOkClick（转 `CloseDKeySelDlg`）。</summary>
+    public virtual void DKsOkClick(object Sender, int X, int Y)
+    {
+        CloseDKeySelDlg();                                  // 17508
+    }
+
+    /// <summary>FState.pas:17806-17809 procedure TFrmDlg.DCloseUS1Click（转 `CloseDUserState1Dlg`）。</summary>
+    public virtual void DCloseUS1Click(object Sender, int X, int Y)
+    {
+        CloseDUserState1Dlg();                              // 17808
+    }
+
+    // ==========================================================================================
+    // 17854-17872  公会成员列表翻行（GuildTopLine 是本单元字段，**可直接落地并断言**）
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:17854-17860 procedure TFrmDlg.DGDUpClick。
+    /// 原文**两步**：先 `if GuildTopLine > 0 then Dec(GuildTopLine, 3)`，
+    /// 再 `if GuildTopLine < 0 then GuildTopLine := 0`（第二步在第一步保证下**恒不成立**，
+    /// 是原文的冗余保护 —— 逐字保留，不删）。
+    /// </summary>
+    public virtual void DGDUpClick(object Sender, int X, int Y)
+    {
+        if (GuildTopLine > 0)                               // 17856
+            GuildTopLine -= 3;                              // 17857（原文 Dec(GuildTopLine, 3)）
+        if (GuildTopLine < 0)                               // 17858
+            GuildTopLine = 0;                               // 17859
+    }
+
+    /// <summary>
+    /// FState.pas:17862-17866 procedure TFrmDlg.DGDDownClick。
+    /// 原文判据 `GuildTopLine + 12 &lt; GuildStrs.Count`（**严格小于**；不是 `&lt;=`），
+    /// 命中才 `Inc(GuildTopLine, 3)`。
+    /// </summary>
+    public virtual void DGDDownClick(object Sender, int X, int Y)
+    {
+        if (GuildTopLine + 12 < GuildStrs.Count)            // 17864
+            GuildTopLine += 3;                              // 17865（原文 Inc(GuildTopLine, 3)）
+    }
+
+    // ==========================================================================================
+    // 17868-17926  公会对话框关闭/编辑入口
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:17868-17872 procedure TFrmDlg.DGDCloseClick。
+    /// 原文**两步**：先 `CloseDGuildDlg`，再 `BoGuildChat := False`（顺序保留）。
+    /// </summary>
+    public virtual void DGDCloseClick(object Sender, int X, int Y)
+    {
+        CloseDGuildDlg();                                   // 17870
+        BoGuildChat = false;                                // 17871
+    }
+
+    /// <summary>FState.pas:17912-17915 procedure TFrmDlg.DNewGuildDlgCloseClick（转 `CloseDGuildDlg_New`）。</summary>
+    public virtual void DNewGuildDlgCloseClick(object Sender, int X, int Y)
+    {
+        CloseDGuildDlg_New();                               // 17914
+    }
+
+    /// <summary>FState.pas:17917-17920 procedure TFrmDlg.DNewGuildNoticeClick（转 `OpenDGuildEditNoticeDlg_New`）。</summary>
+    public virtual void DNewGuildNoticeClick(object Sender, int X, int Y)
+    {
+        OpenDGuildEditNoticeDlg_New();                      // 17919
+    }
+
+    /// <summary>
+    /// FState.pas:17906-17910 procedure TFrmDlg.DGDEditNoticeClick。
+    /// 原文顺序：先把资源串解码后缓存到 `GuildEditHint`，再打开编辑框。
+    /// </summary>
+    public virtual void DGDEditNoticeClick(object Sender, int X, int Y)
+    {
+        GuildEditHint = FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildEditNotice); // 17908
+        OpenDGuildEditNoticeDlg();                          // 17909
+    }
+
+    /// <summary>
+    /// FState.pas:17922-17926 procedure TFrmDlg.DGDEditGradeClick。
+    /// 与 DGDEditNoticeClick 同形，缓存的是 `SGuildEditGradeHint`。
+    /// </summary>
+    public virtual void DGDEditGradeClick(object Sender, int X, int Y)
+    {
+        GuildEditHint = FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildEditGradeHint); // 17924
+        OpenGuildEditGradeDlg();                            // 17925
+    }
+
+    // ==========================================================================================
+    // 18822-18938  底部按钮一族（关闭/打开转发）
+    // ==========================================================================================
+
+    /// <summary>FState.pas:18822-18825 procedure TFrmDlg.DCloseStateClick（转 `CloseDStateWinDlg`）。</summary>
+    public virtual void DCloseStateClick(object Sender, int X, int Y)
+    {
+        CloseDStateWinDlg();                                // 18824
+    }
+
+    /// <summary>FState.pas:18827-18830 procedure TFrmDlg.DCloseBagClick（转 `CloseDItemBagDlg`）。</summary>
+    public virtual void DCloseBagClick(object Sender, int X, int Y)
+    {
+        CloseDItemBagDlg();                                 // 18829
+    }
+
+    /// <summary>FState.pas:18832-18835 procedure TFrmDlg.DBotRankClick（转 `OpenDRankingDlg`）。</summary>
+    public virtual void DBotRankClick(object Sender, int X, int Y)
+    {
+        OpenDRankingDlg();                                  // 18834
+    }
+
+    /// <summary>FState.pas:18837-18840 procedure TFrmDlg.DBotWhisperClick（转 `OpenDWhisperDlg`）。</summary>
+    public virtual void DBotWhisperClick(object Sender, int X, int Y)
+    {
+        OpenDWhisperDlg();                                  // 18839
+    }
+
+    /// <summary>FState.pas:18868-18871 procedure TFrmDlg.DMissionDlgClick（转 `OpenDMissionDlg`）。</summary>
+    public virtual void DMissionDlgClick(object Sender, int X, int Y)
+    {
+        OpenDMissionDlg();                                  // 18870
+    }
+
+    /// <summary>FState.pas:18873-18876 procedure TFrmDlg.DMissionDlgCloseClick（转 `CloseDMissionDlg`）。</summary>
+    public virtual void DMissionDlgCloseClick(object Sender, int X, int Y)
+    {
+        CloseDMissionDlg();                                 // 18875
+    }
+
+    /// <summary>FState.pas:18878-18881 procedure TFrmDlg.DOpenShopClick（转 `OpenDShopDlg`）。</summary>
+    public virtual void DOpenShopClick(object Sender, int X, int Y)
+    {
+        OpenDShopDlg();                                     // 18880
+    }
+
+    /// <summary>FState.pas:18888-18891 procedure TFrmDlg.DBotRankingCloseClick（转 `CloseDRankingDlg`）。</summary>
+    public virtual void DBotRankingCloseClick(object Sender, int X, int Y)
+    {
+        CloseDRankingDlg();                                 // 18890
+    }
+
+    /// <summary>
+    /// FState.pas:18898-18901 procedure TFrmDlg.DFrdCloseClick。
+    /// 原文写的是 `CloseDFriendDlg()`（**带空括号**，与同族其它条目的无括号写法不同；原文如此）。
+    /// </summary>
+    public virtual void DFrdCloseClick(object Sender, int X, int Y)
+    {
+        CloseDFriendDlg();                                  // 18900
+    }
+
+    /// <summary>FState.pas:18935-18938 procedure TFrmDlg.DGrpDlgCloseClick（转 `CloseDGroupDlg`）。</summary>
+    public virtual void DGrpDlgCloseClick(object Sender, int X, int Y)
+    {
+        CloseDGroupDlg();                                   // 18937
+    }
+
+    /// <summary>FState.pas:18996-18999 procedure TFrmDlg.DMyHeroStateCloseClick（转 `CloseDHeroStateWinDlg`）。</summary>
+    public virtual void DMyHeroStateCloseClick(object Sender, int X, int Y)
+    {
+        CloseDHeroStateWinDlg();                            // 18998
+    }
+
+    /// <summary>FState.pas:19006-19009 procedure TFrmDlg.DMyHeroBagCloseClick（转 `CloseDHeroItemBagDlg`）。</summary>
+    public virtual void DMyHeroBagCloseClick(object Sender, int X, int Y)
+    {
+        CloseDHeroItemBagDlg();                             // 19008
+    }
+
+    // ==========================================================================================
+    // 24206-24314  卧龙（LieDragon）对话框关闭：直接置 Visible := False（可完整落地并断言）
+    // ==========================================================================================
+
+    /// <summary>FState.pas:24206-24209 procedure TFrmDlg.DLieDragonCloseClick。</summary>
+    public virtual void DLieDragonCloseClick(object Sender, int X, int Y)
+    {
+        DLieDragon.Visible = false;                         // 24208
+    }
+
+    /// <summary>FState.pas:24311-24314 procedure TFrmDlg.DLieDragonNpcCloseClick。</summary>
+    public virtual void DLieDragonNpcCloseClick(object Sender, int X, int Y)
+    {
+        DLieDragonNpc.Visible = false;                      // 24313
+    }
 }
 
 /// <summary>
@@ -347,11 +551,50 @@ public static class TFrmDlgPortLedger
         new PortedMember("DUpdateStatusDlgMouseLeave", "24464-24467"),
     };
 
-    /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1 };
+    /// <summary>
+    /// 切片 2 落地的成员（25 条）：关闭/打开转发面 + 公会列表翻行 + 卧龙关闭。
+    /// ★ 其中 20 条是"转发给仍在 throw 的壳"（见实现处注释）—— 本表只声称**转发体**已 1:1 落地。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice2 = new[]
+    {
+        new PortedMember("DSellDlgCloseClick",         "17362-17365"),
+        new PortedMember("DMenuCloseClick",            "17446-17449"),
+        new PortedMember("DKsOkClick",                 "17506-17509"),
+        new PortedMember("DCloseUS1Click",             "17806-17809"),
+        new PortedMember("DGDUpClick",                 "17854-17860"),
+        new PortedMember("DGDDownClick",               "17862-17866"),
+        new PortedMember("DGDCloseClick",              "17868-17872"),
+        new PortedMember("DGDEditNoticeClick",         "17906-17910"),
+        new PortedMember("DNewGuildDlgCloseClick",     "17912-17915"),
+        new PortedMember("DNewGuildNoticeClick",       "17917-17920"),
+        new PortedMember("DGDEditGradeClick",          "17922-17926"),
+        new PortedMember("DCloseStateClick",           "18822-18825"),
+        new PortedMember("DCloseBagClick",             "18827-18830"),
+        new PortedMember("DBotRankClick",              "18832-18835"),
+        new PortedMember("DBotWhisperClick",           "18837-18840"),
+        new PortedMember("DMissionDlgClick",           "18868-18871"),
+        new PortedMember("DMissionDlgCloseClick",      "18873-18876"),
+        new PortedMember("DOpenShopClick",             "18878-18881"),
+        new PortedMember("DBotRankingCloseClick",      "18888-18891"),
+        new PortedMember("DFrdCloseClick",             "18898-18901"),
+        new PortedMember("DGrpDlgCloseClick",          "18935-18938"),
+        new PortedMember("DMyHeroStateCloseClick",     "18996-18999"),
+        new PortedMember("DMyHeroBagCloseClick",       "19006-19009"),
+        new PortedMember("DLieDragonCloseClick",       "24206-24209"),
+        new PortedMember("DLieDragonNpcCloseClick",    "24311-24314"),
+    };
 
-    /// <summary>切片 1 的真实现成员数（报告里的"真实体"分子）。</summary>
+    /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
+    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1, Slice2 };
+
+    /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
+
+    /// <summary>切片 2 的真实现成员数。</summary>
+    public static int Slice2Count => Slice2.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1 + 切片 2）。</summary>
+    public static int LaneCount => Slice1.Count + Slice2.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
