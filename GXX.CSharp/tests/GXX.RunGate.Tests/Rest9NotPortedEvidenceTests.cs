@@ -202,6 +202,30 @@ public class Rest9NotPortedEvidenceTests
     }
 
     [Fact]
+    public void IODataPool_DivMod_IsLiveCode_CalledTwice()
+    {
+        // ★ 自我纠错用例：初版把 DivMod 写成"死代码（从未被调用）"。
+        // 必须 grep **调用点**才能下这个结论——本用例把调用点数量钉死。
+        var raw = Rest9NotPortedEvidence.StripPascalComments(ReadSource("Source/RunGate/Common/IODataPool.pas"));
+        var callLines = File.ReadAllLines(RepoPath("Source/RunGate/Common/IODataPool.pas"))
+            .Select((l, i) => (Text: l, No: i + 1))
+            .Where(x => x.Text.Contains("DivMod(", StringComparison.Ordinal) &&
+                        !x.Text.TrimStart().StartsWith("procedure", StringComparison.Ordinal))
+            .ToArray();
+        foreach (var c in callLines) _out.WriteLine($"DivMod 调用：:{c.No}  {c.Text.Trim()}");
+        Assert.Equal(2, callLines.Length);
+        Assert.Equal(319, callLines[0].No);
+        Assert.Equal(427, callLines[1].No);
+        Assert.Contains("DivMod(", raw);
+
+        // 签名与调用形态（常数 1 shl 7 = 128 逐字保留）
+        var decl = File.ReadAllLines(RepoPath("Source/RunGate/Common/IODataPool.pas"))[67];
+        Assert.Contains("procedure DivMod(Dividend: Integer; Divisor: Word;", decl);
+        Assert.All(callLines, c => Assert.Contains("DivMod(", c.Text));
+        Assert.Contains("1 shl 7", callLines[0].Text);
+    }
+
+    [Fact]
     public void IODataPool_AllCallers_AreTheFourUnits_AndEveryOneOfThemExists()
     {
         var root = FindRepoRoot();
