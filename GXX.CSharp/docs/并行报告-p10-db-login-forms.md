@@ -157,7 +157,7 @@
 | `LoginSrv/GrobalSession.pas` | 93 | **3/3**（`Forms/GrobalSession.cs`） | DFM 4 object → 实例化 4 ✅；绑定 1 → `+=` 1 ✅ | ✅ 完成 |
 | `GameCenter/GLoginServerRouteSet.pas` | 35 | 0（死代码 + 已移植，见 §0.2） | DFM 1 控件（既有实现里已有） | ✅ 判定完成（**不建文件**） |
 | `GameCenter/GHeroDBConfig.pas` | 565 | 进行中（子车道） | 目标：DFM 25 object / 6 绑定 | ⏳ |
-| `LoginSrv/MasSock.pas` | 1,017 | 进行中（子车道） | 目标：DFM 2 object / 6 绑定 | ⏳ |
+| `LoginSrv/MasSock.pas` | 1,017 | **21/22**（`Forms/MasSock.cs`，1553 行） | DFM object 2 → 实例化 2 ✅；绑定 6 → `+=` 6 ✅ | ✅ 完成 |
 | `DBServer/uFrmRoleDataEdit.pas` | 974 | 进行中（子车道） | 目标：DFM 88 object / 35 绑定 | ⏳ |
 
 **计数口径（可复跑，§37.3）**：在 UTF-8 镜像的 `.pas` 上，只取 `interface` 段，
@@ -208,6 +208,20 @@
 其 2 个 object（窗体根 + `TServerSocket MSocket`）与 `.pas:26-27` 的 1 个字段声明一致（+1 窗体根）。
 这是一条**独立于实现**的对账基线：托管侧 `CountDfmObjects()` 必须等于上表第 3 列 + 1。
 
+### 1.5 `MasSock.pas` 逐例程（**21/22**，`Forms/MasSock.cs`）
+
+| 类/单位 | 原文例程数 | 已移植 | 说明 |
+|---|---|---|---|
+| `TFrmMasSoc`（interface 段 18 条） | 18 | **18** | `FormCreate` / `FormDestroy` / `MSocketClientConnect` / `MSocketClientDisconnect` / `MSocketClientError` / `MSocketClientRead` / `SortServerList` / `RefServerLimit` / `LimitName` / `LoadUserLimit` / `LoadServerAddr` / `CheckReadyServers` / `SendServerMsg` / `SendServerMsgA` / `IsNotUserFull` / `ServerStatus` / `GetOnlineHumCount` / `StartService` |
+| 实现段自由函数 | 3 | **3** | `CheckAccountValid` / `CheckStringValid` / `CheckStringValid2` |
+| `{$IFDEF LOG_SESSION}` 块（`:67-130` + `:770-775` + `:788-793` + `:1009-1015`） | 1 过程 + 1 类型 + init/final | **0（有意不移植）** | ★ **计数取证**：全 `Source` 树（`*.pas/*.dpr/*.inc`）grep `LOG_SESSION` = **14 处**，全部是 `{$IFDEF LOG_SESSION}` 指令或被注释掉的 `{.$DEFINE LOG_SESSION}`（`MasSock.pas:67`、`M2Engine/Forms/IdSrvClient.pas:73` 均为注释态），**生效 `{$DEFINE}` = 0 处** ⇒ 从未参与编译 |
+| `CheckAccountValid` 的调用点 | — | — | ★ 唯一调用点在 `:389-398` 的 `{ }` 注释块内 ⇒ **死代码**（本车道仍按"逐条移植"保留该函数本体） |
+| 合计 | 22 | **21** | 唯一 ❌ = `LogSession`（条件编译，见上） |
+
+DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChildrenOf()==1`、`+=` 6
+（窗体 `Load`=OnCreate + `FormClosed`=OnDestroy，`MSocket` 4 条）。子车道另有
+`Dfm_Bindings_ActuallyInvokeFormHandlers`（经接缝 `Raise*` 驱动 6 条绑定，证明**真接上**而不只是计数）。
+
 ---
 
 ## 2. 原文缺陷清单（照抄 + `// 原文如此` + 差异断言锁死）
@@ -234,11 +248,37 @@
 | 18 | `uFrmRoleDataEdit.pas:802-806 / 823-827` | 读文件失败时 `Exit` —— `finally` 只 `FreeMem(ReadBuf)`，**`FileClose(nFileHandle)` 在 `Exit` 之后（`:837`）⇒ 文件句柄泄漏** | 每次导入失败泄漏一个文件句柄 | 子车道用例（失败路径后句柄计数/可再次打开同一文件） |
 | 19 | `uFrmRoleDataEdit.pas:749-752` `ProcessSaveDataToFile` | 目标文件已存在时用 `FileOpen(..., fmOpenReadWrite)`（**不截断**）后从 0 写 `SizeOf(THumData)` 字节 | 新记录比旧文件短时**尾部残留旧字节** ⇒ 导出的文件比记录长、再导入会被多读 | 子车道用例（先写长文件再导短记录，断言长度 == SizeOf） |
 | 20 | `uFrmRoleDataEdit.pas:730-733` | `ButtonExportDataClick` 里 `Sender = ButtonSaveData` 那一支是**空体**，而 `ButtonSaveData` 的 `OnClick` 绑定的是 `ButtonSaveDataClick` ⇒ 该支**死代码** | 无（仅证明"共用处理器"的写法不完整） | 子车道计数用例（35 条绑定地图 + 该处理器只被 2 个按钮触发） |
-| 21 | `MasSock.pas:628` `MSocketClientRead` | `MsgServer.sReceiveMsg := sReviceMsg;` 位于 **`for I := 0 to m_ServerList.Count - 1` 的循环体里、`if MsgServer.Socket = Socket` 之外** ⇒ 每轮都会把"当前这条 socket 的粘包残留"写进**列表里每一个** `MsgServer.sReceiveMsg`（`sReviceMsg` 是局部变量，只有命中那一轮才被赋值） | 命中项**之后**的所有服务器条目，其未完成报文缓冲被**串台覆盖** ⇒ 多服务器并发时**跨连接丢包/错包**。这是本单元最严重的原文缺陷 | 子车道用例（两条 server 条目 + 只让第 0 条收到半包，断言第 1 条的 `sReceiveMsg` 未被污染；**当前实现按原文照抄，用例应断言"污染确实发生"**） |
-| 22 | `MasSock.pas:820` `LoadServerAddr` | `if (sLineText <> '') and (sLineText[I] <> ';')` —— `I` 是**文件行号**，却拿去索引**该行字符串**（本意是 `sLineText[1] <> ';'` 的注释行判断） | `I > Length(sLineText)` 时 Delphi 的 `s[I]` 越界（range check 关 ⇒ 读到相邻字节/垃圾）；注释行判断**基本失效** | 子车道用例（按原文口径断言越界索引语义 / 或登记为不可稳定复现） |
-| 23 | `MasSock.pas:917-951` `LoadUserLimit` | 逐行 `UserLimit[nC] := ...; Inc(nC);` —— **对 `nC` 没有任何上界检查**（`UserLimit: array[0..99]`） | `!UserLimit.txt` 超过 100 行 ⇒ **写穿静态数组**（Delphi 下破坏相邻全局内存） | 子车道用例（>100 行输入时的实际行为；托管侧必须按 §25.2 显式表达而非静默截断） |
-| 24 | `MasSock.pas:949-950` `LoadUserLimit` | 文件不存在时 `ShowMessage('[Critical Failure] file not found. .\!UserLimit.txt')` —— **启动路径上的阻塞式模态框** | 无头/服务模式下会挂死 | 子车道用例（消息框接缝被调用 + 不阻塞） |
-| 25 | `MasSock.pas:217-232` `CheckAccountValid` | 唯一调用点在 `:389-398` 的 **`{ }` 注释块**里 ⇒ 该函数是**死代码** | 无 | 子车道计数用例（全单元调用点 1 处，且位于注释内） |
+
+> `MasSock.pas` 的原文缺陷单列于 §2.1（由子车道逐条编号 F1–F19，含本报告 §2 早期登记的 5 条同源项）。
+
+### 2.1 `MasSock.pas` 缺陷全表（子车道编号 F1–F19；每条的"锁死用例"均已在 `P10MasSockTests.cs` 落地并全绿）
+
+| # | 位置 | 缺陷 | 后果 |
+|---|---|---|---|
+| F1 | `:628` | `sReceiveMsg := sReviceMsg` 写在 `if MsgServer.Socket = Socket` **之外**（在 `for` 循环体内） | 命中项**之后**的所有服务器条目的未完成报文缓冲被同一份 `sReviceMsg` 覆盖（首次未命中时是 `""`）⇒ 多服务器并发**串包/丢包**。**本单元最严重** |
+| F2 | `:383` `:622` | `Exit` 退出**整个过程**（不是跳出 case/for） | 后续服务器条目的 `:628` 回写被跳过（与 F1 组合出更乱的缓冲状态） |
+| F3 | `:820` | `sLineText[I]` —— 用**文件行号**当 1-based **字符**下标判 `;` 注释行（本意应为 `sLineText[1]`） | 只有第 1 行判得对；其余行的注释判断落在随机位置 |
+| F4 | `:826` `:830` | `g_ServerAddrCount := nServerIdx` 写在 `for` 体内 | ① 文件为 0 行时**不赋值**（保留旧计数）；② 满 100 `break` 时计数停在 **99**（差一） |
+| F5 | `:939` | `UserLimit[nC]` 无上界检查（`array[0..99]`） | 超过 100 行 ⇒ **写穿静态数组**（Delphi 内存破坏） |
+| F6 | `:917` | 重载 `!UserLimit.txt` 前**不清空** `UserLimit` | 旧条目残留，`LimitName` 仍可能命中已删除的限流项 |
+| F7 | `:949` | 文件缺失只 `ShowMessage`，`nUserLimit`/`UserLimit` **都不重置** | 启动路径上的**阻塞模态框** + 状态不一致 |
+| F8 | `:642` | `m_ServerList.Free` 之后**不置 nil** | 悬垂字段；再访问即 AV |
+| F9 | `:150` `:669` `:752` `:797` `:854` `:887` `:911` `:1004` | **空 `except`** 吞掉一切异常（只留一行日志） | 真正的故障被静默 |
+| F10 | `:979-999` | `ServerStatus` 用整数 `div` 分级；`Max=0, Min=0` ⇒ **恒报"1 空闲"** | 限流为 0 的服务器被显示为空闲 |
+| F11 | `:541-556` | 手机号"非数字"标志**取反**，且与上面的禁字符检查**共用错误码 -13** | 非数字手机号被**当成合法**；两种不同错误无法区分 |
+| F12 | `:389-398` | 帐号名校验整块**被注释掉** | 非法帐号名（长度/字符集）照样通过 |
+| F13 | `:782` `:885` | `MsgServer.Socket` 未判空直接解引用 | `nil` 项让**整轮循环中断**（异常被 F9 吞掉） |
+| F14 | `:784` vs `:658/:684/:967/:977` | 同一次匹配里 `:784` 用 `CompareText`（忽略大小写），其余四处用 `=`（区分大小写） | 服务器名匹配语义不一致 |
+| F15 | `:165` | 白名单循环上界 `g_ServerAddrCount - 1` 未夹紧到 100 | 计数越界时读越界内存 |
+| F16 | `:686` | `nLimitCountMin > nLimitCountMax` 才判"满" | **正好满员时仍报"未满"** |
+| F17 | `:934-937` | 全分隔符行（`GetValidStr3` 返回空）→ 生成 `sServerName = "   "` 的垃圾条目 | 空白条目污染限流表 |
+| F18 | `:199` | `MsgServer.Socket = Socket` 判等：`nil = nil` 成立 | 传 `nil` 的 Disconnect 会**删掉第一个 nil 项** |
+| F19 | `:300-303` | 未命中 `(` 时 `ArrestStringEx` 返回原串（原文 `Result := Source`） | 缓冲区**永不丢弃**无 `(` 的垃圾 ⇒ 无限增长 |
+
+**F19 连带发现（跨区，见 B-P10-17）**：托管 `GXX.Core.Util.HUtil32.ArrestStringEx`（`HUtil32.cs:177-198`）
+把 `result` 初值写成 `""`，且两条"未找到"路径都返回 `""`；而原文 `HUtil32.pas:1761-1805`
+是 `Result := Source`（`:1766`）+ 未找到 `SearchEnd` 时**不动 `Result`**、`ArrestStr := ''`。
+**两条路径语义都不同** ⇒ 子车道在本区逐字复刻了一份 `MasSockFns.ArrestStringExAnsi`（D-P10-17 登记）。
 | 17 | `FileSearchPool.pas:284-293` + `ThreadPool.pas:168-174` | `TSearchThread.Destroy` 先 `FMemoryStream.Free` 再 `inherited`（后者才 `Terminate+WaitFor`）⇒ **先释放缓冲区、后等线程退出** | 后台线程可能在缓冲已释放后继续用（原文靠时序侥幸） | D-P10-05（托管侧把"等待退出"提前，见 §3） |
 
 ---
@@ -263,6 +303,23 @@
 | D-P10-14 | `GrobalSession.pas:59-64` | `GridSession.Cells[x,1] := ''`（`RowCount=1` 时第 1 行不存在） | `Cells`/`SetCells` **越界静默忽略/返回空串** | VCL `TStringGrid` 的稀疏行实现对越界下标静默忽略；1:1 直译成 `Rows[Row]` 会抛 `ArgumentOutOfRangeException`（首次 `Open()` 即崩） |
 | D-P10-15 | 本车道全部窗体 | — | 实现落 `GXX.<Proj>.Forms`，测试落 `GXX.<Proj>.Forms.Tests` | 同 §0.3；并与既有 `GXX.M2Server.Forms` 约定一致 |
 
+### 3.1 `MasSock.cs` 的偏离（D-P10-16 … D-P10-23；编号已落在代码注释里，报告与代码一致）
+
+| 编号 | 位置 | 原文 | 托管 | 理由 |
+|---|---|---|---|---|
+| D-P10-16 | `MasSock.pas:6-7` `JSocket` | `TServerSocket` / `TCustomWinSocket` / `TErrorEvent` / `TServerType` | 在 `MasSock.cs` 内声明接缝：`TServerSocket` **派生自 `System.Windows.Forms.Control`**（DFM 本就给了 `Left=40/Top=32`，且只有组件化才能被 `CountDfmObjects` 数到 2/6）、`TCustomWinSocket`（`RemoteAddress`/`Connected`/`ReceiveText`/`SendText×2`/`Close`）、`TErrorEvent`、`TServerType`、`TClientSocketEventArgs`、`Raise*` 事件驱动面、`TFrmMasSoc.SocketFactory` | 托管无 JSocket 等价物；默认接缝在 `Active := True` 时**显式抛"未接线"**（`False` 允许 = DFM 初值），符合 §25.2 |
+| D-P10-17 | `MasSock.pas:302` 调用的 `ArrestStringEx` | `HUtil32.pas:1761-1805`（`Result := Source` 起手） | `MasSockFns.ArrestStringExAnsi` **逐字复刻**，不改调 `GXX.Core` 版 | 托管 `HUtil32.ArrestStringEx` 两条"未找到"路径都返回 `""`，与原文语义不同（见 §2.1 F19）；跨区修复登记 B-P10-17，修完可删本地复刻 |
+| D-P10-18 | `MasSock.pas:376/378` `SizeOf(TAccountInfo2)` | `SizeOf` | 显式常量 `TAccountInfo2PackedSize = 218` | 避免 `unsafe sizeof`；**实测托管 `sizeof(TAccountInfo2)==218` 且字段偏移完全重合**（原以为需补 `Pack=1`，实测不需要）⇒ 无需跨区改动 |
+| D-P10-19 | `:810` `'.\!ServerAddr.txt'`、`:926` `'.\!UserLimit.txt'` | 硬编码相对路径 | 接缝 `ServerAddrFileName` / `UserLimitFileName`，默认值即原文字面量 | 测试可指向 `Path.GetTempPath()`，不碰真实数据目录 |
+| D-P10-20 | `:784` `CompareText` / `:410` `SameText` | Delphi 大小写不敏感比较 | `StringComparison.OrdinalIgnoreCase` | `GXX.Core` 无托管 `CompareText`；沿用工程既有处置 |
+| D-P10-21 | `:642` `m_ServerList.Free`（不置 nil） | 悬垂字段 | `m_ServerList = null` 表达悬垂态 | 托管无"已释放但仍非 nil"的对象态；用 null 精确表达"悬垂" |
+| D-P10-22 | `:820` `sLineText[I]` | Delphi `AnsiString` 的 1-based 越界读（0 号与超长位置行为未定义） | `MasSockFns.AnsiStringCharAt(s, index)` 复刻（越界 → `'\0'`） | 让 F3 的原文语义在托管侧可稳定断言 |
+| D-P10-23 | `:939` `UserLimit[nC]`、`:165` `g_ServerAddr[I]` | 内存越界/垃圾读 | `IndexOutOfRangeException` | 托管数组必做边界检查；原文是内存破坏（登记为 F5/F15，用异常类型差异断言） |
+
+> ⚠ **偏离编号冲突已登记并将在收口时统一**：`GHeroDBConfig.cs` 与 `uFrmRoleDataEdit.cs` 由并行子车道
+> 各自"从 D-P10-15 续编"，因此它们也用了 `D-P10-17…20`。收口时把后两者的偏离**重编号到 D-P10-24 起**
+> 并同步改其代码注释（本报告与代码始终一致；重编号结果见 §3.2）。
+
 ---
 
 ## 4. 未完成 / 阻塞项
@@ -279,6 +336,11 @@
 | B-P10-06 | `TMemoryStream`/`TMemoryStreamEx` 全仓现有 **3 份接缝**（`GXX.RunGate/IniFilesEx.cs:637`、`GXX.Core/Paradox/ParadoxDataSet.Seams.cs:129`、本车道 `Pool/FileSearchPool.cs`）+ 待移植的 `Common/MemoryStreamEx.pas` | 建议下一波统一到 `MemoryStreamEx.pas` 的真移植上（§14.2 家族） |
 | B-P10-07 | ★ **`unit-map.tsv` 的车道行收口**（按 §38.2/§41.10，车道一经合并必须回头清理）：<br>① `:123 GLoginServerRouteSet par/p10-db-login-forms` —— **应删行**：本单元是**死代码**（见 §0.2 六条取证）+ 已有重命名实现，不属于"在飞"，留着就是"永久占位行"；<br>② `:119-122`、`:124-125`（`uFrmRoleDataEdit`/`MasSock`/`GrobalSession`/`GHeroDBConfig`/`LogDataServer/ThreadPool`/`FileSearchPool`）—— 合并后**删行**（E1 同名 `.cs` 会接管）；<br>③ `FileSearchPool` 目前是**裸 basename** 行，全树只有一份副本（实测），可安全删；`LogDataServer/ThreadPool` 必须保留**逐副本键**（`SelGate/ThreadPool`、`LoginGate/ThreadPool` 仍是 VENDOR/not-ported，见 `tools/audit-coverage.ps1:90-100`） | 不清理则报表同时"假装在飞"与"不是缺口"（§41.10 的第 3 批系统性缺陷） |
 | B-P10-08 | ★★ **`uFrmRoleDataEdit` 的跨模块接线需要架构裁定**（本车道**没有**擅自接线）：<br>原文里 `uFrmRoleDataEdit.pas` 是 **DBServer** 单元，却被 **LoginSrv** 的 `uFrmDataManager.pas:64` `uses`，并在 `:199/:207/:454/:462` 调用 `ShowFrmRoleDataEdit`。托管侧现状：`src/GXX.LoginSrv/RoleDBSeam.cs:80` 已有接缝 `public static Action<int, THumData?, THeroData?> ShowFrmRoleDataEdit`（`uFrmDataManager.cs:203/213/427/437` 已在调，`DataManagerFormTests.cs` 有 6 处在替换），**但那里的 `THumData`/`THeroData` 是两个空类**（`RoleDBSeam.cs:36/41`，注释："仅作为不透明句柄在窗体间传递"），而 `GXX.Core.Protocol.THumData/THeroData` 是 `unsafe struct`；且 `GXX.LoginSrv` **不引用** `GXX.DBServer`（两个独立 exe）。<br>⇒ 需要集成方二选一：**(a)** 把 LoginSrv 的接缝统一到 `GXX.Core.Protocol.THumData`（并把空句柄类退役）；或 **(b)** 由 LoginSrv 引用 DBServer 程序集（跨 exe 依赖，需评估）。**本车道只登记、不擅改** | 不裁定则 `uFrmDataManager` 的"编辑角色数据"按钮**永远打不开窗体**（且是静默空实现） |
+| B-P10-16 | ★ `src/GXX.LoginSrv/LoginSrvShare.cs` 的三处接缝必须在 MasSock 落地后**退役**：`TMsgServerInfo`（`:287`，**只有 4 字段**）、`TMasSocSeam`（`:278`）、`LoginSrvShare.FrmMasSoc`（`:53`）。真源现在是 `GXX.LoginSrv.Forms.TMsgServerInfo`（**7 字段**：`sReceiveMsg/Socket/sServerName/nServerIndex/nOnlineCount/dwKeepAliveTick/sIPaddr`）+ `TFrmMasSoc` + `MasSockGlobals`。★ **`src/GXX.LoginSrv/MonSoc.cs:64-67` 现在读的是 4 字段接缝**，退役时需改指 `MasSockGlobals.FrmMasSoc.m_ServerList` | 不退役则 MasSock 与 MonSoc **长期各持一套服务器列表类型**（§14.2 家族，且 MonSoc 读到的是空实现） |
+| B-P10-16b | `LoginSrvShare` 还应补 `g_ServerAddr` / `g_ServerAddrCount` / `nOnlineCountMin` / `nOnlineCountMax` / `GetSessionID()`（本区以 `MasSockGlobals` 接缝承载；`GetSessionID` 与 `CloseUser` 未接线时**显式抛"未接线"**） | 同上；这两处是真源码里的 `LMain.pas` 全局 |
+| B-P10-17 | ★ `src/GXX.Core/Util/HUtil32.cs:177-198` 的 `ArrestStringEx` / `ArrestStringEx_Ansi` 初值应为 `Result := Source`（原文 `HUtil32.pas:1719/1766`），且"未找到 `SearchEnd`"分支**不得改写 Result** | 修完可删 D-P10-17 的本地逐字复刻并改回转调；否则全仓所有 `ArrestStringEx` 调用点都带着这两条语义偏差 |
+| B-P10-18 | `TAccountInfo2` 的托管尺寸/偏移经子车道实测与原文一致（218 字节、偏移重合），**无需**加 `Pack=1` —— 登记以免后人误改 | 防误改 |
+| B-P10-19 | `JSocket`（`TServerSocket`）**没有任何托管等价物** ⇒ `StartService` 的真实监听能力待接线（当前 `Active := True` 按 §25.2 显式抛） | MasSock 窗体可移植、可测试，但**还不能真的监听**；需集成方裁定用 `GatewayKit` 的 socket 设施还是新写 |
 
 ### 4.2 本车道未完成项
 
@@ -292,6 +354,7 @@
 |---|---|---|
 | 1（Pool 2 单元） | `dotnet test tests/GXX.LogDataServer.Tests/…csproj -c Debug --nologo -m:1 -p:BuildInParallel=false` | `失败: 0，通过: 222，总计: 222`（其中本车道新增 **80** 例） |
 | 2（GrobalSession） | `dotnet test tests/GXX.LoginSrv.Tests/…csproj …` | `失败: 0，通过: 250，总计: 250`（其中本车道新增 **19** 例） |
+| 3（MasSock） | 同上（LoginSrv.Tests） | `失败: 0，通过: 404，总计: 404`（本单元新增 **154** 例；250+154=404 ✓ 与子车道自报逐例相符） |
 
 ---
 
