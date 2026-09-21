@@ -73,3 +73,8 @@ p10-db-login-forms	GXX.CSharp/src/GXX.DBServer/Forms/**;GXX.CSharp/src/GXX.Login
 # its job is to decide whether LoginGate's 15 E2-only MAPPED verdicts are real ports or
 # borrowed-name false positives (ledger 41.2).  No src/ grant at all, on purpose.
 p11-logingate-review	GXX.CSharp/docs/并行报告-p11-logingate-review.md
+# ---- P11 (round 54): closes the ONLY two UNMAPPED units left (GuiManage 474, LoginDlg 179).
+# LoginDlg is a self-contained text-DFM dialog -> port it.  GuiManage is coupled to the
+# DxComponent<->LoadDx dedup types (ledger 14.4/16.2) -> the lane must ASSESS it first and
+# register a blocker rather than invent a second copy of those types (ledger 14.2).
+p11-client-dxrest2	GXX.CSharp/src/GXX.Client/DxComponent/Rest11/**;GXX.CSharp/tests/GXX.Client.Tests/DxRest11*;GXX.CSharp/docs/并行报告-p11-client-dxrest2.md

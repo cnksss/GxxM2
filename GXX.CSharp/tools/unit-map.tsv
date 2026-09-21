@@ -123,3 +123,9 @@ GHeroDBConfig	par/p10-db-login-forms
 GLoginServerRouteSet	par/p10-db-login-forms
 LogDataServer/ThreadPool	par/p10-db-login-forms
 FileSearchPool	par/p10-db-login-forms
+#
+# ---- P11 (round 54): the last two UNMAPPED units.  They surfaced only after the stale
+# closed-lane rows were removed (ledger 41.10); before that they were invisible as both
+# "in flight" and "a gap".
+LoginDlg	par/p11-client-dxrest2
+GuiManage	par/p11-client-dxrest2
