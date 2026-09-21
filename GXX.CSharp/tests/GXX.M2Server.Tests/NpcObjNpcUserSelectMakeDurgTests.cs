@@ -270,4 +270,83 @@ public sealed class NpcObjNpcUserSelectMakeDurgTests : IDisposable
         // NpcCommon.pas:42（注意原文拼写是 `nNF_MakedUrg`）
         Assert.Equal(17, NpcProcessCmd.nNF_MakedUrg);
     }
+
+    // -----------------------------------------------------------------------
+    // PlayDrink（原文 2508-2511）+ 其分支（2862-2866）
+    // -----------------------------------------------------------------------
+
+    [Fact]
+    public void PlayDrink_SendsRmSendUserPlayDrinkWithSelfId()
+    {
+        var m = M();
+        m.PlayDrink(P());
+        Assert.Equal($"{Grobal2Const.RM_SENDUSERPLAYDRINK}|0|9|0|0|", Assert.Single(_sent));
+    }
+
+    [Fact]
+    public void PlayDrinkArm_GuardOn_Dispatches()
+    {
+        var m = M();
+        m.m_boPleaseDrink = true;
+        Assert.True(m.UserSelectPortedArms(P(), NpcProcessCmd.nNF_PlayDrink));
+        Assert.Single(_sent);
+    }
+
+    [Fact]
+    public void PlayDrinkArm_GuardOff_DoesNothing()
+    {
+        var m = M();
+        m.m_boPleaseDrink = false;
+        Assert.True(m.UserSelectPortedArms(P(), NpcProcessCmd.nNF_PlayDrink));
+        Assert.Empty(_sent);
+    }
+
+    [Fact]
+    public void PlayDrinkArm_OtherFlagsDoNotLeakIn()
+    {
+        // ★ "名字相似"差异断言：命令号 `nNF_PlayDrink`、过程 `PlayDrink`、守卫 `m_boPleaseDrink`
+        //   三者名字近似而**拼写各不相同**。把**其它所有**开关打开、只关 `m_boPleaseDrink`
+        //   ⇒ 必须**不发包**（若谁"顺手"把守卫写成别的同类字段，本用例会失败）
+        var m = M();
+        m.m_boPleaseDrink = false;
+        m.m_boS_repair = true;
+        m.m_boRepair = true;
+        m.m_boSell = true;
+        m.m_boArmRemoveStone = true;
+        m.m_boMakeDrug = true;
+        m.m_boDealGold = true;
+        m.m_boPrices = true;
+        m.m_boStorage = true;
+        m.m_boGetback = true;
+        m.m_boBigStorage = true;
+        m.m_boBigGetBack = true;
+        m.m_boGetPreviousPage = true;
+        m.m_boGetNextPage = true;
+        m.m_boofflinemsg = true;
+
+        Assert.True(m.UserSelectPortedArms(P(), NpcProcessCmd.nNF_PlayDrink));
+        Assert.Empty(_sent);                       // 只认 m_boPleaseDrink
+    }
+
+    [Fact]
+    public void PlayDrink_CommandIdIsOriginal()
+    {
+        // NpcCommon.pas:12 —— 排在 `nNF_ReclaimItem`(1) 之后，值 = 2
+        Assert.Equal(2, NpcProcessCmd.nNF_PlayDrink);
+    }
+
+    [Fact]
+    public void PurePacketSenders_AllUseDistinctPacketIds()
+    {
+        // ★ 五个纯发包过程的包号两两不同（防"名字相似"导致的互相抄）
+        var ids = new[]
+        {
+            Grobal2Const.RM_SENDUSERSREPAIR,   // SuperRepairItem
+            Grobal2Const.RM_SENDUSERREPAIR,    // RepairItem
+            Grobal2Const.RM_SENDUSERSELL,      // SellItem
+            Grobal2Const.RM_ARMREMOVESTONE,    // ArmRemoveStoneItem
+            Grobal2Const.RM_SENDUSERPLAYDRINK, // PlayDrink
+        };
+        Assert.Equal(ids.Length, new HashSet<int>(ids).Count);
+    }
 }

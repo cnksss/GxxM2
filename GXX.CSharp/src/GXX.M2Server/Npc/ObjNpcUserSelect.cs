@@ -409,6 +409,21 @@ public partial class TMerchant
             User.SendTo(this, Grobal2Const.RM_USERMAKEDRUGITEMS, 0, m_nRecogId, 0, 0, sSENDMSG);
     }
 
+    /// <summary>
+    /// 原文 `procedure PlayDrink(User: TPlayObject); // 斗酒`（ObjNpc.pas:2508-2511）：
+    /// <code>
+    ///   User.SendMsg(Self, RM_SENDUSERPLAYDRINK, 0, NativeInt(Self), 0, 0, '');
+    /// </code>
+    /// <para>触发点：`nNF_PlayDrink` 分支（原文 2862-2866）。</para>
+    /// <para>★ **本过程是"名字相似"的又一高危点**：命令号常量叫 `nNF_**Play**Drink`、过程叫 `PlayDrink`，
+    /// 但**守卫字段叫 `m_boPle**a**seDrink`**（`Please` 而非 `Play`）—— 三者名字都近似而**拼写各不相同**。
+    /// 照抄原文的**字段名**（`m_boPleaseDrink`），**不要"顺手改成 `m_boPlayDrink`"**。已写差异断言锁死绑定。</para>
+    /// </summary>
+    public void PlayDrink(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_SENDUSERPLAYDRINK, 0, m_nRecogId, 0, 0, "");
+    }
+
     /// <summary>原文 `Self = g_MissionNPC` 同型的占位说明见 <see cref="UserSelectPortedArms"/>。</summary>
     public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "", string sLabel = "")
     {
@@ -485,6 +500,10 @@ public partial class TMerchant
             case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
                 if (m_boofflinemsg)
                     AutoGetExp(PlayObject, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_PlayDrink:          // 原文 2862-2866（斗酒；★ 守卫字段是 `m_boPleaseDrink`）
+                if (m_boPleaseDrink)
+                    PlayDrink(PlayObject);
                 return true;
             case NpcProcessCmd.nNF_MakedUrg:           // 原文 2747-2751（制药列表）
                 if (m_boMakeDrug)
