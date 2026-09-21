@@ -62,40 +62,42 @@ public class Sweep9bFormsReconTests : IDisposable
     };
 
     [Fact]
-    public void GlobalVarEdit_DfmInventory_FiveControls_ManagedHasThree_Gap()
+    public void GlobalVarEdit_DfmInventory_FiveControls_ManagedHasFive_IntegratorFix()
     {
+        // ★ 缺口 X-P10-03 **已由集成方修复**（台账 §61.1）：补回 DFM 里的 btnClearVar / btnRefreshVar。
+        //   本用例原为 `..._FiveControls_ManagedHasThree_Gap`（锁定缺口现状）；按 §19.2 的规矩改为断言修复后状态。
         string[] declared = Sweep9bFormsRecon.DeclaredControlNames(typeof(GlobalVarEditForm));
         Assert.Equal(5, GlobalVarEditDfmControls.Length);                 // DFM object 节点数
-        // 托管只声明了 3 个（strngrdVar / btnSave / btnSaveDesc）
-        Assert.Equal(3, declared.Length);
-        Assert.Equal(new[] { "btnSave", "btnSaveDesc", "strngrdVar" }, declared.OrderBy(n => n, StringComparer.Ordinal).ToArray());
-        // 计数取证：缺的正是这两个（否定性断言靠集合差给出，不靠"扫一眼"）
-        string[] missing = GlobalVarEditDfmControls.Except(declared).OrderBy(n => n, StringComparer.Ordinal).ToArray();
-        Assert.Equal(new[] { "btnClearVar", "btnRefreshVar" }, missing);
+        Assert.Equal(5, declared.Length);                                 // 托管现在五个都在
+        Assert.Equal(GlobalVarEditDfmControls.OrderBy(n => n, StringComparer.Ordinal).ToArray(),
+                     declared.OrderBy(n => n, StringComparer.Ordinal).ToArray());
+        // 计数取证：集合差必须为空（否定性断言靠集合差给出，不靠"扫一眼"）
+        string[] missing = GlobalVarEditDfmControls.Except(declared).ToArray();
+        Assert.Empty(missing);
     }
 
     [Fact]
-    public void GlobalVarEdit_DfmBindings_FiveVersusTwo_Gap()
+    public void GlobalVarEdit_DfmBindings_FiveVersusFive_IntegratorFix()
     {
         // DFM 绑定 5：strngrdVar.OnSetEditText + btnClearVar/btnRefreshVar/btnSave/btnSaveDesc 的 OnClick
+        // ★ 修复后托管侧 5 条全部绑定（此前只有 2 条 ⇒ 三个处理器成了死代码）。
         const int dfmBindings = 5;
         using var form = new GlobalVarEditForm(0);
         int managed = Sweep9bFormsRecon.CountBoundEventsDeep(form);
-        Assert.Equal(dfmBindings, 5);
-        Assert.Equal(2, managed);            // 只有两个已被绑定的按钮
-        Assert.True(dfmBindings - managed == 3, "缺口数应为 3（OnSetEditText + 两个未移植按钮的 OnClick）");
+        Assert.Equal(dfmBindings, managed);
+        Assert.Equal(0, dfmBindings - managed);   // 缺口归零
     }
 
     [Fact]
     public void GlobalVarEdit_ControlInstantiation_MatchesDeclared()
     {
         using var form = new GlobalVarEditForm(0);
-        Assert.Equal(3, Sweep9bFormsRecon.InstantiatedControlCount(form));
-        Assert.Equal(3, Sweep9bFormsRecon.ParentedDeclaredControlCount(form));
+        Assert.Equal(5, Sweep9bFormsRecon.InstantiatedControlCount(form));       // 4 按钮 + 1 表格
+        Assert.Equal(5, Sweep9bFormsRecon.ParentedDeclaredControlCount(form));
     }
 
     [Fact]
-    public void GlobalVarEdit_MethodParity_SixOfSeven_ShowFrmGlobalVarEditMissing()
+    public void GlobalVarEdit_MethodParity_SevenOfSeven_IntegratorFix()
     {
         Type t = typeof(GlobalVarEditForm);
         // 原文 7 个例程：ShowFrmGlobalVarEdit / strngrdVarSetEditText / btnClearVarClick /
@@ -106,9 +108,13 @@ public class Sweep9bFormsReconTests : IDisposable
         Assert.NotNull(t.GetMethod("btnSaveClick"));
         Assert.NotNull(t.GetMethod("btnSaveDescClick"));
         Assert.NotNull(t.GetMethod("LoadVarDesc"));
-        // 单元级 `function ShowFrmGlobalVarEdit(VarType: Integer): Boolean` **缺失**（否定性断言 = 全程序集计数）
+        // 单元级 `function ShowFrmGlobalVarEdit(VarType: Integer): Boolean` —— **已由集成方补**（台账 §61.1）。
+        // 本用例原为 `..._SixOfSeven_...Missing`（否定性断言 = 全程序集计数 0）；按 §19.2 改为断言 1 命中 + 返回 bool。
         int hits = Sweep9bFormsRecon.CountPublicStaticMethods(t.Assembly, "ShowFrmGlobalVarEdit");
-        Assert.Equal(0, hits);
+        Assert.Equal(1, hits);
+        var m = t.GetMethod("ShowFrmGlobalVarEdit");
+        Assert.NotNull(m);
+        Assert.Equal(typeof(bool), m!.ReturnType);
     }
 
     [Fact]
@@ -227,13 +233,66 @@ public class Sweep9bFormsReconTests : IDisposable
     }
 
     [Fact]
-    public void GlobalVarEdit_VarTypeCaption_DiffersFromDfm_Deviation()
+    public void GlobalVarEdit_VarTypeCaption_MatchesRuntimeValue_IntegratorFix()
     {
-        // DFM Caption：VarType=0 → '全局G变量编辑'，否则 '全局A变量编辑'
-        // 托管：'G变量编辑' / 'A变量编辑'（少了"全局"前缀）——登记 D-P10-17（形态偏离，非功能）
+        // DFM 的**字面量** Caption 是 'FrmGlobalVarEdit'（设计期占位），运行时由单元级
+        // `ShowFrmGlobalVarEdit` 覆盖为 **'全局G变量编辑' / '全局A变量编辑'**（原文 :56/:66）。
+        // ★ 集成方修复（台账 §61.1）：此前托管用 'G变量编辑'/'A变量编辑'（少"全局"），登记为 D-P10-17；
+        //   补上入口函数后按**运行时真值**对齐。
         using var form = new GlobalVarEditForm(0);
-        Assert.Equal("G变量编辑", form.Text);
-        Assert.NotEqual("全局G变量编辑", form.Text);
+        Assert.Equal("全局G变量编辑", form.Text);
+        using var formA = new GlobalVarEditForm(1);
+        Assert.Equal("全局A变量编辑", formA.Text);
+        // 仍与 DFM 设计期字面量不同 —— 这是**原文行为**（DFM 字面量只是占位），不是偏离。
+        Assert.NotEqual("FrmGlobalVarEdit", form.Text);
+    }
+
+    [Fact]
+    public void GlobalVarEdit_ShowFrmGlobalVarEdit_AppliesOriginalPreShowModalState()
+    {
+        // ★ X-P10-03 修复的行为验证：原文 `ShowFrmGlobalVarEdit`（:45-77）在 ShowModal **之前**的七步。
+        //   断言在注入的 showModal 回调里**取样**（该方法 finally 会 Dispose 窗体，事后读控件不可靠）。
+        InterServerState.GlobalVal[0] = 7;
+        InterServerState.GlobalAVal[0] = "AA";
+        string? cap = null, h0 = null, h1 = null, h2 = null, c0 = null, c1 = null;
+        bool sv = true, sd = true;
+        bool ok = GlobalVarEditForm.ShowFrmGlobalVarEdit(0,
+            formFactory: () => new GlobalVarEditForm(0),
+            showModal: f =>
+            {
+                cap = f.Text;
+                sv = f.ButtonSaveEnabled;      // 原文 :48 应为 False（初始禁用）
+                sd = f.ButtonSaveDescEnabled;  // 原文 :49 应为 False
+                h0 = f.strngrdVar[0, 0].Value?.ToString();   // 原文 :51-53 表头
+                h1 = f.strngrdVar[1, 0].Value?.ToString();
+                h2 = f.strngrdVar[2, 0].Value?.ToString();
+                c0 = f.strngrdVar[0, 1].Value?.ToString();   // 原文 :60 'G'+i
+                c1 = f.strngrdVar[1, 1].Value?.ToString();   // 原文 :61 IntToStr(GlobalVal[i])
+                return System.Windows.Forms.DialogResult.OK;
+            });
+        Assert.True(ok);                                 // ShowModal = mrOk ⇒ true
+        Assert.Equal("全局G变量编辑", cap);
+        Assert.False(sv);
+        Assert.False(sd);
+        Assert.Equal("变量名", h0);
+        Assert.Equal("变量值", h1);
+        Assert.Equal("变量备注", h2);
+        Assert.Equal("G0", c0);
+        Assert.Equal("7", c1);
+
+        // A 变量走另一支：'A'+i 与字符串原值；返回值仍等价于 ShowModal
+        string? capA = null, c0A = null, c1A = null;
+        bool okA = GlobalVarEditForm.ShowFrmGlobalVarEdit(1,
+            formFactory: () => new GlobalVarEditForm(1),
+            showModal: f =>
+            {
+                capA = f.Text; c0A = f.strngrdVar[0, 1].Value?.ToString(); c1A = f.strngrdVar[1, 1].Value?.ToString();
+                return System.Windows.Forms.DialogResult.Cancel;
+            });
+        Assert.False(okA);                               // Cancel ≠ mrOk ⇒ false
+        Assert.Equal("全局A变量编辑", capA);
+        Assert.Equal("A0", c0A);
+        Assert.Equal("AA", c1A);
     }
 
     // =====================================================================================

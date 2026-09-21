@@ -168,35 +168,58 @@ public sealed class GlobalVarEditForm : System.Windows.Forms.Form
     public System.Windows.Forms.DataGridView strngrdVar = null!;
     public System.Windows.Forms.Button btnSave = null!;
     public System.Windows.Forms.Button btnSaveDesc = null!;
+    // ★ 集成方补（台账 §61.1，X-P10-03）：原文/DFM 有这两个按钮，此前缺失 ⇒ 两个处理器方法成了死代码。
+    public System.Windows.Forms.Button btnClearVar = null!;
+    public System.Windows.Forms.Button btnRefreshVar = null!;
 
     public GlobalVarEditForm(int varType = 0)
     {
         FVarType = varType;
-        Text = FVarType == 0 ? "G变量编辑" : "A变量编辑";
-        Width = 620;
-        Height = 520;
+        // 原文 Caption 由单元级 ShowFrmGlobalVarEdit 运行时设为 '全局G变量编辑'/'全局A变量编辑'；
+        // 这里先按 DFM 的字面量 Caption（'FrmGlobalVarEdit'）之外的合理初始值给出，Show 时再覆盖。
+        Text = FVarType == 0 ? "全局G变量编辑" : "全局A变量编辑";
+        // 原文 DFM：ClientWidth=733 / ClientHeight=546，BorderStyle=bsDialog ⇒ FixedDialog
+        ClientSize = new System.Drawing.Size(733, 546);
+        FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog;
+        MaximizeBox = false;
+        MinimizeBox = false;
 
+        // 原文 DFM strngrdVar：Left=8 Top=8 Width=717 Height=497，ColCount=3，
+        // ColWidths=(64,333,291)，OnSetEditText = strngrdVarSetEditText
         strngrdVar = new System.Windows.Forms.DataGridView
         {
             Left = 8,
             Top = 8,
-            Width = 590,
-            Height = 400,
+            Width = 717,
+            Height = 497,
             AllowUserToAddRows = false,
             AllowUserToDeleteRows = false,
             RowHeadersVisible = false
         };
-        strngrdVar.Columns.Add("idx", "序号");
-        strngrdVar.Columns.Add("val", "值");
-        strngrdVar.Columns.Add("desc", "说明");
+        strngrdVar.Columns.Add("idx", "变量名");
+        strngrdVar.Columns.Add("val", "变量值");
+        strngrdVar.Columns.Add("desc", "变量备注");
+        strngrdVar.Columns[0].Width = 64;
+        strngrdVar.Columns[1].Width = 333;
+        strngrdVar.Columns[2].Width = 291;
         strngrdVar.Rows.Add(1001); // 行 0 表头 + 1..1000 数据（Delphi Cells[x, i+1] 行号 1:1）
         for (int i = 0; i < 1000; i++)
             strngrdVar[0, i].Value = i.ToString();
+        // 原文 DFM `OnSetEditText = strngrdVarSetEditText`（列 1 → 点亮"保存变量修改"，否则点亮"保存备注修改"）
+        strngrdVar.CellEndEdit += (s, e) => strngrdVarSetEditText(e.ColumnIndex);
         Controls.Add(strngrdVar);
 
-        btnSave = new System.Windows.Forms.Button { Text = "保存值(&S)", Left = 8, Top = 416, Width = 90, Height = 26 };
+        // 原文 DFM 四个按钮的 Caption 与几何（TabOrder 1..4）
+        btnClearVar = new System.Windows.Forms.Button { Text = "全部清除", Left = 8, Top = 512, Width = 75, Height = 25 };
+        btnClearVar.Click += (s, e) => btnClearVarClick(s);
+        btnRefreshVar = new System.Windows.Forms.Button { Text = "刷新变量值", Left = 88, Top = 512, Width = 75, Height = 25 };
+        btnRefreshVar.Click += (s, e) => btnRefreshVarClick(s);
+        Controls.Add(btnClearVar);
+        Controls.Add(btnRefreshVar);
+
+        btnSave = new System.Windows.Forms.Button { Text = "保存变量修改", Left = 532, Top = 512, Width = 93, Height = 25 };
         btnSave.Click += (s, e) => btnSaveClick(s);
-        btnSaveDesc = new System.Windows.Forms.Button { Text = "保存说明(&D)", Left = 106, Top = 416, Width = 90, Height = 26 };
+        btnSaveDesc = new System.Windows.Forms.Button { Text = "保存备注修改", Left = 632, Top = 512, Width = 93, Height = 25 };
         btnSaveDesc.Click += (s, e) => btnSaveDescClick(s);
         Controls.Add(btnSave);
         Controls.Add(btnSaveDesc);
@@ -311,5 +334,80 @@ public sealed class GlobalVarEditForm : System.Windows.Forms.Form
         }
         ini.UpdateFile();
         btnSaveDesc.Enabled = false;
+    }
+
+    /// <summary>
+    /// 原文**单元级**函数 <c>function ShowFrmGlobalVarEdit(VarType: Integer): Boolean</c>（`uFrmGlobalVarEdit.pas:40-81`）
+    /// 1:1 移植（★ 集成方补，台账 §61.1 / X-P10-03）。
+    /// <para>
+    /// 此前**缺失** ⇒ 本窗体没有任何入口，调用点无法接线（`p10-m2-misc` 车道据此登记为真缺口：
+    /// "全程序集计数 0 命中"）。原文语义（严格按顺序）：
+    /// ① 建窗体 → ② 置 <c>FVarType</c> → ③ **禁用两个保存按钮** → ④ 写三列表头
+    /// → ⑤ 按类型填 `变量名`/`变量值` 两列（G 用 <c>GlobalVal[i]</c> 整数、A 用 <c>GlobalAVal[i]</c> 字符串）
+    /// → ⑥ `LoadVarDesc`（读 `GlobalValDesc.ini`）→ ⑦ `ShowModal = mrOk` 作为返回值。
+    /// </para>
+    /// <para>
+    /// 测试接缝（本工程既有惯例，如 <c>TFrmDummySetting.ShowFrmDummySetting</c>）：
+    /// <paramref name="formFactory"/> 与 <paramref name="showModal"/> 默认 null = 真实建窗 + 真实模态；
+    /// 仅用于单测（无 UI 环境下断言 ③④⑤⑥ 的**前置状态**）。
+    /// </para>
+    /// </summary>
+    public static bool ShowFrmGlobalVarEdit(
+        int varType,
+        Func<GlobalVarEditForm>? formFactory = null,
+        Func<GlobalVarEditForm, System.Windows.Forms.DialogResult>? showModal = null)
+    {
+        GlobalVarEditForm form = formFactory != null ? formFactory() : new GlobalVarEditForm(varType);
+        try
+        {
+            form.FVarType = varType;
+            // 原文 :48-49 —— 两个保存按钮初始禁用（要等用户编辑过才点亮；见 strngrdVarSetEditText）
+            form.btnSave.Enabled = false;
+            form.btnSaveDesc.Enabled = false;
+
+            // 原文 :51-53 —— 表头三列
+            form.strngrdVar[0, 0].Value = "变量名";
+            form.strngrdVar[1, 0].Value = "变量值";
+            form.strngrdVar[2, 0].Value = "变量备注";
+
+            if (varType == 0)
+            {
+                form.Text = "全局G变量编辑";                                  // 原文 :56
+                int[] vals = InterServerState.GlobalVal;
+                EnsureRows(form.strngrdVar, vals.Length + 1);                 // 原文 :57 RowCount := Length+1
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    form.strngrdVar[0, i + 1].Value = "G" + i;                // 原文 :60
+                    form.strngrdVar[1, i + 1].Value = vals[i].ToString();     // 原文 :61 IntToStr
+                }
+            }
+            else
+            {
+                form.Text = "全局A变量编辑";                                  // 原文 :66
+                string[] vals = InterServerState.GlobalAVal;
+                EnsureRows(form.strngrdVar, vals.Length + 1);                 // 原文 :67
+                for (int i = 0; i < vals.Length; i++)
+                {
+                    form.strngrdVar[0, i + 1].Value = "A" + i;                // 原文 :70
+                    form.strngrdVar[1, i + 1].Value = vals[i];                // 原文 :71（A 变量本身是字符串）
+                }
+            }
+
+            form.LoadVarDesc();                                              // 原文 :75
+            System.Windows.Forms.DialogResult r =
+                showModal != null ? showModal(form) : form.ShowDialog();     // 原文 :77 ShowModal
+            return r == System.Windows.Forms.DialogResult.OK;                // = mrOk
+        }
+        finally
+        {
+            form.Dispose();                                                  // 原文 :79 Form.Free
+        }
+    }
+
+    /// <summary>原文 <c>strngrdVar.RowCount := Length(...) + 1</c>（TStringGrid 可直接设行数；
+    /// WinForms DataGridView 需按需补行 —— 语义等价：**保证至少有 n 行**）。</summary>
+    private static void EnsureRows(System.Windows.Forms.DataGridView grid, int rows)
+    {
+        while (grid.Rows.Count < rows) grid.Rows.Add();
     }
 }
