@@ -603,10 +603,11 @@ public static void   RemoveModule(IntPtr module);                               
 | `CM_QUERYDELCHR`(105) | ✅ 可用 | ✅ 可用 | `有会话时_CM_QUERYDELCHR与CM_GETBACKDELCHR可用` |
 | `CM_GETBACKDELCHR`(3006) | ✅ 可用 | ✅ 可用 | 同上 |
 | 其它 Ident | ✅ `SM_CHECKISMYSELFSERVER` | ✅ 同 | `分派_未知Ident回SM_CHECKISMYSELFSERVER` |
+| **`CM_SELCHR` 的主动网关路由分支**（`g_boUseActiveRunGage = True` 时） | ❌ 抛（`GateActiveRouteIP` 未移植） | ✅ **已移植**（`DBShare.cs`，第 4 轮）—— 但 **★ 该分支默认关闭**（`g_boUseActiveRunGage` 声明初值 False），必须显式打开 | 正例 `有会话时_CM_SELCHR_主动网关路由打开时走GateActiveRouteIP`；反例 `…主动网关路由默认关闭_走的是GateRouteIP`；另 `…无可用网关时回SM_STARTFAIL` / `…动态IP时由CheckActiveRunGate裁决` |
 
-**⇒ 默认路由模式下，8 条命令全部走到真实实现；没有任何一条再抛 `NotSupportedException`。**
-（唯一残留的"未移植"是**主动网关路由** `GateActiveRouteIP`/`CheckActiveRunGate`（`DBShare.pas:731-848`，117 行），
-它只在 `g_boUseActiveRunGage = True`（**默认 False**）时可达，默认路由模式走 `GateRouteIP`（已移植）。）
+**⇒ 默认路由模式下 8 条命令全部走到真实实现；主动网关路由分支（第 4 轮）也已移植 ——
+本单元再无任何一条 `NotSupportedException` 路径。**
+唯一残留的是"**未接线的宿主设施**" `IDSocket`（见下面的口径说明与 §14.4）。
 
 > ★★★ **本表的口径是「宁拒不放」，不是「开箱即用」—— 这一条不得删除**
 >
@@ -728,5 +729,61 @@ public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（
 
 1. **`IIDSocClientSocket` 适配器** —— 唯一的剩余缺口，签名见 §14.4（集成方已裁定**单开车道**，本车道不做）。
    在它接线之前，§14.2 表下那段**"宁拒不放"的口径说明仍然有效**（会话表恒为空 ⇒ 6 条命令被拒而非放行）。
-2. 主动网关路由 `GateActiveRouteIP`/`CheckActiveRunGate`（`DBShare.pas:731-848`，117 行）未移植；
-   仅 `g_boUseActiveRunGage = True` 时可达，默认 False。
+2. ~~主动网关路由 117 行未移植~~ —— **已在第 4 轮补齐，见 §16**。
+
+---
+
+## 16. 第 4 轮：`DBShare.pas` 主动网关路由移植（`ca399291`）—— 本单元**再无未实现路径**
+
+> **授权说明**：本轮的归属文件是 `DBShare.cs` / `DBShareSeam.cs`，**两者都在本车道既有分区内**
+> （`!GXX.CSharp/src/GXX.DBServer/DBShare*.cs`）⇒ **不需要新授权、也没有申请过宽授权**（集成方裁定）。
+
+### 16.1 交付（按原文行号 1:1，**117 行**）
+
+| 原文 | 行 | 行数 | 说明 |
+|---|---|---|---|
+| `CheckActiveRunGate` | :731-749 | 19 | 读 `SessionRunGateArray`（100 槽），判「同 IP（忽略大小写）+ 同端口 + `tick - dwReceiveTick <= 2500`」 |
+| `GateActiveRouteIP` | :751-848 | 98 | 外层遍历 `g_RouteInfo`（20 槽）按 `sSelGateIP` **精确**匹配；内嵌 `GetRoute`（:752-832）先主列表、再备用列表 |
+
+新增的宿主面数据（`DBShareSeam`）：`RUNGATEMAXSESSION = 100`（:17）、
+`TSessionRunGateInfo`（:56-66，7 字段逐一）、`SessionRunGateArray`（:247）。
+两个接缝 `GateActiveRouteIP` / `CheckActiveRunGate` 的默认值**由"抛"改为转调真实现**。
+
+**门禁**：`GXX.DBServer.Tests` **776/776**（744 → **+32**）· `build GXX.slnx --no-incremental` **0 error / 164 warning**（新文件警告 **0**）· 连跑 **3 次全绿** · `git status` 空。
+
+### 16.2 ★ `§14.2` 表已补最后一行：主动网关路由 → ✅（**默认关闭**）
+
+按要求做了**正例 + 反例**，两者用"两张表配成不同 IP"来**判别实际走了哪一条**：
+* 反例 `有会话时_CM_SELCHR_主动网关路由默认关闭_走的是GateRouteIP`（默认配置 ⇒ `GateRouteIP` 的 IP）；
+* 正例 `…主动网关路由打开时走GateActiveRouteIP`（显式打开 ⇒ `GateActiveRouteIP` 的 IP，且**未连通**的候选不被选中）；
+* 另加 `…无可用网关时回SM_STARTFAIL`、`…动态IP时由CheckActiveRunGate裁决`（覆盖 :1157-1162 的 `CheckActiveRunGate` 分支）；
+* 单元级另有一条 `开关默认关闭_这一族是死路径` 把 `g_boUseActiveRunGage` 的声明初值钉死。
+
+> ★ **该路径默认关闭**（`g_boUseActiveRunGage` 声明初值 False，`SelectClient.pas:1138` 取反）——
+> 也就是说：**默认配置下这段代码是死路径**，只有显式打开开关才可达。**报告与用例都据此标注**，
+> 避免后人把它当成活跃代码去调。
+
+### 16.3 ★★ 本轮发现：一条**跨单元**的原文缺陷（已在用例里锁死边界）
+
+`GateActiveRouteIP` 的备用列表分支有一个**跨两个单元组合出来的**坑：
+
+| 单元 | 事实 |
+|---|---|
+| `uRunGateList.pas`（C# `uRunGateList.cs:171-176`） | `DoSort` **只在 `FList.Count > 1` 时**才重建 `FSortList`（Count ≤ 1 时**保留上一次的陈旧内容**） |
+| `DBShare.pas:790/793/796/824` | 用 **`FList` 的 `Count`** 判"备用列表非空"，却用 **`SortItems`**（= `FSortList`）取元素 |
+
+⇒ **只有一条备用网关、且从未在"两条以上"时 `DoSort` 过** 时，`FSortList` 为空，
+`SortItems[0]` **越界**（Delphi 侧是空指针/下标错误，托管侧是 `NullReferenceException`）。
+真实部署里 `uFrmMain` 装载完整列表后会 `DoSort`，所以它**只在这个窄条件下可达** —— 但它是一条
+**"两个单元各自都'正确'、组合起来才出错"** 的缺陷，正好是并行车道最容易漏掉的那一类。
+
+**处置**：`GetRoute` 保持 1:1（**不加防御**），并用
+`备用列表_只有一条且从未按两条以上DoSort过时_SortItems为空` 把这个边界钉死
+（先断言 `SortItems(0) == null`，再断言 `GateActiveRouteIP` 会抛）。
+其余备用列表用例都改为**加 ≥2 条并显式 `DoSort()`** —— 这正是原文调用方的契约。
+
+### 16.4 剩余（本次之后）
+
+1. **`IIDSocClientSocket` 适配器** —— 仍然**是唯一**的剩余项（集成方已裁定单开车道）。
+   §14.2 表下那段**"宁拒不放、不是开箱即用"**的引用块**继续保留且有效**（会话表恒为空 ⇒ 6 条命令被拒而非放行）。
+2. 代码层面：**本车道负责的 `SelectClient.pas` / `IDSocCli.pas` / `DBShare.pas`（两族）均已 1:1 移植完毕，无未实现路径。**
