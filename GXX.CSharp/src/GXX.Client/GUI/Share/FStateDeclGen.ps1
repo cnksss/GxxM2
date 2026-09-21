@@ -50,7 +50,12 @@ $Handwritten = @(
   'DMissionDlgClick','DMissionDlgCloseClick','DOpenShopClick',
   'DBotRankingCloseClick','DGrpDlgCloseClick','DFrdCloseClick',
   'DMyHeroStateCloseClick','DMyHeroBagCloseClick',
-  'DLieDragonCloseClick','DLieDragonNpcCloseClick'
+  'DLieDragonCloseClick','DLieDragonNpcCloseClick',
+  # ---- lane p14-client-fstate slice 3 (TFrmDlg.Handlers.cs) --------------------------------
+  # The four members that were previously blocked by B-2 (frmMain seam) and became portable
+  # once the dispatcher widened that seam, plus the two horse buttons the same seam unblocked.
+  'DWebClick','DActionLogClick','DGetBackDeleteHumanClick','DCustomButtonClick',
+  'DDownHorseClick','DBotHorseClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

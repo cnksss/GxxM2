@@ -6,6 +6,7 @@ using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.GUI.Share;
 using GXX.Client.Scenes;
+using GXX.Core.Protocol;
 using GXX.Core.Util;
 using Xunit;
 using static GXX.Client.GUI.Mir.MShareGlobals;
@@ -643,6 +644,157 @@ public sealed class GuiShareHandlersTests : IDisposable
                 Assert.Fail("未登记的切片 2 成员: " + name);
                 break;
         }
+    }
+
+    // =====================================================================================
+    // 切片 3：B-2 授权后解锁的四条 + 骑马两条（frmMain / Actor 接缝注入）
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice3RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice3Count);
+    }
+
+    [Fact]
+    public void DWebClickNavigatesToTheConfiguredHomePage()
+    {
+        var frm = NewForm();
+        FStateClMainSeam.sHomePage = "http://example.invalid/index.html";
+        string seen = null;
+        FStateClMainSeam.NavigateHandler = url => seen = url;
+
+        frm.DWebClick(null, 0, 0);
+
+        Assert.Equal("http://example.invalid/index.html", seen);   // 20579
+    }
+
+    [Fact]
+    public void DWebClickUsesTheMirroredDefaultHomePageWhenNotOverridden()
+    {
+        var frm = NewForm();
+        string seen = null;
+        FStateClMainSeam.NavigateHandler = url => seen = url;
+
+        frm.DWebClick(null, 0, 0);
+
+        // 默认值与 M2 端 M2Config.sHomePage 一致（M2Config.ClientConf.cs:128）
+        Assert.Equal("http://www.gxxm2.com", seen);
+    }
+
+    [Fact]
+    public void DActionLogClickForwardsExactlyOnce()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendDActionLogClickHandler = () => calls++;
+
+        frm.DActionLogClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                     // 20584
+    }
+
+    [Fact]
+    public void DGetBackDeleteHumanClickSkipsAnEmptySelectedName()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        string seen = null;
+        FStateClMainSeam.SendGetBackDeleteChrHandler = n => { calls++; seen = n; };
+        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "";
+
+        frm.DGetBackDeleteHumanClick(null, 0, 0);
+
+        Assert.Equal(0, calls);                                     // 20594：空名不发
+        Assert.Null(seen);
+    }
+
+    [Fact]
+    public void DGetBackDeleteHumanClickSendsTheSelectedName()
+    {
+        var frm = NewForm();
+        string seen = null;
+        FStateClMainSeam.SendGetBackDeleteChrHandler = n => seen = n;
+        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "英雄甲";
+
+        frm.DGetBackDeleteHumanClick(null, 0, 0);
+
+        Assert.Equal("英雄甲", seen);                                // 20595
+    }
+
+    [Fact]
+    public void DCustomButtonClickOnlySendsForImageButtons()
+    {
+        var frm = NewForm();
+        var sent = new List<(int Cmd, int Tag)>();
+        FStateClMainSeam.SendClientMessageHandler =
+            (cmd, recog, p1, p2, p3, msg) => sent.Add((cmd, recog));
+
+        // 非 TDxImageButton ⇒ 不发（原文 24919 的 `Sender is TDxImageButton`）
+        frm.DCustomButtonClick(new object(), 0, 0);
+        frm.DCustomButtonClick(null, 0, 0);
+        Assert.Empty(sent);
+
+        // TDxImageButton ⇒ 发，且 Command = CM_CUSTOM_BUTTON_CLICK、Recog = Tag
+        var btn = new TDxImageButton { Tag = 4321 };
+        frm.DCustomButtonClick(btn, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal(Grobal2Const.CM_CUSTOM_BUTTON_CLICK, sent[0].Cmd);
+        Assert.Equal(4321, sent[0].Tag);
+    }
+
+    [Fact]
+    public void DBotHorseClickTakesTheHorseUnconditionally()
+    {
+        var frm = NewForm();
+        object seen = null;
+        FStateClMainSeam.TakeHorseHandler = a => seen = a;
+        g_MySelf = new TActor();
+
+        frm.DBotHorseClick(null, 0, 0);
+
+        Assert.Same(g_MySelf, seen);                                // 18844：无条件
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]   // m_btHorse = 0 ⇒ 不满足 in [1,2]
+    [InlineData(1, 0, true)]    // in [1,2] 且非双人骑 ⇒ 骑
+    [InlineData(2, 0, true)]
+    [InlineData(1, 1, false)]   // 双人骑被邀请人（m_btDoubleHumHorse <> 0）⇒ 不骑
+    [InlineData(3, 0, false)]   // 不在 [1,2]
+    public void DDownHorseClickHonoursTheOriginalTwoConditions(int horse, byte doubleHum, bool expect)
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.TakeHorseHandler = _ => calls++;
+        g_MySelf = new TActor();
+        g_MySelf.m_btHorse = horse;                                 // ActorSelfEffectRender.cs:413（int 型）
+        g_MySelf.m_btDoubleHumHorse = doubleHum;
+
+        frm.DDownHorseClick(null, 0, 0);
+
+        Assert.Equal(expect ? 1 : 0, calls);                        // 20572
+    }
+
+    [Fact]
+    public void DDownHorseClickKeepsTheOriginalMissingNilCheck()
+    {
+        // 原文 20572 **没有** g_MySelf <> nil 保护 ⇒ g_MySelf = nil 时 AV（托管侧 NullReferenceException）。
+        // 逐字保留该前提，不额外加保护（否则会把原文缺陷掩盖成"安全"行为）。
+        var frm = NewForm();
+        g_MySelf = null;
+        Assert.Throws<NullReferenceException>(() => frm.DDownHorseClick(null, 0, 0));
+    }
+
+    [Fact]
+    public void HorseButtonsDoNothingWhenTheSeamIsNotInjected()
+    {
+        // 接缝语义：未注入 handler 时什么都不发生（不是抛）—— 与"未移植壳"可区分。
+        var frm = NewForm();
+        g_MySelf = new TActor();
+        Assert.Null(Record.Exception(() => frm.DBotHorseClick(null, 0, 0)));
+        Assert.Null(Record.Exception(() => frm.DDownHorseClick(null, 0, 0)));
     }
 
     // =====================================================================================

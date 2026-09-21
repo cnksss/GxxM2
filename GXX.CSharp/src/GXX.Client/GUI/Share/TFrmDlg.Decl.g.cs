@@ -714,9 +714,6 @@ public partial class TFrmDlg
     /// <summary>Source line 655 : procedure LoadJsonControl(DOwner:TDxControl; aJson:ISuperObject);</summary>
     public virtual void LoadJsonControl(TDxControl DOwner, ISuperObject aJson)
         => throw new NotSupportedException("TFrmDlg.LoadJsonControl: not ported yet (FState.pas:655)");
-    /// <summary>Source line 658 : procedure DBotHorseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotHorseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotHorseClick: not ported yet (FState.pas:658)");
     /// <summary>Source line 659 : procedure DOptionClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DOptionClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DOptionClick: not ported yet (FState.pas:659)");
@@ -1485,15 +1482,6 @@ public partial class TFrmDlg
     /// <summary>Source line 960 : procedure DBotUserShopClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotUserShopClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotUserShopClick: not ported yet (FState.pas:960)");
-    /// <summary>Source line 961 : procedure DDownHorseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DDownHorseClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DDownHorseClick: not ported yet (FState.pas:961)");
-    /// <summary>Source line 962 : procedure DWebClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DWebClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DWebClick: not ported yet (FState.pas:962)");
-    /// <summary>Source line 963 : procedure DActionLogClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DActionLogClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DActionLogClick: not ported yet (FState.pas:963)");
     /// <summary>Source line 964 : procedure SetMyShopPageCount; virtual; abstract;</summary>
     public virtual void SetMyShopPageCount()
         => throw new NotSupportedException("TFrmDlg.SetMyShopPageCount: abstract in Delphi (FState.pas:964)");
@@ -1506,9 +1494,6 @@ public partial class TFrmDlg
     /// <summary>Source line 967 : procedure DDeleteHumanDlgCloseClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DDeleteHumanDlgCloseClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DDeleteHumanDlgCloseClick: not ported yet (FState.pas:967)");
-    /// <summary>Source line 968 : procedure DGetBackDeleteHumanClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGetBackDeleteHumanClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGetBackDeleteHumanClick: not ported yet (FState.pas:968)");
     /// <summary>Source line 969 : procedure DListViewDeleteHumanListItemClick(Sender:TObject; ARow, ACol:Integer; ListItem:TObject; ViewItem:Pointer); stdcall;</summary>
     public virtual void DListViewDeleteHumanListItemClick(object Sender, int ARow, int ACol, object ListItem, IntPtr ViewItem)
         => throw new NotSupportedException("TFrmDlg.DListViewDeleteHumanListItemClick: not ported yet (FState.pas:969)");
@@ -1796,9 +1781,6 @@ public partial class TFrmDlg
     /// <summary>Source line 1103 : function DMessageDlgDeleteUser(MsgStr:string):TModalResult; virtual; abstract;</summary>
     public virtual TModalResult DMessageDlgDeleteUser(string MsgStr)
         => throw new NotSupportedException("TFrmDlg.DMessageDlgDeleteUser: abstract in Delphi (FState.pas:1103)");
-    /// <summary>Source line 1104 : procedure DCustomButtonClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DCustomButtonClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DCustomButtonClick: not ported yet (FState.pas:1104)");
     /// <summary>Source line 1105 : procedure RestoreButton_DItemBagArrange; virtual; abstract;</summary>
     public virtual void RestoreButton_DItemBagArrange()
         => throw new NotSupportedException("TFrmDlg.RestoreButton_DItemBagArrange: abstract in Delphi (FState.pas:1105)");

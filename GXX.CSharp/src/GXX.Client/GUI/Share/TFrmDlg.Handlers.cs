@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.Scenes;
+using GXX.Core.Protocol;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 
 namespace GXX.Client.GUI.Share;
@@ -486,6 +487,81 @@ public partial class TFrmDlg
     {
         DLieDragonNpc.Visible = false;                      // 24313
     }
+
+    // ==========================================================================================
+    // 切片 3：B-2 授权后解锁的四条 + 骑马两条
+    //
+    // 原文都是"一行转发给主窗体 / 角色"，被转发方在托管侧经 `FStateClMainSeam` 注入。
+    // 接缝未注入时（默认）**什么都不发生** —— 这是**接缝**的既定语义，不是静默吞缺口：
+    // 缺口本身登记在报告 §11.2 的 B-2，且注入点都是公开字段，测试可断言"确实转发了"。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:20577-20580 procedure TFrmDlg.DWebClick。
+    /// 原文 `frmMain.Navigate(g_ClientConfig.sHomePage)`。
+    /// 注：车道1 的 `GXX.Client.GUI.Mir.TConfigClient`（MirForms.cs:23）目前**没有** `sHomePage`
+    /// 字段，而它不在本车道分区，故该字段的最小承载在 `FStateClMainSeam.sHomePage`
+    /// （默认值与 M2 端一致），见报告 D-P14-11。
+    /// </summary>
+    public virtual void DWebClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.Navigate(FStateClMainSeam.sHomePage);   // 20579
+    }
+
+    /// <summary>
+    /// FState.pas:20582-20585 procedure TFrmDlg.DActionLogClick。
+    /// 原文 `frmMain.SendDActionLogClick;`（**无括号**，原文如此）。
+    /// </summary>
+    public virtual void DActionLogClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.SendDActionLogClick();             // 20584
+    }
+
+    /// <summary>
+    /// FState.pas:20592-20596 procedure TFrmDlg.DGetBackDeleteHumanClick。
+    /// 原文先判 `g_SelDeleteHumanInfo.sChrName &lt;&gt; ''`，**非空才**发找回请求。
+    /// </summary>
+    public virtual void DGetBackDeleteHumanClick(object Sender, int X, int Y)
+    {
+        if (FStateMShareSeam.g_SelDeleteHumanInfo_sChrName != "")    // 20594
+            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo_sChrName); // 20595
+    }
+
+    /// <summary>
+    /// FState.pas:24917-24922 procedure TFrmDlg.DCustomButtonClick。
+    /// 原文只在 Sender **是** `TDxImageButton` 时才发消息（`is` 判定 ⇒ 托管侧同义 `is`）。
+    /// </summary>
+    public virtual void DCustomButtonClick(object Sender, int X, int Y)
+    {
+        if (Sender is TDxImageButton)                       // 24919
+        {
+            FStateClMainSeam.SendClientMessage(
+                Grobal2Const.CM_CUSTOM_BUTTON_CLICK, ((TDxImageButton)Sender).Tag, 0, 0, 0, ""); // 24920
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20570-20575 procedure TFrmDlg.DDownHorseClick。
+    /// 判据 `(g_MySelf.m_btHorse in [1, 2]) and (g_MySelf.m_btDoubleHumHorse = 0)`；
+    /// **未判 g_MySelf 为 nil**（原文如此：未进场景时点这个按钮会 AV）。
+    /// </summary>
+    public virtual void DDownHorseClick(object Sender, int X, int Y)
+    {
+        if ((g_MySelf.m_btHorse == 1 || g_MySelf.m_btHorse == 2)     // 20572
+            && g_MySelf.m_btDoubleHumHorse == 0)
+        {
+            FStateClMainSeam.TakeHorse(g_MySelf);           // 20573（原文 g_MySelf.TakeHorse）
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:18842-18845 procedure TFrmDlg.DBotHorseClick。
+    /// 原文**无条件** `g_MySelf.TakeHorse;`（同样未判 nil，原文如此）。
+    /// </summary>
+    public virtual void DBotHorseClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.TakeHorse(g_MySelf);               // 18844
+    }
 }
 
 /// <summary>
@@ -584,8 +660,21 @@ public static class TFrmDlgPortLedger
         new PortedMember("DLieDragonNpcCloseClick",    "24311-24314"),
     };
 
+    /// <summary>
+    /// 切片 3 落地的成员（6 条）：B-2（frmMain 接缝）授权后解锁的四条 + 骑马两条。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice3 = new[]
+    {
+        new PortedMember("DBotHorseClick",             "18842-18845"),
+        new PortedMember("DDownHorseClick",            "20570-20575"),
+        new PortedMember("DWebClick",                  "20577-20580"),
+        new PortedMember("DActionLogClick",            "20582-20585"),
+        new PortedMember("DGetBackDeleteHumanClick",   "20592-20596"),
+        new PortedMember("DCustomButtonClick",         "24917-24922"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1, Slice2 };
+    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1, Slice2, Slice3 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -593,8 +682,11 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 2 的真实现成员数。</summary>
     public static int Slice2Count => Slice2.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1 + 切片 2）。</summary>
-    public static int LaneCount => Slice1.Count + Slice2.Count;
+    /// <summary>切片 3 的真实现成员数。</summary>
+    public static int Slice3Count => Slice3.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1 + 切片 2 + 切片 3）。</summary>
+    public static int LaneCount => Slice1.Count + Slice2.Count + Slice3.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
