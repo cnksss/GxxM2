@@ -362,6 +362,53 @@ public partial class TMerchant
         }
     }
 
+    /// <summary>
+    /// 原文 `procedure MakeDurg(User: TPlayObject); // 004A16A0`（ObjNpc.pas:2272-2304）—— 制药列表。
+    /// <para><b>照抄要点</b>：2282 `label RefMakeDurg` + `goto` 用于"**删掉空组后从头重扫**"；
+    /// 2283 每次重扫都重置 `sSENDMSG := ''`；2287 `List14.Count &lt;= 0` → `Free` + `m_GoodsList.Delete(I)` + **goto 重扫**；
+    /// 2294 只看每组的**第 0 件**；2300 拼 `StdItem.Name + '/' + 0 + '/' + nMakeDurgPrice + '/' + 1 + '/'`
+    /// （**两个常量 0 与 1 是照抄**，不是占位）；2303 **串非空才发包**。</para>
+    /// <para>★ **与 `BuyItem`(2094-2176) 的"看起来一样实则不同"**：`BuyItem` 在 2110-2111 **先判 `List14 = nil`**
+    /// 再判 `Count &lt;= 0`；本过程 **2287 只判 `Count`、2294 直接读 `List14[0]`，没有 nil 分支**
+    /// ⇒ 对 nil 组**直接抛**（原文如此，**照抄不补**）。已写差异断言。</para>
+    /// <para>⚠ 原文 2284 的 `for I := 0 to Count - 1` 是 **Delphi 语义：上界只求值一次**；
+    /// 托管 `for (int I = 0; I &lt;= Count - 1; I++)` **每次迭代都重求**。因循环体内**只有** `goto` 分支
+    /// 会改 `Count`（且它立刻重启），故两者**等价**；已登记。</para>
+    /// <para>触发点：`nNF_MakedUrg` 分支（原文 2747-2751），守卫 `m_boMakeDrug`。</para>
+    /// </summary>
+    public void MakeDurg(TPlayObject User)
+    {
+    RestartMakeDurg:
+        // 原文 2283
+        string sSENDMSG = "";
+        // 原文 2284
+        for (int I = 0; I <= m_GoodsList.Count - 1; I++)
+        {
+            // 原文 2286：**不判 nil**（与 BuyItem 不同）
+            List<object> List14 = (List<object>)m_GoodsList[I];
+            // 原文 2287-2293
+            if (List14.Count <= 0)
+            {
+                m_GoodsList.RemoveAt(I);
+                goto RestartMakeDurg;
+            }
+            // 原文 2294-2296
+            if (List14[0] == null)
+                continue;
+            TUserItem UserItem = (TUserItem)List14[0]!;
+            // 原文 2297-2301
+            TStdItem? StdItem = NpcSeams.GetStdItem(UserItem.wIndex);
+            if (StdItem != null)
+            {
+                sSENDMSG = sSENDMSG + StdItem.Value.NameStr + "/" + DelphiRTL.IntToStr(0) + "/"
+                    + DelphiRTL.IntToStr(M2Config.nMakeDurgPrice) + "/" + DelphiRTL.IntToStr(1) + "/";
+            }
+        }
+        // 原文 2303-2304
+        if (sSENDMSG != "")
+            User.SendTo(this, Grobal2Const.RM_USERMAKEDRUGITEMS, 0, m_nRecogId, 0, 0, sSENDMSG);
+    }
+
     /// <summary>原文 `Self = g_MissionNPC` 同型的占位说明见 <see cref="UserSelectPortedArms"/>。</summary>
     public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "", string sLabel = "")
     {
@@ -438,6 +485,10 @@ public partial class TMerchant
             case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
                 if (m_boofflinemsg)
                     AutoGetExp(PlayObject, sMsg);
+                return true;
+            case NpcProcessCmd.nNF_MakedUrg:           // 原文 2747-2751（制药列表）
+                if (m_boMakeDrug)
+                    MakeDurg(PlayObject);
                 return true;
             case NpcProcessCmd.nNF_DealGold:           // 原文 2727-2731（元宝转账）
                 if (m_boDealGold)

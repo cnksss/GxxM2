@@ -166,6 +166,11 @@ public sealed class NpcObjNpcUserSelectDealGoldLinkTests : IDisposable
         pose.m_btRaceServer = 0;                   // 非 RC_PLAYOBJECT（RC_PLAYOBJECT = 0? 见下）
 
         // ⚠ 若 `RC_PLAYOBJECT` 本身是 0，则本用例需换一个**非 0** 的种族值；用断言自证
+        // ★ **为什么需要这个自证分支（勿当作多余清理）**：本用例的要害是"对向**非**玩家"，
+        //   而我用 `m_btRaceServer = 0` 表达它 —— **这依赖 `RC_PLAYOBJECT` 当前不是 0**。
+        //   若哪天 `RC_PLAYOBJECT` 被改成 0，本用例会**静默变成"对向是玩家"却仍然通过**
+        //   （断言失效，但结果看起来正常）。这与台账「工具默认削弱证据」同族：
+        //   **证据的强度被一个无关的常量取值悄悄削弱**。故显式兜底。
         if (Grobal2Const.RC_PLAYOBJECT == 0)
             pose.m_btRaceServer = 1;               // 任意非玩家种族
 
