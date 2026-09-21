@@ -74,16 +74,16 @@ uFrmCustomMagic	par/p5-m2-custommagic
 # Reassigned rather than duplicated: each unit keeps exactly one owner row.
 #
 # M2Engine leftovers that stayed unported when par/p3-m2-sweep closed:
-ObjDummy	par/p9-m2-monsters
-ObjRobot	par/p9-m2-monsters
-ObjFireDragon	par/p9-m2-monsters
+# par/p9-m2-monsters CLOSED 2026-09-21 (merged, ledger 41): ObjRobot 20/20, ObjFireDragon 14/14,
+# ObjDummy 19/19 -> all three now carry E1 (same-basename .cs) + E2 evidence, so rows removed.
 PathFindClient	par/p9-m2-pathfind
 PathFind_Hero	par/p9-m2-pathfind
 ClientPickItemsCfg	par/p9-m2-pathfind
 StruckDamageAbsorbUtils	par/p9-m2-pathfind
-UserShopDB_Old	par/p9-m2-datalayer
-ItemEvent	par/p9-m2-datalayer
-DataManage	par/p9-m2-datalayer
+# par/p9-m2-datalayer CLOSED 2026-09-21 (merged, ledger 41): ItemEvent 13/13 + DataManage 24/24 have
+# E1+E2 evidence -> rows removed.  UserShopDB_Old is DEAD CODE (zero refs in .pas/.dpr/.dpk,
+# undefined ACCOUNTLEN/ACTORNAMELEN, unit name collides with the new UserShopDB) -> registered in
+# audit-coverage.ps1 $VENDOR_UNITS as "not ported", NOT left here as a permanently-parked row.
 ConfigMerchant	par/p9-m2-forms
 ViewHeroRcd	par/p9-m2-forms
 ViewKernelInfo	par/p9-m2-forms

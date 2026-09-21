@@ -19,7 +19,7 @@
 # ============================================================
 [CmdletBinding()]
 param(
-    [string[]]$Dir = @('M2Engine','Client-HGE','DBServer','LoginSrv','SelGate','RunGate','GameCenter','LogDataServer','Common'),
+    [string[]]$Dir = @('M2Engine','Client-HGE','DBServer','LoginSrv','LoginGate','SelGate','RunGate','GameCenter','LogDataServer','Common'),
     [switch]$Report,
     [switch]$ShowMapped,
     # NOTE: keep the default ASCII; pass a non-ASCII path from the command line
@@ -85,12 +85,30 @@ $VENDOR_UNITS = @(
     'IODataPool',       # P9: 586 lines, POVERLAPPEDEx raw pointers; every caller already not-ported
     'IocpTcpClient',    # P9: 340 lines, 20 Win32 IOCP calls inside one method; TcpLink is the live path
     'Qos',              # P9: 293 lines, header-only translation; 42 of 49 names absent from C#
-    'DllUpdateCommon'   # P9: 10-line empty shell, 0 declarations, 0 uses anywhere
+    'DllUpdateCommon',  # P9: 10-line empty shell, 0 declarations, 0 uses anywhere
+    # ---- "<dir>/<unit>" form = THAT COPY ONLY (see the duplicate-basename note at the bottom).
+    # ThreadPool.pas has three copies with OPPOSITE rulings: the two gateway copies are replaced by
+    # GatewayKit (not ported), while LogDataServer's is a REAL gap (TPoolManager/TPoolThread absent)
+    # that lane par/p10-db-login-forms is porting.  A bare 'ThreadPool' row would hide that gap.
+    'SelGate/ThreadPool',
+    'LoginGate/ThreadPool',
+    # ---- c1 dead code, ruled by lane par/p9-m2-datalayer (2026-09-21, ledger 41) with 6 counts:
+    # zero hits in .pas/.dpr/.dpk, its own type names hit only itself, ACCOUNTLEN/ACTORNAMELEN are
+    # undefined repo-wide (so the original cannot even compile), g_UserShopDB is declared nowhere,
+    # and its `unit UserShopDB;` name collides with the live UserShopDB unit.
+    'UserShopDB_Old'
     # NOTE: 'ThreadPool' is deliberately NOT registered here.  It exists in LogDataServer (a REAL
     # gap: 445 lines, TPoolManager/TPoolThread unported) as well as in LoginGate/SelGate (replaced
     # by design).  This registry keys on the BASENAME, so a row would silently hide the
     # LogDataServer gap -- see the report's DUPLICATE-BASENAME section (ledger 39.3).
 )
+
+# ---- per-copy entries of the not-ported registry --------------------------
+# A "<dir>/<unit>" entry marks ONLY that copy.  Needed wherever one basename has copies with
+# OPPOSITE rulings (e.g. ThreadPool.pas: two gateway copies replaced by GatewayKit, one
+# LogDataServer copy that is a real gap).  Bare entries keep the old any-copy meaning.
+$vendorByCopy = @{}
+foreach ($v in $VENDOR_UNITS) { if ($v -like '*/*') { $vendorByCopy[$v] = $true } }
 
 # ---- load optional explicit map ------------------------------------------
 $explicit = @{}
@@ -154,6 +172,7 @@ foreach ($d in $Dir) {
         $isVendor = $false
         foreach ($v in $VENDOR_DIRS) { if ($rel -like "*\$v\*") { $isVendor = $true } }
         if ($VENDOR_UNITS -contains $f.BaseName) { $isVendor = $true }
+        if ($vendorByCopy.ContainsKey("$d/$($f.BaseName)")) { $isVendor = $true }
 
         $unit = $f.BaseName
 
@@ -176,7 +195,14 @@ foreach ($d in $Dir) {
         }
         $e3 = $false
         if (-not ($e1 -or $e2)) { $e3 = $checklistText.IndexOf($unit, [StringComparison]::Ordinal) -ge 0 }
-        $e4 = $explicit.ContainsKey($unit)
+        $e4 = $false
+        $e4lane = ''
+        # E4 keys: "<unit>" assigns EVERY copy with that basename, "<dir>/<unit>" assigns ONLY the
+        # copy in that source dir.  The per-copy form exists because basenames repeat (30+ groups
+        # in this tree): without it, assigning LogDataServer's ThreadPool would also have to cover
+        # SelGate's, whose ruling is the opposite ("replaced by GatewayKit, not ported").
+        if ($explicit.ContainsKey("$d/$unit")) { $e4 = $true; $e4lane = $explicit["$d/$unit"] }
+        elseif ($explicit.ContainsKey($unit)) { $e4 = $true; $e4lane = $explicit[$unit] }
 
         $mapped = $e1 -or $e2
         $lines = 0
@@ -207,7 +233,7 @@ foreach ($d in $Dir) {
 
         $rows += [pscustomobject]@{
             Dir = $d; Unit = $unit; Lines = $lines; KB = [math]::Round($f.Length / 1KB)
-            E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel
+            E1 = $e1; E2 = $e2; E2w = $e2w; E3 = $e3; E4 = $e4; Verdict = $verdict; Rel = $rel; Lane = $e4lane
         }
     }
 }
@@ -285,7 +311,7 @@ if ($Report) {
     [void]$sb.AppendLine('| dir | unit | lines | KB | lane |')
     [void]$sb.AppendLine('|---|---|---|---|---|')
     foreach ($r in ($rows | Where-Object Verdict -eq 'ASSIGNED' | Sort-Object KB -Descending)) {
-        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($explicit[$r.Unit]) |")
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | $($r.Lane) |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## UNMAPPED units, largest first')
