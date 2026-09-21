@@ -963,6 +963,90 @@ public partial class TFrmDlg
                 FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildBreakAllyScript) + DlgEditText); // 17938
         }
     }
+
+    // ==========================================================================================
+    // 切片 10：`ShowMDlg`（原文 867 **concrete**，体 1865-1889）
+    //
+    // ★ 为什么这一族只落这一条：`ShowGorupJoinDlg`(868) / `ResetMenuDlg`(869) / `CloseMDlg`(870) /
+    //   `ToggleShowGroupDlg`(871) / `ViewBottomBox`(872) **全是 `virtual; abstract`**
+    //   ⇒ 属 ABSTRACT_NO_BODY，**没有原文体可落**（已逐行核对声明段 846-892）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:1864-1889 procedure TFrmDlg.ShowMDlg(face:Integer; mname, msgstr:string;
+    /// boSetBagItemPos:Boolean = True; IsDesigning:Boolean = False)。
+    ///
+    /// ★ **原文缺陷照抄（重要）**：形参 `face` / `mname` / `msgstr` / `boSetBagItemPos` / `IsDesigning`
+    ///   **在函数体里一个都没被使用** —— 整段体只做"NPC 大对话框的几何 / 图号 / 浮动 / 关闭按钮可见性"设置。
+    ///   托管侧逐字保留（形参同样未用并显式标注），**不顺手接上**（接上就是新行为）。
+    ///
+    /// 控制流（顺序即语义）：
+    ///   1) `if not g_boOpenMerchantBigDlg then begin ... end`（**为真整段跳过**）；
+    ///   2) `DMerchantDlg.Left/Top := 0;`
+    ///   3) `DMerchantDlg.ImageIndex.Assign(g_MerchantImageIndex);`（**整体拷贝**）
+    ///   4) `DMerchantDlgClose.ClientRect := g_MerchantCloseButtonRect;`
+    ///   5) `if g_ClientConfig.boNPCGuiCanMove or frmMain.boNpcDlgCanMove then Floating := True else False`
+    ///      （**显式二分**；与 `Floating := 条件` 等价，但逐字保留原文形态）
+    ///   6) `DMerchantDlgClose.Visible := True;`
+    ///   7) 原文 1879-1885 是**整段 `{ }` 块注释**（`cvMirs` 分支）⇒ 逐字保留为注释、不执行；
+    ///   8) `if (g_ClientVersion in [cvSerial, cvMirSequel, cvMirNewUI205]) and (DMerchantDlgHelp &lt;&gt; nil) then`
+    ///      `DMerchantDlgHelp.Visible := g_ClientConfig.DMerchantDlgHelp;`
+    ///      —— **先判版本、再判 nil**（原文顺序；nil 判断**没有**提前 return）。
+    ///
+    /// 托管侧两处**已登记的等价改写**（都在报告 D-P14-16，均有据）：
+    ///   - 1869 的 `Assign`：`TDxControl.ImageIndex` 是 `TDxImageIndex`，而
+    ///     `MShareGlobals.g_MerchantImageIndex`（ClientGlobals.cs:217）是旧接缝类型 `TGuiImageIndex`
+    ///     （字段名 `Image`、且**无** `Checked`）⇒ 改为**逐字段拷贝**（字段集与原文 Assign 相同，
+    ///     只是少一个 `Checked`，因为源类型没有）。待 ClientGlobals 把该全局换成 `TDxImageIndex` 后
+    ///     即可还原成一行 `Assign`。
+    ///   - 1873/1887 的 `g_ClientConfig`：原文指的是 **Grobal2 的 `TClientConfig`**
+    ///     （`Common/Grobal2.pas:6388`；`boNPCGuiCanMove`:5080、`DMerchantDlgHelp`:5022），
+    ///     **不是** MShare 的 `g_ConfigClient:TConfigClient`（那是 packed record）。
+    ///     该全局托管侧未落地，故走 `FStateMShareSeam.g_ClientConfig_*` 两个字段接缝。
+    /// </summary>
+    public virtual void ShowMDlg(int face, string mname, string msgstr,
+        bool boSetBagItemPos = true, bool IsDesigning = false)
+    {
+        // 原文 1866-1888 体内**未使用** face/mname/msgstr/boSetBagItemPos/IsDesigning（原文如此）。
+        if (g_boOpenMerchantBigDlg == 0)                    // 1866（原文 not g_boOpenMerchantBigDlg）
+        {
+            DMerchantDlg.Left = 0;                          // 1867
+            DMerchantDlg.Top = 0;                           // 1868
+            // 1869：原文 `DMerchantDlg.ImageIndex.Assign(g_MerchantImageIndex);`（见上方改写说明）
+            DMerchantDlg.ImageIndex.ImageType = g_MerchantImageIndex.Image;
+            DMerchantDlg.ImageIndex.Up = g_MerchantImageIndex.Up;
+            DMerchantDlg.ImageIndex.Hot = g_MerchantImageIndex.Hot;
+            DMerchantDlg.ImageIndex.Down = g_MerchantImageIndex.Down;
+            DMerchantDlg.ImageIndex.Disabled = g_MerchantImageIndex.Disabled;
+            DMerchantDlgClose.ClientRect = g_MerchantCloseButtonRect;      // 1870
+
+            // 1872：{ TODO -opiaoyun -cGUI : NPC界面能否移动 【2013-07-23】 }
+            if (FStateMShareSeam.g_ClientConfig_boNPCGuiCanMove != 0
+                || frmMain.boNpcDlgCanMove)                 // 1873
+                DMerchantDlg.Floating = true;               // 1874
+            else
+                DMerchantDlg.Floating = false;              // 1876
+
+            DMerchantDlgClose.Visible = true;               // 1878
+
+            // 1879-1885：原文整段 `{ }` 块注释（cvMirs 分支）—— 原文如此，逐字保留为注释：
+            // {
+            // if g_ClientVersion = cvMirs then
+            // begin
+            //   DMerchantDlg.AutoSize := False;
+            //   DMerchantDlg.Width := DMerchantDlg.Width + 20;
+            // end;
+            // }
+
+            if ((g_ClientVersion == TClientVersion.cvSerial
+                 || g_ClientVersion == TClientVersion.cvMirSequel
+                 || g_ClientVersion == TClientVersion.cvMirNewUI205)
+                && DMerchantDlgHelp != null)                // 1886（原文先版本、后 nil）
+            {
+                DMerchantDlgHelp.Visible = FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp != 0;   // 1887
+            }
+        }
+    }
 }
 
 /// <summary>
@@ -1143,9 +1227,17 @@ public static class TFrmDlgPortLedger
         new PortedMember("DGDBreakAllyClick",         "17934-17939"),
     };
 
+    /// <summary>
+    /// 切片 10 落地的成员（1 条）：`ShowMDlg`（该族唯一 concrete）。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice10 = new[]
+    {
+        new PortedMember("ShowMDlg",                     "1864-1889"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8, Slice9 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8, Slice9, Slice10 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -1174,10 +1266,13 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 9 的真实现成员数。</summary>
     public static int Slice9Count => Slice9.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..9）。</summary>
+    /// <summary>切片 10 的真实现成员数。</summary>
+    public static int Slice10Count => Slice10.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..10）。</summary>
     public static int LaneCount =>
         Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count
-        + Slice6.Count + Slice7.Count + Slice8.Count + Slice9.Count;
+        + Slice6.Count + Slice7.Count + Slice8.Count + Slice9.Count + Slice10.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)

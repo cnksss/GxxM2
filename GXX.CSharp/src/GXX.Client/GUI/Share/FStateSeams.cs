@@ -637,6 +637,29 @@ public static class FStateMShareSeam
     /// <summary>MShare.pas `g_nMinMapY:Integer`（小地图上鼠标 Y；原文 18225 赋值）。</summary>
     public static int g_nMinMapY;
 
+    // ============================================================================================
+    // 切片 10（ShowMDlg 用）：`g_ClientConfig` 的两个字段。
+    //
+    // ★ 为什么单独承载（**不是**"懒得多写一行"，原文这里有两个只差一个字母的配置全局）：
+    //   1) `MShare.pas:2180  g_ConfigClient:TConfigClient`，其中 `MShare.pas:493` 的
+    //      `TConfigClient` 是 **packed record（登录器下发的配置）** ——
+    //      托管侧 `MShareGlobals.g_ConfigClient`（ClientGlobals.cs:143 → `Mir.TConfigClient`）
+    //      就是它，**不含** `DMerchantDlgHelp`。
+    //   2) `Common/Grobal2.pas:6388  g_ClientConfig: TClientConfig` —— `TClientConfig` 才是那个
+    //      **大配置记录**：`DMerchantDlgHelp`（Grobal2.pas:5022）与 `boNPCGuiCanMove`
+    //      （Grobal2.pas:5080）都在其中；Core 侧已移植为 `GXX.Core.Protocol.TClientConfig`
+    //      （Grobal2.Types5.cs，两字段均为 **byte**）。FState.pas 在 1873/1887 用它，
+    //      ClMain.pas:23389 用的是同一个全局。
+    //   ⇒ 该全局**尚未**在托管侧落地（属 Grobal2/ClMain 面），故此处只承载本单元用到的两个字段。
+    //     **不计入 FState 缺口**；待真身落地后改指 `g_ClientConfig.*`。
+    // ============================================================================================
+
+    /// <summary>Grobal2.pas:5080 `g_ClientConfig.boNPCGuiCanMove:Boolean`（NPC 界面能否移动）。</summary>
+    public static byte g_ClientConfig_boNPCGuiCanMove;
+
+    /// <summary>Grobal2.pas:5022 `g_ClientConfig.DMerchantDlgHelp:Boolean`（显示 NPC 帮助按钮）。</summary>
+    public static byte g_ClientConfig_DMerchantDlgHelp;
+
     /// <summary>
     /// MShare.pas `g_MouseUserStateItem:TClientItem`（人物状态窗口上鼠标所指的物品）。
     /// 原文 17802 / 2612 只做 `g_MouseUserStateItem.S.Name := ''`（清空短串名）。
@@ -667,6 +690,8 @@ public static class FStateMShareSeam
         g_nMinMapX = 0;
         g_nMinMapY = 0;
         g_MouseUserStateItem_sName = "";
+        g_ClientConfig_boNPCGuiCanMove = 0;
+        g_ClientConfig_DMerchantDlgHelp = 0;
     }
 }
 

@@ -1527,6 +1527,169 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 切片 10：ShowMDlg（原文 867 concrete，体 1865-1889；该族唯一 concrete 成员）
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice10RegistersOneMember()
+    {
+        Assert.Equal(1, TFrmDlgPortLedger.Slice10Count);
+    }
+
+    private static TFrmDlg NewFormWithMerchantDlg()
+    {
+        var frm = NewForm();
+        frm.DMerchantDlg = new TDxImageForm();
+        frm.DMerchantDlgClose = new TDxImageButton();
+        frm.DMerchantDlgHelp = new TDxImageButton();
+        return frm;
+    }
+
+    [Fact]
+    public void ShowMDlgDoesNothingWhenTheMerchantBigDlgIsOpen()
+    {
+        // 1866：`if not g_boOpenMerchantBigDlg` —— 标志**非零**时整段跳过。
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 1;
+        frm.DMerchantDlg.Left = 777;
+        frm.DMerchantDlgClose.Visible = false;
+
+        frm.ShowMDlg(1, "n", "m");
+
+        Assert.Equal(777, frm.DMerchantDlg.Left);            // 未被置 0
+        Assert.False(frm.DMerchantDlgClose.Visible);         // 未被置 True
+    }
+
+    [Fact]
+    public void ShowMDlgZerosTheGeometryCopiesTheImageIndexAndShowsTheCloseButton()
+    {
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        frm.DMerchantDlg.Left = 777;
+        frm.DMerchantDlg.Top = 888;
+        g_MerchantImageIndex.Image = TImageType.Prguse_wil;
+        g_MerchantImageIndex.Up = 11;
+        g_MerchantImageIndex.Hot = 22;
+        g_MerchantImageIndex.Down = 33;
+        g_MerchantImageIndex.Disabled = 44;
+
+        frm.ShowMDlg(9, "name", "msg");
+
+        Assert.Equal(0, frm.DMerchantDlg.Left);              // 1867
+        Assert.Equal(0, frm.DMerchantDlg.Top);               // 1868
+        Assert.Equal(11, frm.DMerchantDlg.ImageIndex.Up);    // 1869（逐字段拷贝）
+        Assert.Equal(22, frm.DMerchantDlg.ImageIndex.Hot);
+        Assert.Equal(33, frm.DMerchantDlg.ImageIndex.Down);
+        Assert.Equal(44, frm.DMerchantDlg.ImageIndex.Disabled);
+        Assert.True(frm.DMerchantDlgClose.Visible);          // 1878
+    }
+
+    [Fact]
+    public void ShowMDlgCopiesTheCloseButtonRect()
+    {
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        g_MerchantCloseButtonRect = new TRect(1, 2, 30, 40);
+
+        frm.ShowMDlg(1, "n", "m");
+
+        Assert.Equal(1, frm.DMerchantDlgClose.ClientRect.Left);   // 1870
+        Assert.Equal(2, frm.DMerchantDlgClose.ClientRect.Top);
+        Assert.Equal(30, frm.DMerchantDlgClose.ClientRect.Right);
+        Assert.Equal(40, frm.DMerchantDlgClose.ClientRect.Bottom);
+    }
+
+    [Theory]
+    [InlineData(0, false, false)]   // 两个来源都 False ⇒ 不浮动
+    [InlineData(1, false, true)]    // 配置为真 ⇒ 浮动
+    [InlineData(0, true, true)]     // 主窗体标志为真 ⇒ 浮动
+    [InlineData(1, true, true)]     // 两者为真 ⇒ 浮动
+    public void ShowMDlgFloatingIsTheOrOfConfigAndMainFormFlag(byte configFlag, bool mainFlag, bool expect)
+    {
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        FStateMShareSeam.g_ClientConfig_boNPCGuiCanMove = configFlag;
+        frmMain.boNpcDlgCanMove = mainFlag;
+
+        frm.ShowMDlg(1, "n", "m");
+
+        Assert.Equal(expect, frm.DMerchantDlg.Floating);     // 1873-1876
+    }
+
+    [Theory]
+    [InlineData(TClientVersion.cvSerial, true)]
+    [InlineData(TClientVersion.cvMirSequel, true)]
+    [InlineData(TClientVersion.cvMirNewUI205, true)]
+    [InlineData(TClientVersion.cv176, false)]            // 不在三版本白名单 ⇒ 不设置
+    [InlineData(TClientVersion.cv185, false)]
+    [InlineData(TClientVersion.cvHero, false)]
+    public void ShowMDlgSetsTheHelpVisibilityOnlyForTheThreeWhitelistedVersions(
+        TClientVersion version, bool expectApplied)
+    {
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        g_ClientVersion = version;
+        FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp = 1;
+        frm.DMerchantDlgHelp.Visible = false;
+
+        frm.ShowMDlg(1, "n", "m");
+
+        Assert.Equal(expectApplied, frm.DMerchantDlgHelp.Visible);   // 1886-1887
+    }
+
+    [Fact]
+    public void ShowMDlgHelpVisibilityFollowsTheConfigValue()
+    {
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        g_ClientVersion = TClientVersion.cvSerial;
+
+        FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp = 1;
+        frm.ShowMDlg(1, "n", "m");
+        Assert.True(frm.DMerchantDlgHelp.Visible);
+
+        // 关掉配置再调一次 ⇒ 应被置回 False（可见性是**跟随**配置，不是只置真）
+        FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp = 0;
+        frm.ShowMDlg(1, "n", "m");
+        Assert.False(frm.DMerchantDlgHelp.Visible);
+    }
+
+    [Fact]
+    public void ShowMDlgToleratesANilHelpButton()
+    {
+        // 1886 的 nil 判断在**版本判断之后**：三版本但 DMerchantDlgHelp = nil ⇒ 不抛、不做事。
+        var frm = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        g_ClientVersion = TClientVersion.cvSerial;
+        FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp = 1;
+        frm.DMerchantDlgHelp = null;
+
+        Assert.Null(Record.Exception(() => frm.ShowMDlg(1, "n", "m")));
+    }
+
+    [Fact]
+    public void ShowMDlgIgnoresAllFiveParameters()
+    {
+        // ★ 原文缺陷锁死：face/mname/msgstr/boSetBagItemPos/IsDesigning **体内一个都没用**。
+        //   两次调用只改形参、不改任何可观测状态 ⇒ 结果必须完全相同。
+        var frmA = NewFormWithMerchantDlg();
+        var frmB = NewFormWithMerchantDlg();
+        g_boOpenMerchantBigDlg = 0;
+        g_ClientVersion = TClientVersion.cvSerial;
+        FStateMShareSeam.g_ClientConfig_boNPCGuiCanMove = 1;
+        FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp = 1;
+
+        frmA.ShowMDlg(0, "", "");
+        frmB.ShowMDlg(99, "完全不同的名字", "完全不同的消息", false, true);
+
+        Assert.Equal(frmA.DMerchantDlg.Left, frmB.DMerchantDlg.Left);
+        Assert.Equal(frmA.DMerchantDlg.Top, frmB.DMerchantDlg.Top);
+        Assert.Equal(frmA.DMerchantDlg.Floating, frmB.DMerchantDlg.Floating);
+        Assert.Equal(frmA.DMerchantDlgClose.Visible, frmB.DMerchantDlgClose.Visible);
+        Assert.Equal(frmA.DMerchantDlgHelp.Visible, frmB.DMerchantDlgHelp.Visible);
+    }
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 
