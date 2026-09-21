@@ -63,10 +63,20 @@ function Fail([string]$why) {
 
 Push-Location $Repo
 try {
+    # NOTE (ledger 59.6): with $ErrorActionPreference = 'Stop', Windows PowerShell 5.1 turns a
+    # native command's STDERR into a TERMINATING error when it flows through a pipeline.  The gate
+    # then died in the middle of the test phase -- printing NO evidence and exiting 1 -- which is
+    # the mirror image of the false green this script exists to prevent (a false RED).
+    # Fix: relax the preference for the native calls and merge every stream explicitly (*>&1).
+    $ErrorActionPreference = 'Continue'
+
     if (-not $SkipBuild) {
         Write-Host ("== build: {0} ==" -f $Solution) -ForegroundColor Cyan
-        dotnet build $Solution -c Debug --nologo -m:1 -p:BuildInParallel=false 2>&1 | Tee-Object -FilePath $Log
-        if ($LASTEXITCODE -ne 0) { Fail ("dotnet build exit={0}" -f $LASTEXITCODE) }
+        & dotnet build $Solution -c Debug --nologo -m:1 -p:BuildInParallel=false *>&1 |
+            Tee-Object -FilePath $Log
+        $buildCode = $LASTEXITCODE
+        Write-Host ("build exit code       : {0}" -f $buildCode)
+        if ($buildCode -ne 0) { Fail ("dotnet build exit={0}" -f $buildCode) }
     } else {
         Write-Host '== build skipped (-SkipBuild) ==' -ForegroundColor Yellow
         if (Test-Path $Log) { Remove-Item $Log -Force }
@@ -74,7 +84,8 @@ try {
 
     $target = if ($Project) { $Project } else { $Solution }
     Write-Host ("== test: {0} ==" -f $target) -ForegroundColor Cyan
-    & dotnet test $target -c Debug --nologo --no-build 2>&1 | Tee-Object -FilePath $Log -Append
+    & dotnet test $target -c Debug --nologo --no-build *>&1 |
+        Tee-Object -FilePath $Log -Append
     $code = $LASTEXITCODE
 
     $text = ''

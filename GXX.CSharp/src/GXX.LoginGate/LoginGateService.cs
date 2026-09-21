@@ -208,8 +208,17 @@ public class LoginGateService : GateService
     {
         if (!IsRest11FrameGateActive)
         {
-            // ★ 默认路径：与接线前逐字节一致
+            // ★ 默认路径：与接线前逐字节一致（base 追加缓冲 **加** 透传客户端数据 → LoginSrv 的 GM_DATA 帧）。
+            //
+            // 【集成方修复 · 台账 §59.7】车道 p14-logingate-wire 曾把 GM_DATA 透传**搬进了 Rest11 分支**，
+            // 默认路径只剩 `base.OnClientReceive`（仅追加缓冲、不转发）⇒ 关闭 Rest11 时网关**什么都不转发**，
+            // 端到端集成用例卡在"等待 GM_DATA(0x0005) 帧超时"。
+            // 证据：**接线前**提交 b61112bc 上同一集成用例 **2/2 通过（80 ms）**；接线后 **2/2 超时**。
+            // 修法：把原文属于默认路径的两条语句放回这里（Rest11 分支不变，它有自己的转发路径）。
             base.OnClientReceive(session, buf, offset, len);
+            var data = new byte[len];
+            Array.Copy(buf, offset, data, 0, len);
+            SendToServer(GatewayProtocol.BuildServerPacket((uint)session.SocketId, GatewayProtocol.GM_DATA, 0, data, len));
             return;
         }
 
