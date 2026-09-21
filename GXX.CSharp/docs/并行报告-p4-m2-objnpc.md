@@ -2083,3 +2083,49 @@ Covered **67** / Seam **4** / Missing **41**；**`UserSelect` 三条（`TMerchan
 - **未落代码**：普查发现 4 项缺失宿主 + 1 处范围扩展（2597-2631），按流程停下报告。
 - 工作树**干净**；最后一次提交 `21793862` **全绿**（9,382 例）；已 `merge main`（无冲突）。
 - `UserSelect` 三条**继续 `Missing`**；已移植 `case` 分支累计 **16 条**（未变）。
+---
+
+# 25. 第十九轮：★ **"名字相似造成的假等价"** —— 三向 nil 对照（请后来者先读本节）★ 本节优先于 §24
+
+> 调度方点名要求：把 `MakeDurg` / `ClientBuyItem` / 嵌套 `BuyItem` 的 nil 处理**三向对照写进报告**，
+> 因为**后来者读到 "`BuyItem`" 时极可能以为它和 `ClientBuyItem` 是一回事**（我在实现时正是这么混淆的）。
+
+## 25.1 三个"看起来像同一个东西"的名字，行为**三种不同**
+
+| 名字 | 是什么 | `m_GoodsList` 组为 **nil** 时 | 原文行 |
+|---|---|---|---|
+| `MakeDurg` | `TMerchant` 的**嵌套过程** | **直接抛**（`NullReferenceException`）—— 2287 只判 `Count`、2294 直接读 `[0]`，**没有任何 nil 分支** | 2272-2304 |
+| `ClientBuyItem` | `TMerchant` 的**成员方法**（购买主流程） | **跳过并保留**（`if List20 = nil then Continue;`，**不删组**） | 3400-3402 |
+| `BuyItem` | `TMerchant.UserSelect` 内的**嵌套过程**（商店浏览/菜单） | **删除 + `goto` 重扫**（`m_GoodsList.Delete(I); goto RefBuy;`） | 2110-2116 |
+
+**⚠ 三者名字两两相似（`BuyItem` vs `ClientBuyItem` 只差前缀；`MakeDurg` 与 `BuyItem` 都是嵌套过程），
+但 nil 语义、循环结构、用途**完全不同**。**逐条按名字猜 = 必错。**
+
+## 25.2 "名字相似造成的假等价"（本会话新命名的一族）
+
+它与"看起来一样实则不同"同族，但**成因不同**：
+- **「看起来一样实则不同」**：代码本身形似（`Copy` 位移、参数位、标签、语句顺序）；
+- **「名字相似造成的假等价」**：**代码不形似，是名字让人以为它们是一回事** ⇒ 于是**根本不会去读第二处**，
+  危害更大（第一族至少会让人起疑去比对）。
+
+**处置（本车道已执行）**：
+1. 实现时给三处各写**互相对照的差异断言**（`NpcObjNpcUserSelectMakeDurgTests.cs` 的
+   `MakeDurg_NullGroupEntry_Throws` 与 `ClientBuyItem_NullGroupEntry_IsSkippedNotRemoved_ContrastWithMakeDurg`）；
+2. 在 `MakeDurg` 的 XML 注释里点名"带删除+重扫的是**嵌套 `BuyItem`**，**尚未移植**"；
+3. **本节**（报告级登记），使不读代码的人也能避开。
+
+## 25.3 附带：`params` 族的**第 2 变体**（已写进测试辅助方法注释）
+
+| 变体 | 触发 | 后果 |
+|---|---|---|
+| 第 1 变体 | **重载歧义**：单参调用被绑到多参重载 | 静默走错分支（"个别测试红、其它绿"） |
+| **第 2 变体（本轮踩到）** | `Group(null!)` —— 裸 `null` 传给 `params object[]` | **整个数组为 null**（而非"含一个 null"）⇒ 造出的是 **null 组**，走**完全另一条分支**，**不报错** |
+
+**修法**：`Group((object?)null!)`。已把该坑写进 `Group(...)` 定义处的 XML 注释（比写在报告里更能拦住下一个使用者）。
+
+## 25.4 本轮状态
+
+- 本节的两次提交：`1ae11593`（`MakeDurg` 1:1 + 17 例）、本节随附的注释/报告提交。
+- 门禁：`GXX.M2Server.Tests` **9,450 passed / 0 failed**。
+- `UserSelect` 三条**继续 `Missing`**；已移植 `case` 分支 **19 条**。
+- 剩余：`PlayDrink`(39) → `MakeHeroName`(61)+`MakeDeputyHeroName`(53) 相邻 → 嵌套 `BuyItem`(83) → 派发体(~300) + 内联收口。

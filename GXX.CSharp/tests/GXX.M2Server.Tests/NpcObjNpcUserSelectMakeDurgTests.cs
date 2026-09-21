@@ -37,6 +37,14 @@ public sealed class NpcObjNpcUserSelectMakeDurgTests : IDisposable
         return s;
     }
 
+    /// <summary>
+    /// 造一个"商品组"。
+    /// <para><b>★ 坑（`params` 族第 2 变体，勿踩）</b>：**不要写 `Group(null!)`** ——
+    /// `params object[]` 收到裸 `null` 时会把**整个数组**当成 null（**不是**"含一个 null 元素的数组"），
+    /// 于是 `m_GoodsList` 里放进的是 **null 组**，测试会走到**完全另一条分支** —— 而且**不报错、看起来正常**。
+    /// 要造"含 null 元素的组"必须写 <c>Group((object?)null!)</c>。
+    /// （第 1 变体见台账：**重载歧义** —— 单参调用被绑到多参重载，同样静默走错分支。）</para>
+    /// </summary>
     private static List<object> Group(params object[] items) => new(items);
 
     // -----------------------------------------------------------------------
