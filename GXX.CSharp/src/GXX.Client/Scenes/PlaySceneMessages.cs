@@ -669,12 +669,20 @@ public partial class TPlayScene
                         if (ident != TActorCore.SM_BACKSTEP)
                         {
                             actor.m_nChrLight = (byte)HiByte(cdir);
-                            actor.m_nOldChrLight = actor.m_nChrLight;
+                            // ★ 集成方补回原文守卫（台账 §64.8 / D-P17-09）：原文 PlayScn.pas:7852-7853 /
+                            //   8019-8020 / 8023-8024 **三个写点都带 `if Actor is TCustomActor`**：
+                            //     if Actor is TCustomActor then TCustomActor(Actor).m_nOldChrLight := Actor.m_nChrLight;
+                            //   托管侧此前把它写成**无条件直写**（守卫被丢）⇒ 普通角色也被写。
+                            //   当前不可观测（普通角色那份存储原文从不读），但它让"基类那份存储"看起来必需，
+                            //   从而掩盖了 H-1（派生真身恒 0）。补回后该存储即可无损退役。
+                            if (actor is TCustomActor customActor)
+                                customActor.m_nOldChrLight = actor.m_nChrLight;
                             cdir = LoByte(cdir);
                         }
                         else
                         {
-                            actor.m_nOldChrLight = actor.m_nChrLight;
+                            if (actor is TCustomActor customActor2)
+                                customActor2.m_nOldChrLight = actor.m_nChrLight;
                         }
 
                         if (ident == TActorCore.SM_SKELETON)
