@@ -1282,3 +1282,81 @@ public bool SetBagItem(int index, TUserItem? item)   // 越界返回 false（不
 
 按裁定顺序做 **`ClientBuyItem`(3367-3689, 323 行)** —— 前置（`m_nGold`/`AddItemToBag`/`IsEnoughBag`/
 `IsAddWeightAvailable`/`SendAddItem` + `SetBagItem`）**现在全部就绪**。随后 `UpgradeWapon` 外层体 → `UserSelect` 分片。
+---
+
+# 15. 第九轮（切片 26）：`TMerchant.ClientBuyItem`(323 行) 1:1 + **D36 新偏差登记** ★ 本节优先于 §14
+
+## 15.1 commit
+
+| # | commit | 内容 |
+|---|---|---|
+| 26 | `788b1456` | `ClientBuyItem`(3367-3688，323 行) 1:1 + 2 个新接缝 + 24 用例；D36 登记 |
+
+门禁：`dotnet build GXX.slnx` **0 error**；`GXX.M2Server.Tests` **9,110 passed / 0 failed**（main 基线 9,058 + 本车道新增 52）。
+越区检查为空（全部在 `Npc/` 与 `NpcObjNpc*` 内）。
+
+## 15.2 覆盖口径（★ 以本节为准）
+
+| 口径 | 切片 18 | **切片 26** |
+|---|---|---|
+| Covered 例程 / 112 | 64 | **65** |
+| Seam 例程 / 112 | 5 | **5** |
+| Missing 例程 / 112 | 43 | **42** |
+
+逐行 1:1（含 3 个嵌套过程 `sub_4A0218` 143 + `sub_4A1C84` 12 + 本方法内 2 段重复块）≈ **2,668 / 10,546 = 25.3%**。
+
+## 15.3 原文**两段逐字重复**代码的处理
+
+`ClientBuyItem` 内部有两处**逐字重复**、且与 `ClientSellItem` 同型的块，均抽为私有方法
+（分支顺序与字面串逐行一致，**只消除字面重复**）：
+| 抽出方法 | 原文位置 | 说明 |
+|---|---|---|
+| `BuildNextGoodsDisplay(...)` | `:3486-3531` 与 `:3621-3666`（**两段完全相同**，46 行 × 2） | "增加显示下一个物品"：重算下一件的价/库存/子菜单并拼 `sSendText` |
+| `ChargeCastleTax(int)` | `:3445-3455` 与 `:3588-3598`（**两段完全相同**） | 城堡税率上账；**与 `ClientSellItem` 的 D33 同型**：管理器分支传 `nUpgradeWeaponPrice` 而非成交价 |
+
+## 15.4 `ClientBuyItem` 的照抄要点与原文缺陷
+
+- **`n1C` 的四个取值**（已逐条断言）：初值 `1`（**完全没有命中时保持 1**）、
+  重量门失败 `2`（`:3677 // 004A2639`）、`IsEnoughBag` 失败 `2`（`:3671`）、
+  金币不足或 `nPrice <= 0` `3`（`:3674`）。
+  → ⚠ 我首版用例把"未命中"写成 `3`，**回读原文才发现那是初值 1**；已改为断言 1。
+- **`nItemCount` 在非叠加路径不赋值**：`:3392` 初值 0，只在叠加分支 `:3469/:3562` 赋值 →
+  纯非叠加购买时成功包的 `nParam3` 是 **0**（不是 1）。已断言并注释。
+- **`sMakerName` 取的是玩家名**（`:3606 UserItem.ItemFrom.sMakerName := PlayObject.m_sCharName`），
+  **不是 NPC 名** —— 我首版期望写成 NPC 名，已按原文改正。
+- **`StdMode <= 4 / = 42 / = 31` 时 `nStock` 被复用成 `UserItem.MakeIndex`**（`:3514/:3648`，原文如此）——
+  展示串里那一格是 MakeIndex 而非库存数。已断言。
+- **`CheckOverLapItem(StdItem) { and (UserItem.MakeIndex = nInt) }`**：`{ }` 内是被注释掉的条件（`:3421/:3431/:3538`），照抄保留。
+- **重量门**：`m_WAbil.MaxWeight` 默认 0 会让**任何正重量**被拒（`n1C = 2`）—— 这是测试踩到的真实坑，已写进用例注释。
+- **`nCount` 夹取**：`:3436-3437` 当 `nCount > UserItem.Dura + 1` 时**夹到 `UserItem.Dura + 1`**（原文注释：防刷物品的修正 2019-11-26）。
+- **`:3623 UserItem := List20.Items[0]` 不判 nil**（空槽即 AV，照抄）。
+- **`:3614 // List20.Delete(II);`** 注释保留（此路径**不**删商品）。
+
+## 15.5 ★★ 新增偏差 **D36**：`AddItemToBag` 之后对 `ItemFrom` 的改动必须**显式同步回背包**
+
+| 项 | 内容 |
+|---|---|
+| **编号** | **D36**（**D35 的具体后果**，`ClientBuyItem` 特有） |
+| **位置** | `src/GXX.M2Server/Npc/ObjNpcMerchantBuy.cs`（`ClientBuyItem` 的"新占一格"路径） |
+| **原文行为** | `:3546/:3568/:3582` 先 `PlayObject.AddItemToBag(UserItem)`，**之后** `:3603-3608` 才改 `UserItem.ItemFrom.ItemForm/MakerName/DateTime`。因为 `AddItemToBag` 加的是**指针**，这些改动**自动**反映到背包里那件 |
+| **托管行为** | `AddItemToBag` 是**值复制**（D35）→ 入包发生在改动**之前** → 若不做处理，背包里那件的 `ItemFrom` **永远是 `ifUnknow` / 空 MakerName / DateTime=0** |
+| **危害等级** | 高：`ItemFrom` 是**物品来源追溯**（谁卖的、何时、什么渠道），错值是**静默**的（不抛异常、不失败，只在 DB/审计里表现为"来源未知"） |
+| **处置（已落地）** | 在 `:3608` 之后插入 `PlayObject.SetBagItem(PlayObject.Bag.Count - 1, UserItem);` —— `AddItemToBag` 是 Append 语义，故下标恒为 `Bag.Count - 1`，**三条子分支（全叠/部分叠/非叠）都成立** |
+| **回归守卫** | `ClientBuyItem_SetsItemFromToShopBuy_AndSyncsIntoBag_D36`（断言背包里的 `ItemForm == ifShopBuy`、`MakerName == 玩家名`、`DateTime > 0`） |
+| **同一族的其它位置（待查）** | `SendAddItem`（`Engine/PlayerSurface/Items.cs`）本身接收**值参**，其调用方若先入包再改物品，同样需要同步 —— 后续 `UpgradeWapon`/`UserSelect` 分片时会逐点复核 |
+
+## 15.6 新增接缝（2 个）
+
+| 接缝 | 精确签名 | 原文出处 |
+|---|---|---|
+| `OverLapItems` | `Func<TPlayObject, TStdItem, ushort, TUserItem?>` | `ObjBase.pas:1343` 声明 / `:1873` 实现（`ObjPlayer.pas:31435` 另有二参重载）；ObjNpc.pas:3441 |
+| `CopyToUserItemFromName` | `delegate bool (string sItemName, ref TUserItem item)` | `UsrEngn.pas:284`；ObjNpc.pas:3553 —— **必须 `ref`**（调用方随后读新分配的 `MakeIndex`，:3555） |
+
+新增常量：`ObjNpcConst.LOG_ItemBuy = 11`（M2Share.pas:98）。
+
+## 15.7 下一轮
+
+按裁定顺序：**`UpgradeWapon` 外层体**(1830-1901, 76 行，`sub_4A0218` 已覆盖) → **`UserSelect`(2087-2900, 814)** 按
+`@buy` / `@sell` / `@repair` 分片。
+> `UpgradeWapon` 外层体的前置检查项：`m_UseItems[U_WEAPON]`（读写，**D35 同族**：改完需写回）、`GotoLable`（未移植）。
+> 若需要新的 Engine 侧成员，我会**先只提出那一个**再动手（沿用 `SetBagItem` 的做法）。
