@@ -94,7 +94,7 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
     {
         var m = Merchant();
         m.m_boS_repair = true;
-        Assert.True(m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_SuperRepair));
+        Assert.True(m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_SuperRepair));
         Assert.StartsWith($"{Grobal2Const.RM_SENDUSERSREPAIR}|", Assert.Single(_sent));
     }
 
@@ -104,7 +104,7 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
         // 原文 2704 的守卫 `if m_boS_repair then`
         var m = Merchant();
         m.m_boS_repair = false;
-        Assert.True(m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_SuperRepair));
+        Assert.True(m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_SuperRepair));
         Assert.Empty(_sent);
     }
 
@@ -113,7 +113,7 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
     {
         var m = Merchant();
         m.m_boRepair = true;
-        Assert.True(m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_Repair));
+        Assert.True(m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_Repair));
         Assert.StartsWith($"{Grobal2Const.RM_SENDUSERREPAIR}|", Assert.Single(_sent));
     }
 
@@ -122,7 +122,7 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
     {
         var m = Merchant();
         m.m_boRepair = false;
-        Assert.True(m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_Repair));
+        Assert.True(m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_Repair));
         Assert.Empty(_sent);
     }
 
@@ -134,10 +134,10 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
         m.m_boS_repair = true;
         m.m_boRepair = false;
 
-        m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_Repair);
+        m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_Repair);
         Assert.Empty(_sent);
 
-        m.UserSelectRepairCommands(Player(), ObjNpcConst.nNF_SuperRepair);
+        m.UserSelectRepairCommands(Player(), NpcProcessCmd.nNF_SuperRepair);
         Assert.Single(_sent);
     }
 
@@ -159,30 +159,78 @@ public sealed class NpcObjNpcUserSelectRepairTests : IDisposable
     public void UserSelectRepairCommands_TotalConstantValuesAreOriginal()
     {
         // 原文 NpcCommon.pas:26 / :32 —— 这两个值错了会静默派发到别的分支
-        Assert.Equal(9, ObjNpcConst.nNF_SuperRepair);
-        Assert.Equal(12, ObjNpcConst.nNF_Repair);
+        Assert.Equal(9, NpcProcessCmd.nNF_SuperRepair);
+        Assert.Equal(12, NpcProcessCmd.nNF_Repair);
         // 且二者不相等（否则两条分支会撞在一起）
-        Assert.NotEqual(ObjNpcConst.nNF_SuperRepair, ObjNpcConst.nNF_Repair);
+        Assert.NotEqual(NpcProcessCmd.nNF_SuperRepair, NpcProcessCmd.nNF_Repair);
     }
 
     // -----------------------------------------------------------------------
-    // 接缝（派发基础设施）
+    // 派发基础设施（g_NpcProcessCommand 表；原文 NpcCommon.pas:1899-1962）
     // -----------------------------------------------------------------------
 
     [Fact]
-    public void NpcProcessCommandIndexOf_DefaultsToMinusOne_MeaningNotFound()
+    public void G_NpcProcessCommand_HasAll68Entries()
     {
-        // 原文 2692 `if nIndex >= 0 then` —— 默认无宿主时应表现为"标签不在表中"
-        NpcSeams.ResetDefaults();
-        Assert.Equal(-1, NpcSeams.NpcProcessCommandIndexOf("@repair"));
+        // 原文 1899-1962 共 68 条 AddObject
+        Assert.Equal(68, NpcProcessCmd.g_NpcProcessCommand.Count);
+    }
+
+    [Theory]
+    [InlineData("@repair", 12)]          // sNF_Repair → nNF_Repair
+    [InlineData("@s_repair", 9)]         // sNF_SuperRepair → nNF_SuperRepair
+    [InlineData("~@repair", 13)]         // sNF_RepairOK → nNF_RepairOK
+    [InlineData("@buy", 14)]
+    [InlineData("@sell", 15)]
+    [InlineData("@main", 43)]
+    [InlineData("~@main", 44)]
+    [InlineData("@upgradenow", 32)]
+    [InlineData("~@upgradenow_ok", 34)]
+    public void G_NpcProcessCommand_MapsLabelToCommandId(string label, int expected)
+        => Assert.Equal(expected, NpcProcessCmd.g_NpcProcessCommand.GetCommand(label));
+
+    [Fact]
+    public void G_NpcProcessCommand_UnknownLabel_ReturnsMinusOne()
+    {
+        // 原文 2692 `if nIndex >= 0 then` —— 不在表中即 -1
+        Assert.Equal(-1, NpcProcessCmd.g_NpcProcessCommand.GetCommand("@not_a_command"));
+        Assert.Equal(-1, NpcProcessCmd.g_NpcProcessCommand.IndexOf("@not_a_command"));
+    }
+
+    [Fact]
+    public void G_NpcProcessCommand_IndexOfIsCaseInsensitive_LikeDelphiTStringList()
+    {
+        // Delphi `TStringList.IndexOf` 默认 `CaseSensitive = False`
+        Assert.Equal(NpcProcessCmd.g_NpcProcessCommand.IndexOf("@REPAIR"),
+            NpcProcessCmd.g_NpcProcessCommand.IndexOf("@repair"));
+        Assert.Equal(NpcProcessCmd.nNF_Repair, NpcProcessCmd.g_NpcProcessCommand.GetCommand("@RePaIr"));
+    }
+
+    [Fact]
+    public void G_NpcProcessCommand_RepairAndSuperRepairAreDistinctEntries()
+    {
+        // ★ 差异断言：`@repair`(12) 与 `@s_repair`(9) 是**两条**不同命令
+        Assert.NotEqual(
+            NpcProcessCmd.g_NpcProcessCommand.GetCommand(NpcProcessCmd.sNF_Repair),
+            NpcProcessCmd.g_NpcProcessCommand.GetCommand(NpcProcessCmd.sNF_SuperRepair));
+    }
+
+    [Fact]
+    public void G_NpcProcessCommand_TotalCommandIdsAreDistinct()
+    {
+        // 68 个命令号必须两两不同（否则 case 分支会互相遮蔽）
+        var ids = new System.Collections.Generic.HashSet<int>();
+        foreach (var label in NpcProcessCmd.g_NpcProcessCommand.Order)
+            Assert.True(ids.Add(NpcProcessCmd.g_NpcProcessCommand.GetCommand(label)), $"重复命令号: {label}");
+        Assert.Equal(68, ids.Count);
     }
 
     [Fact]
     public void RepairLabelConstants_MatchNpcCommon()
     {
         // NpcCommon.pas:33 / :35
-        Assert.Equal("@repair", ObjNpcConst.sNF_Repair);
-        Assert.Equal("~@repair", ObjNpcConst.sNF_RepairOK);
-        Assert.NotEqual(ObjNpcConst.sNF_Repair, ObjNpcConst.sNF_RepairOK);
+        Assert.Equal("@repair", NpcProcessCmd.sNF_Repair);
+        Assert.Equal("~@repair", NpcProcessCmd.sNF_RepairOK);
+        Assert.NotEqual(NpcProcessCmd.sNF_Repair, NpcProcessCmd.sNF_RepairOK);
     }
 }

@@ -69,17 +69,8 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `LOG_ItemUpgrade = 14; // 物品升级`（M2Share.pas:101）。</summary>
     public const byte LOG_ItemUpgrade = 14;
 
-    /// <summary>
-    /// 接缝：原文 `sNF_Upgradeing = '~@upgradenow_ing'`（**NpcCommon.pas:75** —— 来自 NpcCommon，不是 M2Share）。
-    /// `TNormNpc.GotoLable` 的目标标签（ObjNpc.pas:1846）。
-    /// </summary>
-    public const string sNF_Upgradeing = "~@upgradenow_ing";
-
-    /// <summary>接缝：原文 `sNF_UpgradeOK = '~@upgradenow_ok'`（NpcCommon.pas:77）。ObjNpc.pas:1898。</summary>
-    public const string sNF_UpgradeOK = "~@upgradenow_ok";
-
-    /// <summary>接缝：原文 `sNF_UpgradeFail = '~@upgradenow_fail'`（NpcCommon.pas:79）。ObjNpc.pas:1900。</summary>
-    public const string sNF_UpgradeFail = "~@upgradenow_fail";
+    // ★ 第十二轮：`sNF_Upgradeing/OK/Fail` 三条**已移出本类** → `NpcProcessCmd`
+    //   （原文同属 `NpcCommon.pas:75/77/79`，单一来源）。
 
     /// <summary>接缝：原文 `LOG_GoldChange = 50; // 金币改变`（M2Share.pas:116）。</summary>
     public const byte LOG_GoldChange = 50;
@@ -87,17 +78,9 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `sSTRING_GOLDNAME = '金币'`（M2Share.pas:210）。</summary>
     public const string sSTRING_GOLDNAME = "金币";
 
-    /// <summary>接缝：原文 `sNF_Repair = '@repair'`（NpcCommon.pas:33；`:1906` 注册进 `g_NpcProcessCommand`）。</summary>
-    public const string sNF_Repair = "@repair";
-
-    /// <summary>接缝：原文 `sNF_RepairOK = '~@repair'`（NpcCommon.pas:35；`:1907` 注册）。</summary>
-    public const string sNF_RepairOK = "~@repair";
-
-    /// <summary>接缝：原文 `nNF_SuperRepair = 9`（**NpcCommon.pas:26**）。ObjNpc.pas:2702 的 `case` 标签。</summary>
-    public const int nNF_SuperRepair = 9;
-
-    /// <summary>接缝：原文 `nNF_Repair = 12`（**NpcCommon.pas:32**）。ObjNpc.pas:2737 的 `case` 标签。</summary>
-    public const int nNF_Repair = 12;
+    // ★ 第十二轮：`sNF_Repair`/`sNF_RepairOK`/`nNF_SuperRepair`/`nNF_Repair` 四条**已移出本类**，
+    //   统一声明在 `NpcProcessCmd`（原文同属 `NpcCommon.pas`，单一来源）。
+    //   同理 `sNF_Upgradeing/OK/Fail` 也迁到 `NpcProcessCmd`。
 
     /// <summary>
     /// 接缝：原文 `TUserItemBindValueType` 的 `ubNoSell { 禁止出售 }`（M2Share.pas:395；
@@ -511,16 +494,11 @@ public static class NpcSeams
     public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
         (string _, ref TUserItem _) => false;
 
-    /// <summary>
-    /// 原文 `g_NpcProcessCommand.IndexOf(sLabel)` → `Integer(g_NpcProcessCommand.Objects[nIndex])`
-    /// （`ObjNpc.pas:2691-2694`，`TMerchant.UserSelect` 的派发入口）。
-    /// <para>`g_NpcProcessCommand` 是 `NpcCommon.pas:1906-1960` 注册的**标签→命令号**表
-    /// （`TStringList` + `Objects` 存 `TObject(nNF_XXX)`）；其 `nNF_*` 枚举同样在 NpcCommon
-    /// （`:10-88`，本车道已按需登记 `nNF_SuperRepair=9`/`nNF_Repair=12`）。</para>
-    /// <para>接缝：返回 `-1` 表示"标签不在表中"（对应原文 `nIndex >= 0` 判定为假）。
-    /// 未移植；待 NpcCommon 的 `g_NpcProcessCommand` 移植后接入。</para>
-    /// </summary>
-    public static Func<string, int> NpcProcessCommandIndexOf { get; set; } = _ => -1;
+    // ★ 第十二轮：`NpcProcessCommandIndexOf` 接缝**已删除** —— 派发基础设施
+    //   （`g_NpcProcessCommand` 表 + `nNF_*`/`sNF_*` 常量）已按原文 1:1 落地在
+    //   `Npc/NpcProcessCommand.cs`（原文同属 NpcCommon.pas），故直接调用
+    //   `NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)` / `.IndexOf(sLabel)`，
+    //   不再经委托。这正是"正式归属落地后去掉替身"。
 
     // -----------------------------------------------------------------------
     // TMerchant.UpgradeWapon 外层体（ObjNpc.pas:1830-1901）需要的宿主面。
@@ -777,7 +755,6 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
-        NpcProcessCommandIndexOf = _ => -1;
         g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
         g_boGameLogGold = false;
         SysMsgFB = (_, _, _, _, _) => { };
