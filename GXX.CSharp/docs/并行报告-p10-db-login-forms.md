@@ -158,7 +158,10 @@
 | `GameCenter/GLoginServerRouteSet.pas` | 35 | 0（死代码 + 已移植，见 §0.2） | DFM 1 控件（既有实现里已有） | ✅ 判定完成（**不建文件**） |
 | `GameCenter/GHeroDBConfig.pas` | 565 | **10/10**（`Forms/GHeroDBConfig.cs`，1193 行） | DFM object 25 → 实例化 25 ✅；绑定 6 → `+=` 6（拆"有名控件 5 + 无名 Raize 内嵌按钮 1"）✅ | ✅ 完成 |
 | `LoginSrv/MasSock.pas` | 1,017 | **21/22**（`Forms/MasSock.cs`，1553 行） | DFM object 2 → 实例化 2 ✅；绑定 6 → `+=` 6 ✅ | ✅ 完成 |
-| `DBServer/uFrmRoleDataEdit.pas` | 974 | 进行中（子车道） | 目标：DFM 88 object / 35 绑定 | ⏳ |
+| `DBServer/uFrmRoleDataEdit.pas` | 974 | **15/15**（`Forms/uFrmRoleDataEdit.cs`，1794 行） | DFM object 88 → 88（86 控件树 + 2 非可视组件）✅；绑定 35 → `+=` 35 ✅ | ✅ 完成 |
+
+**收口口径**：7 个单元**全部收口**，其中 **6 个按"完成"**、**1 个（`GLoginServerRouteSet`）按"死代码 + 已移植（重命名类）"裁定且不建文件**（§0.2）。
+`uFrmRoleDataEdit` 的**能力面**有如实登记的未覆盖项（§4.2 PARTIAL），**例程面 15/15 无缺口**。
 
 **计数口径（可复跑，§37.3）**：在 UTF-8 镜像的 `.pas` 上，只取 `interface` 段，
 逐行维护"当前类型"（`^\s*(T\w+)\s*=\s*class`），统计
@@ -235,6 +238,21 @@ DFM 对账（计数取证）：
 - **绑定 6 = DFM 6 vs 托管 6** —— `DfmReconcile_SixOnClickBindings_PlusClosed`（拆为"有名控件 5 条 + 无名 Raize 内嵌按钮 1 条"，逐控件 `IsBound`）+ `DfmReconcile_RzButtonEditInnerButtonIsUnnamed_NotCountedAsObject`（`Name == ""` ⇒ 不污染 object 计数，但仍断言其 `Click` 真挂上）。
 - **否定性断言**：`DfmReconcile_FormRootHasNoOnCreateOrOnDestroy` 用计数钉住窗体根**确无** DFM 事件（`Load`/`FormClosed`/`FormClosing`/`Shown` 全 False）⇒ **证实本报告 §0.6 的提取结论无需修正**。
 - 3 条 WinForms 行为前提固化：`TabPage_VisibleOnlyForSelectedPage`、`TabPage_VisibleIsNotTheTabVisibleProperty`、`SetTabVisible_DoesNotTouchTabPageVisibility`。
+
+### 1.7 `uFrmRoleDataEdit.pas` 逐例程（**15/15**，`Forms/uFrmRoleDataEdit.cs`）
+
+| 单位 | 原文例程数 | 已移植 | 例程清单 |
+|---|---|---|---|
+| `TFrmRoleDataEdit`（interface 段 14 条） | 14 | **14** | `ButtonExportDataClick`:720 / `edtPasswordChange`:842 / `FormCreate`:936 / `ButtonSaveDataClick`:941 / `DoOpen`:189 / `RefreshShow`:325 / `RefreshBaseInfo`:227 / `RefreshMagicInfo`:339 / `RefreshUserItems`:380 / `RefreshFenghaoItems`:584 / `RefreshStorages`:661 / `RefreshUserVar`:703 / `ProcessSaveDataToFile`:736 / `ProcessLoadDataformFile`:769 |
+| 单元级过程（实现段） | 1 | **1** | `ShowFrmRoleDataEdit`:164 |
+| 单元级常量 | 1 | **1** | `TItemWhereNames`(:131-162) —— ★ **实测 30 项**（`array[Low(THumanUseItems)..High(THumanUseItems)]` = `0..29`）。**本报告 §0 派发时的"31 项"是错的，以此处 30 为准**（子车道以源文件计数纠正） |
+| 合计 | **15** | **15** | 无 ❌ |
+
+DFM 对账（计数取证）：
+- **object 88 = DFM 88**：`DFM对账_88个object节点与35条事件绑定` —— `CountDfmObjects(form)==86`（窗体 + 85 具名控件）+ `SaveDialog`/`OpenDialog` 两个 `TComponent` = **88**；**双向差集为空**；`DFM对账_全部控件名与字段名逐字同名`（85 具名控件 + 窗体，反射取证"DFM 名 == public 字段名"）。
+- **绑定 35 = DFM 35**：`CountEventBindings(form)==35`（修复 B-P10-21 后工具口径直接相等；修复前为 31，见下）；`DFM对账_31个控件挂到edtPasswordChange且事件类型与DFM一致`（表 31 行逐控件 1 条）+ `DFM对账_三个按钮各一条Click绑定_导入按钮绑的也是ButtonExportDataClick`。
+- ★★ **工具盲区（B-P10-21，本车道已修）**：`P10FormReconcile` 的 `TryKeyed` **不查** `KnownBackingFieldAliases`，而 .NET 8 里 `Control.TextChanged` 的 `EventHandlerList` 键名是 **`s_textEvent`**（归一化得 `text` ≠ `TextChanged`）⇒ 该事件**恒计 0（假绿）**，把 DFM 的 35 条数成 31 条。子车道**没有**擅自改共享工具（守纪律），只在测试侧补独立第二口径 `TextChangedBindingCount` 并同时断言"工具计 0、真实 1"；**收口时我已把三份副本的 `TryKeyed` 都补查别名表并登记 `[(Control,"TextChanged")] = ["s_textEvent","EventText"]`**（切片 `e90f1c47`），工具口径随即由 31 → 35 与 DFM 一致。
+- **`ButtonImportData.OnClick = ButtonExportDataClick` 判定**：**不是缺陷** —— `:722/:726` 明确按 `Sender` 分支，导入按钮是**有意复用**同一处理器；已用 `RaiseClick(ButtonImportData)` 行为锁定走的是导入路径。
 
 ---
 
@@ -313,6 +331,28 @@ DFM 对账（计数取证）：
 | G9 | `:71-72` | 传入目录不存在则先 `Directory := ''`（**清掉调用方传来的值**） | `SelectDirectory_NonExistentInput_ClearsDirectoryBeforePicking` |
 | G10 | `:509-516` | `SameText(...)` 大小写不敏感，但首字符判据 `= 'M'`/`= 'N'` **区分大小写** ⇒ `'m'`/`'n'` 落到 `else → 200` | `MagicFieldValue_RulesAreLocked('m'→200, 'n'→200)` |
 | G11 | `:394` vs `:489` | `MemoLog1` 被 `Clear` **两次**（结尾 `CheckHeroDB` 再清一次）⇒ 方法返回后日志**为空** | 三个 Memo 一律用"过程中**最长**快照"断言（否则会得到假绿）；测试内已注释原因 |
+
+### 2.3 `uFrmRoleDataEdit.pas` 缺陷表（子车道逐条 + 本报告独立登记项的交叉核对）
+
+| # | 位置 | 缺陷 | 锁死要点 |
+|---|---|---|---|
+| R1 | ★★ `:876-883` | `seHomeY` 已绑定却**无分支**；`:880` 第二个 `else if Sender = seCurY`（`:868` 已判过）是**死分支** ⇒ `wHomeY` 在任何 UI 路径下都写不进去 | `原始缺陷_seHomeY已绑定却没有分支_改动不写回wHomeY`、`原始缺陷_31个已绑定Sender逐一试过都写不到wHomeY`（31 条绑定逐一当 Sender 试，计数取证） |
+| R2 | `:842-934` | 11 个已绑定控件**无分支**（10 个 `Edit*` 属性点 + `seHomeY`） | `原始缺陷_十个属性点控件与seHomeY共11个绑定控件无分支` |
+| R3 | `:891-932` | 9 个分支**无 `if FIsHuman` 守卫** ⇒ 英雄模式下仍写 `FHumData` | `原始缺陷_英雄模式下九个无守卫分支仍写FHumData` |
+| R4 | ★★ `:802` `:823` | `if not FileRead(...) = SizeOf(...)` —— Delphi 一元 `not`（优先级 1）**高于** `=`（4）⇒ 实为 `(~nRead) = Size`，**恒 False、错误分支不可达** ⇒ 短读也照样走到 `:814` 赋值 + `:839` 提示"导入成功" | `原始缺陷_短读的错误分支不可达_照样提示导入成功`、`ProcessLoadDataformFile_零字节文件同样走成功分支`（同时断言 `OpenHandleCount==0`：正因不可达，`:805` 的 `Exit` 才没跳过 `:837 FileClose`）。⚠ **该优先级结论未经 Delphi 编译器实测**（本车道无 Delphi 工具链，仅有语言规范 + FPC 手册 `Not 1 = -2` 佐证）⇒ 若被推翻，只需改 `ProcessLoadDataformFile` 的两处 `(~nRead) == size` 与两条用例 |
+| R5 | `:730-733` | `Sender = ButtonSaveData` 分支是**空体死代码**（`ButtonSaveData` 绑的是另一个处理器） | `原始缺陷_ButtonExportDataClick里ButtonSaveData分支是死代码` |
+| R6 | `:661-701` | `RefreshStorages` **无 `FIsHuman` 分支** ⇒ 英雄模式也读 `FHumData.StorageItems` | `RefreshStorages_没有FIsHuman分支_英雄模式也读FHumData` |
+| R7 | `:749-752` | 导出时目标文件已存在走 `FileOpen`（**不截断**）⇒ 新记录比旧文件短时残留旧尾 | `ProcessSaveDataToFile_目标文件已存在时走FileOpen覆盖前段` |
+| R8 | `:206` `:212` | `Length(静态数组)` **恒 500**（不是"已用个数"） | `DoOpen_人类_标题栅格与TabVisible`、`RefreshUserVar_未扩RowCount时越界静默丢弃` |
+| R9 | `:395` | `wIndex = 0` **或** `MakeIndex = 0` 都跳过 | `RefreshUserItems_wIndex或MakeIndex为零一律跳过` |
+| R10 | `:938` | `FormCreate` 只是重复写 DFM 已有的 `MaxValue=65535`（无效果） | `FormCreate_把seLevel上限设为HighWord` |
+| R11 | `:314` | `//edtAccount.Text := FHeroData.sAccount;` 被**注释掉** ⇒ 英雄模式不填账号 | `RefreshBaseInfo_英雄_只填英雄字段且人类字段清零` |
+| R12 | `:821` | 英雄分支按 `SizeOf(THumData)` 申请读缓冲（**只浪费、无越界**：645KB ≥ 316KB） | 由 `ProcessLoadDataformFile_英雄_只保留两个字段其余全取文件` 覆盖 |
+
+> **与本报告 §2 早期独立登记的交叉核对**：我在 §2 登记的 #16（`seHomeY` 分支不可达）与 #20（空体死分支）**与 R1/R5 独立互证**；
+> #17（`GetMem(SizeOf(THumData))` 却按 `SizeOf(THeroData)` 读）经子车道实测**只浪费不越界**（645KB > 316KB），**降级为 R12**；
+> #18（读失败 `Exit` 泄漏文件句柄）**被 R4 推翻并深化**——因为 `not ... = ...` 恒 False，那条 `Exit` **根本不可达**，
+> 所以句柄其实**不会**泄漏（子车道用 `OpenHandleCount==0` 反向取证）。★ 这是本车道**"我自己的初判被实现否掉"**的一例，按 §34.4 先取证再断言处置。
 | 17 | `FileSearchPool.pas:284-293` + `ThreadPool.pas:168-174` | `TSearchThread.Destroy` 先 `FMemoryStream.Free` 再 `inherited`（后者才 `Terminate+WaitFor`）⇒ **先释放缓冲区、后等线程退出** | 后台线程可能在缓冲已释放后继续用（原文靠时序侥幸） | D-P10-05（托管侧把"等待退出"提前，见 §3） |
 
 ---
@@ -361,7 +401,7 @@ DFM 对账（计数取证）：
 | `D-P10-01 … D-P10-15` | 车道级 + `Pool/*` + `GrobalSession`（§3） |
 | `D-P10-16 … D-P10-23` | `MasSock`（§3.1，已落在其代码注释里） |
 | `D-P10-24 … D-P10-28` | `GHeroDBConfig`（下表，已落在其代码/测试注释里） |
-| `D-P10-29 …` | `uFrmRoleDataEdit`（子车道；若其用了别的号，收口时归一） |
+| `D-P10-29 …` | `uFrmRoleDataEdit`（子车道；其代码注释里已按 `D-P10-29…37` 落盘，见 §3.3） |
 | `B-P10-01 … B-P10-15` | 车道级跨区事项（§4.1） |
 | `B-P10-16 … B-P10-19` | `MasSock` 跨区事项（B-P10-17 已关闭） |
 | `B-P10-20 … B-P10-29` | `uFrmRoleDataEdit` 跨区事项 |
@@ -374,6 +414,20 @@ DFM 对账（计数取证）：
 | D-P10-26 | `:186-189` `TabSheetN.TabVisible` | `TTabSheet.TabVisible` | 窗体自有状态 `_tabVisibleState`，与 `Control.Visible` **完全解耦**；**代价：页签行始终显示 4 个页签（纯视觉）** | ★ 实测三次：WinForms 写 `TabPage.Visible` **不摘页签**，而"摘/追加页签"会让 `TabPage.Visible` 与选中页**脱钩**（容器只剩孤页时翻 True）⇒ 会**破坏原文缺陷 G2（`:338`）的条件语义、误跳过 `:340` 的 Magic 检查**。所有分支判定/弹窗/落盘行为与原文一致 |
 | D-P10-27 | `GHeroDBConfig.dfm` 窗体根 | DFM **无** `OnCreate/OnDestroy` | 仍挂 `Closed += (s,e) => CloseCalled = true`（**非 DFM 事件**的纯观测绑定，不计入 DFM 绑定数） | 用于观察原文 `:161/:388/:492/:530/:562` 的 `Close` 是否被调用；"窗体根无 DFM 事件"另由计数用例独立钉死。断言 `CloseCalled` 的用例会先 `f.Show()`（WinForms 对未显示窗体的 `Close()` 是 no-op） |
 | D-P10-28 | `GHeroDBConfig.dfm:72/115/149/192`（4 个 `TMemo`） | VCL `TMemo` 无字数上限 | 4 个 Memo 统一 `MaxLength = 0` | WinForms `TextBox` 默认 `MaxLength=32767` 会**静默截断**（本窗体日志可达 38 行/1.6k+ 字符）⇒ 不置会让"日志行快照"断言出现假绿/假红 |
+
+### 3.3 `uFrmRoleDataEdit` 的偏离（D-P10-29 … D-P10-37；编号已落在其代码/测试注释里）
+
+| 编号 | 位置 | 原文 | 托管 | 理由 |
+|---|---|---|---|---|
+| D-P10-29 | `:287` `:320` `RefreshBaseInfo` 喂给 `TSpinEditEx` 的记录值 | `TSpinEditEx.CheckValue` **静默裁剪**到 [Min,Max] | `ClampSeLevel` 显式裁剪到 `[0, 65535]` 后再赋值 | ★ 托管 `TSpinEdit.Value`（`SpinControls.cs:29-33`）把 Min/Max 当**硬边界**，越界赋值**抛** `ArgumentOutOfRangeException`（实测 `Maximum=65535` 后赋 70000 即抛），而原文是**静默裁剪**；Level 来自 DB 记录且 GXX 是"21 亿"改版 ⇒ 不可不处理。**这是还原原文语义，不是修正原文**。用例同时锁住"壳会抛"与"本单元裁剪"。根治见 B-P10-20 |
+| D-P10-30 | `:183` `ShowModal` | 阻塞式模态 | `ShowModalHandler` 接缝 + `ShowModalEquivalent()`（默认 null ⇒ 返回 false、**不阻塞**） | 派发约定；无头测试不能挂死 |
+| D-P10-31 | `:21-22` `TSaveDialog`/`TOpenDialog` | `Execute` 返回 Boolean | `RoleDataEditFileDialogSeam.SaveDialogExecute/OpenDialogExecute`（返回 **bool** = 原文 `Execute` 的返回值） | 让窗体侧 `if not X.Execute then Exit; s := X.FileName;` **可逐字保留**；默认弹真对话框，单测注入替身 |
+| D-P10-32 | 多处 | 托管侧缺失的类型 | 就地声明：`TSpinEditLongWord`（`NumericUpDown` 壳，`[0, High(LongWord)]`）、`TStringGrid`（`DataGridView` + `Cells/SetCells` **越界静默**，VCL `GetEditText/SetEditText` 语义）、`TTabSheet`（单独承载 `TabVisible`）、`DelphiFileIo`（`System.pas` 的 `FileOpen/FileCreate/FileRead/FileWrite/FileClose` 句柄表） | 原文依赖的 VCL/System 类型在托管侧无等价物；均按分区内自带 |
+| D-P10-33 | `RefreshMagicInfo`/`RefreshUserItems` | `GetMagicName`/`GetStdItemName` | `RoleDataEditDbShareSeam.GetMagicName/GetStdItemName`，默认**抛"未接线"** | 台账 §25.2：接缝不得静默返回空串（否则"名字查不到"会被伪装成"字段为空"） |
+| D-P10-34 | `:800` `:821` `GetMem(ReadBuf, …)` | 未初始化堆内存 | 零填充 `byte[]` | 托管无法复刻"未初始化内存"；登记以保证"读短了"的行为差异可追溯 |
+| D-P10-35 | DFM 对话框组件属性 | `InitialDir` / `ofHideReadOnly` / `ofEnableSizing` / `ShowReadOnly` | `InitialDirectory`；WinForms 无对应项（`Options` 只映射了 `ofOverwritePrompt`） | 托管对话框能力面差异 |
+| D-P10-36 | 单测基础设施 | — | 全部单测跑在 **16 MB 栈线程**（`Run(...)` / `BigStack`） | ★ 实测 `SizeOf<THumData>() = 660,377`（645KB）、`SizeOf<THeroData>() = 323,962`（316KB），而 xunit 默认线程栈 **1MB** ⇒ "按值返回/传参一个 `THumData`"就会打穿栈、`Stack overflow` **杀进程**（本车道实测复现并定位，见 §5 警示 W2）。**测试侧限定，产线窗体逻辑未改** |
+| D-P10-37 | 全单元 | `TListView` / `OnChange` / `OnClick` / `Caption` / `ClientHeight·Width` / `bsSingle` / `poDesktopCenter` | 复用既有 `IListViewSink/ListViewSink`；`TextChanged·ValueChanged` / `Click` / `Text` / `ClientSize` / `FixedSingle` / `CenterScreen`（沿用 `uFrmDataManager.cs:65` 既有映射） | 不新造适配器（§14.2）；沿用本工程既有控件映射约定 |
 
 ---
 
@@ -397,14 +451,35 @@ DFM 对账（计数取证）：
 | B-P10-18 | `TAccountInfo2` 的托管尺寸/偏移经子车道实测与原文一致（218 字节、偏移重合），**无需**加 `Pack=1` —— 登记以免后人误改 | 防误改 |
 | B-P10-19 | `JSocket`（`TServerSocket`）**没有任何托管等价物** ⇒ `StartService` 的真实监听能力待接线（当前 `Active := True` 按 §25.2 显式抛） | MasSock 窗体可移植、可测试，但**还不能真的监听**；需集成方裁定用 `GatewayKit` 的 socket 设施还是新写 |
 | B-P10-30 | `GHeroDBConfig` 的两条**报备项**（本车道未改任何区外文件）：<br>① `GameCenterDialogs` **缺 `MB_ICONWARNING`（0x30）常量** —— 本区以 `MB_OK + 0x30` 并在注释里说明；建议后续在公共文件补常量；<br>② 见 D-P10-28 的 `MaxLength` 处置（已在本区实现，仅报备"WinForms TextBox 默认截断"这一全局陷阱，其他窗体若用 `TextBox`/`RichTextBox` 当 `TMemo` 也应同样处置） | ① 影响所有需要"警告图标"消息框的窗体；② 影响面是**所有把 `TMemo` 译成 `TextBox` 的窗体**（静默截断会让长日志断言假绿/假红） |
+| B-P10-20 | ★ `src/GXX.DBServer/SpinControls.cs`：`TSpinEdit.Value` 的 setter 应改回 Delphi 的**裁剪**语义（或让 `MaxValue` 只走 `DfmMaxValue` 而不成为 `NumericUpDown` 的硬边界） | 否则**任何"把 DB 记录喂进 SpinEdit"的窗体**都可能被记录里的越界值**抛 `ArgumentOutOfRangeException`** 打断（原文是静默裁剪）。本车道的 D-P10-29 只在 `uFrmRoleDataEdit` 内绕过，**根因未修** |
+| B-P10-21 | ~~`P10FormTestKit.cs` 三份副本的 `TryKeyed` 应查 `KnownBackingFieldAliases` 并登记 `[(Control,"TextChanged")]=["s_textEvent"]`~~ **✅ 已关闭**：收口时已修三份副本（`e90f1c47`），工具口径由 31 → 35 与 DFM 一致；DBServer 871 例仍全绿 | 关掉了一类**假绿**（任何绑 `TextChanged` 的窗体对账此前都会被少数 4 条/控件） |
+| B-P10-22 | `ShowFrmRoleDataEdit` 的形参用真身 `GXX.Core.Protocol.THumData?/THeroData?`，与 `src/GXX.LoginSrv/RoleDBSeam.cs:80` 的 `Action<int,THumData?,THeroData?>`（那里是**两个空类**句柄）**不是同一类型** | 与 B-P10-08 同源，需集成方一并裁定"统一到 `GXX.Core.Protocol.THumData`"还是"LoginSrv 引用 DBServer" |
+| B-P10-23 | （风险提示）`THumData` 645KB / `THeroData` 316KB **值类型**：`ProcessLoadDataformFile` 的 `THumData ReadData` **局部量在 UI 线程栈上占 ~645KB**（原文 `GetMem` 在**堆**上）；本车道**未改**（保持 1:1） | 生产 UI 线程若同时有多个此类局部量，有**真实栈溢出**风险（不只是测试问题）；建议后续统一改 `ref`/堆暂存。见 §5 警示 W2 |
 
-### 4.2 本车道未完成项
+### 4.2 本车道未完成 / 未覆盖面（**如实登记**；供集成方按 PARTIAL 第三态处置）
 
-（滚动登记：三个在飞单元——`MasSock` / `GHeroDBConfig` / `uFrmRoleDataEdit`——完成后在此收口）
+**例程面**：7 单元 **0 缺口**（`MasSock` 的 1 条 `LogSession` 属条件编译块，计数取证后**有意不移植**；`GLoginServerRouteSet` 属死代码+已移植，**不建文件**）。
+
+**能力/验证面**（`uFrmRoleDataEdit`，子车道如实申报）：
+
+| 未覆盖面 | 说明 |
+|---|---|
+| 真实对话框路径 | `provider = null` 时的真实 `SaveFileDialog/OpenFileDialog.Execute` 无测试覆盖 |
+| 真实模态/显示行为 | `ShowModalEquivalent()` 默认不显示窗体 ⇒ 真实 `ShowModal` 行为未验证 |
+| 真实数据库 | `THumanDBBase.Save` → MySQL 未接库，用内存替身；"异常被包装层吞掉⇒返回 False"已用替身锁死 |
+| UI 渲染 | `ListView`/`DataGridView` 实际绘制、`TabVisible` 的视觉隐藏未在真实消息循环下验证（`TabVisible` 用"摘除/插回 TabControl + 独立属性值"模拟） |
+| `GetMagicName`/`GetStdItemName` | 未移植 ⇒ 技能名/物品名列在宿主接线前**抛异常**（按 §25.2，不静默） |
+| 未初始化内存 | 短读场景的 `GetMem` 未初始化内存无法复刻（零填充，D-P10-34） |
+| DFM 对话框 `Options` | 三项只映射了 `ofOverwritePrompt`（D-P10-35） |
+| ★ R4 的语言规范结论 | `not … = …` 的优先级判定**未经 Delphi 编译器实测**（无工具链）；若被推翻，只需改 2 处表达式 + 2 条用例 |
+
+**能力面（其余 6 单元）**：`MasSock` 的真实监听不可用（JSocket 无托管等价物，`Active := True` 显式抛，B-P10-19）；
+`GrobalSession` 的会话列表来源为接缝（未接线即抛，B-P10-04）；`GHeroDBConfig` 的 `THeroDB` 为接缝（默认抛，故真实 HeroDB 读写不可用）；
+`Pool/*` 的两个单元**无未覆盖面**（含端到端搜索用例，跑临时目录）。
 
 ---
 
-## 5. 门禁记录（滚动）
+## 5. 门禁记录（滚动；★ 判据含 `$LASTEXITCODE`）
 
 | 切片 | 命令 | 结果 |
 |---|---|---|
@@ -413,7 +488,48 @@ DFM 对账（计数取证）：
 | 3（MasSock） | 同上（LoginSrv.Tests） | `失败: 0，通过: 404，总计: 404`（本单元新增 **154** 例；250+154=404 ✓ 与子车道自报逐例相符） |
 | 4（吸收 main + 退役复刻） | `main` 由**集成方**并入本车道（`b671a662`，无冲突；车道被硬禁 merge/rebase）→ 删 D-P10-17 复刻、改转调 Core | 同上（LoginSrv.Tests）仍 `失败: 0，通过: 404，总计: 404` |
 | 5（GHeroDBConfig） | `dotnet test tests/GXX.GameCenter.Tests/…csproj …`（**判据含 `$LASTEXITCODE==0`**） | `失败: 0，通过: 278，总计: 278`（本单元新增 **59** 例；基线 219 ⇒ 219+59=278 ✓ 由 `--filter FullyQualifiedName~GXX.GameCenter.Forms.Tests` 实测 59 例） |
-| 6（uFrmRoleDataEdit） | `dotnet test tests/GXX.DBServer.Tests/…csproj …` | ⏳ **未绿**（进行中）：一度出现 `已通过! 失败: 0，通过: 675/693` **但 `$LASTEXITCODE=1`** —— 真实原因是 `P10RoleDataEditTests.ButtonSaveDataClick_…_HumanDB_Save` 触发 **`Stack overflow` ⇒ testhost 崩溃 ⇒ 整个 run 中止**。★ **本条登记为方法论警示**：`dotnet test` 会把"宿主崩溃前的部分结果"打印成 `已通过!`，**必须以 `$LASTEXITCODE` 为准**，否则就是"假绿" |
+| 6（uFrmRoleDataEdit） | `dotnet test tests/GXX.DBServer.Tests/…csproj …` | 曾出现 `已通过! 失败: 0，通过: 675/693` **但 `$LASTEXITCODE=1`** —— 真因：`P10RoleDataEditTests.ButtonSaveDataClick_…_HumanDB_Save` 触发 `Stack overflow` ⇒ testhost 崩溃 ⇒ run 中止。★ **登记为方法论警示 W1**（见下） |
+| 7（uFrmRoleDataEdit 修好后） | 同上 | **`失败: 0，通过: 871，总计: 871`；`$LASTEXITCODE=0`**；无 `Stack overflow`/`测试主机进程崩溃`/`测试运行已中止`/`error CS` |
+| 8（修 B-P10-21 工具盲区后） | 同上 | 仍 **871/871，`$LASTEXITCODE=0`**（工具口径 31→35 后测试断言同步更新） |
+
+### 5.1 ★★ 最终四工程门禁（全绿，判据含 `$LASTEXITCODE`）
+
+```
+dotnet build GXX.CSharp/GXX.slnx -c Debug --nologo -m:1 -p:BuildInParallel=false
+  → 已成功生成。0 个错误                                    EXIT=0
+
+dotnet test GXX.CSharp/tests/GXX.DBServer.Tests/GXX.DBServer.Tests.csproj       -c Debug --nologo -m:1 -p:BuildInParallel=false
+  → 已通过! - 失败: 0，通过: 871，总计: 871                  EXIT=0  无崩溃/错误字样
+
+dotnet test GXX.CSharp/tests/GXX.LoginSrv.Tests/GXX.LoginSrv.Tests.csproj       -c Debug --nologo -m:1 -p:BuildInParallel=false
+  → 已通过! - 失败: 0，通过: 404，总计: 404                  EXIT=0  无崩溃/错误字样
+
+dotnet test GXX.CSharp/tests/GXX.GameCenter.Tests/GXX.GameCenter.Tests.csproj   -c Debug --nologo -m:1 -p:BuildInParallel=false
+  → 已通过! - 失败: 0，通过: 278，总计: 278                  EXIT=0  无崩溃/错误字样
+
+dotnet test GXX.CSharp/tests/GXX.LogDataServer.Tests/GXX.LogDataServer.Tests.csproj -c Debug --nologo -m:1 -p:BuildInParallel=false
+  → 已通过! - 失败: 0，通过: 222，总计: 222                  EXIT=0  无崩溃/错误字样
+```
+
+**本车道新增用例合计 = 80(Pool) + 19(GrobalSession) + 154(MasSock) + 59(GHeroDBConfig) + 62(uFrmRoleDataEdit) = 374**
+（四工程合计 1,775 例全通过；逐项增量与各子车道自报逐例相符：250→404=+154、219→278=+59、809→871=+62。）
+
+### 5.2 ★★ 两条方法论警示（建议入台账）
+
+**W1 — `dotnet test` 的"假绿"：宿主崩溃前会把部分结果打印成 `已通过!`。**
+同一命令连跑三次得到 `已通过! - 失败: 0，通过: 675`、`通过: 693`（**数字每次不同**），而 `$LASTEXITCODE` **全是 1**，
+stderr 为 `Stack overflow` + `测试主机进程中止`。⇒ **只看摘要行会得出"全绿"的错误结论，且排在崩溃点之后的用例根本没跑**。
+> **规程**：门禁判据必须是 **`$LASTEXITCODE == 0`**，且输出中**不得出现** `Stack overflow` / `测试主机进程崩溃` / `测试运行已中止`；
+> 与 §37.3"否定性断言必须计数取证"同源 —— **"跑过了"也要取证**，不能只看"通过了"。
+
+**W2 — `THumData`/`THeroData` 是巨型值类型，按值传递即打穿 1MB 线程栈。**
+实测 `SizeOf<THumData>() = 660,377`（645KB）、`SizeOf<THeroData>() = 323,962`（316KB）。
+夹逼证据：`new THumData()` + **内联**字段赋值（1/2/3/4 条）**全绿**；同样赋值放进**"返回 `THumData` 的辅助方法"**即 **`Stack overflow`**；
+只构造窗体、对象初始化器赋 `FHumData`、网格读写、`ButtonSaveDataClick` 均正常（窗体把 `THumData` 存为**字段**，在堆上）。
+⇒ **风险面**：任何车道的测试只要写 `static THumData Human() => …` 这类"按值返回/传参"的辅助方法（或同时存活 2~3 个副本）就会崩 testhost；
+生产侧同理（`ProcessLoadDataformFile` 的 `THumData` 局部量占 ~645KB 栈，原文 `GetMem` 在堆上）——见 B-P10-23。
+> **规程建议**：禁止按值返回/传参 `THumData`/`THeroData`（改 `out`/`ref`，或跑 `new Thread(action, maxStackSize: 64 << 20)`）；
+> 或由集成方统一给测试宿主加大栈。
 
 ---
 
