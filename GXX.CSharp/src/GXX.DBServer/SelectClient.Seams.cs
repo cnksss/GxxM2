@@ -195,6 +195,26 @@ public static class SelectClientRoleDbSeam
         HumanDB = null;
         HeroDB = null;
     }
+
+    /// <summary>
+    /// 宿主接线（`DBServerService` 用）：把 <see cref="RoleDatabase"/> 适配成
+    /// <c>g_RoleDB.HumanDB</c> / <c>g_RoleDB.HeroDB</c>。
+    ///
+    /// ★ 适配器**只**实现 SelectClient.pas 用到的 Do*（Human 9 个 / Hero 1 个），
+    ///   其余成员抛 `NotSupportedException` —— 见 `SelectClient.RoleDbAdapter.cs` 的类注释。
+    /// </summary>
+    public static void AttachRoleDatabase(RoleDatabase db)
+    {
+        HumanDB = new SelectClientHumanDb(db);
+        HeroDB = new SelectClientHeroDb(db);
+    }
+
+    /// <summary>宿主卸载（`DBServerService.Dispose`）：避免留下指向已释放数据库的悬垂接缝。</summary>
+    public static void DetachRoleDatabase()
+    {
+        HumanDB = null;
+        HeroDB = null;
+    }
 }
 
 // ============================================================================================

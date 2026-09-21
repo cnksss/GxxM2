@@ -7,15 +7,31 @@ using System.Threading;
 using GXX.Core;
 using GXX.Core.Protocol;
 using GXX.GatewayKit;
-using GXX.GatewayKit;
 
 namespace GXX.DBServer;
 
 /// <summary>
 /// DBServer.pas（uFrmMain/SelectClient/IDSocCli/RoleDB）→ DBServerService.cs
 /// 数据库服务器：
-/// - 网关端口：接受 SelGate 链接，处理 CM_QUERYCHR/CM_NEWCHR/CM_DELCHR/CM_SELCHR（6-Bit TDefaultMessage 帧）。
+/// - 网关端口：接受 SelGate 链接 → **每连接一个 <see cref="TSelectClient"/>**（= 原文 `OnGetSocket`），
+///   收包交给 `ExecGateBuffers` → `DeCodeUserMsg` 分派（CM_QUERYCHR/CM_RANDOMNAME/CM_NEWCHR/CM_DELCHR/
+///   CM_SELCHR/CM_QUERYDELCHR/CM_GETBACKDELCHR + else）。
 /// - 数据端口：接受 M2Server 链接，处理 DB_LOADHUMANRCD / DB_SAVEHUMANRCD（TDBMsgHeader 帧）。
+///
+/// <para>
+/// 【接线边界 —— 诚实登记】以下三条依赖**尚未移植**，接缝默认**抛 NotSupportedException**（不放行）：
+/// <list type="number">
+///   <item>`IDSocCli.pas`（**384 行**，会话状态机 / LoginSrv 客户端）→ <see cref="IDSocCliSeam.FrmIDSoc"/>。
+///         受影响命令：CM_QUERYCHR / CM_RANDOMNAME / CM_NEWCHR / CM_DELCHR / CM_SELCHR（经 `CheckSession`），
+///         以及任何 `%X` 帧与非命中槽的 `CloseUser`（经 `GetGlobaSessionStatus`）。</item>
+///   <item>`DBShare.pas:1043-1280` 的人物名校验族（**约 240 行**：CheckDenyChrName / CheckChrName /
+///         CheckSpecialChar / CheckNumberName / CheckLetterName / CheckFilterNewHumanChrName）
+///         → <see cref="SelectClientDbShareSeam"/>。受影响命令：CM_NEWCHR。</item>
+///   <item>`DBShare.pas:731-870` GateActiveRouteIP / CheckActiveRunGate（**约 140 行**）。
+///         仅当 `g_boUseActiveRunGage = True`（默认 False）时可达。</item>
+/// </list>
+/// **本服务刻意不为它们提供"放行桩"**：用未实现的校验去"接受"角色名，是安静的错行为（台账 §25.2）。
+/// </para>
 /// </summary>
 public class DBServerService : IGateUiService
 {
@@ -42,6 +58,9 @@ public class DBServerService : IGateUiService
     public DBServerService(string dbFile)
     {
         _roles = new RoleDatabase(dbFile);
+        // RoleDB 全局 `g_RoleDB.HumanDB/HeroDB`（DBShare.pas:115）—— 接上 SelGate 选人端真正需要的数据操作。
+        // 其余两个接缝（FrmIDSoc / DBShare 名校验族）**刻意不接**：接不上的必须显式报未接线，不给中性值。
+        SelectClientRoleDbSeam.AttachRoleDatabase(_roles);
     }
 
     public RoleDatabase Roles => _roles;
@@ -86,10 +105,17 @@ public class DBServerService : IGateUiService
         foreach (var kv in _m2Links) kv.Value.Close();
         _gateLinks.Clear();
         _m2Links.Clear();
+        SelectClientGateWiring.DetachAll();
     }
 
     // ---------------- SelGate 端 ----------------
 
+    /// <summary>
+    /// uFrmMain.pas:303-306 `SelectSocketGetSocket` + :335-338 `SelectSocketClientDisconnect`
+    /// + :340-353 `SelectSocketClientRead` —— 三件事都由 <see cref="SelectClientGateWiring.AttachTcpLink"/> 一次接完。
+    ///
+    /// ★ 原文一个 SelGate 连接 = 一个 `TSelectClient`（内含 1000 槽会话表，多个玩家共用同一连接）。
+    /// </summary>
     private void GateAcceptLoop()
     {
         while (_running)
@@ -99,111 +125,22 @@ public class DBServerService : IGateUiService
                 var client = _gateListener!.Accept();
                 var link = new TcpLink(client);
                 int idx = _gateLinks.Count + 1;
-                link.OnReceive += (buf, off, len) =>
-                {
-                    link.Accumulate(buf, off, len);
-                    ProcessGateData(link);
-                };
                 link.OnDisconnected += () => _gateLinks.TryRemove(idx, out _);
                 _gateLinks[idx] = link;
+
+                // 原文 `Self.RemoteAddress`（SelectClient.pas:516 的 'S' 分支用它）。
+                // TcpLink(Socket) 的 Host 是空串（见 TcpLink.cs:40），故从 Socket 端点取。
+                string remote = (client.RemoteEndPoint as IPEndPoint)?.Address.ToString() ?? "";
+                SelectClientGateWiring.AttachTcpLink(link, remote);
             }
             catch { if (!_running) return; }
         }
     }
 
-    private void ProcessGateData(TcpLink link)
-    {
-        while (link.AccumLength >= 22)
-        {
-            TDefaultMessage msg = EDcode.DecodeMessage(link.AccumBuffer, TDefaultMessage.SizeOf);
-            // 解析 body（若帧长足够）
-            int headEnc = EDcode.GetEncodeSize(TDefaultMessage.SizeOf);
-            string body = "";
-            // 单帧长度未知，按 SelGate 逐包转发特性：一收即一帧
-            byte[] whole = new byte[link.AccumLength];
-            Array.Copy(link.AccumBuffer, whole, link.AccumLength);
-            link.ConsumeAccum(link.AccumLength);
-
-            TDefaultMessage reply;
-            switch (msg.Ident)
-            {
-                case 100: // CM_QUERYCHR
-                {
-                    string account = ExtractBodyText(whole, headEnc);
-                    byte[] list = new byte[4096];
-                    int n = _roles.QueryChr(account, list);
-                    reply = TDefaultMessage.Make(520 /* SM_QUERYCHR */, msg.Recog, (ushort)(n > 0 ? 1 : 0), 0, (ushort)Math.Min(n, 16));
-                    SendReply(link, reply, list.AsSpan(0, n).ToArray());
-                    break;
-                }
-                case 101: // CM_NEWCHR
-                {
-                    string bodyText = ExtractBodyText(whole, headEnc);
-                    string[] parts = bodyText.Split('/');
-                    bool ok = parts.Length >= 3 && _roles.NewChr(parts[0], parts[1], ToByte(parts[2]), 0);
-                    reply = TDefaultMessage.Make(ok ? (ushort)521 /* SM_NEWCHR_SUCCESS */ : (ushort)522 /* SM_NEWCHR_FAIL */, msg.Recog, 0, 0, 0);
-                    SendReply(link, reply, null);
-                    break;
-                }
-                case 102: // CM_DELCHR
-                {
-                    string bodyText = ExtractBodyText(whole, headEnc);
-                    string[] parts = bodyText.Split('/');
-                    bool ok = parts.Length >= 2 && _roles.DelChr(parts[0], parts[1]);
-                    reply = TDefaultMessage.Make(ok ? (ushort)523 /* SM_DELCHR_SUCCESS */ : (ushort)524 /* SM_DELCHR_FAIL */, msg.Recog, 0, 0, 0);
-                    SendReply(link, reply, null);
-                    break;
-                }
-                case 103: // CM_SELCHR：选择角色 → 返回角色数据
-                {
-                    string bodyText = ExtractBodyText(whole, headEnc);
-                    string[] parts = bodyText.Split('/');
-                    var data = parts.Length >= 2 ? _roles.LoadHum(parts[0], parts[1]) : null;
-                    if (data != null)
-                    {
-                        reply = TDefaultMessage.Make(525 /* SM_STARTPLAY */, msg.Recog, 0, 0, 0);
-                        SendReply(link, reply, StructBytes.BytesOf(data.Value));
-                    }
-                    else
-                    {
-                        reply = TDefaultMessage.Make(526 /* SM_STARTFAIL */, msg.Recog, 0, 0, 0);
-                        SendReply(link, reply, null);
-                    }
-                    break;
-                }
-                default:
-                    // 未知命令（对应原 DBServer 的 UNKNOWMSG 处理）
-                    reply = TDefaultMessage.Make((ushort)CommonConst.UNKNOWMSG, msg.Recog, 0, 0, 0);
-                    SendReply(link, reply, null);
-                    break;
-            }
-        }
-    }
-
-    private static byte ToByte(string s) => (byte)GXX.Core.Rtl.DelphiRTL.StrToIntDef(s, 0);
-
-    private static string ExtractBodyText(byte[] whole, int headLen)
-    {
-        if (whole.Length <= headLen) return "";
-        byte[] rest = new byte[whole.Length - headLen];
-        Array.Copy(whole, headLen, rest, 0, rest.Length);
-        return EncodingInit.GBK.GetString(EDcode.DecodeBuffer(rest, rest.Length));
-    }
-
-    private void SendReply(TcpLink link, in TDefaultMessage msg, byte[]? body)
-    {
-        byte[] head = EDcode.EncodeMessage(msg);
-        if (body == null || body.Length == 0)
-        {
-            link.Send(head);
-            return;
-        }
-        byte[] encBody = EDcode.EncodeBuffer(body, body.Length);
-        byte[] buf = new byte[head.Length + encBody.Length];
-        Array.Copy(head, buf, head.Length);
-        Array.Copy(encBody, 0, buf, head.Length, encBody.Length);
-        link.Send(buf);
-    }
+    // 原文 uFrmMain.pas 的 SelGate 收包事件只做一件事：
+    //   `sReceiveText := Socket.ReceiveText;  ExecGateBuffers(sReceiveText);`
+    // 具体分派（CM_100/101/102/103/105/106/3006 + else）在 `TSelectClient.DeCodeUserMsg` 里，
+    // 原先本文件自造的 4 路 `switch`（含**字段位置错误**的 SM_QUERYCHR，见报告 §11.3）已删除。
 
     // ---------------- M2Server 数据端 ----------------
 
@@ -328,6 +265,8 @@ public class DBServerService : IGateUiService
     public void Dispose()
     {
         StopService();
+        // 断开 `g_RoleDB.HumanDB/HeroDB`，避免留下指向已释放数据库的悬垂接缝。
+        SelectClientRoleDbSeam.DetachRoleDatabase();
         _roles.Dispose();
     }
 }

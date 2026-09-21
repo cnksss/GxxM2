@@ -1,0 +1,264 @@
+using System;
+using System.Collections.Generic;
+using GXX.Core.Protocol;
+using GXX.Core.Rtl;
+using GXX.DBServer;
+using Xunit;
+
+namespace GXX.DBServer.Tests;
+
+/// <summary>
+/// 宿主接线后的**真实接缝状态**（不是替身）：
+/// `DBServerService` 构造时接上 `g_RoleDB.HumanDB/HeroDB`，
+/// 而 `IDSocCli` / `DBShare 名校验族` 保持**未接线**（集成方裁定 §12：保持抛异常，不做放行桩）。
+///
+/// ★ 本组刻意**不派生** <see cref="SelectClientTestBase"/> —— 那个基类会把两个未移植的接缝替换成替身，
+///   就测不到"生产默认态"了。
+/// </summary>
+public class SelectClientHostWiringTests : TempDirTest
+{
+    private readonly List<string> Logs = new();
+
+    public SelectClientHostWiringTests()
+    {
+        TSelectClient.ResetSeams();
+        SelectClientGateWiring.DetachAll();
+        IDSocCliSeam.Reset();
+        SelectClientDbShareSeam.Reset();
+        SelectClientRoleDbSeam.Reset();
+        SelectClientGlobals.Reset();
+        RoleDbSeam.MainOutMessage = s => Logs.Add(s);
+    }
+
+    // =====================================================================================
+    // DBServerService 构造 → RoleDB 接缝
+    // =====================================================================================
+
+    [Fact]
+    public void 构造DBServerService_把RoleDatabase接到HumanDB与HeroDB()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+
+        Assert.NotNull(SelectClientRoleDbSeam.HumanDB);
+        Assert.NotNull(SelectClientRoleDbSeam.HeroDB);
+        Assert.IsType<SelectClientHumanDb>(SelectClientRoleDbSeam.HumanDB);
+        Assert.IsType<SelectClientHeroDb>(SelectClientRoleDbSeam.HeroDB);
+    }
+
+    [Fact]
+    public void 接线后HumanDB闭环_Add到QueryHumans()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+        var human = SelectClientRoleDbSeam.RequireHuman;
+
+        Assert.True(human.Add("acct", "Aaaa", true, 1, 2, 3));
+        Assert.Equal(1, human.GetHumanCount("acct"));
+        Assert.NotEqual(RoleDbConst.NO_ID, human.GetID("Aaaa"));
+
+        var list = new TQueryHumanList();
+        Assert.Equal(1, human.QueryHumans("acct", list));
+        Assert.Equal("Aaaa", list.Items(0)!.HumanName);
+        Assert.True(list.Items(0)!.IsSelect);
+    }
+
+    [Fact]
+    public void 接线后HeroDB闭环_GetID只认英雄表()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Aaaa", false, 0, 0, 0);
+
+        Assert.Equal(RoleDbConst.NO_ID, SelectClientRoleDbSeam.RequireHero.GetID("Aaaa"));
+    }
+
+    [Fact]
+    public void Dispose_断开RoleDB接缝_不留悬垂()
+    {
+        var srv = new DBServerService(Path2("host.db"));
+        Assert.NotNull(SelectClientRoleDbSeam.HumanDB);
+
+        srv.Dispose();
+
+        Assert.Null(SelectClientRoleDbSeam.HumanDB);
+        Assert.Null(SelectClientRoleDbSeam.HeroDB);
+        Assert.Throws<NotSupportedException>(() => SelectClientRoleDbSeam.RequireHuman);
+    }
+
+    // =====================================================================================
+    // 未移植的接缝：**没有放行桩**（集成方裁定 §12 方案 (a)）
+    // =====================================================================================
+
+    [Fact]
+    public void IDSocCli接缝_未接线_访问即抛NotSupportedException()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+
+        Assert.Null(IDSocCliSeam.FrmIDSoc);
+        var ex = Assert.Throws<NotSupportedException>(() => IDSocCliSeam.Require);
+        Assert.Contains("IDSocCli.pas", ex.Message);
+    }
+
+    [Fact]
+    public void DBShare名校验接缝_未接线_访问即抛NotSupportedException()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckChrName("Aaaa"));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckSpecialChar("Aaaa"));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckDenyChrName("Aaaa"));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckNumberName("Aaaa"));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckLetterName("Aaaa"));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckFilterNewHumanChrName("Aaaa"));
+    }
+
+    [Fact]
+    public void 主动网关路由接缝_未接线_访问即抛NotSupportedException()
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.GateActiveRouteIP("127.0.0.1", out _));
+        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckActiveRunGate("127.0.0.1", 7200));
+    }
+
+    // =====================================================================================
+    // ★ 因此这几条命令目前**响亮地抛异常**（而不是静默放行）
+    // =====================================================================================
+
+    private static string UserDataFrame(string connID, int ident, string arg)
+    {
+        byte[] payload = arg == ""
+            ? EDcode.EncodeMessage(TDefaultMessage.Make((ushort)ident, 0, 0, 0, 0))
+            : Concat(EDcode.EncodeMessage(TDefaultMessage.Make((ushort)ident, 0, 0, 0, 0)), EDcode.EncodeString(arg));
+        return "%A" + connID + "/#1" + System.Text.Encoding.Latin1.GetString(payload) + "!$";
+    }
+
+    private static byte[] Concat(byte[] a, byte[] b)
+    {
+        byte[] r = new byte[a.Length + b.Length];
+        Array.Copy(a, 0, r, 0, a.Length);
+        Array.Copy(b, 0, r, a.Length, b.Length);
+        return r;
+    }
+
+    private TSelectClient AttachAndOpenSlot(out TUserInfo slot)
+    {
+        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1/2.2.2.2$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        slot = c.SelectCharList.OnLineItems(0)!;
+        Assert.Equal("7", slot.sConnID);
+        slot.dwChrTick = 0;
+        DelphiTick.GetTickCount = () => 100000;
+        return c;
+    }
+
+    [Theory]
+    [InlineData(Grobal2Const.CM_QUERYCHR)]
+    [InlineData(Grobal2Const.CM_RANDOMNAME)]
+    [InlineData(Grobal2Const.CM_NEWCHR)]
+    [InlineData(Grobal2Const.CM_DELCHR)]
+    [InlineData(Grobal2Const.CM_SELCHR)]
+    public void 依赖IDSocCli的五条命令_目前抛NotSupportedException(int ident)
+    {
+        using var srv = new DBServerService(Path2("host.db"));
+        var c = AttachAndOpenSlot(out var slot);
+        slot.sAccount = "acct";                                                   // 绕开 `sAccount <> ''` 短路，直达 CheckSession
+
+        string frame = UserDataFrame("7", ident, "acct/42");
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
+        Exception? ex = SelectClientGateWiring.FeedSafe(c, bytes, 0, bytes.Length);
+
+        Assert.IsType<NotSupportedException>(ex);
+        Assert.Contains(Logs, s => s.Contains("SelectClient 命令处理抛异常"));
+    }
+
+    [Fact]
+    public void 账号为空的短路径不发包也不抛_走OutOfConnect()
+    {
+        // DeCodeUserMsg 里 `(sAccount <> '') and CheckSession(...)` 是**短路与**：
+        // 账号为空时不会碰 IDSocCli ⇒ 不抛，而是 OutOfConnect。
+        using var srv = new DBServerService(Path2("host.db"));
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.dwChrTick = 0;
+        DelphiTick.GetTickCount = () => 100000;
+
+        string frame = UserDataFrame("7", Grobal2Const.CM_DELCHR, "Aaaa");
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, bytes, 0, bytes.Length));
+
+        Assert.Single(sent);
+        Assert.Equal(Grobal2Const.SM_OUTOFCONNECTION,
+                     EDcode.DecodeMessage(Slice(sent[0])).Ident);
+    }
+
+    [Fact]
+    public void 不依赖IDSocCli的两条命令_目前可以真正跑通()
+    {
+        // CM_QUERYDELCHR / CM_GETBACKDELCHR 在原文里**不做** CheckSession ⇒ 接线后立即可用。
+        using var srv = new DBServerService(Path2("host.db"));
+        SelectClientRoleDbSeam.RequireHuman.Add("acct", "Gone", false, 0, 0, 0);
+        SelectClientRoleDbSeam.RequireHuman.Delete("acct", "Gone");
+
+        var sent = new List<byte[]>();
+        var c = SelectClientGateWiring.Attach(sent.Add, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.dwChrTick = 0;
+        DelphiTick.GetTickCount = () => 100000;
+
+        string frame = UserDataFrame("7", Grobal2Const.CM_QUERYDELCHR, "acct");
+        byte[] bytes = System.Text.Encoding.Latin1.GetBytes(frame);
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, bytes, 0, bytes.Length));
+
+        Assert.Single(sent);
+        TDefaultMessage msg = EDcode.DecodeMessage(Slice(sent[0]));
+        Assert.Equal(Grobal2Const.SM_QUERYDELCHR, msg.Ident);
+        Assert.Equal(1, msg.Recog);                                               // 已删角色数在 Recog
+    }
+
+    [Fact]
+    public void 帧X_命中槽位时也抛_因为CloseUser要问IDSocCli会话状态()
+    {
+        // ★ 这是 §12 里最容易漏掉的一条影响面：`CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）
+        //   在**命中槽位**时会碰 FrmIDSoc ⇒ SelGate 每次"用户离开"都会抛，
+        //   经 `FeedSafe` 被接住后**断开整条 SelGate 连接**（一个连接上通常挂着多个玩家）。
+        //   原文这一小段是**清理通知**（"会话已失效 → 叫 LoginSrv 关掉它"），不是校验判定；
+        //   是否有必要为它单独放宽，由集成方裁定（本车道按裁定 (a) 保持抛）。
+        using var srv = new DBServerService(Path2("host.db"));
+        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
+
+        byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
+        Exception? ex = SelectClientGateWiring.FeedSafe(c, close, 0, close.Length);
+
+        Assert.IsType<NotSupportedException>(ex);
+        Assert.Contains("IDSocCli", ex!.Message);
+        Assert.Equal("", c.m_sReceiveText);                                       // 帧被完整吃掉后再抛
+    }
+
+    [Fact]
+    public void 帧X_不命中槽位时不抛()
+    {
+        // 对照：没有匹配 ConnID 时 CloseUser 的 for 循环体根本不执行 ⇒ 不碰 FrmIDSoc。
+        using var srv = new DBServerService(Path2("host.db"));
+        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        byte[] close = System.Text.Encoding.Latin1.GetBytes("%X999$");
+
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, close, 0, close.Length));
+    }
+
+    /// <summary>从 <c>%&lt;sid&gt;/#…!$</c> 里取出 22 字节编码头。</summary>
+    private static byte[] Slice(byte[] raw)
+    {
+        int start = 0;
+        for (int i = 0; i + 1 < raw.Length; i++)
+            if (raw[i] == (byte)'/' && raw[i + 1] == (byte)'#') { start = i + 2; break; }
+        byte[] head = new byte[Grobal2Const.DEF_BLOCK_SIZE];
+        Array.Copy(raw, start, head, 0, Grobal2Const.DEF_BLOCK_SIZE);
+        return head;
+    }
+}
