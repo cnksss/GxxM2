@@ -123,7 +123,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     public System.Windows.Forms.Label Label2 = null!;
     /// <summary>
     /// DFM: <c>object EditHeroDBPath: TRzButtonEdit</c>（OnButtonClick=EditHeroDBPathButtonClick）
-    /// —— <b>偏差 D-P10-17</b>：Raize 的 TRzButtonEdit 无托管等价物，按
+    /// —— <b>偏差 D-P10-24</b>：Raize 的 TRzButtonEdit 无托管等价物，按
     /// <c>GMainForm.Fields.g.cs:387-390</c> 既有惯例落为 <c>TextBox</c>，
     /// 其"内嵌按钮"（Raize 复合控件的**匿名内部子控件**，DFM 里没有独立 object 节点）
     /// 由 <see cref="EditHeroDBPathButton"/> 承担。
@@ -163,7 +163,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     // ==================================================================
 
     /// <summary>
-    /// 偏差 D-P10-17 的"内嵌按钮"：承担 <c>TRzButtonEdit.OnButtonClick</c>。
+    /// 偏差 D-P10-24 的"内嵌按钮"：承担 <c>TRzButtonEdit.OnButtonClick</c>。
     /// <para>
     /// <b>刻意不设 Name</b>：<c>P10FormReconcile</c> 只数"有名字"的控件（DFM 的 object 节点
     /// 全部有名字），本按钮在 DFM 里是 Raize 控件的内部子控件、**没有** object 节点，
@@ -235,7 +235,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
         Label2 = new System.Windows.Forms.Label { Name = "Label2", Text = "数据库路径:", Left = 16, Top = 44, Width = 66, Height = 12, AutoSize = false };
         // DFM: EditHeroDB Left=88 Top=16 Width=121 Height=20 TabOrder=0 Text='HeroDB'
         EditHeroDB = new System.Windows.Forms.TextBox { Name = "EditHeroDB", Left = 88, Top = 16, Width = 121, Height = 20, TabIndex = 0, Text = "HeroDB" };
-        // DFM: EditHeroDBPath Left=88 Top=40 Width=249 Height=20 TabOrder=1（TRzButtonEdit → TextBox，见偏差 D-P10-17）
+        // DFM: EditHeroDBPath Left=88 Top=40 Width=249 Height=20 TabOrder=1（TRzButtonEdit → TextBox，见偏差 D-P10-24）
         EditHeroDBPath = new System.Windows.Forms.TextBox { Name = "EditHeroDBPath", Left = 88, Top = 40, Width = 249, Height = 20, TabIndex = 1 };
         // DFM: TRzButtonEdit ButtonWidth=15（Raize 内嵌按钮，DFM 无独立 object 节点 ⇒ **不设 Name**）
         EditHeroDBPathButton = new System.Windows.Forms.Button { Left = 337, Top = 40, Width = 15, Height = 20, TabIndex = 2 };
@@ -251,6 +251,8 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
             // VCL TMemo 没有字数上限；WinForms TextBox 默认 MaxLength=32767 会**静默截断**
             // （本窗体 CheckHeroDB 的日志可达 ~1.6k 字符，ButtonCreateStdItemsField 的 40 行更长）
             // ⇒ 置 0 取消上限，保持 TMemo.Lines 语义。
+            // <b>偏差 D-P10-28</b>：4 个 Memo（MemoLog/MemoLog1/MemoLog2/MemoLog3）统一置 MaxLength=0；
+            // 不置的话长日志会被**静默截断**，而"日志行快照"类断言会因此出现假绿/假红。
             MaxLength = 0
         };
         TabSheet1.Controls.Add(Label1);
@@ -359,6 +361,10 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
         ButtonClose.Click += (s, e) => ButtonCloseClick(s);
 
         // 窗体根 DFM **没有** OnCreate/OnDestroy：这里只挂 CloseCalled 观测（不是 DFM 绑定）。
+        // <b>偏差 D-P10-27</b>：本条 `Closed` 是**非 DFM 事件**的纯观测绑定（原文 :161/:388/:492/:530/:562
+        // 的 `Close` 是否被调用），**不计入** DFM 绑定数；DFM 的 6 条 On* 绑定已由
+        // `DfmReconcile_SixOnClickBindings_PlusClosed` 拆分为「有名控件 5 + 无名 Raize 内嵌按钮 1」逐一钉死，
+        // 另有 `DfmReconcile_FormRootHasNoOnCreateOrOnDestroy` 用计数证明窗体根确实没有 DFM 事件。
         Closed += (s, e) => CloseCalled = true;
     }
 
@@ -388,7 +394,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     /// <c>BFFM_SETSELECTION</c> 以**预选当前目录**。
     /// </para>
     /// <para>
-    /// <b>偏差 D-P10-18</b>：托管侧没有"向 Shell 对话框回调发消息"的等价通道
+    /// <b>偏差 D-P10-25</b>：托管侧没有"向 Shell 对话框回调发消息"的等价通道
     /// （<c>FolderBrowserDialog</c> 不暴露 BFFM_SETSELECTION）。本方法只保留回调**契约**
     /// （返回值恒 0、只有一个初始化消息分支、lpData 为 0 时不做任何事），
     /// 预选意图改由 <see cref="FolderPickerProvider"/> 的 <c>initialDirectory</c> 参数承载。
@@ -400,7 +406,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
         if (uMsg == BFFM_INITIALIZED && lpData != IntPtr.Zero)
         {
             // 原文：SendMessage(Wnd, BFFM_SETSELECTION, Integer(True), lpData);
-            // 托管无对应消息通道，见偏差 D-P10-18。
+            // 托管无对应消息通道，见偏差 D-P10-25。
             _ = BFFM_SETSELECTION;
             _ = Wnd;
             _ = lParam;
@@ -432,7 +438,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     /// <item>返回值**不做**尾部 <c>\</c> 剥离（剥离在调用方 :117-118 与 :141-142 做），原样回填 <c>Directory</c>。</item>
     /// </list>
     /// </para>
-    /// <para><b>偏差 D-P10-18</b>：<c>Root</c>（pidlRoot）、<c>Owner</c>（hwndOwner）在托管侧无对应物，
+    /// <para><b>偏差 D-P10-25</b>：<c>Root</c>（pidlRoot）、<c>Owner</c>（hwndOwner）在托管侧无对应物，
     /// 仅为签名保真保留；<c>DisableTaskWindows</c>/<c>EnableTaskWindows</c> 为 VCL 专有，
     /// 托管侧由模态对话框自身承担（不复制该调用）。
     /// </para>
@@ -1113,7 +1119,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
     /// <summary>
     /// Delphi <c>TTabSheet.TabVisible := value</c>。
     /// <para>
-    /// 托管实现（偏差 D-P10-19）：只改窗体自己维护的 <c>_tabVisibleState</c> —— 与
+    /// 托管实现（偏差 D-P10-26）：只改窗体自己维护的 <c>_tabVisibleState</c> —— 与
     /// <c>TabPage.Visible</c>（= Control.Visible）**完全无关**，这正是 Delphi 里
     /// <c>TabVisible</c>/<c>Visible</c> 两个属性的关系。
     /// </para>
@@ -1181,7 +1187,7 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
 /// 一旦真的把页签摘掉/追加，WinForms 会把"孤页"当成可见页渲染，<c>TabSheet3.Visible</c> 翻成 True，
 /// 原文缺陷 1（<c>CheckHeroDB:338</c>）的条件语义就被悄悄改掉，而 :340 的 Magic 检查会被误跳过（实测三次）。
 /// </para>
-/// <para><b>偏差 D-P10-19</b>：代价是页签行**始终显示 4 个页签**（纯视觉差异；
+/// <para><b>偏差 D-P10-26</b>：代价是页签行**始终显示 4 个页签**（纯视觉差异；
 /// 所有分支判定、弹窗与落盘行为与原文一致）。</para>
 /// </summary>
 internal static class P10TabVisible

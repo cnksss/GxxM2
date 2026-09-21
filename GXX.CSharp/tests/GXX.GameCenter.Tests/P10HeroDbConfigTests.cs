@@ -323,7 +323,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     public void TabPage_VisibleIsNotTheTabVisibleProperty()
     {
         // 前提固化 2：WinForms 的 TabPage 没有 TabVisible，且直接写 TabPage.Visible
-        // **不会**把页签从页签行摘除 ⇒ 托管侧只能另立状态（偏差 D-P10-19）。
+        // **不会**把页签从页签行摘除 ⇒ 托管侧只能另立状态（偏差 D-P10-26）。
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
@@ -338,7 +338,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     [Fact]
     public void SetTabVisible_DoesNotTouchTabPageVisibility()
     {
-        // 前提固化 3（D-P10-19）：托管 TabVisible 只改自己的状态字典，
+        // 前提固化 3（D-P10-26）：托管 TabVisible 只改自己的状态字典，
         // 与 Control.Visible 完全解耦 —— 这正是原文缺陷 1（:338 用 Control.Visible 判定）
         // 能逐字保留、且 :340 的 Magic 检查不会被误跳过的前提。
         FormSta.Run(() =>
@@ -349,7 +349,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
 
             f.SetTabVisible(f.TabSheet3, false);
             Assert.False(f.GetTabVisible(f.TabSheet3));
-            Assert.Equal(4, f.PageControl.TabCount);            // 页签行不变（视觉差异，见 D-P10-19）
+            Assert.Equal(4, f.PageControl.TabCount);            // 页签行不变（视觉差异，见 D-P10-26）
 
             bool visibleBefore = f.TabSheet3.Visible;
             f.SetTabVisible(f.TabSheet3, true);
@@ -849,7 +849,7 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
         {
             string d1 = "";
             string d2 = "";
-            // 原文 :78-82 用 Root 解析 pidlRoot；托管侧无对应物（偏差 D-P10-18）⇒ 不影响结果
+            // 原文 :78-82 用 Root 解析 pidlRoot；托管侧无对应物（偏差 D-P10-25）⇒ 不影响结果
             Assert.True(TFrmHeroDB.SelectDirectory("C", @"D:\MirServer", ref d1, IntPtr.Zero));
             Assert.True(TFrmHeroDB.SelectDirectory("C", "", ref d2, IntPtr.Zero));
             Assert.Equal(d1, d2);

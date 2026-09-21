@@ -156,7 +156,7 @@
 | `LogDataServer/FileSearchPool.pas` | 558 | **28/28**（`Pool/FileSearchPool.cs`） | 7 类型 + 1 自由函数，全部 1:1 | ✅ 完成 |
 | `LoginSrv/GrobalSession.pas` | 93 | **3/3**（`Forms/GrobalSession.cs`） | DFM 4 object → 实例化 4 ✅；绑定 1 → `+=` 1 ✅ | ✅ 完成 |
 | `GameCenter/GLoginServerRouteSet.pas` | 35 | 0（死代码 + 已移植，见 §0.2） | DFM 1 控件（既有实现里已有） | ✅ 判定完成（**不建文件**） |
-| `GameCenter/GHeroDBConfig.pas` | 565 | 进行中（子车道） | 目标：DFM 25 object / 6 绑定 | ⏳ |
+| `GameCenter/GHeroDBConfig.pas` | 565 | **10/10**（`Forms/GHeroDBConfig.cs`，1193 行） | DFM object 25 → 实例化 25 ✅；绑定 6 → `+=` 6（拆"有名控件 5 + 无名 Raize 内嵌按钮 1"）✅ | ✅ 完成 |
 | `LoginSrv/MasSock.pas` | 1,017 | **21/22**（`Forms/MasSock.cs`，1553 行） | DFM object 2 → 实例化 2 ✅；绑定 6 → `+=` 6 ✅ | ✅ 完成 |
 | `DBServer/uFrmRoleDataEdit.pas` | 974 | 进行中（子车道） | 目标：DFM 88 object / 35 绑定 | ⏳ |
 
@@ -222,6 +222,20 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 （窗体 `Load`=OnCreate + `FormClosed`=OnDestroy，`MSocket` 4 条）。子车道另有
 `Dfm_Bindings_ActuallyInvokeFormHandlers`（经接缝 `Raise*` 驱动 6 条绑定，证明**真接上**而不只是计数）。
 
+### 1.6 `GHeroDBConfig.pas` 逐例程（**10/10**，`Forms/GHeroDBConfig.cs`）
+
+| 单位 | 原文例程数 | 已移植 | 例程清单 |
+|---|---|---|---|
+| `TFrmHeroDB`（interface 段 8 条） | 8 | **8** | `EditHeroDBPathButtonClick` / `ButtonSaveHeroDBConfigClick` / `ButtonCloseClick` / `ButtonCreateStdItemsFieldClick` / `ButtonMagicFieldClick` / `ButtonMonsterFieldClick` / `Open` / `CheckHeroDB` |
+| 实现段自由函数 | 2 | **2** | `SelectDirCB`(:52-57) / `SelectDirectory`(:59-110) |
+| 合计 | **10** | **10** | 无 ❌、无 PARTIAL |
+
+DFM 对账（计数取证）：
+- **object 25 = DFM 25 vs 实例化 25** —— `DfmReconcile_25Objects_FormPlus24Children` + `DfmReconcile_ControlNamesMatchDfmOrder`（**逐名逐序 24 项**）。
+- **绑定 6 = DFM 6 vs 托管 6** —— `DfmReconcile_SixOnClickBindings_PlusClosed`（拆为"有名控件 5 条 + 无名 Raize 内嵌按钮 1 条"，逐控件 `IsBound`）+ `DfmReconcile_RzButtonEditInnerButtonIsUnnamed_NotCountedAsObject`（`Name == ""` ⇒ 不污染 object 计数，但仍断言其 `Click` 真挂上）。
+- **否定性断言**：`DfmReconcile_FormRootHasNoOnCreateOrOnDestroy` 用计数钉住窗体根**确无** DFM 事件（`Load`/`FormClosed`/`FormClosing`/`Shown` 全 False）⇒ **证实本报告 §0.6 的提取结论无需修正**。
+- 3 条 WinForms 行为前提固化：`TabPage_VisibleOnlyForSelectedPage`、`TabPage_VisibleIsNotTheTabVisibleProperty`、`SetTabVisible_DoesNotTouchTabPageVisibility`。
+
 ---
 
 ## 2. 原文缺陷清单（照抄 + `// 原文如此` + 差异断言锁死）
@@ -283,6 +297,22 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 并把 `main` 并入本车道（`b671a662`）⇒ 本车道**已删除该复刻、改回直接转调
 `HUtil32.ArrestStringEx_Ansi`**（切片 `76f2f0cc`，D-P10-17 随之退役）；F19 的差异断言改为
 锁"Core 现在与原文一致"（`ArrestStringEx_NotFoundPath_KeepsSource_BP10_17Closed`）。
+
+### 2.2 `GHeroDBConfig.pas` 缺陷表（子车道逐条；每条的锁死用例均已全绿）
+
+| # | 位置 | 缺陷 | 锁死要点 |
+|---|---|---|---|
+| G1 | `:158/:387/:489/:526/:557` | `g_boHeroDBOK := not CheckHeroDB`（OK = **无**缺失字段）之后才弹成功框并 `Close`（双重否定） | 4 个 `*Click_*` 用例（成功/失败两侧都断言） |
+| G2 | ★★ **`:338`** | 唯一一处用 **`TabSheet3.Visible`**（`Control.Visible`）而非 `TabVisible`；而 `ActivePage` 恒为 `TabSheet2` ⇒ 该条件**恒成立** ⇒ `:340-371` 的 Magic 字段检查**无条件执行**（即使刚判定 Monster 缺字段、本该短路） | `CheckHeroDB_TabSheet3VisibleGuardIsDead_MagicChecksRunAnyway`（断言 `TabVisible=True` 而同刻 `Visible=False`，且 `ListBoxMagic=[NeedL1]`） |
+| G3 | `:511` | `sFieldName[1]` Delphi 1-based 索引 + **无空串守卫** ⇒ `EStringIndex` | `MagicFieldValue_EmptyFieldName_ThrowsLikeDelphiEStringIndex`、`ButtonMagicFieldClick_EmptyItemString_ThrowsLikeDelphiEStringIndex`（托管抛 `IndexOutOfRangeException` 对应） |
+| G4 | `:340` vs `:290` | Magic 循环 `for I := 0 to 14` + `I+1` ⇒ `NeedL1..15`/`L1Train..15Train`；StdItems 循环 `for I := 1 to 24` ⇒ `Element1..24`（两处风格不一致） | `CheckHeroDB_MagicLoopGeneratesNeedL1To15AndTrain1To15`（33 项，且断言**无** `NeedL0`/`NeedL16`）、`CheckHeroDB_StdItemsCheckCoversExactly38Fields`（断言**无** `Element25`） |
+| G5 | `:464/:469` vs `:474` | `ButtonCreateStdItemsFieldClick` 里 **Element 循环写在 InsuranceCurrency/InsuranceGold 之后**（日志行序 = 14 具名 → 24 元素），而 `CheckHeroDB` 的 Element 循环在 Insurance **之前** ⇒ 两个方法的字段顺序**不一致** | `ButtonCreateStdItemsFieldClick_AllFail_Logs38FailuresAndReenablesButton`（38 行逐字快照 + 38 次 `CreateField` 的"字段:值:长度"快照） |
+| G6 | `:114` | `var sFilePath: string;` 未初始化（Delphi 受管串初值 `''`；托管 `string?` 默认 null 会 NRE） | `EditHeroDBPathButtonClick_*` |
+| G7 | `:548` | `nValue := 0` 写在**循环体内** | `ButtonMonsterFieldClick_ZeroValueLen4AndLogLines` |
+| G8 | `:104` | `SelectDirectory` 内部**不**剥尾反斜杠（剥除在调用方 `:117-118`/`:141-142`） | `SelectDirectory_Chosen_CopiesVerbatimWithTrailingBackslash` |
+| G9 | `:71-72` | 传入目录不存在则先 `Directory := ''`（**清掉调用方传来的值**） | `SelectDirectory_NonExistentInput_ClearsDirectoryBeforePicking` |
+| G10 | `:509-516` | `SameText(...)` 大小写不敏感，但首字符判据 `= 'M'`/`= 'N'` **区分大小写** ⇒ `'m'`/`'n'` 落到 `else → 200` | `MagicFieldValue_RulesAreLocked('m'→200, 'n'→200)` |
+| G11 | `:394` vs `:489` | `MemoLog1` 被 `Clear` **两次**（结尾 `CheckHeroDB` 再清一次）⇒ 方法返回后日志**为空** | 三个 Memo 一律用"过程中**最长**快照"断言（否则会得到假绿）；测试内已注释原因 |
 | 17 | `FileSearchPool.pas:284-293` + `ThreadPool.pas:168-174` | `TSearchThread.Destroy` 先 `FMemoryStream.Free` 再 `inherited`（后者才 `Terminate+WaitFor`）⇒ **先释放缓冲区、后等线程退出** | 后台线程可能在缓冲已释放后继续用（原文靠时序侥幸） | D-P10-05（托管侧把"等待退出"提前，见 §3） |
 
 ---
@@ -320,9 +350,30 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | D-P10-22 | `:820` `sLineText[I]` | Delphi `AnsiString` 的 1-based 越界读（0 号与超长位置行为未定义） | `MasSockFns.AnsiStringCharAt(s, index)` 复刻（越界 → `'\0'`） | 让 F3 的原文语义在托管侧可稳定断言 |
 | D-P10-23 | `:939` `UserLimit[nC]`、`:165` `g_ServerAddr[I]` | 内存越界/垃圾读 | `IndexOutOfRangeException` | 托管数组必做边界检查；原文是内存破坏（登记为 F5/F15，用异常类型差异断言） |
 
-> ⚠ **偏离编号冲突已登记并将在收口时统一**：`GHeroDBConfig.cs` 与 `uFrmRoleDataEdit.cs` 由并行子车道
-> 各自"从 D-P10-15 续编"，因此它们也用了 `D-P10-17…20`。收口时把后两者的偏离**重编号到 D-P10-24 起**
-> 并同步改其代码注释（本报告与代码始终一致；重编号结果见 §3.2）。
+> ⚠ **偏离编号冲突的处置（已执行）**：三个单元由并行子车道各自"从 D-P10-15 续编"，因此 `GHeroDBConfig`
+> 也用了 `D-P10-17…20`（与 MasSock 撞号）。收口时已把 **`GHeroDBConfig` 的偏离重编号到 `D-P10-24…28`
+> 并同步改了它的代码/测试注释**（本报告与代码始终一致）。最终编号分区见 §3.2。
+
+### 3.2 编号分区总表（避免撞号；本表为唯一真源）与 `GHeroDBConfig` 的偏离
+
+| 编号范围 | 归属单元 |
+|---|---|
+| `D-P10-01 … D-P10-15` | 车道级 + `Pool/*` + `GrobalSession`（§3） |
+| `D-P10-16 … D-P10-23` | `MasSock`（§3.1，已落在其代码注释里） |
+| `D-P10-24 … D-P10-28` | `GHeroDBConfig`（下表，已落在其代码/测试注释里） |
+| `D-P10-29 …` | `uFrmRoleDataEdit`（子车道；若其用了别的号，收口时归一） |
+| `B-P10-01 … B-P10-15` | 车道级跨区事项（§4.1） |
+| `B-P10-16 … B-P10-19` | `MasSock` 跨区事项（B-P10-17 已关闭） |
+| `B-P10-20 … B-P10-29` | `uFrmRoleDataEdit` 跨区事项 |
+| `B-P10-30 …` | `GHeroDBConfig` 的报备项（下表/§4.1） |
+
+| 编号 | 位置 | 原文 | 托管 | 理由 |
+|---|---|---|---|---|
+| D-P10-24 | `GHeroDBConfig.pas:20` `TRzButtonEdit EditHeroDBPath` | Raize 复合控件（`OnButtonClick`） | `TextBox` + 新字段 `EditHeroDBPathButton`（**刻意不设 `Name`**），`OnButtonClick` → 内嵌按钮 `Click` | 托管无 Raize；沿用 `GMainForm.Fields.g.cs:387-390` 既有惯例。★ 不设 `Name` 是为了让 `CountDfmObjects()` 仍等于 DFM 的 25（DFM 里没有该内嵌按钮的 `object` 节点），并有专门用例钉住"无名但仍真挂事件" |
+| D-P10-25 | `:52-110` `SelectDirCB` / `SelectDirectory` | `ShBrowseForFolder` + `IMalloc` + `BFFM_SETSELECTION` 预选回调 + `DisableTaskWindows/EnableTaskWindows` | `SelectDirCB` 只保留**回调契约**（恒返回 0、仅 `BFFM_INITIALIZED` 分支、`lpData=0` 不发消息）；预选意图改由 `FolderPickerProvider(initialDirectory)` 承载；`Root`(pidlRoot)/`Owner`(hwndOwner) 仅签名保真；`DisableTaskWindows` 为 VCL 专有**不复制** | 托管没有"向 Shell 对话框回调发消息"的等价通道；默认实现是真实 `FolderBrowserDialog`，**测试全部注入替身**（不弹窗） |
+| D-P10-26 | `:186-189` `TabSheetN.TabVisible` | `TTabSheet.TabVisible` | 窗体自有状态 `_tabVisibleState`，与 `Control.Visible` **完全解耦**；**代价：页签行始终显示 4 个页签（纯视觉）** | ★ 实测三次：WinForms 写 `TabPage.Visible` **不摘页签**，而"摘/追加页签"会让 `TabPage.Visible` 与选中页**脱钩**（容器只剩孤页时翻 True）⇒ 会**破坏原文缺陷 G2（`:338`）的条件语义、误跳过 `:340` 的 Magic 检查**。所有分支判定/弹窗/落盘行为与原文一致 |
+| D-P10-27 | `GHeroDBConfig.dfm` 窗体根 | DFM **无** `OnCreate/OnDestroy` | 仍挂 `Closed += (s,e) => CloseCalled = true`（**非 DFM 事件**的纯观测绑定，不计入 DFM 绑定数） | 用于观察原文 `:161/:388/:492/:530/:562` 的 `Close` 是否被调用；"窗体根无 DFM 事件"另由计数用例独立钉死。断言 `CloseCalled` 的用例会先 `f.Show()`（WinForms 对未显示窗体的 `Close()` 是 no-op） |
+| D-P10-28 | `GHeroDBConfig.dfm:72/115/149/192`（4 个 `TMemo`） | VCL `TMemo` 无字数上限 | 4 个 Memo 统一 `MaxLength = 0` | WinForms `TextBox` 默认 `MaxLength=32767` 会**静默截断**（本窗体日志可达 38 行/1.6k+ 字符）⇒ 不置会让"日志行快照"断言出现假绿/假红 |
 
 ---
 
@@ -345,6 +396,7 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | B-P10-17 | ~~`src/GXX.Core/Util/HUtil32.cs` 的 `ArrestStringEx` 初值应为 `Result := Source`~~ **✅ 已关闭**：集成方已按原文修正 Core（台账 §48.2）并把 `main` 并入本车道（`b671a662`）；本车道已删除 D-P10-17 的本地复刻、改回转调（`76f2f0cc`，LoginSrv 404 例全绿） | — |
 | B-P10-18 | `TAccountInfo2` 的托管尺寸/偏移经子车道实测与原文一致（218 字节、偏移重合），**无需**加 `Pack=1` —— 登记以免后人误改 | 防误改 |
 | B-P10-19 | `JSocket`（`TServerSocket`）**没有任何托管等价物** ⇒ `StartService` 的真实监听能力待接线（当前 `Active := True` 按 §25.2 显式抛） | MasSock 窗体可移植、可测试，但**还不能真的监听**；需集成方裁定用 `GatewayKit` 的 socket 设施还是新写 |
+| B-P10-30 | `GHeroDBConfig` 的两条**报备项**（本车道未改任何区外文件）：<br>① `GameCenterDialogs` **缺 `MB_ICONWARNING`（0x30）常量** —— 本区以 `MB_OK + 0x30` 并在注释里说明；建议后续在公共文件补常量；<br>② 见 D-P10-28 的 `MaxLength` 处置（已在本区实现，仅报备"WinForms TextBox 默认截断"这一全局陷阱，其他窗体若用 `TextBox`/`RichTextBox` 当 `TMemo` 也应同样处置） | ① 影响所有需要"警告图标"消息框的窗体；② 影响面是**所有把 `TMemo` 译成 `TextBox` 的窗体**（静默截断会让长日志断言假绿/假红） |
 
 ### 4.2 本车道未完成项
 
@@ -360,6 +412,8 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | 2（GrobalSession） | `dotnet test tests/GXX.LoginSrv.Tests/…csproj …` | `失败: 0，通过: 250，总计: 250`（其中本车道新增 **19** 例） |
 | 3（MasSock） | 同上（LoginSrv.Tests） | `失败: 0，通过: 404，总计: 404`（本单元新增 **154** 例；250+154=404 ✓ 与子车道自报逐例相符） |
 | 4（吸收 main + 退役复刻） | `main` 由**集成方**并入本车道（`b671a662`，无冲突；车道被硬禁 merge/rebase）→ 删 D-P10-17 复刻、改转调 Core | 同上（LoginSrv.Tests）仍 `失败: 0，通过: 404，总计: 404` |
+| 5（GHeroDBConfig） | `dotnet test tests/GXX.GameCenter.Tests/…csproj …`（**判据含 `$LASTEXITCODE==0`**） | `失败: 0，通过: 278，总计: 278`（本单元新增 **59** 例；基线 219 ⇒ 219+59=278 ✓ 由 `--filter FullyQualifiedName~GXX.GameCenter.Forms.Tests` 实测 59 例） |
+| 6（uFrmRoleDataEdit） | `dotnet test tests/GXX.DBServer.Tests/…csproj …` | ⏳ **未绿**（进行中）：一度出现 `已通过! 失败: 0，通过: 675/693` **但 `$LASTEXITCODE=1`** —— 真实原因是 `P10RoleDataEditTests.ButtonSaveDataClick_…_HumanDB_Save` 触发 **`Stack overflow` ⇒ testhost 崩溃 ⇒ 整个 run 中止**。★ **本条登记为方法论警示**：`dotnet test` 会把"宿主崩溃前的部分结果"打印成 `已通过!`，**必须以 `$LASTEXITCODE` 为准**，否则就是"假绿" |
 
 ---
 

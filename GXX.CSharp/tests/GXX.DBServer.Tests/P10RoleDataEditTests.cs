@@ -194,7 +194,8 @@ public class P10RoleDataEditTests : TempDirTest
     [Fact]
     public void ZZBisectP10()
     {
-        void Mark(string s) => File.AppendAllText(Path2("bisect.log"), s + "\n");
+        string lp = Path.Combine(Path.GetTempPath(), "p10bisect.log");
+        void Mark(string s) { try { File.AppendAllText(lp, s + "\n"); } catch { } }
         Mark("start");
         using var scope = new P10RoleDataEditScope();
         Mark("scope");
