@@ -28,11 +28,12 @@
 |---|---:|---:|---:|---:|---:|
 | **类方法**（22 个类，全量口径） | 185 | **4** | 181 | 0 | **2.16 %** |
 | **类方法**（可推进口径 = 185 − CR-5 的 52） | 133 | **4** | 129 | 0 | **3.01 %** |
-| **单元级例程**（implementation 段顶层） | 168 | **32** | 133 | 3 | **19.05 %** |
-| **例程合计** | 353 | **36** | 314 | 3 | **10.20 %** |
+| **单元级例程**（implementation 段顶层） | 168 | **39** | 126 | 3 | **23.21 %** |
+| **例程合计** | 353 | **43** | 307 | 3 | **12.18 %** |
 | **单元级全局 `g_*`**（interface 1271-3061） | 约 460 | **231** | 约 229 | 0 | **约 50.2 %** |
-| **原文缺陷 / 原文如此（已锁死）** | — | — | — | **4**（P17-ASIS-01 / P17-DEF-02 / P17-DEF-03 / P17-ASIS-02） | — |
+| **原文缺陷 / 原文如此（已锁死）** | — | — | — | **5**（P17-ASIS-01 / P17-ASIS-02 / P17-DEF-02 / P17-DEF-03 / P17-DEF-04） | — |
 | **偏差点** | — | **4**（D-P17-01…04） | — | — | — |
+| **已退役 seam（不计分子，单列）** | — | **1 个类 / 4 个成员** | — | — | §5.3 / §5.4 |
 
 > **CR-5 裁定后的分母口径（本轮起生效）**：`THttpThread`(6) + `THttpClient`(7) + `TUserCenterManager`(39) = **52 条类方法**属
 > **架构待决项**，本轮不做架构决定、**保持未移植且可见**。按调度方授权，这 52 条**从进度分母中排除**，在 §9.5 单列。
@@ -40,11 +41,16 @@
 
 **「真实体 + NotPorted + 原文如此 = 成员数」对账**（§10 有逐文件明细）：
 - 类方法：`4 + 181 + 0 = 185` ✅（其中 `CanOpenMagic` 计入真实体，其「原文如此」性质记在 P17-ASIS-02）
-- 单元级例程：`32 + 133 + 3 = 168` ✅
+- 单元级例程：`39 + 126 + 3 = 168` ✅
 - 全局：`231 + 约229 + 0 = 约460` ✅
+- 已退役 seam：**1 个类 / 4 个成员**（`MShareWarrConfigSeam`，**不计入覆盖率分子**，见 §5.3 / §5.4）
 
-**4 条「原文如此」**（都在已交付的真实体内，不重复计入 NotPorted）：
-`ActorXYToMapXY`/`MapXYToActorXY` 的 Y 轴 `* 32 div 32` 恒等式（P17-ASIS-01）、`IntToHexN` 的 `Digits` 当进制 + `>10` 早退（P17-DEF-02）、`GetInputBoxInFilterList` 对 `nil` 过滤表无 `Assigned()` 判断（P17-DEF-03）、`TWarrContinueHitManager.CanOpenMagic` 方法体被原文整段注释 ⇒ 恒 `True`（P17-ASIS-02）。
+**5 条「原文如此 / 原文缺陷」**（都在已交付的真实体内，不重复计入 NotPorted）：
+`ActorXYToMapXY`/`MapXYToActorXY` 的 Y 轴 `* 32 div 32` 恒等式（P17-ASIS-01）、
+`TWarrContinueHitManager.CanOpenMagic` 方法体被原文整段注释 ⇒ 恒 `True`（P17-ASIS-02）、
+`IntToHexN` 的 `Digits` 当进制 + `>10` 早退（P17-DEF-02）、
+`GetInputBoxInFilterList` 对 `nil` 过滤表无 `Assigned()` 判断（P17-DEF-03）、
+`g_ClientConfig` 全文无声明（P17-DEF-04）。
 
 ### 1.2 可复跑命令
 
@@ -56,25 +62,29 @@ $f="_analysis\utf8_mirror\Client-HGE\MShare.pas"
 (Select-String -Path $f -Pattern '=\s*[Cc]lass' | Where-Object { $_.LineNumber -lt 3062 }).Count   # => 22
 (Select-String -Path $f -Pattern '^\s{0,2}(procedure|function|constructor|destructor)\s+[A-Za-z_]\w*\.' |
   Where-Object { $_.LineNumber -gt 3062 -and $_.LineNumber -lt 13356 }).Count                     # => 185
-# ② 本车道交付的真身
-(Select-String -Path 'GXX.CSharp\src\GXX.Client\GUI\Mir\MShare\MShareFunctions.cs' -Pattern '^\s{4}public static').Count  # => 21
-(Select-String -Path 'GXX.CSharp\src\GXX.Client\GUI\Mir\MShare\MShareGlobals.Core.cs' -Pattern '^\s{4}public static').Count # => 230（其中 228 个 g_*, 2 个 private helper 不计）
-# ③ 门禁三行
-powershell -NoProfile -ExecutionPolicy Bypass -File GXX.CSharp/tools/run-gate.ps1 -Project GXX.CSharp/tests/GXX.Client.Tests/GXX.Client.Tests.csproj
+# ② 本车道交付的真身（含注入点/常量字段，脚本给的是"public static 声明总数"，不是覆盖率分子）
+(Select-String -Path 'GXX.CSharp\src\GXX.Client\GUI\Mir\MShare\MShareFunctions.cs' -Pattern '^\s{4}public static').Count  # => 45
+(Select-String -Path 'GXX.CSharp\src\GXX.Client\GUI\Mir\MShare\MShareGlobals.Core.cs' -Pattern '^\s{4}public static').Count # => 232（230 个 g_* + 2 私有 helper 行不计）
+(Select-String -Path 'GXX.CSharp\src\GXX.Client\GUI\Mir\MShare\TWarrContinueHitManager.cs' -Pattern '^\s{4}public ').Count  # => 6
+# ③ 门禁三行（官方脚本，带 -Repo，不要 --no-build）
+powershell -NoProfile -ExecutionPolicy Bypass -File GXX.CSharp/tools/run-gate.ps1 `
+  -Repo "D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p17-client-mshare" `
+  -Project GXX.CSharp/tests/GXX.Client.Tests/GXX.Client.Tests.csproj
 ```
 
 ---
 
-## 2. 本车道交付物（切片 1–3）
+## 2. 本车道交付物（切片 1 / 3 / A / B / C）
 
 | 文件 | 提交 | 状态 | 内容 |
 |---|---|---|---|
-| `GXX.CSharp/src/GXX.Client/GUI/Mir/ClientGlobals.cs` | 1 / 3 | 改 | `MShareGlobals` 改 `partial`；补 24 条 fstate B-6 全局真身；补 `g_MyBlacklist`/`g_boContinuous` 复位；`ResetForTests` 同步覆盖 seam 与注入点 |
-| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareGlobals.Core.cs` | 1 / 3 | 新 | 204 条 `g_*` 全局（202 主流程 + `g_DefColorTable` + `g_InputBoxFilterList` + `g_MyBlacklist` + `g_boContinuous`） |
-| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareFunctions.cs` | 1 / 3 | 新 | **32 条真身**（切片1 的 21 条 + 切片3 的 11 条平台族）+ 7 个 `ShiftState_*` 常量 + 4 条私有 helper + 4 个测试注入点 |
+| `GXX.CSharp/src/GXX.Client/GUI/Mir/ClientGlobals.cs` | 1 / 3 / A | 改 | `MShareGlobals` 改 `partial`；补 24 条 fstate B-6 全局真身；补 `g_MyBlacklist`/`g_boContinuous`；`ResetForTests` 覆盖 seam/注入点 + **切片A 的 10 个新配置字段** |
+| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareGlobals.Core.cs` | 1 / 3 | 新 | 232 条 `g_*` 全局（202 主流程 + `g_DefColorTable` + `g_InputBoxFilterList` + `g_MyBlacklist` + `g_boContinuous`） |
+| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareFunctions.cs` | 1 / 3 / C | 新 | **39 条真身**（切片1 的 21 + 切片3 的 11 平台族 + 切片C 的 7 hint 字体族）+ 7 个 `ShiftState_*` 常量 + 4 条私有 helper + 4 个测试注入点 |
 | `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareTypes.cs` | 1 | 新 | `TRGBQuad`（`RGBTRIPLE`，`Pack=1`） |
-| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/TWarrContinueHitManager.cs` | 3 | 新 | 客户端 `TWarrContinueHitManager`（4 条方法，1 条原文如此） |
-| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareWarrConfigSeam.cs` | 3 | 新 | 有界跨区 seam（3 个连击配置字段 + Reset），见 D-P17-04 |
+| `GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/TWarrContinueHitManager.cs` | 3 / B | 新/改 | 客户端 `TWarrContinueHitManager`（4 条方法，1 条原文如此）；切片B 改指 `g_ConfigClient` 真身 |
+| ~~`GXX.CSharp/src/GXX.Client/GUI/Mir/MShare/MShareWarrConfigSeam.cs`~~ | 3 → **A/B 删除** | **已退役** | 切片3 的临时跨区 seam；切片A 补字段后删除（见 §5.3 R-1） |
+| **`GXX.CSharp/src/GXX.Client/GUI/Mir/MirForms.cs`** | A | 改 | **调度方 CR-6 授权**：`TConfigClient` 补 10 字段（连击三件套 + hint 字体族 7 个）+ `HintFontNameBuffer` 包装类型（见 §4.6） |
 | `GXX.CSharp/tests/GXX.Client.Tests/MShareP17Slice1Tests.cs` | 1 | 新 | 33 个 `[Fact]/[Theory]` ⇒ **110 条用例** |
 | `GXX.CSharp/tests/GXX.Client.Tests/MShareP17Slice3Tests.cs` | 3 | 新 | 44 个 `[Fact]/[Theory]` ⇒ **61 条用例** |
 | `GXX.CSharp/docs/并行报告-p17-client-mshare.md` | 2 / 3 | 新 | 本报告 |
@@ -85,8 +95,8 @@ dotnet test exit code : 0
 crash markers found   : none
 GATE: PASS (build 0 error, test exit 0, no crash markers)
 ```
-客户端测试项目全量：`已通过! - 失败: 0，通过: 5169，已跳过: 0，总计: 5169`
-（车道基线 4,999 ⇒ 本车道累计新增 **171 条**用例：切片1 110 + 切片3 61；其余为并道带入）
+客户端测试项目全量：`已通过! - 失败: 0，通过: 5199，已跳过: 0，总计: 5199`
+（车道基线 4,999 ⇒ 本车道累计新增 **201 条**用例：切片1 110 + 切片3 61 + 切片C 30；其余为并道带入）
 
 ---
 
@@ -389,7 +399,20 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | 31 | `g_MyBlacklist` 承载 | 2462 | `MShareGlobals.g_MyBlacklist` | REAL | 原文唯一读点 11475 的 `THashedStringList.IndexOf` 语义（不敏感 + 首个命中） |
 | 32 | `g_boContinuous` 承载 | 2442 | `MShareGlobals.g_boContinuous` | REAL | 原文 3267 的唯一读点 |
 
-**小计**：`真实体 32 + NotPorted 133 + 原文如此 3 = 168` ✅
+| # | 例程 | 原文行 | 托管位置 | 状态 | 关键判据（原文） |
+|---:|---|---:|---|---|---|
+| 33 | `GetHintNameFontName` | 11703 | `MShareFunctions.GetHintNameFontName` | REAL | `Result := g_ClientConfig.sShowHintFontName;`（短串长度 20） |
+| 34 | `GetHintNameFontSize` | 11708 | 同名 | REAL | `Result := btShowHintNameFontSize;`（`Byte`→`Integer` 提升） |
+| 35 | `GetHintNameFontStyle` | 11713 | 同名 | REAL | `case btShowHintNameFontBold of 0:入参 / 1:[] / 2:[fsBold]` —— **无 `else`**（越界 ⇒ 空集，非入参） |
+| 36 | `GetHintNameFontStroke` | 11725 | 同名 | REAL | `case btShowHintNameFontStroke of 0:入参 / 1:False / 2:True else False` |
+| 37 | `GetHintFontSize` | 11735 | 同名 | REAL | `Result := btShowHintOtherFontSize;` |
+| 38 | `GetHintFontStyle` | 11740 | 同名 | REAL | `case btShowHintOtherFontBold of …` —— 同 11713，**无 `else`** |
+| 39 | `GetHintFontStroke` | 11752 | 同名 | REAL | `case btShowHintOtherFontStroke of …` —— 同 11725 |
+
+> 这 7 条的读取源已在切片A 补进 `MirForms.TConfigClient`（§4.6 #4-#10）；
+> 与既有 `GUI/Share/FStateSeams.cs::MShareHintFont` seam 的**退役细则与兜底值差异**见 §5.3（R-2）。
+
+**小计**：`真实体 39 + NotPorted 126 + 原文如此 3 = 168` ✅
 
 **未移植的 133 条**主要落在**资源族**（`THttpThread` 6、`CreateGameImages`/`GetObjs`/`GetMonImg`/`GetObjInfo` 图像族、`LoadSkillDescList`/`GetItemDesc`/`GetTzItemDesc`/`GetGodBlessItem`/`GetFengHaoItem` 等文本表族、`TImageList` 家族相关、`EncryptImageFileListPassword`/`SetMachineID`/`DebugOutStr` 等平台族）。
 其中**文本表族（8 条）本轮未落地**，原因见 §9.4（原文那 8 条**读的全局从未被声明** + **没有任何调用点**）。
@@ -404,16 +427,72 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | 切片3：`g_MyBlacklist`(2462) / `g_boContinuous`(2442) | 2 | 2442 / 2462 | `MShareGlobals.Core.cs` |
 | **合计** | **231** | | |
 
-### 4.5 切片3 新增：`TWarrContinueHitManager` 与两个承载类
+### 4.5 切片3 新增：`TWarrContinueHitManager` 与承载类
 
 | 交付物 | 位置 | 计数对账 | 备注 |
 |---|---|---|---|
 | `TWarrContinueHitManager`（客户端侧） | `MShare/**/TWarrContinueHitManager.cs` | 真实体 4 / NotPorted 0 / 原文如此 1（`CanOpenMagic`） | 与 `GXX.M2Server.Engine.TWarrContinueHitManager` **同名不同实现**，已用反射用例锁死"签名不同、不可改指" |
-| `MShareWarrConfigSeam` | `MShare/**/MShareWarrConfigSeam.cs` | 真实体 4（3 字段 + Reset） | **有界跨区 seam**，见 §8 CR-6 / D-P17-04 |
+| ~~`MShareWarrConfigSeam`~~ | **切片B 已删除** | — | 切片3 的临时跨区 seam；切片A 补字段后**已退役**（见 §5.3）。属"退役不计覆盖率分子"单列项 |
 | `MShareFunctions` 新增平台族 | 同文件 | 真实体 11 | 见 §4.3 切片3 表 |
 
 > **原文全文无调用点**（本轮实测）：`GetTempDir`(11682) 与 `MakeTempFileName`(11690) 在 `MShare.pas` 里**只有声明与实现，没有任何调用**。
 > 因此它们目前是"可移植但无人消费"的例程——本切片仍按 1:1 落地并配用例，**不因此虚增进度**（它们确实在 168 条口径内）。
+
+### 4.6 切片A：`MirForms.TConfigClient` 补 10 字段 —— 「原文声明 → 我补的字段 → 两侧一致性」逐行表
+
+**为什么补在这个类**：调度方 CR-6 裁定"准"，并把 `!GXX.CSharp/src/GXX.Client/GUI/Mir/MirForms.cs` 加进本车道分区。
+原文类型就是本类所对的 `TConfigClient`（`MShare.pas:493-703`）。
+
+**⚠ 先说清一处原文缺陷（它决定了"读谁"）**：原文那 11 处引用写的是 **`g_ClientConfig`**，
+而 `MShare.pas` 全文**没有**这个标识符的声明 —— 2180 行真正的声明是
+`g_ConfigClient:TConfigClient;`（`g_ConfigClient` vs `g_ClientConfig`，多一个 `i`）。
+⇒ 语义上就是 `g_ConfigClient`；原文这 11 处**原本编译不过**（与 `boNextTime43Hit` 同类）。登记为 **P17-DEF-04**。
+
+**类型口径选择：沿用 Core 口径**（`Grobal2.Types5.cs` 的同名字段类型）。理由：
+① 这些字段在 Core 的 `TClientConfig` 里**已有同名同类型的真身**，将来把 `MShareGlobals.g_ConfigClient`
+   收敛为 `GXX.Core.Protocol.TClientConfig` 是**机械替换**（正是调度方希望的方向）；
+② 本类既有约定就是 Delphi `Boolean` → `byte`（见类内 `boShow1024` 等 13 个既有字段）。
+
+| # | 原文声明 | 原文行 | 我补的字段（`MirForms.TConfigClient`） | Core 对应（`Grobal2.Types5.cs`） | 两侧一致性 |
+|---:|---|---:|---|---|---|
+| 1 | `g_ClientConfig.boDisableWarrContinueHit:Boolean`（被读，无声明） | 12004 / 12079 | `public byte boDisableWarrContinueHit;` | `:341 byte boDisableWarrContinueHit;` | ✅ 名称逐字同、类型逐字同 |
+| 2 | `g_ClientConfig.nWarrContinueHitMinInterval`（被读，无声明；原文别处写作 `Integer`） | 12101 | `public uint nWarrContinueHitMinInterval;` | `:342 uint nWarrContinueHitMinInterval;` | ✅ 名称逐字同、类型随 Core；**理由见注①** |
+| 3 | `g_ClientConfig.ArrDisableWarrContinueHitIDs`（被读，无声明；`array[0..9] of Word`） | 12010 / 12088 / 12112 | `public WordArray10 ArrDisableWarrContinueHitIDs;` | `:343 WordArray10 ArrDisableWarrContinueHitIDs;` | ✅ 名称逐字同、类型逐字同 |
+| 4 | `g_ClientConfig.sShowHintFontName`（`array[0..20] of AnsiChar` ⇒ `string[20]`，被读，无声明） | 11705 | `public HintFontNameBuffer sShowHintFontName;` + `ShowHintFontName` 访问器（长度 20） | `:49 fixed byte sShowHintFontName[21];` + `:372 ShowHintFontName`（`ShortStr.Get(p, 20)`） | ✅ **语义与长度逐字同**；承载形态因 C# 限制不同（**注②**） |
+| 5 | `g_ClientConfig.btShowHintNameFontSize:Byte` | 11710 | `public byte btShowHintNameFontSize;` | `:50 byte btShowHintNameFontSize;` | ✅ 逐字同 |
+| 6 | `g_ClientConfig.btShowHintNameFontBold:Byte` | 11715 | `public byte btShowHintNameFontBold;` | `:51` 同名同类型 | ✅ 逐字同 |
+| 7 | `g_ClientConfig.btShowHintNameFontStroke:Byte` | 11727 | `public byte btShowHintNameFontStroke;` | `:52` 同名同类型 | ✅ 逐字同 |
+| 8 | `g_ClientConfig.btShowHintOtherFontSize:Byte` | 11737 | `public byte btShowHintOtherFontSize;` | `:53` 同名同类型 | ✅ 逐字同 |
+| 9 | `g_ClientConfig.btShowHintOtherFontBold:Byte` | 11742 | `public byte btShowHintOtherFontBold;` | `:54` 同名同类型 | ✅ 逐字同 |
+| 10 | `g_ClientConfig.btShowHintOtherFontStroke:Byte` | 11754 | `public byte btShowHintOtherFontStroke;` | `:55` 同名同类型 | ✅ 逐字同 |
+
+**注① 为什么 `nWarrContinueHitMinInterval` 选 `uint` 而不是原文别处的 `Integer`**：
+它只在一个表达式里被读（原文 12101）：
+`Result := tick_diff(FLastUseMagicTick, MyGetTickCount) >= g_ClientConfig.nWarrContinueHitMinInterval + 100;`
+`tick_diff` 的返回是 `Cardinal`（**无符号、带回绕**）。若用 `Integer`，`nWarrContinueHitMinInterval + 100`
+会先按有符号算，再与 `Cardinal` 比较时被隐式转成无符号 —— 当配置值为负或接近 `High(Integer)` 时
+两侧行为分叉。用 `uint` 让 `>=` 的运算符语义与 `tick_diff` **完全一致**，且与 Core 真身逐字对齐。
+已用边界用例锁死：`CanUseMagic_IntervalZero_StillRequiresTheHardcoded100ms`、
+`CanUseMagic_TickDiffWraparound_IsHandledByCardinalSemantics`。
+
+**注② 为什么 `sShowHintFontName` 用 `HintFontNameBuffer`（`[InlineArray(21)]`）而不是 `fixed byte[21]`**：
+`TConfigClient` 是 **class**，C# 不允许 `fixed` 定长缓冲区做 class 成员（**CS1642**）。
+改用嵌套 `[InlineArray(21)] struct HintFontNameBuffer`，并在访问器里用 `Unsafe.As` 取首元素引用后取地址
+—— 与 Core 在 **struct** 上用 `fixed` 的是**同一份 21 字节布局**，访问器长度同为 20。
+已用 `GetHintNameFontName_ShortStringIsLengthLimitedTo20Bytes` 锁死截断行为。
+
+**注③ 一句话说明这批字段的性质**：这 10 个字段**都没写在 `MShare.pas` 的 `TConfigClient` 里**
+（它们是"被引用但未声明"），所以此处不是"抄原文记录体"，而是**按引用点反推字段名与语义**、
+再把类型对齐到 Core 的**已有真身**。因此**没有创造第三份定义**——Core 里那 10 个字段就是定义。
+
+**注④ 调度方点名的两个 fstate 字段（单列回报）**：
+
+| fstate 诉求 | 现状 | 结论 |
+|---|---|---|
+| `boNPCGuiCanMove` | **`MirForms.TConfigClient` 里早就有了**（`MirForms.cs:35`，`public byte boNPCGuiCanMove;`） | ✅ **不需要我补**（原文行 `MShare.pas` 亦无该字段的正式声明；它由 `ConfigShare`/`MirForms` 既有承载） |
+| `DMerchantDlgHelp` | 它是 **UI 控件**，不是配置字段：`MirForms.cs` 的 `class TFrmDlg` 里已有 `public TDxImageButton DMerchantDlgHelp;`（原文 `FState.pas TFrmDlg`） | ⚠️ **不是"补 `g_ClientConfig` 字段"能解决的**。若 fstate 需要的是布局/别名，应走 `TFrmDlg` 侧（见 §8.3 CR-9） |
+| （fstate 实际被挡的字段）`sHomePage` | `MirForms.TConfigClient` **没有**；`FStateClMainSeam.sHomePage` 是它的临时承载（p14 D-P14-12） | 🔶 **我没有落**（见 §8.3 CR-10）—— 原文对它有**两个互相冲突的声明**，尺寸未定，先请裁定 |
+
 
 ---
 
@@ -447,6 +526,34 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | 13 | `ConfigShareSeam.HumBagNoUseItemCount()` / `.GetMaxBagCount()` | **跨分区**（`GUI/GameConfig` 车道）。本车道已交付真身 `MShareFunctions.GetMaxBagCount()`；`HumBagNoUseItemCount` 真身在原文 9049（本切片未落地） | `GetMaxBagCount` 可改指真身；`HumBagNoUseItemCount` 待本车道后续切片 |
 | 14 | `FStateClMainSeam.sHomePage` / `FStateClMainSeam` 6 成员 | `frmMain`、`g_ClientConfig` 属 `ClMain.pas`/配置单元，**不在 `MShare.pas`** | 不属本车道，保持现状 |
 | 15 | `FStateScreenSeam`（`DScreen.ClearHint` 计次留痕） | `DScreen:TDrawScreen` 真身在 **MShare.pas:1456（声明）/ DrawScrn.pas（实现）**——**声明在 MShare，实现在 DrawScrn** | 本切片**未**落地 `DScreen` 变量（`TDrawScreen` 类型不存在）。见 §8 CR-2 |
+
+### 5.3 切片B/C 的 seam 变动（**退役不计覆盖率分子**，按调度方要求单列）
+
+| # | seam | 位置 | 本次动作 | 条目数 | 说明 |
+|---:|---|---|---|---:|---|
+| R-1 | ~~`MShareWarrConfigSeam`~~（整类） | `MShare/**/MShareWarrConfigSeam.cs`（**已删除**） | ✅ **退役（本车道自己执行）** | **1 个类 / 4 个成员** | 切片3 的临时跨区 seam（3 字段 + Reset）。切片A 把字段补进 `MirForms.TConfigClient` 后，`TWarrContinueHitManager` 已**改指真身** `MShareGlobals.g_ConfigClient.<字段>`；Reset 逻辑也已并入 `MShareGlobalsReset.ResetForTests()`。**`git status` 可见 `delete mode`** |
+| R-2 | `MShareHintFont`（3 条 + 3 个 Handler + Reset） | `GUI/Share/FStateSeams.cs:455-478`（**跨分区，本车道不动**） | 🔶 **真身已就绪，退役待集成方执行** | **3 条函数 / 8 个成员** | 真身 = `MShareFunctions.GetHintFontSize/GetHintFontStyle/GetHintFontStroke`（切片C）。**退役细则与语义差异见下表** |
+
+**R-2 的退役细则（供集成方执行）**：
+
+| seam 成员 | 真身 | 目标调用点（`file:line`） | ⚠ 语义差异（改指前必须知道） |
+|---|---|---|---|
+| `MShareHintFont.GetHintFontSize()` | `MShareFunctions.GetHintFontSize()` | `DrawScrnEnv.cs:597`；`FStatePure.cs:93/118/130` | **兜底值不同**：seam 在 handler 为 null 时返回 **9**；真身读 `g_ConfigClient.btShowHintOtherFontSize`，**未装载时是 0**。⇒ 直接改指会让"未注入 handler 的测试/未装载配置的启动期"从 `9` 变成 `0`（字号变小）。**必须先确认 9 是不是原文的默认值** —— 原文 11735 无默认值语义（直接读字段），所以 `9` 是**旧车道自己定的兜底**，不是原文。 |
+| `MShareHintFont.GetHintFontStyle(FontStyles)` | `MShareFunctions.GetHintFontStyle(...)` | `DrawScrnEnv.cs:600`；`FStatePure.cs:94/119/131` | 兜底不同：seam 返回**入参原样**；真身在字段为 `0` 时也返回入参原样，但字段**不在 0/1/2** 时返回 `fsNone`（原文无 `else` 的照抄行为）。⇒ 行为更忠实，但"字段脏值"下会与旧兜底分叉。 |
+| `MShareHintFont.GetHintFontStroke(IsStroke)` | `MShareFunctions.GetHintFontStroke(...)` | `DrawScrnEnv.cs:603`；`FStatePure.cs:94/119/131` | 兜底不同：seam 返回**入参原样**；真身字段 `0` 时返回入参原样、`1/2` 时强制、其它返回 `false`（原文 `else`）。 |
+| `GetHintFontSizeHandler` / `GetHintFontStyleHandler` / `GetHintFontStrokeHandler` | —— | 测试注入点：`GuiSharePureTests.cs:243-245 / 260` | 改指后这 3 个注入点无对象；那 4 处测试需改为**直接设置 `MShareGlobals.g_ConfigClient.btShowHintOtherFont*` 字段**（真身没有可注入 handler）。 |
+| `MShareHintFont.ResetForTests()` | —— | `GuiShareHandlersTests.cs:60`；`GuiSharePureTests.cs:54` | 改指为 `MShareGlobalsReset.ResetForTests()`（已包含 7 个 hint 字段的复位）。 |
+
+> **本车道为什么不动 R-2**：`FStateSeams.cs` 不在本车道分区（`!` 清单里没有它），
+> 且那 3 处注入点被 GUI/Share 自己的测试依赖。**改指是集成方动作**，本车道只提供真身 + 差异说明。
+
+### 5.4 退役计数（收口用）
+
+| 类别 | 数量 |
+|---|---:|
+| **本车道本轮自行退役**（整类删除） | **1 个类**（`MShareWarrConfigSeam`，含 4 个成员） |
+| **本车道提供真身、待集成方退役** | **3 条函数**（`MShareHintFont` 的 3 条，含 3 个 Handler + Reset 共 8 个成员） |
+| 截至上一轮的待集成方退役项（§5.1 的 10 项 + §5.2 的 3 项可改指） | 10 + 3 |
 
 ---
 
@@ -522,6 +629,23 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 
 ---
 
+### P17-DEF-04 · `g_ClientConfig` 在 `MShare.pas` **从未声明**（切片A 新增）
+
+- **原文**：`MShare.pas:2180` 真正的声明是
+  ```pascal
+  g_ConfigClient:TConfigClient;
+  ```
+  但 `TWarrContinueHitManager`(12004/12079/12101) 与 hint 字体族(11705/11710/11715/11727/11737/11742/11754)
+  引用的是 **`g_ClientConfig`**（多一个 `i`）。
+- **原文缺陷**：`g_ClientConfig` 这个标识符在 `MShare.pas` **全文没有声明**（`git grep` 式全文扫描：11 处**全是读点**，0 处声明）。
+  ⇒ 原文这 11 处**原本编译不过**，与 `boNextTime43Hit`（见 P17-ASIS-02）**同类悬空引用**。
+- **处理**：按语义认定它就是 `g_ConfigClient`；10 个字段补进本类所对的 `TConfigClient`
+  （`MirForms.TConfigClient`），并让实现从 `MShareGlobals.g_ConfigClient` 读。
+- **锁死用例**：`ConfigureWarr_ActuallyLandsOnTheConfigClient`、`NewConfigFields_UseCoreAlignedTypes`、
+  `ResetForTests_ZeroesAllSevenHintFields`，以及切片C 的全部 7 条函数用例。
+- **附带发现**：`CanOpenMagic` 里被注释掉的 `boNextTime43Hit`（P17-ASIS-02）也是同一类"引用了不存在的标识符"。
+  两处合起来说明：**原文这一版是在删改过程中留下的中间态**，不能用"原文能编译"作为推断前提。
+
 ### P17-ASIS-02 · `TWarrContinueHitManager.CanOpenMagic` 方法体被原文**整段注释**（切片3 新增）
 
 - **原文**：`MShare.pas:11993-12069`
@@ -573,8 +697,7 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 
 | # | 裁定 | 本车道执行情况 |
 |---:|---|---|
-| **CR-1** | `TUserCharacterInfo.sChrName` 短串访问器**由调度方补**（`src/GXX.Client/Scenes/Scenes.cs:36`），做完通知；在此之前 `FStateMShareSeam.g_SelDeleteHumanInfo_sChrName` **不要动** | ✅ 未动该字段。§5.1 #11 仍记「不可退役」，待通知 |
-| **CR-2** | `DScreen` 归属**随"定义该类型的单元"** ⇒ 归 `DrawScrn.pas` 一侧；`MShare` 里的只是前向声明 | ✅ `MShare.pas:1456` 的 `DScreen` 全局**不在本车道移植范围**，不落地。`FStateScreenSeam` 的退役改由 DrawScrn 车道承接 |
+| **CR-1** | `TUserCharacterInfo.sChrName` 短串访问器**由调度方补**（`src/GXX.Client/Scenes/Scenes.cs:36`），做完通知；在此之前 `FStateMShareSeam.g_SelDeleteHumanInfo_sChrName` **不要动** | ✅ 未动该字段。§5.1 #11 仍记「不可退役」，待通知 || **CR-2** | `DScreen` 归属**随"定义该类型的单元"** ⇒ 归 `DrawScrn.pas` 一侧；`MShare` 里的只是前向声明 | ✅ `MShare.pas:1456` 的 `DScreen` 全局**不在本车道移植范围**，不落地。`FStateScreenSeam` 的退役改由 DrawScrn 车道承接 |
 | **CR-4** | `GetKeyDownStr`/`GetKey` **一份实现、归声明它的单元** ⇒ 保留 **MShare 超集版（含 `var nKey` 出参）**，让 `ConfigShare` 改指；改指由集成方执行 | 🔶 **本轮未落地**（见 §9.2）：目标调用点清单已备好（§8.2），待本车道落 `GetKeyDownStr` 后由集成方改指 |
 | **CR-5** | HTTP/用户中心 52 条**本轮不做架构决定**，登记为**架构待决项**、保持未移植且可见；可从进度分母排除但须单列 | ✅ 已排除出可推进分母并在 §9.5 单列；**未造任何空壳** |
 
@@ -613,8 +736,29 @@ public static string GetKeyDownStr(ushort Key, GXX.Client.GUI.Share.TShiftState 
 | **CR-2** | （已裁定）`DScreen` 归 `DrawScrn.pas` | DrawScrn 车道 | `FStateScreenSeam` 的退役 |
 | **CR-3** | `GUI/Share/FStateSeams.cs` 执行 §5.1 的 10 项退役（改指 `MShareGlobals`） | `p14-client-fstate` / 集成方 | 无阻塞，仅清理接缝 |
 | **CR-5** | `Scenes/MiniMapRender.cs:225` 的 `QueryMsgTick` 合并为单一全局 | `p10-client-scrn` / 集成方 | 无阻塞，仅一致性 |
-| **CR-6** | **【新增】给 `MirForms.cs:23 TConfigClient` 补 3 个字段**，或把 `MShareGlobals.g_ClientConfig` 收敛为 `GXX.Core.Protocol.TClientConfig` | 车道1（`GUI/Mir/MirForms.cs`，**非本车道分区**） | 服役 `MShareWarrConfigSeam`（D-P17-04）。3 个字段： `byte boDisableWarrContinueHit;` / `uint nWarrContinueHitMinInterval;` / `WordArray10 ArrDisableWarrContinueHitIDs;`（`Grobal2.Types5.cs:341-343` 已有同名同类型字段可直接抄） |
-| **CR-7** | **【新增】`GetKeyDownStr`/`GetKey` 落地后的改指**（CR-4 的第二步） | `p10-client-mirconfig`（`GUI/GameConfig/ConfigShare.cs`） | §8.2 的语义分歧需先裁决；改指前本车道的实现不会造成第三份实现（本车道**尚未落地**这 2 条，见 §9.2） |
+| **CR-6** | **【已裁定"准" + 授权】给 `MirForms.cs:23 TConfigClient` 补字段**，或把 `MShareGlobals.g_ConfigClient` 收敛为 `GXX.Core.Protocol.TClientConfig` | ✅ **本轮已完成**：`MirForms.cs` 已加进本车道分区，补了 10 字段 + 1 包装类型（§4.6）。**注意**：调度方明令**不要**改 `ClientGlobals.g_ConfigClient` 的**类型** ⇒ 收敛到 `Core.Protocol.TClientConfig` 只作**建议**登记（§8.4），未执行 |
+| **CR-7** | **【新增】`GetKeyDownStr`/`GetKey` 落地后的改指**（CR-4 的第二步） | `p10-client-mirconfig`（`GUI/GameConfig/ConfigShare.cs`） | §8.2 的语义分歧需先裁决；本车道**尚未落地**这 2 条（§9.2），故不构成第三份实现 |
+| **CR-9** | **【新增】`DMerchantDlgHelp` 不是 `g_ClientConfig` 字段** —— 它是 `FState.pas TFrmDlg` 上的 UI 控件，托管侧已在 `GUI/Mir/MirForms.cs::TFrmDlg` 落地（`public TDxImageButton DMerchantDlgHelp;`） | 调度方 → 转告 `p14-client-fstate` | fstate 的 D-P14-16 ② 若指"控件别名/布局"，应走 `TFrmDlg` 侧而非配置字段（§4.6 注④） |
+| **CR-10** | **【新增】`sHomePage` 的尺寸需先裁定** —— 原文对它有两个**互相冲突**的声明：`TClientParam` 分支 `array[0..251] of Char`(252) vs `sHomePage:string[255]`(256)；Core 的 `TClientConfig` 用的是 `fixed byte sHomePage[200]`(200) | 调度方 / `Core.Protocol` | fstate 的 D-P14-12（`FStateClMainSeam.sHomePage` 退役）**卡在这里**。三处尺寸三种值 ⇒ 需裁定以哪份为准，再补进 `MirForms.TConfigClient`（与 Core 对齐 or 与原文对齐）。**本车道未擅自落**（§4.6 注④） |
+| **CR-11** | **【新增，仅建议，未执行】把 `MShareGlobals.g_ConfigClient` 收敛为 `GXX.Core.Protocol.TClientConfig`** | 调度方裁决 | 切片A 已让 10 个新字段的类型与 Core **逐字一致** ⇒ 收敛时是机械替换。但调度方明令**不要**在本轮改该全局的类型（会影响多条已合并车道），故**只登记建议、不执行**（§8.4） |
+
+### 8.4 建议（未执行）：`g_ConfigClient` 类型的收敛路径
+
+调度方明令"不要顺手改 `ClientGlobals.cs` 里 `g_ClientConfig` 的**类型**"，故此处**只登记建议**。
+
+现状：`MShareGlobals.g_ConfigClient` 的类型是 `GXX.Client.GUI.Mir.TConfigClient`（**class**），
+而 `GXX.Core.Protocol.TClientConfig`（**struct**）已经承载了本次新增的全部字段（且远多于本类）。
+两个类型**并存**，风险是同一个"配置"有两份定义 —— 正是本工程反复登记的事故类型。
+
+**收敛可行性（本切片已把地基铺平）**：
+- 本次新增的 10 个字段的**名称与类型与 Core 逐字一致**（§4.6 逐行表的"两侧一致性"列全 ✅）；
+- 唯一形态差异是 `sShowHintFontName`（本类用 `[InlineArray(21)]` 包装，Core 用 `fixed` + struct 字段）
+  —— 因为 **class 不能有 `fixed` 成员**（CS1642）；收敛成 struct 后这个差异**自然消失**。
+- 因此收敛动作 = 把 `g_ConfigClient` 的类型换成 `Core.Protocol.TClientConfig` + 删除 `MirForms.TConfigClient`
+  + 把既有 13 个字段的读写点名字对齐。**这是一次跨多条车道的重构**，须调度方统一排期。**本车道不做。**
+
+**注意**：本次补字段**没有**加重收敛难度（正相反：把它往 Core 口径靠了一步）。
+`MirForms.TConfigClient` 仍是既有 13 个字段的承载者，本车道只是**追加**了 10 个同名同类型字段。
 
 ---
 
@@ -636,14 +780,15 @@ public static string GetKeyDownStr(ushort Key, GXX.Client.GUI.Share.TShiftState 
 |---|---|---|---|
 | ① `TWarrContinueHitManager` 4 条 | 落地 | ✅ **4/4 落地**（含 2 条原文如此事实的照抄） | 见 §4.5；`CanOpenMagic` 恒 True（P17-ASIS-02） |
 | ② 文本表族 8 条 | 落地 | ❌ **0/8，本轮不可落地** | 实测阻塞，见 §9.4（**新增实测结论**） |
-| ③ 平台族 12 条 | 落地 | ⚠️ **11/12 落地** | 落：`IsInContinuous`/`ProcessFileNameSpecialChar`/`GetTempDir`/`MakeTempFileName`/`_FileSize`/`GetAbsolutePathEx`/`ShiftStateToPlugShiftState`(+7 常量)/`CheckBlockListSys`。**未落 1 条**：`GetHintFontSize` 等 hint 字体族（4 条）依赖 `TConfigClient.sShowHintFontName` 等**同类字段缺失**，与 D-P17-04 同源 ⇒ 并入 CR-6 一起收敛 |
-| ④ `TMapDesc` 4 条 | 落地 | ❌ **0/4，本轮未落地** | 依赖 `TMapDescList`（原文 258-265 记录）与 `MemIni` 文本解析；本轮预算用于 ①②③ 与 CR 裁定执行，如实登记未做 |
+| ③ 平台族 12 条 | 落地 | ✅ **11/12 落地** + **切片C 补齐 hint 字体族 7 条** | 落：`IsInContinuous`/`ProcessFileNameSpecialChar`/`GetTempDir`/`MakeTempFileName`/`_FileSize`/`GetAbsolutePathEx`/`ShiftStateToPlugShiftState`(+7 常量)/`CheckBlockListSys`；**切片C 又落 7 条 hint 字体族**（原估 4 条，实为 7 条）⇒ 该族**已全部落地** |
+| ④ `TMapDesc` 4 条 | 落地 | ❌ **0/4，本轮未落地** | 依赖 `TMapDescList`（原文 258-265 记录）与 `MemIni` 文本解析；本轮预算用于 ①②③ + 切片A/B/C，如实登记未做 |
+| **切片A**（调度方 CR-6 追加） | 补字段 | ✅ **10 字段 + 1 包装类型** | 见 §4.6 逐行表；`MirForms.cs` 由调度方加进本车道分区 |
+| **切片B**（调度方 CR-6 追加） | 退役 seam | ✅ **1 个类 / 4 个成员退役** | `MShareWarrConfigSeam.cs` 删除，改指 `g_ConfigClient` 真身；见 §5.3 R-1 |
+| **切片C**（调度方 CR-6 追加） | hint 字体族 7 条 | ✅ **7/7 落地** | 见 §4.3 切片C 表；真身就绪 ⇒ `MShareHintFont` seam 可退役（§5.3 R-2） |
 
-> **注**：hint 字体族实际是 `GetHintNameFontName`(11703) / `GetHintNameFontSize`(11708) / `GetHintNameFontStyle`(11713) /
-> `GetHintNameFontStroke`(11725) / `GetHintFontSize`(11735) / `GetHintFontStyle`(11740) / `GetHintFontStroke`(11752) **7 条**（比我原估的 4 条多），
-> 全部只读 `g_ClientConfig.sShowHintFontName` / `btShowHintNameFontSize` / `btShowHintNameFontBold` / `btShowHintNameFontStroke` /
-> `btShowHintOtherFontSize` / `btShowHintOtherFontBold` / `btShowHintOtherFontStroke` —— **都不在 `MirForms.TConfigClient` 里**，
-> 与本轮 D-P17-04 同一根因。**并入 CR-6 一起处理**（补字段后这 7 条就是纯 BCL 逻辑，可一次落完）。
+> **注**：hint 字体族实为 **7 条**（`GetHintNameFontName`(11703) / `GetHintNameFontSize`(11708) / `GetHintNameFontStyle`(11713) /
+> `GetHintNameFontStroke`(11725) / `GetHintFontSize`(11735) / `GetHintFontStyle`(11740) / `GetHintFontStroke`(11752)），
+> 比我上一轮估的 4 条多 3 条。它们全部只读 `g_ClientConfig` 的 7 个字段，切片A 补字段后即纯 BCL 逻辑，**已一次落完**。
 
 ### 9.3 明确阻塞（需外部条件）
 
@@ -705,12 +850,14 @@ public static string GetKeyDownStr(ushort Key, GXX.Client.GUI.Share.TShiftState 
 | 口径 | 成员数 | 真实体 | NotPorted | 原文如此 | 等式 |
 |---|---:|---:|---:|---:|---|
 | 类方法（22 类） | 185 | **4** | 181 | 0 | `4+181+0=185` ✅ |
-| 单元级例程 | 168 | **32** | 133 | **3** | `32+133+3=168` ✅ |
-| 例程合计 | 353 | **36** | 314 | **3** | `36+314+3=353` ✅ |
+| 单元级例程 | 168 | **39** | 126 | **3** | `39+126+3=168` ✅ |
+| 例程合计 | 353 | **43** | 307 | **3** | `43+307+3=353` ✅ |
 | 全局 `g_*` | 约 460 | **231** | 约 229 | 0 | `231+约229+0=约460` ✅ |
 | 类（`= class`） | 22 | **1** | 21 | 0 | `1+21+0=22` ✅ |
-| 原文缺陷 / 原文如此（锁死） | — | — | — | **4**（P17-ASIS-01 / P17-DEF-02 / P17-DEF-03 / P17-ASIS-02） | — |
+| 原文缺陷 / 原文如此（锁死） | — | — | — | **5**（P17-ASIS-01 / P17-ASIS-02 / P17-DEF-02 / P17-DEF-03 / P17-DEF-04） | — |
 | 偏离 | — | — | — | **4**（D-P17-01/02/03/04） | — |
+| **已退役 seam（不计覆盖率分子）** | — | **1 个类 / 4 个成员** | — | — | §5.3 R-1 ✅ |
+| **待集成方退役（真身已就绪，亦不计分子）** | — | **3 条函数 / 8 个成员** | — | — | §5.3 R-2 🔶 |
 | 🔶 架构待决（CR-5，已移出可推进分母） | 52 条方法 / 3 个类 | — | — | — | 见 §9.5 |
 
 **逐文件交付明细**：
@@ -729,6 +876,13 @@ public static string GetKeyDownStr(ushort Key, GXX.Client.GUI.Share.TShiftState 
 | `50063f9e` | `src/GXX.Client/GUI/Mir/MShare/MShareGlobals.Core.cs` | +约 20 | `g_MyBlacklist` + `g_boContinuous` |
 | `50063f9e` | `src/GXX.Client/GUI/Mir/ClientGlobals.cs` | +约 10 | `Reset` 补 2 全局 + seam/注入点复位 |
 | `50063f9e` | `tests/GXX.Client.Tests/MShareP17Slice3Tests.cs` | +约 660（新） | 44 个 `[Fact]/[Theory]` ⇒ 61 条用例 |
+| `f1af8e57` | `src/GXX.Client/GUI/Mir/MirForms.cs` | +约 120 | **切片A**：`TConfigClient` 补 10 字段 + `HintFontNameBuffer`（`[InlineArray(21)]`）+ `ShowHintFontName` 访问器 |
+| `f1af8e57` | `src/GXX.Client/GUI/Mir/MShare/MShareWarrConfigSeam.cs` | **−64（删除）** | **切片B 退役**：整类删除（4 个成员） |
+| `f1af8e57` | `src/GXX.Client/GUI/Mir/MShare/TWarrContinueHitManager.cs` | 改 | 切片B：3 处读点改指 `MShareGlobals.g_ConfigClient.*` |
+| `f1af8e57` | `src/GXX.Client/GUI/Mir/MShare/MShareFunctions.cs` | +约 110 | **切片C**：hint 字体族 7 条真身 + `TFontStyles` 别名 |
+| `f1af8e57` | `src/GXX.Client/GUI/Mir/ClientGlobals.cs` | 改 | 切片A：10 个新字段的 `ResetForTests` 复位（含 `ShowHintFontName=""`） |
+| `f1af8e57` | `tests/GXX.Client.Tests/MShareP17SliceCTests.cs` | +约 290（新） | 30 个 `[Fact]/[Theory]` ⇒ **30 条用例** |
+| `f1af8e57` | `tests/GXX.Client.Tests/MShareP17Slice3Tests.cs` | 改 | 切片B：改指 `g_ConfigClient`，helper 由 seam 改为真身 |
 
 ---
 
@@ -738,9 +892,11 @@ public static string GetKeyDownStr(ushort Key, GXX.Client.GUI.Share.TShiftState 
 |---|---|---|
 | `54f3e9af` | 切片1：MShare 全局真身（fstate B-6）+ 首批 21 条纯函数 | **PASS**；`dotnet test exit code: 0` / `crash markers found: none` / `GATE: PASS`；5108 通过 / 0 失败 |
 | `5227d242` | 切片2：185 条逐例程对账表 + 22 类表 + 实测覆盖率 + seam 退役清单 | **PASS**；同上；5108 通过 / 0 失败 |
-| `50063f9e` | 切片3：`TWarrContinueHitManager`(4) + 平台族(11) + 黑名单/连击配置 | **PASS**；`dotnet test exit code: 0` / `crash markers found: none` / `GATE: PASS (build 0 error, test exit 0, no crash markers)`；**5169 通过 / 0 失败** |
+| `50063f9e` | 切片3：`TWarrContinueHitManager`(4) + 平台族(11) + 黑名单/连击配置 | **PASS**；5169 通过 / 0 失败 |
+| `416449f0` | 切片4：报告收口（CR-1…CR-5 裁定执行 + 文本表族实测结论 + 三段计数对账） | **PASS**；5169 通过 / 0 失败 |
+| **`f1af8e57`** | **切片A/B/C**：`MirForms.TConfigClient` 补 10 字段 + 退役 `MShareWarrConfigSeam` + hint 字体族 7 条 | **PASS**；`dotnet test exit code: 0` / `crash markers found: none` / `GATE: PASS (build 0 error, test exit 0, no crash markers)`；**5199 通过 / 0 失败** |
 
-**切片3 门禁命令（官方脚本，带 `-Repo`，不用 `--no-build`）**：
+**最新门禁命令（官方脚本，带 `-Repo`，不用 `--no-build`）**：
 ```powershell
 cd D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p17-client-mshare
 powershell -NoProfile -ExecutionPolicy Bypass -File GXX.CSharp/tools/run-gate.ps1 `
@@ -758,11 +914,28 @@ powershell -NoProfile -ExecutionPolicy Bypass -File GXX.CSharp/tools/run-gate.ps
 3. `GUI/GameConfig/ConfigShare.cs` 的 `GetMaxBagCount` 改指 `MShareFunctions.GetMaxBagCount()`（真身已交付）。
 
 **需先裁定再执行**：
-4. **CR-6**：`MirForms.TConfigClient` 补 3 个连击字段（或收敛为 `Core.Protocol.TClientConfig`）⇒ 退役 `MShareWarrConfigSeam`。
-   顺带补 7 个 hint 字体字段 ⇒ 解锁 hint 字体族 7 条例程。
+4. **CR-6**（已裁定"准"并授权本车道）✅ **本轮已完成**：`MirForms.TConfigClient` 补 10 字段 —— 连击三件套退役 `MShareWarrConfigSeam`（§5.3 R-1），hint 字体族 7 字段解锁 7 条例程（§4.3 切片C）。
+   剩余由集成方执行的：**R-2**（`MShareHintFont` seam 退役，含 3 个测试注入点的改造，细则见 §5.3）。
 5. **CR-7 / §8.2**：`GetKeyDownStr`/`GetKey` 的改指 —— ⚠ **先裁决 `IncludeFN` 形参与 `TShiftState` 类型的两处分歧**（§8.2 已列出目标调用点的文件:行与期望签名）。
 6. **CR-8（新增）**：裁定 `g_SkillDescList` / `g_ItemDescList` / `g_TzItemDescList` / `g_GodBlessItemList` / `g_FengHaoItemList` / `g_SkillUpgradeDescList` 这些**在 `MShare.pas` 无声明却在其中被读写**的全局的**归属单元**（§9.4）⇒ 解锁文本表族 8 条。
 7. **CR-5 / §9.5**：HTTP + 用户中心 52 条的架构决策（含 `SuperObject` 类型缺口与线程模型）。
+8. **CR-9（新增，转告 fstate）**：`DMerchantDlgHelp` 是 `TFrmDlg` 上的 UI 控件、**不是**配置字段（§4.6 注④）。
+9. **CR-10（新增）**：`sHomePage` 的三处尺寸冲突（252 / 256 / 200）需裁定 ⇒ fstate D-P14-12 卡在这里（§8.3）。
+10. **CR-11（仅建议）**：`g_ConfigClient` 类型收敛到 `Core.Protocol.TClientConfig` —— 地基已铺平，**调度方明令本轮不做**（§8.4）。
 
 **不可退役（等 CR-1）**：
-8. `FStateMShareSeam.g_SelDeleteHumanInfo_sChrName` —— 等调度方补 `TUserCharacterInfo.sChrName`。
+11. `FStateMShareSeam.g_SelDeleteHumanInfo_sChrName` —— 等调度方补 `TUserCharacterInfo.sChrName`。
+
+---
+
+## 13. 附：本轮（切片A/B/C）踩到的两个工程坑（建议记入规程）
+
+1. **`TConfigClient` 是 class ⇒ 不能有 `fixed` 定长缓冲区成员**（CS1642）。
+   原文 `sShowHintFontName:array[0..20] of AnsiChar` 不能直译成 `public unsafe fixed byte sShowHintFontName[21];`。
+   解法：嵌套 `[InlineArray(21)] struct`（与 `Grobal2.Types4.cs:40 WordArray10` 同构），
+   访问器里用 `Unsafe.As` 取首元素引用后取地址（`fixed (byte* p = someInlineArrayField)` 会 **CS8385**）。
+   **凡把 Delphi 定长数组加进 class 都会遇到这一条。**
+
+2. **`[InlineArray(N)]` 的越界是编译期错误（CS9166），不能写进 `Assert.Throws`。**
+   我最初把"长度必须为 10"写成 `Assert.Throws<IndexOutOfRangeException>(() => arr[10] = 99)`
+   —— **编译不过**。这类长度约束应改为"0..N-1 全可写"的**正向**用例（越界由编译器守，比运行时断言更强）。
