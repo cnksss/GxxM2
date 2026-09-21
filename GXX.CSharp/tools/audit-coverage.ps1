@@ -153,7 +153,6 @@ $E2_REFUTED = @(
     # method-level sampling.  They have NO substitute framework, so they must stay visible as
     # gaps instead of hiding in MAPPED (putting them in $VENDOR_UNITS would hide them).
     # Basenames verified unique repo-wide, so bare keys are safe here.
-    'ObjPlayer',               # 49,232 lines
     'ObjHero',                 # 14,664
     'StateWindows',            # 14,027
     'MShare',                  # 13,522
@@ -177,6 +176,12 @@ $PARTIAL_UNITS = @(
     # 71/533 declared members really implemented (13.32%).  Its own IL-based guard test
     # (newobj NotSupportedException) is what keeps "forwarding body" from passing as "implemented".
     'FState'           # 71/533 = 13.32%; PENDING 183 is the main battlefield
+    # ledger 57.1/58.1: ObjPlayer advanced from REFUTED by lane par/p13-m2-objplayer.
+    # Measured: 17/811 = 2.10% at start, ~367/811 = 45.3% delivered, and the lane itself insists on
+    # the CREDIBLE LOWER BOUND 38% because 37 integration-failing tests were ticketed as skips
+    # (D-P13-09) instead of being deleted -- "unverified counts as not done" applied to its own work.
+    # 15 of 21 line segments remain (~189 routines).
+    ,'ObjPlayer'       # 38%~45.3% (lower bound adopted)
 )
 
 # ---- per-copy entries of the not-ported registry --------------------------

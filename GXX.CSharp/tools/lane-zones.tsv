@@ -121,5 +121,12 @@ p14-client-fstate	!GXX.CSharp/src/GXX.Client/GUI/Share/**;!GXX.CSharp/src/GXX.Cl
 # first (a load-order dependency that already produced one red gate).  Explicit file list, no globs,
 # so this lane cannot collide with p13-m2-objplayer (Engine/PlayerSurface/**) or objmon-real (ObjMon*.cs).
 p15-cp936-sweep	!GXX.CSharp/src/GXX.Core/Launcher/LauncherSettings.cs;!GXX.CSharp/src/GXX.M2Server/Engine/Boxs.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ClientModuleList.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CombatPower.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CustomHeroMagic.cs;!GXX.CSharp/src/GXX.M2Server/Engine/CustomNpcUtils.cs;!GXX.CSharp/src/GXX.M2Server/Engine/FilterTexts.cs;!GXX.CSharp/src/GXX.M2Server/Engine/GroupItems.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ItemEffects.cs;!GXX.CSharp/src/GXX.M2Server/Engine/Items.cs;!GXX.CSharp/src/GXX.M2Server/Engine/SkillPowerItemList.cs;!GXX.CSharp/src/GXX.M2Server/Engine/SndaShop.cs;!GXX.CSharp/src/GXX.M2Server/Engine/UserCmds.cs;!GXX.CSharp/src/GXX.M2Server/Engine/ViewFormsData.cs;!GXX.CSharp/src/GXX.RunGate/GateShareAddressUtils.cs;!GXX.CSharp/src/GXX.RunGate/GateShareMagicIntervalUtils.cs;!GXX.CSharp/src/GXX.RunGate/RunGateConfigLoader.cs;GXX.CSharp/tests/GXX.Core.Tests/Cp936*;GXX.CSharp/docs/并行报告-p15-cp936-sweep.md
+# ---- P16 (round 67): TMonster.Run -- the ONE place where monster AI runtime behaviour lives.
+# main currently holds an 18-line approximation (ObjBase.cs:229) explicitly labelled a
+# simplification, while the original TMonster.Run (ObjMon.pas:1121-1391) is 270+ lines with four
+# branches that have no managed counterpart at all.  ObjBase.cs is granted because that is where
+# TMonster is declared; no other live lane touches it (objplayer owns Engine/PlayerSurface/**,
+# objmon-real owns ObjMon*.cs).
+p16-m2-tmonster-run	!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;GXX.CSharp/tests/GXX.M2Server.Tests/MonsterRun*;GXX.CSharp/docs/并行报告-p16-m2-tmonster-run.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1
