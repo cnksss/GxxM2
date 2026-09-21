@@ -1013,6 +1013,56 @@ public static class FStateClMainSeam
     /// <summary>ClMain.pas frmMain.Close（原文 2297 调用）。</summary>
     public static void Close() => CloseHandler?.Invoke();
 
+    // ============================================================================================
+    // 切片 9：`DMessageDlg` 的可注入承载 + 公会三个 Send*
+    //
+    // ★ 为什么 DMessageDlg 在这里而不是被"移植"：
+    //   原文 `FState.pas:863` 是 `function DMessageDlg(...):TModalResult; virtual; abstract;`
+    //   —— **带 abstract**，且整份 implementation 段（1119-25165）里**没有**
+    //   `function TFrmDlg.DMessageDlg` 的函数体（全文逐行扫描确认）。同族的
+    //   `DMessageDiceDlg`(864) / `DMessageLoadDataDlg`(865) / `DMessageNoticeDlg`(866) 同样是 abstract。
+    //   对照组：同段的 `CloseSayItemDlg`(859)、`ShowMDlg`(867) 是 concrete（无 abstract）。
+    //   ⇒ `DMessageDlg` 在原文里就是"由子类实现"的钩子（StateWindows / SerialWindowsDlg 那些子类才有体），
+    //     按本报告的四态定义属于 **ABSTRACT_NO_BODY**：**没有"1:1 原文实现"可落**。
+    //   本类据此只提供**可注入承载**；生成壳里它的 `throw` 壳**原样保留**，本类不替换它。
+    // ============================================================================================
+
+    /// <summary>
+    /// 原文 `FState.pas:863` `function DMessageDlg(MsgStr:string; DlgButtons:TMsgDlgButtons;
+    /// DefaultText:string = ''; MaxLen:Integer = 0):TModalResult; virtual; abstract;` 的注入点。
+    /// 参数依次为 (MsgStr, DlgButtons, DefaultText, MaxLen)。
+    /// </summary>
+    public static Func<string, TMsgDlgButtons, string, int, TModalResult> DMessageDlgHandler;
+
+    /// <summary>
+    /// 原文 abstract 钩子 `DMessageDlg` 的托管调用形态。
+    /// **未注入时返回 `TModalResult.mrNone`** —— 即"没有任何按钮被按下"，
+    /// 使 `if mrOk = DMessageDlg(...)` 之类的判据自然不成立（不误触发副作用）。
+    /// </summary>
+    public static TModalResult DMessageDlg(string MsgStr, TMsgDlgButtons DlgButtons,
+        string DefaultText = "", int MaxLen = 0)
+        => DMessageDlgHandler != null
+            ? DMessageDlgHandler(MsgStr, DlgButtons, DefaultText, MaxLen)
+            : TModalResult.mrNone;
+
+    /// <summary>ClMain.pas `frmMain.SendGuildAddMem(sName:string)`（原文 17896 调用）。</summary>
+    public static Action<string> SendGuildAddMemHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildAddMem（原文 17896 调用）。</summary>
+    public static void SendGuildAddMem(string sName) => SendGuildAddMemHandler?.Invoke(sName);
+
+    /// <summary>ClMain.pas `frmMain.SendGuildDelMem(sName:string)`（原文 17903 调用）。</summary>
+    public static Action<string> SendGuildDelMemHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildDelMem（原文 17903 调用）。</summary>
+    public static void SendGuildDelMem(string sName) => SendGuildDelMemHandler?.Invoke(sName);
+
+    /// <summary>ClMain.pas `frmMain.SendSay(sMsg:string)`（原文 17931/17938 调用）。</summary>
+    public static Action<string> SendSayHandler;
+
+    /// <summary>ClMain.pas frmMain.SendSay（原文 17931/17938 调用）。</summary>
+    public static void SendSay(string sMsg) => SendSayHandler?.Invoke(sMsg);
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -1043,6 +1093,10 @@ public static class FStateClMainSeam
         SendGroupModeHandler = null;
         SendDelDealItemHandler = null;
         CloseHandler = null;
+        DMessageDlgHandler = null;
+        SendGuildAddMemHandler = null;
+        SendGuildDelMemHandler = null;
+        SendSayHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

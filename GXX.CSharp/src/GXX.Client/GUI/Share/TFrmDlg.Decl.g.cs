@@ -588,12 +588,6 @@ public partial class TFrmDlg
     /// <summary>Source line 598 : procedure DGuildDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGuildDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGuildDlgDirectPaint: not ported yet (FState.pas:598)");
-    /// <summary>Source line 604 : procedure DGDAddMemClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDAddMemClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDAddMemClick: not ported yet (FState.pas:604)");
-    /// <summary>Source line 605 : procedure DGDDelMemClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDDelMemClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDDelMemClick: not ported yet (FState.pas:605)");
     /// <summary>Source line 610 : procedure DGuildEditNoticeDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGuildEditNoticeDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGuildEditNoticeDirectPaint: not ported yet (FState.pas:610)");
@@ -705,12 +699,6 @@ public partial class TFrmDlg
     /// <summary>Source line 671 : procedure DBotExitClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DBotExitClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DBotExitClick: not ported yet (FState.pas:671)");
-    /// <summary>Source line 672 : procedure DGDAllyClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDAllyClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDAllyClick: not ported yet (FState.pas:672)");
-    /// <summary>Source line 673 : procedure DGDBreakAllyClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDBreakAllyClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDBreakAllyClick: not ported yet (FState.pas:673)");
     /// <summary>Source line 674 : procedure DButtonFriendClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DButtonFriendClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DButtonFriendClick: not ported yet (FState.pas:674)");

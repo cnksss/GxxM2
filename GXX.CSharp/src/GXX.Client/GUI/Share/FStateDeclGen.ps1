@@ -76,7 +76,12 @@ $Handwritten = @(
   # Hint-clearing mouse handlers, the two remaining "close/hide" forwarders, the minimap
   # coordinate recorder, and the early-Exit CloseSayItemDlg.
   'DSSrvCloseClick','DGoToLieDragonClick','DGameGoldDealDlgMouseMove','DMinMapDlgMouseMove',
-  'CloseSayItemDlg','DUserState1MouseMove'
+  'CloseSayItemDlg','DUserState1MouseMove',
+  # ---- lane p14-client-fstate slice 9 (TFrmDlg.Handlers.cs) --------------------------------
+  # Guild member/ally handlers. NOTE: they call DMessageDlg, which is `virtual; abstract` in the
+  # original (FState.pas:863) and has NO body in this unit -> it is an ABSTRACT_NO_BODY member
+  # served by a seam, NOT a portable body. See the block comment in FStateSeams.cs.
+  'DGDAddMemClick','DGDDelMemClick','DGDAllyClick','DGDBreakAllyClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**
