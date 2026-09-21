@@ -600,9 +600,11 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 | hash | 说明 |
 |---|---|
 | `dfabe7ce` | 起点（`main` @ 本轮开始时） |
-| `977cf3b`* | 切片 1：NPC 族三空壳迁移 + 1:1 落地 + `TActor.DrawEffSurface` 落点（真实体 29 / NotPorted 1 / 原文如此 0） |
+| `2cfa1f6e` | **切片 1**：NPC 族三空壳迁移 + 1:1 落地（`TNpcActor` 10 / `TStatuaryNpcActor` 9 / `THeroActor` 6）+ `TActor.DrawEffSurface`/`StretchDrawEffSurface` 落点 + 151 例（真实体 29 / NotPorted 1 / 原文如此 0 = 本切片 30 个成员） |
+| `0d2a3ad0` | **切片 2**：`THumActor` 8 条确定性方法 + `TActor.light`/`Initialize`/`CheckLoadUserName`/`CheckLoadSurface`/`Destroy` 虚槽位 + 31 例 + 本报告（真实体 9 / NotPorted 4 / 原文如此 1 = 本切片 14 个成员；累计 78 / 77 / 4） |
 
-\* 提交前的 `git log` 简写；`git -C <工作树> log --oneline -1` 可复算。
+复算：`git -C <工作树> log --oneline main..HEAD` → 2 条（本车道的 2 个切片）。
+10 个改动文件全部落在本车道独占分区内（`git diff --name-only main...HEAD`）。
 
 ---
 
