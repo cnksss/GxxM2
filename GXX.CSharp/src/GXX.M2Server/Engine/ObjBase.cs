@@ -205,11 +205,12 @@ public partial class TPlayObject : TCreature
         PlayerSurfaceVarDefaults.MigrateStringVarDefaults(this);
     }
 
-    public override void Run()
-    {
-        base.Run();
-        // 心跳：超时踢线由 UserEngine 统一处理
-    }
+    // 【集成方移除 · 台账 §52.2】此处原有 5 行**近似** `public override void Run() { base.Run(); }`。
+    // 移除原因：车道 p13-m2-objplayer 要 1:1 移植原文 `TPlayObject.Run`（ObjPlayer.pas:3772-5606，**1,835 行**），
+    // 而同签名 override 已被这 5 行占住 ⇒ 新实现必然 **CS0111**。
+    // **行为等价**：被删的函数体只有 `base.Run();` 一句 ⇒ 删除后 `TPlayObject.Run()` 解析到继承来的
+    // `TCreature.Run()`，语义不变（已用 M2Server 全量用例验证）。
+    // ⚠ 后人请勿再在此处补"占位 Run" —— 真实现落在 `Engine/PlayerSurface/**`。
 }
 
 /// <summary>ObjMon.pas TAnimal/TCreature 怪物核心。</summary>

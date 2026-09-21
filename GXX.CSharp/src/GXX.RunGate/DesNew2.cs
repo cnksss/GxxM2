@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GXX.Core.Crypto;
 
 namespace GXX.RunGate;
@@ -56,7 +56,7 @@ public static unsafe class DesNew2
 
     private static uint CrcOfKey(string key)
     {
-        byte[] data = System.Text.Encoding.GetEncoding(936).GetBytes(key);
+        byte[] data = GXX.Core.EncodingInit.GBK.GetBytes(key);
         uint keyA = 0xFFFFFFFF;
         foreach (byte b in data)
             keyA = CrcTable[(keyA ^ b) & 0xFF] ^ (keyA >> 8);
@@ -66,7 +66,7 @@ public static unsafe class DesNew2
     /// <summary>Jenkins 风格三字混合（a/b/c 初值与非常规移位 1:1 复刻）。</summary>
     private static uint JenkinsMix(string key, uint seed)
     {
-        byte[] data = System.Text.Encoding.GetEncoding(936).GetBytes(key);
+        byte[] data = GXX.Core.EncodingInit.GBK.GetBytes(key);
         uint a = 0xAD2832E3u, b = 0x50FF46DEu, c = 0xF07BB613u;
         int len = data.Length;
         int k = 0;
