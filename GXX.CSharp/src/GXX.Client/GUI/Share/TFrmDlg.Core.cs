@@ -91,7 +91,7 @@ public partial class TFrmDlg
         // 清空短串即把长度字节置 0，故固定后写 pName[0] = 0。
         unsafe
         {
-            fixed (byte* pName = FStateMShareSeam.g_SellDlgItem.s.Name)
+            fixed (byte* pName = MShareGlobals.g_SellDlgItem.s.Name)
             {
                 pName[0] = 0;
             }
@@ -229,7 +229,7 @@ public partial class TFrmDlg
 
         FCurrentBagPage = 0;                                        // 1602
         FExtBagPageCount = 0;                                       // 1603
-        FStateMShareSeam.g_ExtBagOpenItemCount = 0;                 // 1604
+        MShareGlobals.g_ExtBagOpenItemCount = 0;                 // 1604
     }
 
 

@@ -524,8 +524,8 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGetBackDeleteHumanClick(object Sender, int X, int Y)
     {
-        if (FStateMShareSeam.g_SelDeleteHumanInfo_sChrName != "")    // 20594
-            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo_sChrName); // 20595
+        if (FStateMShareSeam.g_SelDeleteHumanInfo.sChrName != "")    // 20594
+            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo.sChrName); // 20595
     }
 
     /// <summary>
@@ -579,9 +579,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGDHomeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17876
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 17876
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
             FStateClMainSeam.SendGuildHome();           // 17878
             BoGuildChat = false;                        // 17879
         }
@@ -593,9 +593,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGDListClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17885
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 17885
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
             FStateClMainSeam.SendGuildMemberList();     // 17887
             BoGuildChat = false;                        // 17888
         }
@@ -643,9 +643,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DBotTradeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18914
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 18914
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
             FStateClMainSeam.SendDealTry();             // 18916
         }
     }
@@ -656,9 +656,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void BotChallengeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18906
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 18906
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
             FStateClMainSeam.SendChallengeTry();        // 18908
         }
     }
@@ -670,7 +670,7 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DDealCloseClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwDealActionTick)   // 17535
+        if (FStateSeamClock.Now > g_dwDealActionTick)   // 17535
         {
             CloseDDealDlg();                            // 17536
             FStateClMainSeam.SendCancelDeal();          // 17537
@@ -684,9 +684,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DealZeroGold()
     {
-        if (!FStateMShareSeam.g_boDealEnd && FStateMShareSeam.g_nDealGold > 0)   // 17748
+        if (!g_boDealEnd && g_nDealGold > 0)   // 17748
         {
-            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
+            g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
             FStateClMainSeam.SendChangeDealGold(0);     // 17750
         }
     }
@@ -697,7 +697,7 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DChallengeCloseClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChallengeActionTick)   // 20815
+        if (FStateSeamClock.Now > g_dwChallengeActionTick)   // 20815
         {
             CloseDChallengeDlg();                       // 20816
             FStateClMainSeam.SendCancelChallenge();     // 20817
@@ -710,9 +710,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void ChallengeZeroGold()
     {
-        if (!FStateMShareSeam.g_boChallengeEnd && FStateMShareSeam.g_nChallengeGold > 0)   // 20791
+        if (!g_boChallengeEnd && g_nChallengeGold > 0)   // 20791
         {
-            FStateMShareSeam.g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
+            g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
             FStateClMainSeam.SendChangeChallengeGold(0);    // 20793
         }
     }
@@ -778,11 +778,11 @@ public partial class TFrmDlg
     /// </summary>
     private void ToggleGroupMode()
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChangeGroupModeTick)
+        if (FStateSeamClock.Now > g_dwChangeGroupModeTick)
         {
-            FStateMShareSeam.g_boAllowGroup = !FStateMShareSeam.g_boAllowGroup;      // 18924 / 18943
-            FStateMShareSeam.g_dwChangeGroupModeTick = FStateSeamClock.Now + 5000;   // 18925 / 18944
-            FStateClMainSeam.SendGroupMode(FStateMShareSeam.g_boAllowGroup);         // 18926 / 18945
+            g_boAllowGroup = !g_boAllowGroup;      // 18924 / 18943
+            g_dwChangeGroupModeTick = FStateSeamClock.Now + 5000;   // 18925 / 18944
+            FStateClMainSeam.SendGroupMode(g_boAllowGroup);         // 18926 / 18945
         }
     }
 
@@ -793,17 +793,17 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DealItemReturnBag(TClientItem mitem)
     {
-        if (!FStateMShareSeam.g_boDealEnd)                          // 17619
+        if (!g_boDealEnd)                          // 17619
         {
             FStateMShareSeam.g_DealDlgItem = mitem;                 // 17620
             FStateClMainSeam.SendDelDealItem(FStateMShareSeam.g_DealDlgItem);   // 17621
-            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17622
+            g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17622
         }
     }
 
     /// <summary>
     /// FState.pas:18660-18665 procedure TFrmDlg.DGameGoldDealMenuDlgCloseClick。
-    /// 原文三步：关菜单对话框 → 清 `g_GameGoldDealRemoteItems`
+    /// 原文三步：关菜单对话框 → 清 `FStateMShareSeam.g_GameGoldDealRemoteItems`
     /// （`SafeFillChar(..., SizeOf(TClientItem) * 9, #0)` ⇒ 托管侧 `Array.Clear` 同长度）
     /// → 清 `g_GameGoldDeal`（`SafeFillChar(..., SizeOf(TGameGoldDeal), #0)` ⇒ `= default`）。
     /// **不判**任何前置条件，也不重装任何 tick（原文如此）。
@@ -813,7 +813,7 @@ public partial class TFrmDlg
         CloseDGameGoldDealMenuDlg();                                // 18662
         Array.Clear(FStateMShareSeam.g_GameGoldDealRemoteItems, 0,
                     FStateMShareSeam.g_GameGoldDealRemoteItems.Length);   // 18663
-        FStateMShareSeam.g_GameGoldDeal = default;                  // 18664
+        g_GameGoldDeal = default;                  // 18664
     }
 
     // ==========================================================================================

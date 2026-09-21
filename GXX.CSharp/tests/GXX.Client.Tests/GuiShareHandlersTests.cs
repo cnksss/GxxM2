@@ -706,7 +706,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         int calls = 0;
         string seen = null;
         FStateClMainSeam.SendGetBackDeleteChrHandler = n => { calls++; seen = n; };
-        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "";
+        FStateMShareSeam.g_SelDeleteHumanInfo.sChrName = "";
 
         frm.DGetBackDeleteHumanClick(null, 0, 0);
 
@@ -720,7 +720,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         string seen = null;
         FStateClMainSeam.SendGetBackDeleteChrHandler = n => seen = n;
-        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "英雄甲";
+        FStateMShareSeam.g_SelDeleteHumanInfo.sChrName = "英雄甲";
 
         frm.DGetBackDeleteHumanClick(null, 0, 0);
 
@@ -818,13 +818,13 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGuildHomeHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 9_999;      // 当前 fake tick = 10_000
+        g_dwQueryMsgTick = 9_999;      // 当前 fake tick = 10_000
         frm.BoGuildChat = true;
 
         frm.DGDHomeClick(null, 0, 0);
 
         Assert.Equal(1, calls);                          // 17878
-        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 17877：+3000
+        Assert.Equal(13_000u, g_dwQueryMsgTick);   // 17877：+3000
         Assert.False(frm.BoGuildChat);                   // 17879
     }
 
@@ -835,13 +835,13 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGuildHomeHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 10_000;     // 与当前 tick 相等
+        g_dwQueryMsgTick = 10_000;     // 与当前 tick 相等
         frm.BoGuildChat = true;
 
         frm.DGDHomeClick(null, 0, 0);
 
         Assert.Equal(0, calls);                          // 差异断言：相等不触发
-        Assert.Equal(10_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 未重装
+        Assert.Equal(10_000u, g_dwQueryMsgTick);   // 未重装
         Assert.True(frm.BoGuildChat);                    // 未改（17879 在守卫体内）
     }
 
@@ -851,7 +851,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGuildHomeHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 0;
+        g_dwQueryMsgTick = 0;
 
         frm.DGDHomeClick(null, 0, 0);
         Assert.Equal(1, calls);
@@ -869,7 +869,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         _fakeTick = 13_001;
         frm.DGDHomeClick(null, 0, 0);
         Assert.Equal(2, calls);
-        Assert.Equal(16_001u, FStateMShareSeam.g_dwQueryMsgTick);
+        Assert.Equal(16_001u, g_dwQueryMsgTick);
     }
 
     [Fact]
@@ -878,13 +878,13 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGuildMemberListHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        g_dwQueryMsgTick = 9_999;
         frm.BoGuildChat = true;
 
         frm.DGDListClick(null, 0, 0);
 
         Assert.Equal(1, calls);                          // 17887
-        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 17886
+        Assert.Equal(13_000u, g_dwQueryMsgTick);   // 17886
         Assert.False(frm.BoGuildChat);                   // 17888
     }
 
@@ -939,12 +939,12 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendDealTryHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        g_dwQueryMsgTick = 9_999;
 
         frm.DBotTradeClick(null, 0, 0);
 
         Assert.Equal(1, calls);                                     // 18916
-        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 18915：+3000
+        Assert.Equal(13_000u, g_dwQueryMsgTick);   // 18915：+3000
 
         // 与 DGDHomeClick 共享同一计数器 ⇒ 立刻再点不触发
         frm.DBotTradeClick(null, 0, 0);
@@ -957,16 +957,16 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendChallengeTryHandler = () => calls++;
-        FStateMShareSeam.g_dwQueryMsgTick = 10_000;   // 与当前 tick 相等 ⇒ 严格 `>` 不成立
+        g_dwQueryMsgTick = 10_000;   // 与当前 tick 相等 ⇒ 严格 `>` 不成立
 
         frm.BotChallengeClick(null, 0, 0);
         Assert.Equal(0, calls);                                     // 边界：相等不触发
-        Assert.Equal(10_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 未重装
+        Assert.Equal(10_000u, g_dwQueryMsgTick);   // 未重装
 
-        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        g_dwQueryMsgTick = 9_999;
         frm.BotChallengeClick(null, 0, 0);
         Assert.Equal(1, calls);                                     // 18908
-        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);
+        Assert.Equal(13_000u, g_dwQueryMsgTick);
     }
 
     [Fact]
@@ -975,7 +975,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int cancels = 0;
         FStateClMainSeam.SendCancelDealHandler = () => cancels++;
-        FStateMShareSeam.g_dwDealActionTick = 9_999;
+        g_dwDealActionTick = 9_999;
 
         // 17536 的 CloseDDealDlg 仍是 throw 壳 ⇒ 抛点在被转发方（且发生在发送之前）
         var ex = Assert.Throws<NotSupportedException>(() => frm.DDealCloseClick(null, 0, 0));
@@ -983,7 +983,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         Assert.Equal(0, cancels);                                   // 17537 未执行（前一行先抛）
 
         // 差异断言：本条**不**重装 g_dwDealActionTick（原文 17535 的守卫体内没有赋值）
-        Assert.Equal(9_999u, FStateMShareSeam.g_dwDealActionTick);
+        Assert.Equal(9_999u, g_dwDealActionTick);
     }
 
     [Fact]
@@ -994,23 +994,23 @@ public sealed class GuiShareHandlersTests : IDisposable
         FStateClMainSeam.SendChangeDealGoldHandler = g => sent.Add(g);
 
         // not g_boDealEnd = False ⇒ 不触发
-        FStateMShareSeam.g_boDealEnd = true;
-        FStateMShareSeam.g_nDealGold = 5;
+        g_boDealEnd = true;
+        g_nDealGold = 5;
         frm.DealZeroGold();
         Assert.Empty(sent);
 
         // g_boDealEnd = False 但 g_nDealGold = 0 ⇒ 不触发（`> 0` 严格）
-        FStateMShareSeam.g_boDealEnd = false;
-        FStateMShareSeam.g_nDealGold = 0;
+        g_boDealEnd = false;
+        g_nDealGold = 0;
         frm.DealZeroGold();
         Assert.Empty(sent);
 
         // 两个都成立 ⇒ 发 0 + 重装 +4000
-        FStateMShareSeam.g_nDealGold = 1;
+        g_nDealGold = 1;
         frm.DealZeroGold();
         Assert.Single(sent);
         Assert.Equal(0, sent[0]);                                   // 17750：SendChangeDealGold(0)
-        Assert.Equal(14_000u, FStateMShareSeam.g_dwDealActionTick); // 17749：+4000
+        Assert.Equal(14_000u, g_dwDealActionTick); // 17749：+4000
     }
 
     [Fact]
@@ -1020,16 +1020,16 @@ public sealed class GuiShareHandlersTests : IDisposable
         var sent = new List<int>();
         FStateClMainSeam.SendChangeChallengeGoldHandler = g => sent.Add(g);
 
-        FStateMShareSeam.g_boChallengeEnd = false;
-        FStateMShareSeam.g_nChallengeGold = 3;
+        g_boChallengeEnd = false;
+        g_nChallengeGold = 3;
         frm.ChallengeZeroGold();
 
         Assert.Single(sent);
         Assert.Equal(0, sent[0]);                                       // 20793
-        Assert.Equal(14_000u, FStateMShareSeam.g_dwChallengeActionTick); // 20792：+4000
+        Assert.Equal(14_000u, g_dwChallengeActionTick); // 20792：+4000
 
         // 挑战/交易两条走**各自**的时间戳（差异证据）
-        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+        Assert.Equal(0u, g_dwDealActionTick);
     }
 
     [Fact]
@@ -1038,7 +1038,7 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int cancels = 0;
         FStateClMainSeam.SendCancelChallengeHandler = () => cancels++;
-        FStateMShareSeam.g_dwChallengeActionTick = 9_999;
+        g_dwChallengeActionTick = 9_999;
 
         // CloseDChallengeDlg 仍是 throw 壳 ⇒ 抛在被转发方
         var ex = Assert.Throws<NotSupportedException>(() => frm.DChallengeCloseClick(null, 0, 0));
@@ -1046,8 +1046,8 @@ public sealed class GuiShareHandlersTests : IDisposable
         Assert.Equal(0, cancels);
 
         // 差异证据：本条只看挑战时间戳，交易时间戳不参与
-        Assert.Equal(9_999u, FStateMShareSeam.g_dwChallengeActionTick);
-        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+        Assert.Equal(9_999u, g_dwChallengeActionTick);
+        Assert.Equal(0u, g_dwDealActionTick);
     }
 
     // =====================================================================================
@@ -1147,13 +1147,13 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         var reported = new List<bool>();
         FStateClMainSeam.SendGroupModeHandler = v => reported.Add(v);
-        FStateMShareSeam.g_boAllowGroup = false;
-        FStateMShareSeam.g_dwChangeGroupModeTick = 9_999;
+        g_boAllowGroup = false;
+        g_dwChangeGroupModeTick = 9_999;
 
         frm.DGrpAllowGroupClick(null, 0, 0);
 
-        Assert.True(FStateMShareSeam.g_boAllowGroup);                        // 18943：取反
-        Assert.Equal(15_000u, FStateMShareSeam.g_dwChangeGroupModeTick);     // 18944：+5000
+        Assert.True(g_boAllowGroup);                        // 18943：取反
+        Assert.Equal(15_000u, g_dwChangeGroupModeTick);     // 18944：+5000
         Assert.Single(reported);
         Assert.True(reported[0]);                                            // 18945：上报**取反后**的值
     }
@@ -1164,16 +1164,16 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGroupModeHandler = _ => calls++;
-        FStateMShareSeam.g_boAllowGroup = false;
+        g_boAllowGroup = false;
 
         // 相等 ⇒ 严格 `>` 不成立
-        FStateMShareSeam.g_dwChangeGroupModeTick = 10_000;
+        g_dwChangeGroupModeTick = 10_000;
         frm.DGrpAllowGroupClick(null, 0, 0);
         Assert.Equal(0, calls);
-        Assert.False(FStateMShareSeam.g_boAllowGroup);                // 未被取反
+        Assert.False(g_boAllowGroup);                // 未被取反
 
         // tick 未推进时再点 ⇒ 被上一步的 +5000 挡住
-        FStateMShareSeam.g_dwChangeGroupModeTick = 0;
+        g_dwChangeGroupModeTick = 0;
         frm.DGrpAllowGroupClick(null, 0, 0);
         Assert.Equal(1, calls);
         frm.DGrpAllowGroupClick(null, 0, 0);
@@ -1186,15 +1186,15 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGroupModeHandler = _ => calls++;
-        FStateMShareSeam.g_boAllowGroup = false;
+        g_boAllowGroup = false;
 
         frm.DBotGroupMouseDown(null, TMouseButton.mbLeft, TShiftState.ssNone, 0, 0);
         Assert.Equal(0, calls);                                       // 18922：非右键直接返回
-        Assert.False(FStateMShareSeam.g_boAllowGroup);
+        Assert.False(g_boAllowGroup);
 
         frm.DBotGroupMouseDown(null, TMouseButton.mbRight, TShiftState.ssNone, 0, 0);
         Assert.Equal(1, calls);
-        Assert.True(FStateMShareSeam.g_boAllowGroup);
+        Assert.True(g_boAllowGroup);
     }
 
     [Fact]
@@ -1205,15 +1205,15 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendGroupModeHandler = _ => calls++;
-        FStateMShareSeam.g_boAllowGroup = false;
-        FStateMShareSeam.g_dwChangeGroupModeTick = 0;
+        g_boAllowGroup = false;
+        g_dwChangeGroupModeTick = 0;
 
         frm.DBotGroupMouseDown(null, TMouseButton.mbRight, TShiftState.ssNone, 0, 0);
-        Assert.True(FStateMShareSeam.g_boAllowGroup);
+        Assert.True(g_boAllowGroup);
 
         frm.DGrpAllowGroupClick(null, 0, 0);
         Assert.Equal(1, calls);                                       // 共享计数器挡住
-        Assert.True(FStateMShareSeam.g_boAllowGroup);
+        Assert.True(g_boAllowGroup);
     }
 
     [Fact]
@@ -1222,12 +1222,12 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         var sent = new List<TClientItem>();
         FStateClMainSeam.SendDelDealItemHandler = it => sent.Add(it);
-        FStateMShareSeam.g_boDealEnd = false;
+        g_boDealEnd = false;
 
         frm.DealItemReturnBag(new TClientItem());
 
         Assert.Single(sent);                                          // 17621
-        Assert.Equal(14_000u, FStateMShareSeam.g_dwDealActionTick);   // 17622：+4000
+        Assert.Equal(14_000u, g_dwDealActionTick);   // 17622：+4000
     }
 
     [Fact]
@@ -1237,30 +1237,30 @@ public sealed class GuiShareHandlersTests : IDisposable
         var frm = NewForm();
         int calls = 0;
         FStateClMainSeam.SendDelDealItemHandler = _ => calls++;
-        FStateMShareSeam.g_boDealEnd = true;
+        g_boDealEnd = true;
 
         frm.DealItemReturnBag(new TClientItem());
 
         Assert.Equal(0, calls);
-        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);        // 未重装
+        Assert.Equal(0u, g_dwDealActionTick);        // 未重装
     }
 
     [Fact]
     public void DGameGoldDealMenuDlgCloseForwardsToTheMenuDialogCloser()
     {
         var frm = NewForm();
-        FStateMShareSeam.g_GameGoldDeal.ItemCount = 7;
+        g_GameGoldDeal.ItemCount = 7;
 
         // 18662 的 CloseDGameGoldDealMenuDlg 仍是 throw 壳 ⇒ 抛点在被转发方（且发生在清场之前）
         var ex = Assert.Throws<NotSupportedException>(() => frm.DGameGoldDealMenuDlgCloseClick(null, 0, 0));
         Assert.Contains("CloseDGameGoldDealMenuDlg", ex.Message);
-        Assert.Equal(7, FStateMShareSeam.g_GameGoldDeal.ItemCount);   // 未被清（前一行先抛）
+        Assert.Equal(7, g_GameGoldDeal.ItemCount);   // 未被清（前一行先抛）
     }
 
     [Fact]
     public void GameGoldDealSeamHasTheOriginalNineRemoteSlots()
     {
-        // 原文 `g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（9 槽）。
+        // 原文 `FStateMShareSeam.g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（9 槽）。
         Assert.Equal(9, FStateMShareSeam.g_GameGoldDealRemoteItems.Length);
     }
 
@@ -1749,20 +1749,23 @@ public sealed class GuiShareHandlersTests : IDisposable
         var retirable = new HashSet<string>(StringComparer.Ordinal);
         foreach (var (seamName, _) in RetirableSeamToGlobal) retirable.Add(seamName);
 
-        // 明确保留（真身尚未落地或按记录承载，见报告 §12.2 第 4 步）：
-        //   * g_SelDeleteHumanInfo_sChrName —— 单字段承载；CR-1 后应改为整条记录
-        //   * g_nMinMapX / g_nMinMapY       —— MShare 真身尚未落地
-        //   * g_ClientConfig_*              —— Grobal2 的 g_ClientConfig（TClientConfig）未落地
+        // 明确保留（退役后仅剩这些；每一条都写明**为什么还不能退役**）：
+        //   * g_SelDeleteHumanInfo         —— CR-1 后按**整条记录**承载（报告 §12.2 第 4 步）；
+        //                                     MShare 侧该全局真身尚未落地
+        //   * g_MouseUserStateItem_sName   —— 只暴露用到的单字段（禁传巨型结构体）；真身未落地
+        //   * g_DealDlgItem                —— 真身未落地
+        //   * g_GameGoldDealRemoteItems    —— 真身未落地
+        //   * g_nMinMapX / g_nMinMapY      —— 真身未落地
+        //   * g_ClientConfig_*             —— Grobal2 的 `g_ClientConfig`（`TClientConfig`，
+        //                                     与 MShare 的 `g_ConfigClient` **不是**一回事）未落地
+        // 退役掉的那 12 项**必须**不出现在这里 —— 它们一旦回归就让本用例红。
         var explicitKeep = new HashSet<string>(StringComparer.Ordinal)
         {
-            // 单字段承载；CR-1 后应改为整条记录（报告 §12.2 第 4 步）
-            "g_SelDeleteHumanInfo_sChrName",
+            "g_SelDeleteHumanInfo",
             "g_MouseUserStateItem_sName",
-            // MShare 真身尚未落地（本车道切片 3/7/8/10 按需补的独立接缝）
+            "g_DealDlgItem",
+            "g_GameGoldDealRemoteItems",
             "g_nMinMapX", "g_nMinMapY",
-            "g_dwChangeGroupModeTick", "g_boAllowGroup",
-            "g_DealDlgItem", "g_GameGoldDealRemoteItems", "g_GameGoldDeal",
-            // Grobal2 的 g_ClientConfig（TClientConfig）未落地
             "g_ClientConfig_boNPCGuiCanMove", "g_ClientConfig_DMerchantDlgHelp",
         };
 

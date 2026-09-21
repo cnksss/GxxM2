@@ -54,7 +54,6 @@ public struct TPoint
     public static TPoint Point(int x, int y) => new(x, y);
 }
 
-/// <summary>Delphi Controls.TShiftState（set of，[Flags] 对应）。</summary>
 [Flags]
 public enum TShiftState
 {
@@ -76,7 +75,6 @@ public enum TMouseButton
     mbMiddle = 2,
 }
 
-/// <summary>Delphi Grids.TGridDrawState（set of，[Flags] 对应）。</summary>
 [Flags]
 public enum TGridDrawState
 {
@@ -86,7 +84,6 @@ public enum TGridDrawState
     gdHot = 8,
 }
 
-/// <summary>Delphi Dialogs.TMsgDlgBtn 的集合（原文只按位传递）。</summary>
 [Flags]
 public enum TMsgDlgButtons
 {
@@ -188,22 +185,16 @@ public class THashedStringList : TStringList
 /// <summary>superobject.pas ISuperObject 的最小占位（LoadJsonControl 用）。</summary>
 public interface ISuperObject
 {
-    /// <summary>superobject: ISuperObject.AsString。</summary>
     string AsString { get; }
 
-    /// <summary>superobject: ISuperObject['name']（对象成员索引）。</summary>
     ISuperObject this[string name] { get; }
 
-    /// <summary>superobject: ISuperObject.AsInteger。</summary>
     int AsInteger { get; }
 
-    /// <summary>superobject: ISuperObject.AsBoolean。</summary>
     bool AsBoolean { get; }
 
-    /// <summary>superobject: ISuperObject.AsArray。</summary>
     IReadOnlyList<ISuperObject> AsArray { get; }
 
-    /// <summary>superobject: ISuperObject.Count。</summary>
     int Count { get; }
 }
 
@@ -435,7 +426,6 @@ public static class FStateSeamClock
     public static void ResetForTests() => NowHandler = null;
 }
 
-/// <summary>Delphi Graphics.TFontStyles（set of，[Flags] 对应）。</summary>
 [Flags]
 public enum TFontStyles
 {
@@ -486,11 +476,8 @@ public static class ConfigClientExt
     /// <summary>MShare.pas ItemHintTextConfig 的项类型（httNeedJob*）。</summary>
     public enum TItemHintTextType
     {
-        /// <summary>httNeedJobWarr（战士）</summary>
         httNeedJobWarr = 0,
-        /// <summary>httNeedJobWizard（法师）</summary>
         httNeedJobWizard = 1,
-        /// <summary>httNeedJobTaos（道士）</summary>
         httNeedJobTaos = 2,
     }
 
@@ -566,70 +553,50 @@ public static class MagicButtonIniSeam
 /// 【接缝：待 MShare.pas 移植后与车道1 的 MShareGlobals 合并为单一类型（已登记在交付报告的
 /// "接缝合并建议"）。此处只做最小定义，命名与原文一致。】
 /// </summary>
+/// <summary>
+/// FState.pas 引用、而托管侧**尚未落地真身**的 MShare 全局（接缝）。
+///
+/// ★ **本类已完成一轮接缝退役（车道 p14-client-fstate，报告 §12）**：
+///   `p17-client-mshare` 已把下列全局的真身落在 `MShareGlobals`，
+///   本类原先的同名接缝字段**已删除**，调用点改指真身（裸名靠文件头
+///   `using static GXX.Client.GUI.Mir.MShareGlobals;` 自动解析）：
+///     `g_SellDlgItem` / `g_ExtBagOpenItemCount` / `g_dwQueryMsgTick` / `g_dwDealActionTick` /
+///     `g_dwChallengeActionTick` / `g_boDealEnd` / `g_nDealGold` / `g_boChallengeEnd` /
+///     `g_nChallengeGold` / `g_dwChangeGroupModeTick` / `g_boAllowGroup` / `g_GameGoldDeal`
+///   —— 共 **12 项**，其复位由 `MShareGlobalsReset.ResetForTests()` 负责（p17 已证明覆盖）。
+///   ★ 这条退役是**必须**做的：`MShareGlobals` 与本类同处 `GXX.Client.GUI.Mir` 命名空间，
+///     两边都留同名 `public static` 字段会在合并时冲突。守卫用例
+///     `NoMShareSeamFieldShadowsTheLandedGlobal` / `EveryMShareSeamFieldIsEitherRetirableOrExplicitlyStays`
+///     防止同名接缝被加回来。
+/// </summary>
 public static class FStateMShareSeam
 {
-    /// <summary>MShare.pas:2008 g_SellDlgItem:TClientItem（出售对话框中被选中的物品）。</summary>
-    public static TClientItem g_SellDlgItem;
-
-    /// <summary>MShare.pas:1879 g_ExtBagOpenItemCount:Word = 0（扩展背包已开格数）。</summary>
-    public static ushort g_ExtBagOpenItemCount;
-
     /// <summary>
     /// MShare.pas `g_SelDeleteHumanInfo:TUserCharacterInfo`（"找回角色"对话框里选中的角色）。
-    /// 原文 20594 只读它的 `sChrName`（Delphi `string[19]` 短串）；Core 里的 TUserCharacterInfo
-    /// 是定长缓冲版，没有可直读的短串访问器，而本单元只用到这一个字段，
-    /// 因此托管侧以 `g_SelDeleteHumanInfo_sChrName` 承载该单字段（命名带后缀以免被误当成整个记录）。
-    /// 【接缝：待 MShare.pas 落地后换成真实 TUserCharacterInfo.sChrName】
+    /// ★ **按原文形态持有整条记录**（不是单字段接缝）：原文 20594/20595 访问的是
+    /// **同一记录的同一字段** `sChrName`；CR-1 已给 `TUserCharacterInfo.sChrName`
+    /// （`NameStr` 的同缓冲别名）⇒ 直接持有记录才与原文同形。
+    /// 【接缝：待 MShare.pas 落地该全局后删除本字段，改指 `g_SelDeleteHumanInfo`】
     /// </summary>
-    public static string g_SelDeleteHumanInfo_sChrName = "";
+    public static TUserCharacterInfo g_SelDeleteHumanInfo;
 
     /// <summary>
-    /// MShare.pas `g_dwQueryMsgTick:LongWord`（"查询"类动作的 3 秒节流时间戳）。
-    /// 原文在 17876/17885/18906/18914 等处以 `if MyGetTickCount &gt; g_dwQueryMsgTick` 判据使用。
-    /// 注：Scenes 车道的 `MiniMapMessageState.QueryMsgTick`（MiniMapRender.cs:225）是同一全局的
-    /// 另一份承载，那是**跨分区**的（不在本车道），故此处按本单元用到的形态独立承载。
-    /// 【接缝：待 MShare.pas 落地后与 Scenes 的那份合并为单一全局】
+    /// MShare.pas `g_MouseUserStateItem:TClientItem`（人物状态窗口上鼠标所指的物品）。
+    /// 原文 17802 / 2612 只做 `g_MouseUserStateItem.S.Name := ''`（清空短串名）。
+    /// 这里只暴露**被用到的那一个字段**，而不是整份巨型结构体
+    /// （**禁止按值传递巨型结构体** —— 台账规程）。
+    /// 【接缝：待 MShare.pas 落地后换成真实 TClientItem 的 s.Name】
     /// </summary>
-    public static uint g_dwQueryMsgTick;
-
-    /// <summary>MShare.pas `g_dwDealActionTick:LongWord`（交易动作节流时间戳；原文 17535 判据）。</summary>
-    public static uint g_dwDealActionTick;
-
-    /// <summary>MShare.pas `g_dwChallengeActionTick:LongWord`（挑战动作节流时间戳；原文 20815 判据）。</summary>
-    public static uint g_dwChallengeActionTick;
-
-    /// <summary>MShare.pas `g_boDealEnd:Boolean`（交易已结束；原文 17748 判据，**先判它**）。</summary>
-    public static bool g_boDealEnd;
-
-    /// <summary>MShare.pas `g_nDealGold:Integer`（交易中的金币数；原文 17748 判据）。</summary>
-    public static int g_nDealGold;
-
-    /// <summary>MShare.pas `g_boChallengeEnd:Boolean`（挑战已结束；原文 20791 判据）。</summary>
-    public static bool g_boChallengeEnd;
-
-    /// <summary>MShare.pas `g_nChallengeGold:Integer`（挑战中的金币数；原文 20791 判据）。</summary>
-    public static int g_nChallengeGold;
-
-    /// <summary>MShare.pas `g_dwChangeGroupModeTick:LongWord`（切换组队模式节流时间戳；原文 18923/18942 判据）。</summary>
-    public static uint g_dwChangeGroupModeTick;
-
-    /// <summary>MShare.pas `g_boAllowGroup:Boolean`（是否允许组队；原文 18924/18943 **取反**后回写并上报）。</summary>
-    public static bool g_boAllowGroup;
+    public static string g_MouseUserStateItem_sName = "";
 
     /// <summary>MShare.pas `g_DealDlgItem:TClientItem`（交易对话框当前物品；原文 17620 赋值）。</summary>
     public static TClientItem g_DealDlgItem;
 
     /// <summary>
-    /// MShare.pas `g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（元宝交易菜单的 9 个远端物品栏）。
+    /// MShare.pas `FStateMShareSeam.g_GameGoldDealRemoteItems:array[0..8] of TClientItem`（元宝交易菜单的 9 个远端物品栏）。
     /// 原文 18663 的 `SafeFillChar(..., SizeOf(TClientItem) * 9, #0)` 在托管侧等价于 `Array.Clear`。
     /// </summary>
     public static TClientItem[] g_GameGoldDealRemoteItems = new TClientItem[9];
-
-    /// <summary>
-    /// MShare.pas `g_GameGoldDeal:TGameGoldDeal`（元宝交易菜单状态）。
-    /// 原文 18664 的 `SafeFillChar(..., SizeOf(TGameGoldDeal), #0)` 在托管侧等价于 `= default`。
-    /// </summary>
-    public static TGameGoldDeal g_GameGoldDeal;
 
     /// <summary>MShare.pas `g_nMinMapX:Integer`（小地图上鼠标 X；原文 18224 赋值）。</summary>
     public static int g_nMinMapX;
@@ -637,22 +604,19 @@ public static class FStateMShareSeam
     /// <summary>MShare.pas `g_nMinMapY:Integer`（小地图上鼠标 Y；原文 18225 赋值）。</summary>
     public static int g_nMinMapY;
 
-    // ============================================================================================
-    // 切片 10（ShowMDlg 用）：`g_ClientConfig` 的两个字段。
+    // ----------------------------------------------------------------------------------------
+    // `g_ClientConfig` 的两个字段（ShowMDlg 用）。
     //
-    // ★ 为什么单独承载（**不是**"懒得多写一行"，原文这里有两个只差一个字母的配置全局）：
-    //   1) `MShare.pas:2180  g_ConfigClient:TConfigClient`，其中 `MShare.pas:493` 的
-    //      `TConfigClient` 是 **packed record（登录器下发的配置）** ——
-    //      托管侧 `MShareGlobals.g_ConfigClient`（ClientGlobals.cs:143 → `Mir.TConfigClient`）
-    //      就是它，**不含** `DMerchantDlgHelp`。
-    //   2) `Common/Grobal2.pas:6388  g_ClientConfig: TClientConfig` —— `TClientConfig` 才是那个
+    // ★ 原文里有**两个只差一个字母**的配置全局，务必分清（报告 D-P14-16）：
+    //   1) `MShare.pas:2180 g_ConfigClient:TConfigClient` —— `MShare.pas:493` 的 `TConfigClient`
+    //      是 **packed record（登录器下发的配置）**；托管侧 `MShareGlobals.g_ConfigClient`
+    //      （→ `Mir.TConfigClient`）就是它，**不含** `DMerchantDlgHelp`。
+    //   2) `Common/Grobal2.pas:6388 g_ClientConfig: TClientConfig` —— `TClientConfig` 才是那个
     //      **大配置记录**：`DMerchantDlgHelp`（Grobal2.pas:5022）与 `boNPCGuiCanMove`
-    //      （Grobal2.pas:5080）都在其中；Core 侧已移植为 `GXX.Core.Protocol.TClientConfig`
-    //      （Grobal2.Types5.cs，两字段均为 **byte**）。FState.pas 在 1873/1887 用它，
-    //      ClMain.pas:23389 用的是同一个全局。
-    //   ⇒ 该全局**尚未**在托管侧落地（属 Grobal2/ClMain 面），故此处只承载本单元用到的两个字段。
-    //     **不计入 FState 缺口**；待真身落地后改指 `g_ClientConfig.*`。
-    // ============================================================================================
+    //      （Grobal2.pas:5080）都在其中；Core 侧已移植为 `GXX.Core.Protocol.TClientConfig`。
+    //      FState.pas 在 1873/1887 用的是它，ClMain.pas:23389 亦同。
+    //   ⇒ 该全局**尚未**在托管侧落地，故此处只承载本单元用到的两个字段。
+    // ----------------------------------------------------------------------------------------
 
     /// <summary>Grobal2.pas:5080 `g_ClientConfig.boNPCGuiCanMove:Boolean`（NPC 界面能否移动）。</summary>
     public static byte g_ClientConfig_boNPCGuiCanMove;
@@ -661,35 +625,18 @@ public static class FStateMShareSeam
     public static byte g_ClientConfig_DMerchantDlgHelp;
 
     /// <summary>
-    /// MShare.pas `g_MouseUserStateItem:TClientItem`（人物状态窗口上鼠标所指的物品）。
-    /// 原文 17802 / 2612 只做 `g_MouseUserStateItem.S.Name := ''`（清空短串名）。
-    /// 这里只暴露**被用到的那一个字段**，而不是整份 645 KB 级结构体
-    /// （**禁止按值传递巨型结构体** —— 台账本轮新规程）。
-    /// 【接缝：待 MShare.pas 落地后换成真实 TClientItem 的 s.Name】
+    /// **剩余**接缝字段的复位（退役后只剩本单元自建、真身尚未落地的那些）。
+    /// 已退役的 12 项 + `g_SelDeleteHumanInfo` 按记录承载，其复位由
+    /// `MShareGlobalsReset.ResetForTests()` 负责（见类头说明）。
     /// </summary>
-    public static string g_MouseUserStateItem_sName = "";
-
-    /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
-        g_SellDlgItem = default;
-        g_ExtBagOpenItemCount = 0;
-        g_SelDeleteHumanInfo_sChrName = "";
-        g_dwQueryMsgTick = 0;
-        g_dwDealActionTick = 0;
-        g_dwChallengeActionTick = 0;
-        g_boDealEnd = false;
-        g_nDealGold = 0;
-        g_boChallengeEnd = false;
-        g_nChallengeGold = 0;
-        g_dwChangeGroupModeTick = 0;
-        g_boAllowGroup = false;
+        g_SelDeleteHumanInfo = default;
+        g_MouseUserStateItem_sName = "";
         g_DealDlgItem = default;
         g_GameGoldDealRemoteItems = new TClientItem[9];
-        g_GameGoldDeal = default;
         g_nMinMapX = 0;
         g_nMinMapY = 0;
-        g_MouseUserStateItem_sName = "";
         g_ClientConfig_boNPCGuiCanMove = 0;
         g_ClientConfig_DMerchantDlgHelp = 0;
     }
@@ -705,9 +652,7 @@ public static class DxPopupMenuExt
     /// <summary>DxControls.pas TGuiType 枚举中本单元用到的取值。</summary>
     public enum TGuiType
     {
-        /// <summary>普通控件</summary>
         t_Normal = 0,
-        /// <summary>弹出菜单（原文 TDxPopupMenu.Create 里写死 t_PopupMenu）</summary>
         t_PopupMenu = 1,
     }
 
@@ -1123,6 +1068,7 @@ public static class FStateClMainSeam
         SendGuildDelMemHandler = null;
         SendSayHandler = null;
         FStateMShareSeam.ResetForTests();
-        MShareGlobalsReset.ResetForTests();
+        // MShareGlobalsReset.ResetForTests() 不在此调用：本 Map 混在 GUI/Share 分区内，
+        // 其复位由测试的 ResetAll() 直接调用（那里已有），避免重复复位。
     }
 }
