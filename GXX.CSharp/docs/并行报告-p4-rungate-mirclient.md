@@ -3,7 +3,8 @@
 > 分支：`par/p4-rungate-mirclient` ｜ 工作树：`.worktrees/p4-rungate-mirclient`
 > 目标单元：`Source/RunGate/MirClientContext.pas`（GBK，**实测 11,125 LF / 11,126 物理行**）
 > 规程：`docs/转换开发文档.md`、`docs/并行派发台账.md` §9.4/§10/§11/§12、`docs/并行报告-p2-rungate-impl.md`
-> 状态：**build 0 error / RunGate.Tests 1299 例 0 失败**；`CheckUsePlugin` 分派体未覆盖（见 §5）
+> 状态：**build 0 error / RunGate.Tests 1,809 例 0 失败**；`CheckUsePlugin` 的 6 个 ident 族已移植
+> **3/6**（`CM_SITDOWN` / `CM_TURN` / `CM_SPELL`，见 **§10**），剩余 `CM_WALK` / `CM_RUN` / 攻击族。
 
 ---
 
@@ -94,7 +95,7 @@ git grep -l -E "(class|struct|enum|interface|delegate) +(partial +)?<TypeName>\b
 | 24d | ├ `else` 分支 | 9506-9516 | **已完成** | 同上 |
 | 24e | ├ **公共收尾**（所有分支共用） | **9521-9681** | **已完成**（提取为 `CheckUsePluginPostlude`，逐行等价） | 同上 |
 | 24f | ├ 异常兜底 | 9682-9686 | **已完成** | 同上 |
-| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **未覆盖**（显式早退 `UnportedIdentFamilies`，见 §8.2） | 同上 |
+| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **3/6 已移植**（`CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10**）；剩余 `CM_WALK` 3528-4696 / `CM_RUN` 4697-5857 / 攻击族 6690-7888 → 仍走 `UnportedIdentFamilies` 早退 | 同上 |
 | 25 | `GetConcurrentPacketCount` | 9689-9708 | **已完成** | `MirClientContext.cs` |
 | 26 | `ClearConcurrentPacket` | 9710-9735 | **已完成** | 同上 |
 | 27 | `SendWarnMsg` | 9737-9745 | **已完成** | 同上 |
@@ -502,4 +503,132 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
 
 > 本车道刻意**不**移植 `string[ITEM_NAME_LEN]` 的 `ShortString` 处理 —— `GXX.Core.Protocol.ShortStr` 已有
 > 1:1 实现（`ShortStr.cs:11-75`），接管者应直接复用，不要另写。
+
+---
+
+## 10. 本轮续跑：`CheckUsePlugin` 的 6 个 ident 族 —— 已移植 3/6
+
+> 工作树 `.worktrees/p4-rungate-mirclient`（分支 `par/p4-rungate-mirclient`，已 rebase 到当轮 main）。
+> 口径：**族 = 原文 if/else-if 链里的一个分支体**；每族都是"完整可验证"的独立切片。
+
+### 10.1 本轮全部 commit hash
+
+| # | hash | 内容 | 门禁 |
+|---|---|---|---|
+| 1 | `25ea4e82` | **族 6 `CM_SITDOWN`** 8997-9469 移植 + 25 例测试 | ✅ build 0 error / RunGate.Tests **1,773** |
+| 2 | `11fa3897` | **族 3 `CM_TURN`** 5855-6681 移植 + 20 例测试 | ✅ build 0 error / RunGate.Tests **1,792** |
+| 3 | `210627fc` | **族 5 `CM_SPELL`** 7886-8995 移植 + 18 例测试（含 `CollectSpeedDetect` 提取） | ✅ build 0 error / RunGate.Tests **1,809** |
+| 4 | 本报告 §10 | 文档 | ✅ |
+
+**HEAD = `210627fc`**。基线（当轮 main）：`RunGate.Tests` 1,749 例 → 本轮 **+60 例**（25+20+18，其中 3 例是从
+旧的"未覆盖族早退"参数化用例里移出的 ident），**0 新增失败**。
+
+### 10.2 逐族判定表
+
+| 序 | 族 | 行区间 | 状态 | 早退表删除行数 | 落点 |
+|---|---|---|---|---|---|
+| 1 | `CM_SITDOWN` | 8997-9469（474） | ✅ **已完成**（1:1） | 1 行 | `CheckUsePluginSitDown` |
+| 2 | `CM_TURN` | 5855-6681（832） | ✅ **已完成**（1:1，公共体提取） | 1 行 | `CheckUsePluginTurn` + `TurnFamilySpeedBlock` |
+| 3 | `CM_SPELL` | 7886-8995（1,111） | ✅ **已完成**（1:1，公共体提取） | 1 行 | `CheckUsePluginSpell` + `SpellSpeedInterval` + `SpellFamilySpeedBlock` |
+| 4 | `CM_RUN` | 4697-5857 | ❌ 未覆盖 | — | 仍早退 |
+| 5 | `CM_WALK` | 3528-4696 | ❌ 未覆盖 | — | 仍早退 |
+| 6 | 攻击族 | 6690-7888 | ❌ 未覆盖 | — | 仍早退 |
+
+`UnportedIdentFamilies` 现只剩 3 条判断（`CM_WALK` / `CM_RUN` / 攻击族），每族删掉**对应 1 行**即可（互不影响）。
+剩余 **3,055 行**（口径：5,472 − 474 − 832 − 1,111）。
+
+### 10.3 结构性变更（必须登记）
+
+| 变更 | 位置 | 说明 |
+|---|---|---|
+| `CollectSpeedDetect(...)` | `MirClientContext.CheckUsePlugin.cs` | 原文 CM_TURN 子块体（:5941-6112）与 CM_SPELL 四个"X到魔法"子块（:8025-8184 等）**逐字相同**（已用脚本归一化比对，只差 4 个轴：mode / tickMode / dwTempInterval 来源 / ErrorCode / 日志模板）→ 提取为公共方法；行号注释以 CM_TURN 子块 a 为准 |
+| `TurnFamilySpeedBlock(...)` | 同上 | 原提交里的同名方法改为薄包装（算 `ActionList[mode].nInterval` → 调 `CollectSpeedDetect`），CM_TURN 的 20 例测试全绿证明无回归 |
+| `SpellFamilySpeedBlock(...)` / `SpellSpeedInterval(...)` | 同上 | CM_SPELL 四子块与 `nSpellSpeed` 三支取值 |
+| `CheckUsePluginPostlude(..., ConcurrentCount, dwCurrentInterval, ...)` | 同上 | 原来是 `ConcurrentCount: 0, dwCurrentInterval: 0` 占位；CM_SPELL 会写 `ConcurrentCount`（`GetConcurrentPacketCount`）与 `dwCurrentInterval`，故改为传真实局部量（收尾里 `ConcurrentCount` 只会被 `ClearConcurrentPacket` 覆盖后读取，行为不变） |
+| `int ConcurrentCount = 0` | 同上 `:3475` | 原文是未初始化局部量（唯一写入点是 :7965）。C# `ref` 实参要求明确赋值 → 置 0；与该赋值语义一致 |
+| `LastActionForTest { get; set; }` | `MirClientContext.cs`（`LastActionProbe` 旁） | **可写测试探针**。CM_WALK/CM_RUN/CM_TURN/攻击族/CM_SPELL 未全部移植时，测试无法用"真的走一次走路包"把 private 的 `FLastAction` 设成 `baWalk`/`baRun`/`baHit`/`baTurn`/`baCutMeat`/`baSpell`，而这三族的限速子块**全部**以 `FLastAction` 为分派键。只影响测试 |
+
+### 10.4 每族新增的判定与差异断言（重点：限速/并发/模式判定）
+
+**`CM_SITDOWN`（`MirClientContextCheckUsePluginSitDownTests` 25 例）**
+
+- 环形缓冲写入 `baCutMeat` + `Inc(nRecordActionIndex)`；`:9463/:9464/:9465` 三个 `dwTicks` 槽。
+- ★ **差异**：暗杀检测两条路径 —— `:9012` "采集满"用 `mod` 索引（**槽 0 参与**）vs `:9043` "未满"用裸减法 + `> 0` 守卫（**槽 0 被跳过**）；同一份链只改 `[MAX-1].Tick` → 判定 vs 不判定。
+- ★ **差异**：`:9017` 首判是 `PreIndex >= 0`、`:9055/:9058` 是 `> 0`（原文三处不对称）。
+- `tick_diff(...) <= 250` 是**闭区间**（250 中、251 不中）。
+- 前导动作集合 `[baHit,baSpell,baWalk,baRun,baTurn]`（**baCutMeat 不算**）。
+- ★ **差异（D-S2）**：`FLastAction ∈ {baWalk,baRun}` 时若 `amMoveToCutMeat.boEnabled = False`，`:9249` 的 `else if` 被跳过 → **amCutMeat 整段限速不执行**（不是"再判一次"）。
+- 限速三阈值：`div 10`（硬超速）/ `div 3`（网速双倍旁路）/ 组合 `boCurrentSpeed && boCollectSpeed`（含 `nCollectIndex+1 <= 3/7/else` 三支）。
+- ★ 采集池编码：`dwCurrentInterval - dwTempInterval` 无符号回绕成**负 int**（`:9241/:9423`）；`>= nInterval` 时写 1。
+- ★ **差异**：`nDelayTime ≠ 0`（apmDelay 命中）→ `:9461/:9234` 闸门 → **不刷新** `dwTicks`、**不写**采集池；`nDelayCount > 8` 自愈（归零 + `nDelayTime := 0` + `SendActionRet(True)`）。
+- ★ **差异**：`boContinueSpeedCloseSocket` 的连续超速断开（`:9270-9287`）—— 全负 → `ContinuousSpeed` + Exit；最近一条 `>= 0` → `Break` → 走普通判定。
+- ★ **差异**：`Msg.boDelay` 只关掉泄漏日志与采集写入（`:9429`），`:9461` 的 `and (not Msg.boDelay)` **被注释掉**（照抄，D-S3）。
+- Exit（`:9039/:9069/:9286/:9322`）→ 跳过公共收尾：`Result=false`、`dwTicks` 未刷新、`FLastAction` 未改。
+
+**`CM_TURN`（`…TurnTests` 20 例）**
+
+- 前导动作集合 `[baWalk,baRun,baHit,baSpell]`（**baTurn/baCutMeat 都不算**）—— ★ 与 CM_SITDOWN 的差异断言。
+- ★ 四个子块（`:5933 baTurn→amTurn` / `:6117 baHit→amHitToTurn` / `:6285 baSpell→amSpellToTurn` / `:6453 baWalk|baRun→amMoveToTurn`）的 **mode 与取 tick 的模式**逐个钉死（用"另一个槽的 tick 故意反着设"证明取的是哪个槽）。
+- ★ **差异（核心）**："连续超速断开"段**只有 amTurn 子块是活代码**，其余三块被 `{}` 注释 → 同一配置下：amTurn → `ContinuousSpeed` + DelayClose + Exit；baHit → 普通判定 + 不 DelayClose。
+- ★ **差异**：超速日志只有 amTurn 子块带 `; [移动速度%s]`（`:6087-6091`）。
+- ★ **差异（D-T2）**：尾部调试日志 `else if {(FLastAction = baTurn) and} amTurn.boDebug` 对**任何**非 {hit,spell,walk,run} 的 `FLastAction`（含 `baOther`/`baCutMeat`）都成立。
+- ★ **差异（D-T5）**：`:5933-6623` 是无 `else` 的 if/else-if 链 → `FLastAction = baOther` 时四个子块全不执行（即使 amTurn 已启用且硬超速）。
+- ★ **差异（D-T4）**：`:6677` **只**刷新 `dwTicks[amTurn]`（CM_SITDOWN 刷 3 个、CM_SPELL 刷 3 个但不同槽）。
+- `div 3` 闭区间（34 不中 / 33 中）；`div 10` 集合**包含于** `div 3` 集合（不能只靠 tick 区分，已注明）。
+
+**`CM_SPELL`（`…SpellTests` 18 例）**
+
+- 前导动作集合 **`[baTurn, baCutMeat]`**（★ 三族互不相同：SLDOWN 含 baTurn 不含 baCutMeat、TURN 两者都不含、SPELL 只含这两个）。
+- ★ **魔法并发块**（`:7964-8008`）：`ConcurrentCount := GetConcurrentPacketCount` 的触发条件是 `boEnabled or boDebug`，而**判定**只用 `boEnabled` → `boDebug` 单开时只计数不判定（用 `:8979` 的调试日志断言 `ConcurrentCount + 1`）。
+- ★ 命中后 `FLastAction = baSpell` 才按 `nSpellSpeed` 判 `IsDropConcurrent`；`IsDropConcurrent = True` ⟹ `AntiPlugAction ≠ nil` ⟹ 收尾走 `apmFakeAttackPass` 并发分支 → `ClearConcurrentPacket` 恒 0（既有缺陷）→ `Result` 由 `IsDropConcurrent` 决定（已钉死 True/False 两例）。
+- ★ **`nSpellSpeed` 三支取值**（`:7993-7998`）：槽 0（`<= -200`）/ 槽 200+value / 槽 400（`>= +200`）；**-199 走槽 1 而不是槽 0**（边界是 `<=` 不是 `<`）→ 用"槽 0/1/200/400 各设不同值"的判定对照钉死。
+- ★ 四个"X到魔法"子块（`:8013/:8189/:8365/:8541`）**都要求 `btJob <> 0`**；amSpell 子块（`:8717`）**不要求 `FLastAction = baSpell`**（被 `{}` 注释）但同样要求 `btJob <> 0` → 用 `baHit` 落到 amSpell 的用例证明"链的落点"。
+- ★ **差异（D-P1）**：丢弃并发路径 `Result := True` + `Exit` —— **全函数唯一一处 Exit 返回 True**；断言"返回 True、2 帧（`SendActionRet(True)` + `SM_MAGICFIRE_FAIL`）、`dwTicks` 未刷新、`FLastAction` 未改"。
+- ★ **差异**：同样极快的 tick，`boContinueSpeedPass = True` 时跳过丢弃并发 → 只有 `div 10` 硬超速能命中（组合路径被 `not boContinueSpeedPass` 关掉）→ 1 帧差异、`dwTicks` 已刷新。
+- ★ **差异**：超速日志只有 amSpell 子块带 `; [魔法速度%s]`；`:8983-8992` 刷新**三个**槽（`amSpell`/`amSpellToWalk`/`amSpellToRun`）。
+- ★ **D-P2 不可观测**（重要诚实结论）：`:8728` 是**赋值**（不是 `if`），但要执行它必须 `AntiPlugAction = nil`，而 `IsDropConcurrent = True` 只能由 `:8004` 置出、那一刻 `AntiPlugAction` 已被置为非 nil → **两者互斥**，故"把 True 改回 False"永不发生。已用 `SpellSubBlock_SpellAction_DropConcurrentMakesNormalPathUnreachable` 断言"普通路径的 `:8876` 未执行"把这个不可达性钉死。
+
+### 10.5 本轮发现的原文缺陷 / 易错点（带 `文件:行`，全部照抄不改）
+
+| 编号 | 位置 | 内容 |
+|---|---|---|
+| D-S1 | `MirClientContext.pas:9012` | "采集满"判据是**固定槽 `MAX-1`** 而非 `nRecordActionIndex` → 写满一圈后恒真 |
+| D-S2 | `:9249` | `else if` 只在 `FLastAction ∉ {baWalk,baRun}` 时评估 → 走路/跑步 + amMoveToCutMeat 未启用时 **amCutMeat 整段被跳过** |
+| D-S3 | `:9461` / `:6675` / `:8983` | `and (not Msg.boDelay)` 被 `{}` 注释 → 三族都只判 `nDelayTime = 0` |
+| D-S4 | `:9463`/`:9465` | 对 `dwTicks[amCutMeat]` 同值重复赋值两次 |
+| D-S6 | `:9275`/`:9311` | `(nCollectIndex - I + nCollectCount) mod nCollectCount` 在 `nContinueSpeedCount > nCollectCount + nCollectIndex` 时下标为负（Delphi 越界读内存、托管侧抛 `IndexOutOfRangeException`）——**照抄，未加保护** |
+| D-T2 | `:6667` | `else if {(FLastAction = baTurn) and} amTurn.boDebug` → 条件里没有 `FLastAction` |
+| D-T4 | `:6677` | CM_TURN 只刷 1 个 `dwTicks` 槽（与另两族的 3 个不同） |
+| D-T5 | `:5933-6623` | 无 `else` 的 if/else-if 链 → `baOther` 时四个子块全不执行，但 `:6667` 的调试日志会命中 |
+| D-P1 | `:8753-8754` | `Result := True` + `Exit`（全函数唯一） |
+| D-P2 | `:8728` vs `:8002` | 一处是赋值、一处是条件；但由 `:7980`/`:8010` 可证 **赋值的"改回 False"不可达**（见 §10.4） |
+| D-P3 | `:8977` | `ErrorCode := 61;` 在调试链后**无条件**执行 → `:8934/:8944/:8954/:8964/:8972` 的 56-60 全被覆盖 |
+| D-P4 | `:8015/:8191/:8367/:8543` | `btJob <> 0` 在 FLastAction 判据**之内**（分支被消费）；但 amSpell 子块（`:8717`）也要求 `btJob <> 0` → **无观测差异**（诚实结论，未伪造断言） |
+| D-P5 | `:8970` | `else if {(FLastAction = baSpell) and} amSpell.boDebug`（同 D-T2） |
+
+> `{$B-}`（短路求值）在 `MirClientContext.pas` 内**未出现** `{$B+}`（已核实）→ Delphi 的 `and` 等价 C# 的 `&&`，
+> 暗杀检测里"先判下标、再读数组"的写法不会越界。这是三族暗杀检测共同的前提。
+
+### 10.6 接缝与越区请求
+
+本轮 **未新增任何接缝**，也**未请求修改任何白名单外文件**：
+
+- 三族全部只用既有资产：`RunGateTiming.TickDiff`、`MyGetTickCount`、`GetConcurrentPacketCount`、
+  `ClearConcurrentPacket`（经收尾）、`ContinuousSpeed`、`ProcessAssasinate`、`SendActionRet`、
+  `SendMessaggeToClient`、`PostSendTextBytes`、`EncodeRunGateMsg`、`MakeDefaultMsg`、
+  `AntiPlugActionModeNames/3`、`g_wActionSpeedIntervals` / `HalfSpeedIntervalsCount` /
+  `SpeedIntervalsCount`、`AddMainLogMsg`。
+- 唯一"越出生产语义"的新增是**测试可写探针** `LastActionForTest`（在独占区 `MirClientContext.cs` 内）。
+- §6.2 的 R7 / R8 / R1 / R2 / R5 / R6 仍然**全部未关闭**（本轮不需要它们）。
+
+### 10.7 未完成部分（诚实说明）
+
+- **未移植**：`CM_RUN` 4697-5857、`CM_WALK` 3528-4696、攻击族 6690-7888 —— 合计按上版口径 **3,055 行**。
+  这三族仍走 `UnportedIdentFamilies` 早退（= 不判定 = 放行），**无副作用**，与移植前行为一致。
+- **给接管者的提示**：`CM_WALK`/`CM_RUN`/攻击族的子块骨架与 CM_TURN/CM_SPELL 同源
+  （暗杀检测 + "倒数第2条/至少1条"两段采集 + `div 10`/`div 3`/组合三阈值 + `nDelayCount` 自愈 +
+  `dwTicks` 刷新 + `FLastAction` 尾部日志），**可直接复用 `CollectSpeedDetect`**；
+  需要新加的参数只有：前导动作集合（各不同）、`dwTempInterval` 来源（`ActionList[].nInterval` vs
+  `g_wActionSpeedIntervals[][…]` vs 攻击族的 hit 间隔表）、日志模板（是否带 `[攻击速度%s]`）。
+- **未做的验证**：与 §7.4 相同（无端到端回环；socket 侧仍走接缝）。
 
