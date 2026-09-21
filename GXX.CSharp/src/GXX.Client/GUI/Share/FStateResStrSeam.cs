@@ -38,6 +38,28 @@ public static class FStateResStrSeam
     /// <summary>MShare.pas resourcestring `SGuildEditGradeHint`（原文 17924 调用点）。</summary>
     public static string SGuildEditGradeHint = "SGuildEditGradeHint";
 
+    /// <summary>MShare.pas resourcestring `SGuildAddMem`（原文 17894 调用点；含一个 `%s`）。</summary>
+    public static string SGuildAddMem = "SGuildAddMem";
+
+    /// <summary>MShare.pas resourcestring `SGuildAllyAsk`（原文 17930 调用点；含两个 `%s`）。</summary>
+    public static string SGuildAllyAsk = "SGuildAllyAsk";
+
+    /// <summary>MShare.pas resourcestring `SGuildAllyScript`（原文 17931 调用点）。</summary>
+    public static string SGuildAllyScript = "SGuildAllyScript";
+
+    /// <summary>MShare.pas resourcestring `SGuildBreakAllyAsk`（原文 17936 调用点）。</summary>
+    public static string SGuildBreakAllyAsk = "SGuildBreakAllyAsk";
+
+    /// <summary>MShare.pas resourcestring `SGuildBreakAllyScript`（原文 17938 调用点）。</summary>
+    public static string SGuildBreakAllyScript = "SGuildBreakAllyScript";
+
+    /// <summary>
+    /// Delphi `System.sLineBreak`（本工程按 Windows 口径 = CRLF）。
+    /// 原文 17930 用它填 `SGuildAllyAsk` 的两个 `%s`（弹窗里两行空行）。
+    /// 【接缝：`GXX.Core.Rtl.DelphiRTL` 目前没有 sLineBreak 常量，故在此按原文语义落一份】
+    /// </summary>
+    public const string sLineBreak = "\r\n";
+
     /// <summary>测试复位。</summary>
     public static void ResetForTests()
     {
@@ -45,5 +67,10 @@ public static class FStateResStrSeam
         SGuildDelMem = "SGuildDelMem";
         SGuildEditNotice = "SGuildEditNotice";
         SGuildEditGradeHint = "SGuildEditGradeHint";
+        SGuildAddMem = "SGuildAddMem";
+        SGuildAllyAsk = "SGuildAllyAsk";
+        SGuildAllyScript = "SGuildAllyScript";
+        SGuildBreakAllyAsk = "SGuildBreakAllyAsk";
+        SGuildBreakAllyScript = "SGuildBreakAllyScript";
     }
 }

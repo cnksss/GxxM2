@@ -1375,6 +1375,158 @@ public sealed class GuiShareHandlersTests : IDisposable
         => ProtectedField(frm, name).SetValue(frm, value);
 
     // =====================================================================================
+    // 切片 9：公会成员增删 + 结盟/解除结盟
+    // ★ 四条都调 `DMessageDlg` —— 它在原文 FState.pas:863 是 `virtual; abstract`
+    //   且本单元无实现体（ABSTRACT_NO_BODY），故走注入接缝而不是"被移植的成员"。
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice9RegistersFourMembers()
+    {
+        Assert.Equal(4, TFrmDlgPortLedger.Slice9Count);
+    }
+
+    /// <summary>捕获 DMessageDlg 的 (文本, 按钮集) 并返回预设模态结果。</summary>
+    private static Func<string, TMsgDlgButtons, string, int, TModalResult> CaptureDialog(
+        List<(string Msg, TMsgDlgButtons Buttons)> seen, TModalResult result)
+        => (msg, buttons, def, maxLen) => { seen.Add((msg, buttons)); return result; };
+
+    [Fact]
+    public void DGDAddMemClickShowsTheFormattedAskThenSendsTheNonEmptyEditText()
+    {
+        var frm = NewForm();
+        var dialogs = new List<(string Msg, TMsgDlgButtons Buttons)>();
+        FStateClMainSeam.DMessageDlgHandler = CaptureDialog(dialogs, TModalResult.mrOk);
+        FStateResStrSeam.SGuildAddMem = "把 %s 加入公会?";
+        var sent = new List<string>();
+        FStateClMainSeam.SendGuildAddMemHandler = n => sent.Add(n);
+        frm.Guild = "风云会";
+        frm.DlgEditText = "新成员甲";
+
+        frm.DGDAddMemClick(null, 0, 0);
+
+        Assert.Single(dialogs);
+        Assert.Equal("把 风云会 加入公会?", dialogs[0].Msg);                    // 17894：Format 已代入 Guild
+        Assert.Equal(TMsgDlgButtons.mbOK | TMsgDlgButtons.mbAbort, dialogs[0].Buttons);
+        Assert.Single(sent);
+        Assert.Equal("新成员甲", sent[0]);                                     // 17896
+    }
+
+    [Fact]
+    public void DGDAddMemClickSkipsTheSendWhenTheEditTextIsEmpty()
+    {
+        var frm = NewForm();
+        FStateClMainSeam.DMessageDlgHandler = (m, b, d, x) => TModalResult.mrOk;
+        int calls = 0;
+        FStateClMainSeam.SendGuildAddMemHandler = _ => calls++;
+        frm.Guild = "G";
+        frm.DlgEditText = "";
+
+        frm.DGDAddMemClick(null, 0, 0);
+
+        Assert.Equal(0, calls);                                                // 17895：空串不上报
+    }
+
+    [Fact]
+    public void DGDAddMemClickIgnoresTheDialogResult()
+    {
+        // 差异断言：本条**不看返回值**（即使返回 mrAbort，非空编辑框照样上报）；原文如此。
+        var frm = NewForm();
+        FStateClMainSeam.DMessageDlgHandler = (m, b, d, x) => TModalResult.mrAbort;
+        var sent = new List<string>();
+        FStateClMainSeam.SendGuildAddMemHandler = n => sent.Add(n);
+        frm.Guild = "G";
+        frm.DlgEditText = "成员乙";
+
+        frm.DGDAddMemClick(null, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal("成员乙", sent[0]);
+    }
+
+    [Fact]
+    public void DGDDelMemClickShowsTheRawAskAndSendsViaSendGuildDelMem()
+    {
+        var frm = NewForm();
+        var dialogs = new List<(string Msg, TMsgDlgButtons Buttons)>();
+        FStateClMainSeam.DMessageDlgHandler = CaptureDialog(dialogs, TModalResult.mrOk);
+        FStateResStrSeam.SGuildDelMem = "确定要踢出成员吗?";
+        var sent = new List<string>();
+        FStateClMainSeam.SendGuildDelMemHandler = n => sent.Add(n);
+        frm.DlgEditText = "成员丙";
+
+        frm.DGDDelMemClick(null, 0, 0);
+
+        Assert.Single(dialogs);
+        Assert.Equal("确定要踢出成员吗?", dialogs[0].Msg);                      // 17901：**无** Format
+        Assert.Equal(TMsgDlgButtons.mbOK | TMsgDlgButtons.mbAbort, dialogs[0].Buttons);
+        Assert.Single(sent);
+        Assert.Equal("成员丙", sent[0]);                                       // 17903
+    }
+
+    [Fact]
+    public void DGDAllyClickSendsTheScriptOnlyWhenTheDialogReturnsOk()
+    {
+        var frm = NewForm();
+        var dialogs = new List<(string Msg, TMsgDlgButtons Buttons)>();
+        FStateResStrSeam.SGuildAllyAsk = "[%s|%s]";
+        FStateResStrSeam.SGuildAllyScript = "@AllyScript";
+        var sent = new List<string>();
+        FStateClMainSeam.SendSayHandler = s => sent.Add(s);
+
+        // mrCancel ⇒ 不发
+        FStateClMainSeam.DMessageDlgHandler = CaptureDialog(dialogs, TModalResult.mrCancel);
+        frm.DGDAllyClick(null, 0, 0);
+        Assert.Empty(sent);
+
+        // mrOk ⇒ 发脚本
+        FStateClMainSeam.DMessageDlgHandler = CaptureDialog(dialogs, TModalResult.mrOk);
+        frm.DGDAllyClick(null, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal("@AllyScript", sent[0]);                                  // 17931
+        // 弹窗文本：两个 `%s` 都被 sLineBreak（CRLF）填满
+        Assert.Equal("[\r\n|\r\n]", dialogs[0].Msg);                           // 17930
+        Assert.Equal(TMsgDlgButtons.mbOK | TMsgDlgButtons.mbCancel, dialogs[0].Buttons);
+    }
+
+    [Fact]
+    public void DGDBreakAllyClickPrefixesTheScriptThenAppendsTheEditText()
+    {
+        var frm = NewForm();
+        var dialogs = new List<(string Msg, TMsgDlgButtons Buttons)>();
+        FStateClMainSeam.DMessageDlgHandler = CaptureDialog(dialogs, TModalResult.mrAbort);
+        FStateResStrSeam.SGuildBreakAllyAsk = "确定解除?";
+        FStateResStrSeam.SGuildBreakAllyScript = "@BreakAlly";
+        var sent = new List<string>();
+        FStateClMainSeam.SendSayHandler = s => sent.Add(s);
+        frm.DlgEditText = "某公会";
+
+        frm.DGDBreakAllyClick(null, 0, 0);
+
+        Assert.Single(dialogs);
+        Assert.Equal("确定解除?", dialogs[0].Msg);                              // 17936：无 Format
+        Assert.Single(sent);
+        Assert.Equal("@BreakAlly某公会", sent[0]);                              // 17938：脚本串在**前**
+    }
+
+    [Fact]
+    public void UninjectedMessageDlgSeamYieldsMrNoneSoNoSideEffectFires()
+    {
+        // 接缝未注入时 DMessageDlg 返回 mrNone ⇒ `mrOk = ...` 不成立 ⇒ 不发脚本。
+        // 这不是"静默吞缺口"：DMessageDlg 在原文就是 abstract 钩子（ABSTRACT_NO_BODY），
+        // 缺口本身登记在报告 §11.2 B-9。
+        var frm = NewForm();
+        FStateResStrSeam.SGuildAllyScript = "@AllyScript";
+        int calls = 0;
+        FStateClMainSeam.SendSayHandler = _ => calls++;
+
+        frm.DGDAllyClick(null, 0, 0);
+
+        Assert.Equal(0, calls);
+    }
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 

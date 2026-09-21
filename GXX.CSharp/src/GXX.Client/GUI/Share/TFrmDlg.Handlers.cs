@@ -4,6 +4,7 @@ using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.Scenes;
 using GXX.Core.Protocol;
+using GXX.Core.Rtl;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 
 namespace GXX.Client.GUI.Share;
@@ -890,6 +891,78 @@ public partial class TFrmDlg
         //         DSayItemDlg.Visible = false;
         // }
     }
+
+    // ==========================================================================================
+    // 切片 9：公会成员增删 + 结盟/解除结盟（四条都先弹窗、再按结果转发）
+    //
+    // ★ 依赖说明（重要）：这四条都调 `DMessageDlg`，而它在原文 **FState.pas:863 是
+    //   `virtual; abstract`**、整份 implementation 段里**没有函数体** ⇒ 属于本报告的
+    //   **ABSTRACT_NO_BODY**，托管侧走 `FStateClMainSeam.DMessageDlg` 注入接缝
+    //   （**不是**"被移植的成员"，也不是"顺手的接缝"）。详见 FStateSeams.cs 的块注释。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:17892-17897 procedure TFrmDlg.DGDAddMemClick。
+    /// 先把 `SGuildAddMem`（经 `DecodeResStr` + `Format(..., [Guild])`）弹给用户，
+    /// **再判 `DlgEditText &lt;&gt; ''`** —— 非空才把编辑框内容作为成员名上报。
+    /// 注意原文**不看弹窗返回值**（与 `DGDAllyClick` 不同；原文如此）。
+    /// </summary>
+    public virtual void DGDAddMemClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.DMessageDlg(                                    // 17894
+            DelphiRTL.Format(FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildAddMem), Guild),
+            TMsgDlgButtons.mbOK | TMsgDlgButtons.mbAbort);
+        if (DlgEditText != "")                                          // 17895
+            FStateClMainSeam.SendGuildAddMem(DlgEditText);              // 17896
+    }
+
+    /// <summary>
+    /// FState.pas:17899-17904 procedure TFrmDlg.DGDDelMemClick。
+    /// 与 DGDAddMemClick 同形，弹 `SGuildDelMem`（**无 Format**，该串无占位符）、
+    /// 上报走 `SendGuildDelMem`。同样**不看**弹窗返回值（原文如此）。
+    /// </summary>
+    public virtual void DGDDelMemClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.DMessageDlg(                                    // 17901
+            FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildDelMem),
+            TMsgDlgButtons.mbOK | TMsgDlgButtons.mbAbort);
+        if (DlgEditText != "")                                          // 17902
+            FStateClMainSeam.SendGuildDelMem(DlgEditText);              // 17903
+    }
+
+    /// <summary>
+    /// FState.pas:17928-17932 procedure TFrmDlg.DGDAllyClick。
+    /// 原文本轮**唯一看返回值**的一条：`if mrOk = DMessageDlg(...) then 发脚本`。
+    /// 弹窗文本是 `Format(DecodeResStr(SGuildAllyAsk), [sLineBreak, sLineBreak])`（两个换行）。
+    /// </summary>
+    public virtual void DGDAllyClick(object Sender, int X, int Y)
+    {
+        if (TModalResult.mrOk == FStateClMainSeam.DMessageDlg(           // 17930
+                DelphiRTL.Format(FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildAllyAsk),
+                                 FStateResStrSeam.sLineBreak, FStateResStrSeam.sLineBreak),
+                TMsgDlgButtons.mbOK | TMsgDlgButtons.mbCancel))
+        {
+            FStateClMainSeam.SendSay(FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildAllyScript)); // 17931
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17934-17939 procedure TFrmDlg.DGDBreakAllyClick。
+    /// 形态介于上面两条之间：弹 `SGuildBreakAllyAsk`（**无 Format**）但**不看返回值**；
+    /// 上报文本是 `DecodeResStr(SGuildBreakAllyScript) + DlgEditText`（**脚本串在前、编辑框在后**，
+    /// 拼接顺序即语义，逐字保留）。
+    /// </summary>
+    public virtual void DGDBreakAllyClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.DMessageDlg(                                    // 17936
+            FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildBreakAllyAsk),
+            TMsgDlgButtons.mbOK | TMsgDlgButtons.mbAbort);
+        if (DlgEditText != "")                                          // 17937
+        {
+            FStateClMainSeam.SendSay(
+                FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildBreakAllyScript) + DlgEditText); // 17938
+        }
+    }
 }
 
 /// <summary>
@@ -1059,9 +1132,20 @@ public static class TFrmDlgPortLedger
         new PortedMember("CloseSayItemDlg",             "24374-24383"),
     };
 
+    /// <summary>
+    /// 切片 9 落地的成员（4 条）：公会成员增删 + 结盟/解除结盟。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice9 = new[]
+    {
+        new PortedMember("DGDAddMemClick",            "17892-17897"),
+        new PortedMember("DGDDelMemClick",            "17899-17904"),
+        new PortedMember("DGDAllyClick",              "17928-17932"),
+        new PortedMember("DGDBreakAllyClick",         "17934-17939"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8, Slice9 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -1087,10 +1171,13 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 8 的真实现成员数。</summary>
     public static int Slice8Count => Slice8.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..8）。</summary>
+    /// <summary>切片 9 的真实现成员数。</summary>
+    public static int Slice9Count => Slice9.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..9）。</summary>
     public static int LaneCount =>
         Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count
-        + Slice6.Count + Slice7.Count + Slice8.Count;
+        + Slice6.Count + Slice7.Count + Slice8.Count + Slice9.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
