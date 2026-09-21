@@ -26,6 +26,7 @@
 
 using System;
 using GXX.Core.Protocol;
+using GXX.Core.Rtl;
 using GXX.Core.Util;
 using GXX.M2Server.Engine;
 
@@ -101,13 +102,144 @@ public partial class TMerchant
         }
     }
 
-    // ★ 2026 第十六轮：`UserSelectPrepare`（原文 2527-2596 解析段 + 门控链）**暂缓落地**。
-    //   原因（本轮普查实测）：门控链 2573/2575 依赖 `PlayObject.LableIsCanJmp(sLabel)`，
-    //   而它在 `src` **没有任何代码声明**（此前误判为已存在 —— 命中的其实是
-    //   `TPlayObject.PlayerSurface.NpcSession.cs:346` 的**注释行**）。
-    //   ⇒ 需先裁定 1 个新接缝 `LableIsCanJmp`（签名 `Func<TPlayObject, string, bool>`，
-    //     原文 `ObjPlayer.pas` `function TPlayerObject.LableIsCanJmp(sLabel: string): Boolean`），
-    //     落地后再补 `UserSelectPrepare`。详见报告 §22。
+    /// <summary>
+    /// `TMerchant.UserSelect` 的**解析段 + 门控链**（原文 **2527-2596**）。
+    /// <para>落在 `TMerchant` 上，**不是新 API** —— 它是原文 `TMerchant.UserSelect` 的开头部分；
+    /// 等派发体（2597-2899）落地时，把本方法体**原样内联**进 `UserSelect` 并删除本方法。
+    /// <b>★ 删除条件（可执行）</b>：`UserSelect` 在登记表里由 `Missing` → `Covered`，
+    /// 且 `UserSelectPrepare` 在 `src`/`tests` 中**零引用**（`grep` 可验）。</para>
+    /// <para><b>逐段对照（报告 §22.5 的 15 条）</b> —— 五个易抄错点已逐条落实：
+    /// ① 2529 `ClassNameIs` 是**精确类名**（**不是** `is`）；
+    /// ② 2533 **Delphi 优先级 `not` &gt; `and` &gt; `or`**；
+    /// ③ 2538 两个出口都接（`ref sLabel` + 返回剩余串）；
+    /// ④ 2542 `Pos('(')` 找不到返回 **0**；
+    /// ⑤ 2578 长度参数是 **`Length(sLabel)`**（不是被比较串的长度）。</para>
+    /// <para>另：2535 `sData[1]` 是 **1-based** 且**已先判空**；2549-2562 `@FOUNDRYITEM_`/`@SHOWITEM_` 归一；
+    /// 2586/2595 两处**早退**；2531/2892 的 `try/except` 要报出 **`nCode`（0..21）**。</para>
+    /// <para><b>返回</b>：`true` = 继续走到派发体；`false` = 原文在 2530/2586/2595 处 `Exit`。</para>
+    /// <para>⚠ `m_boCastle = true` 的城堡 NPC 会触达 `NpcSeams.GetCastleUnderWar`（偏差 **D37**，未接线时抛 —— **窄路径**）。</para>
+    /// </summary>
+    public bool UserSelectPrepare(TPlayObject PlayObject, string sData, out string sLabel, out string sMsg,
+        out bool boAllowSelect, out bool boCanGoto, out bool boCanJmp)
+    {
+        // 原文 2527：inherited（落到 TNormNpc.UserSelect 真实现 —— 虚分派链的基类落点）
+        base.UserSelect(PlayObject, sData);
+
+        sLabel = "";
+        sMsg = "";
+        boAllowSelect = false;
+        boCanGoto = false;
+        boCanJmp = false;
+
+        // 原文 2528
+        int nCode = 0;
+        // 原文 2529-2530：★ ① 精确类名比较（不是 is / 派生判定）
+        if (GetType() != typeof(TMerchant))
+            return false;
+        try
+        {
+            // 原文 2532
+            nCode = 1;
+            // ★ ② 原文 2533：`not m_boCastle or not ((m_Castle<>nil) and underWar) and (PlayObject<>nil)`
+            //   Delphi 优先级 `not` > `and` > `or` → `(!m_boCastle) || ((!underWar) && (PlayObject != null))`
+            bool castleUnderWar = false;
+            if (m_boCastle)
+            {
+                object castle = NpcSeams.GetNpcCastle(this);
+                if (castle != null)
+                    castleUnderWar = NpcSeams.GetCastleUnderWar(castle);   // 偏差 D37（窄路径）
+            }
+            if ((!m_boCastle) || ((!castleUnderWar) && (PlayObject != null)))
+            {
+                // 原文 2535：`(sData <> '') and (sData[1] = '@')` —— sData[1] 1-based 且已先判空
+                if ((sData != "") && (sData[0] == '@'))
+                {
+                    // 原文 2538：★ ③ 两个出口都要接（ref sLabel + 返回剩余串）
+                    sMsg = HUtil32.GetValidStr3_Ex(sData, ref sLabel, '\r');
+                    // 原文 2540-2545：★ ④ Pos 找不到返回 0
+                    if ((sLabel.Length >= 2) && (sLabel[1] == '@') && (sLabel[sLabel.Length - 1] == ')'))
+                    {
+                        int nPos = (int)DelphiRTL.Pos("(", sLabel);
+                        if (nPos > 0)
+                            sLabel = DelphiRTL.Copy(sLabel, 1, nPos - 1);
+                    }
+                    // 原文 2548-2562
+                    nCode = 3;
+                    if (MonGenParseCore.CompareLStr(sLabel, "@FOUNDRYITEM_", "@FOUNDRYITEM_".Length))
+                    {
+                        PlayObject.m_sNpcSelectItemName = DelphiRTL.Copy(sLabel, "@FOUNDRYITEM_".Length + 1,
+                            sLabel.Length - "@FOUNDRYITEM_".Length);
+                        sLabel = "@FOUNDRYITEM_";
+                    }
+                    else if (MonGenParseCore.CompareLStr(sLabel, "@SHOWITEM_", "@SHOWITEM_".Length))
+                    {
+                        PlayObject.m_sNpcSelectItemName = DelphiRTL.Copy(sLabel, "@SHOWITEM_".Length + 1,
+                            sLabel.Length - "@SHOWITEM_".Length);
+                        sLabel = "@SHOWITEM_";
+                    }
+                    else
+                    {
+                        PlayObject.m_sNpcSelectItemName = "";
+                    }
+                    // 原文 2563-2566
+                    nCode = 4;
+                    PlayObject.m_sScriptLable = sData;
+                    PlayObject.m_sInputData = sMsg;
+                    // 原文 2567-2568：`// boCanGoto := PlayObject.LableIsCanJmp(sLabel);` 注释保留
+                    nCode = 5;
+                    boAllowSelect = AllowSelect(sLabel);
+                    // 原文 2571-2575
+                    nCode = 6;
+                    bool boIdentityMatch = NpcSeams.IsFunctionNpc(this) || NpcSeams.IsManageNpc(this)
+                        || NpcSeams.IsMissionNpc(this);
+                    if (boIdentityMatch)
+                        boCanGoto = NpcSeams.LableIsCanJmp(PlayObject, sLabel) && boAllowSelect;
+                    else
+                        boCanGoto = NpcSeams.LableIsCanJmp(PlayObject, sLabel);
+                    // 原文 2576-2579：★ ⑤ 长度参数是 `Length(sLabel)`
+                    if ((!boCanGoto) && PlayObject.m_boMessageBox)
+                    {
+                        boCanGoto = MonGenParseCore.CompareLStr(sLabel, PlayObject.m_sYesLable, sLabel.Length)
+                            || MonGenParseCore.CompareLStr(sLabel, PlayObject.m_sNoLable, sLabel.Length);
+                    }
+                    // 原文 2580-2588
+                    nCode = 7;
+                    if (NpcSeams.IsFunctionNpc(this) || NpcSeams.IsMissionNpc(this))
+                    {
+                        if (!boAllowSelect)
+                        {
+                            NpcSeams.MainOutMessage(
+                                $"用户:{PlayObject.m_sCharName}; NPC:{m_sCharName} 禁止点用该NPC触发字段:{sLabel}");
+                            return false;
+                        }
+                    }
+                    // 原文 2589-2590
+                    nCode = 8;
+                    boCanJmp = boCanGoto
+                        || (NpcSeams.IsFunctionNpc(this) && boAllowSelect)
+                        || (NpcSeams.IsMissionNpc(this) && boAllowSelect);
+                    // 原文 2591-2596
+                    nCode = 9;
+                    if (ObjNpcText.CompareText(sLabel, NpcProcessCmd.sNF_SendMsg) == 0)
+                    {
+                        if (sMsg == "")
+                            return false;
+                    }
+                    // 原文 2597 起是派发体（本方法不含）—— `true` = 继续派发
+                    return true;
+                }
+            }
+            // 2533 的门不成立（或 2535 不成立）→ 与原文一致地走到末尾
+            return true;
+        }
+        catch (Exception e)
+        {
+            // 原文 2892-2897：`MainOutMessage(Format(sExceptionMsg, [sData, nCode])); MainOutMessage(E.Message);`
+            NpcSeams.MainOutMessage($"[Exception] TMerchant.UserSelect... Data: {sData}; Code: {nCode}");
+            NpcSeams.MainOutMessage(e.Message);
+            return false;
+        }
+    }
 }
 
 
