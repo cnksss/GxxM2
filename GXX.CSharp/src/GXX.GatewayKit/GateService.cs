@@ -304,7 +304,27 @@ public abstract class GateService : IGateUiService
     /// 本类新增的所有 opt-in 分支对它们永不进入。
     /// </para>
     /// </summary>
-    protected virtual GXX.GatewayKit.Rest11.Rest11LoginGateOptions? Rest11Options => null;
+    // ★ 集成方修复（台账 §62.1 / X-P17-01）：原文只有 `protected virtual … => null;`（get-only），
+    //   而派生类 `LoginGateService` 用 `public … { get; set; }` **隐藏**它（C# 不允许把 override 放宽可见性，
+    //   也不允许 get-only→get-set）⇒ **本类内部第 79/228 行的读取静态绑定到恒 null 的基类属性**
+    //   ⇒ `IsBlockIP`/`IsBlockIPArea`/`OverConnectOfIP` 三处 Enforcement **永远不可达**，
+    //   `EnableIpAddrFilterResidual` 成了装饰品（**静默失效**，且被 `Directory.Build.props` 的
+    //   `NoWarn=…;CS0108;CS0114` 全局掩盖）。证据：车道 `p17-m2-hostwire` 工单表 X-P17-01。
+    //   修法：加一个 **protected 可写访问器**并在本类内改读它；派生类的 public 属性保留（对外 API 不变）但代理到它。
+    private GXX.GatewayKit.Rest11.Rest11LoginGateOptions? _rest11Options;
+
+    /// <summary>可写的 opt-in 选项入口（**protected**：只有派生宿主能装配）。默认 null = 全部关闭。</summary>
+    protected GXX.GatewayKit.Rest11.Rest11LoginGateOptions? Rest11OptionsValue
+    {
+        get => _rest11Options;
+        set => _rest11Options = value;
+    }
+
+    /// <summary>
+    /// opt-in 选项的**基类视图**（本类内部第 79/228 行读的是它）。
+    /// 保留 `virtual` 以备真正的覆写；但**不要**再用"同名 public 属性"去隐藏它 —— 那就是 X-P17-01。
+    /// </summary>
+    protected virtual GXX.GatewayKit.Rest11.Rest11LoginGateOptions? Rest11Options => _rest11Options;
 
     /// <summary>
     /// Rest11 LoginGate 执法 kernel（`GXX.LoginGate.Rest11.Rest11LoginGateKernel`）。

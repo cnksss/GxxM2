@@ -52,8 +52,18 @@ public class LoginGateService : GateService
     /// 客户端帧走 `ProcessCltData` 的包头门控与 `CM_*` 分派；`TProcMsgThread.Run` 驱动
     /// 客户端超时踢线与 `DelayClose` 到期关闭。
     /// </para>
+    /// <para>
+    /// ★ 集成方修复（台账 §62.1 / X-P17-01）：本属性此前是 `{ get; set; }` **自动属性**，
+    /// 它**隐藏**（而非覆写）基类 `GateService.Rest11Options` ⇒ **基类内部** `LoadConfig`/`CheckIP`
+    /// 那三处判定读到的仍是基类恒 null 视图 ⇒ IP 黑名单/段表/超连判定**全部不可达且静默**。
+    /// 现在改为**代理基类的可写访问器**（`Rest11OptionsValue`），对外公开 API 一字不变。
+    /// </para>
     /// </summary>
-    public Rest11LoginGateOptions? Rest11Options { get; set; }
+    public Rest11LoginGateOptions? Rest11Options
+    {
+        get => Rest11OptionsValue;
+        set => Rest11OptionsValue = value;
+    }
 
     // ---- Rest11 接线（null 时全部路径与接线前逐字节一致）----
     private Rest11LoginGateEnforcement? _rest11Wire;

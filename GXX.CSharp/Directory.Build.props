@@ -9,7 +9,16 @@
     <Deterministic>true</Deterministic>
     <Company>GXX</Company>
     <Product>GXX Mir2 Suite (C# Conversion)</Product>
-    <NoWarn>$(NoWarn);CS0219;CS0414;CS0649;CS0067;CS0108;CS0114;CS8632;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767;CS8321</NoWarn>
+    <!-- =====================================================================================
+         ★ 集成方改动（台账 §62.2 / X-P17-01 的根因）：把 CS0108/CS0114 从全局 NoWarn 里**移除**。
+         这两个警告正是"**同名成员隐藏了继承成员**"，而车道 p17-m2-hostwire 证明：
+         正是它们被全局静音，才让 `GateService.Rest11Options` 的"隐藏而非覆写"
+         （⇒ 整个 LoginGate 执法面不可达）**活了几个月而无人发现**。
+         与 X-P10-04（`TextReplaceDialog` 用 `new` 隐藏）是**同一机制**。
+         本工程的口径是"0 error"（警告不作门槛），所以恢复可见性**不改变任何门的判定**，
+         只是把"静默失效"变成"构建时可见"。数量已登记在台账 §62.2。
+         ===================================================================================== -->
+    <NoWarn>$(NoWarn);CS0219;CS0414;CS0649;CS0067;CS8632;CS8600;CS8601;CS8602;CS8603;CS8604;CS8618;CS8625;CS8767;CS8321</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Text.Encoding.CodePages" Version="8.0.0" />

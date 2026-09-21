@@ -343,10 +343,14 @@ public class HostWireE2ETests
         walker.SendMsg(Grobal2Const.RM_WALK, Grobal2Const.DR_UP, 0, 0, 0, "");
         Assert.Equal(20, Volatile.Read(ref walker.m_nCurrY)); // 入队后、主循环前：原地不动
 
-        // (c) 怪物：Run 里按 m_Target 走位（每 800ms 一步）
+        // (c) 怪物：Run 里按目标走位（每 800ms 一步）
+        // ★ 集成方修正（台账 §62.3）：本行原为 `monster.m_Target`，那是**旧的 18 行近似物**的字段；
+        //   车道 p16-m2-tmonster-run 把 `TMonster.Run` 改成原文 259 行 1:1 后，该近似字段**已删除**
+        //   （原文用的是 `m_TargetCret`）。这是**语义合并冲突**：git 看不出，编译器看得出 ——
+        //   两个车道各自都在自己的 worktree 里验证过"全树 0 引用"，但**合起来**才暴露。
         var monster = host.Engine.UserEngine.SpawnMonster(HostFixture.MapName, 10, 10, "鸡");
         Assert.NotNull(monster);
-        monster!.m_Target = target;
+        monster!.m_TargetCret = target;
         Assert.Equal(10, Volatile.Read(ref monster.m_nCurrY));
 
         Assert.True(WaitUntil(() => Volatile.Read(ref ticks) > 0, 5000),
@@ -356,17 +360,25 @@ public class HostWireE2ETests
             "玩家消息队列未被主循环消费（RM_WALK 未生效）；实际 y="
             + Volatile.Read(ref walker.m_nCurrY) + "；日志=" + host.LogDump());
 
-        Assert.True(WaitUntil(() => Volatile.Read(ref monster.m_nCurrY) < 10, 5000),
-            "怪物 AI 未在主循环里推进；实际 y=" + Volatile.Read(ref monster.m_nCurrY)
-            + "；日志=" + host.LogDump());
-
+        // ★ 集成方移除了这里原有的"怪物 AI 会在主循环里推进（y < 10）"断言 —— 见下方 372 行处的说明：
+        //   那条断言只对**旧的 18 行近似 Run** 成立；原文 1:1 的 `Run` 需要宿主先装配
+        //   `IMonsterRunWorld`/`IMonsterRunEnvirView`（NotPorted 接缝，台账 §61.2），当前宿主没装。
         // 节拍必须持续（不是只跑了一轮）
         int first = Volatile.Read(ref ticks);
         Assert.True(WaitUntil(() => Volatile.Read(ref ticks) > first + 5, 5000),
             "主循环节拍没有持续推进：first=" + first + " now=" + Volatile.Read(ref ticks));
 
-        Assert.True(host.Engine.ServiceStarted);
+        // ★ 集成方修正（台账 §62.3）：本用例原先断言"怪物会在主循环里沿目标走位（y < 10）"。
+        //   那条断言成立的前提是**旧的 18 行近似 `TMonster.Run`**（它自带简化追踪循环）。
+        //   车道 p16-m2-tmonster-run 把 Run 改成**原文 259 行 1:1** 后，追踪/攻击/拾取都要经
+        //   `IMonsterRunWorld`（`Think`/`AttackTarget`/`GotoTargetXY` …）与 `IMonsterRunEnvirView`
+        //   —— 而**宿主目前没有装配它们**（该车道把它们列为 NotPorted 接缝，见台账 §61.2）。
+        //   ⇒ 正确行为就是"**AI 的追踪路径当前是惰性的**"：这里改成断言这一点，
+        //   并把它登记为宿主装配的下一步（"宿主缺失"类，D-P17-03）。**不是**把断言放宽了事。
+        Assert.Equal(10, Volatile.Read(ref monster.m_nCurrY));
+        Assert.Equal(10, Volatile.Read(ref monster.m_nCurrX));
         Assert.False(host.HasMainLoopFailure(), "主循环抛异常：" + host.LogDump());
+        Assert.True(host.Engine.ServiceStarted);
     }
 
     // ------------------------------------------------- 3. 默认路径不变（§59.7 的核心判据）
