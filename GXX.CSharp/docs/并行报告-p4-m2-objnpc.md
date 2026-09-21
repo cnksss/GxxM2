@@ -2035,3 +2035,51 @@ Covered **67** / Seam **4** / Missing **41**；**`UserSelect` 三条（`TMerchan
 1. 把 `UserSelectPrepare` 内联进 `TMerchant.UserSelect`、并把 `UserSelectRepairCommands` 的两个 `case`
    搬进新 `switch`，两个临时方法一并删除（两处删除条件都已写明）；
 2. `UserSelect` 三条登记同时由 `Missing` → `Covered`。
+---
+
+# 24. 第十八轮：`RemoteMsg`/`InPutInteger`/`InPutString` 族的**依赖普查**（本轮**未落代码**，待裁定 4 项）★ 本节优先于 §23
+
+> 按裁定"按语义族分片"，本片是 **`RemoteMsg`(2177-2204) + `InPutInteger`(2461-2484) + `InPutString`(2486-2506) = 76 行**。
+> 按流程**先普查**：其余依赖齐备，但**缺 4 项宿主** → 停下报告，**不擅自添加**。
+
+## 24.1 ✅ 已具备的依赖
+
+| 依赖 | 现状 |
+|---|---|
+| `HUtil32.IsStringNumber` | ✅ `GXX.Core/Util/HUtil32.cs:460`（原文 2466） |
+| `SendMsgToUser` | ✅ **本车道已有**：`ObjNpcConversation.cs:32` `SendMsgToUser(TPlayObject, string, bool boShowNPCName = true)`（原文 2192 两参调用兼容） |
+| `nMaxInputStringLen`（`g_Config` 面） | ✅ `Grobal2.Types5.cs:321`（原文 2617） |
+| `GotoLable` / `StrToIntDef` / `Copy` / `Trim` | ✅ 接缝 + `DelphiRTL` |
+| `NpcSeams.SysMsg`（`c_Red`/`t_Hint` 第一重载） | ✅ 已有（原文 2196/2201） |
+
+## 24.2 ❌ 缺的 4 项 —— 请裁定（沿用既有做法，**默认值按忠实性判据**）
+
+| # | 名称 | 建议形态 | 原文 | 建议默认 | 忠实性理由 |
+|---|---|---|---|---|---|
+| 1 | `m_boRemoteMsg` | `Func<TPlayObject, bool>` 接缝（或授权在 `TPlayObject` 上加 `bool` 字段） | ObjNpc.pas:2188 `TargetObject.m_boRemoteMsg`（字段本体在 **ObjPlayer.pas**，未移植） | **`false`** | 原文字段在**未设置时就是 False**（Delphi 字段默认零值）⇒ 复现原文已有状态，非"发明值"。⚠ 与 D37 不同：D37 是"真值不可知" |
+| 2 | `g_sUserNotOnLine` | `string`（M2Share 全局串） | ObjNpc.pas:2201 `g_sUserNotOnLine { '  没有在线！' }` | 原文默认文本（**含那处原文注释**里的串） | 同上一栏 |
+| 3 | `g_InputBoxFilterList` | `Func<object?>` 接缝（只用于判 `<> nil`） | ObjNpc.pas:2468/2494 `if (g_InputBoxFilterList <> nil) then` | **`null`** | 原文该全局**未初始化即 nil** ⇒ 过滤整段**跳过**是原文真实行为 |
+| 4 | `GetInputBoxInFilterList` | `Func<string, bool>` 接缝 | ObjNpc.pas:2470/2496 `GetInputBoxInFilterList(sMsg)`（M2Share.pas） | **`false`** | 仅在第 3 项非 nil 时才被调用；默认 `false` = "不在过滤名单" |
+
+**若裁定 1 走"加字段"**：该字段属 `TPlayObject`（`Engine/**`，不在本车道分区）→ 需扩分区或另派；
+**若走接缝**：本车道自行添加即可（零跨文件）。我倾向**接缝**（与 `GetCastleUnderWar` 同族、可登记可删除）。
+
+## 24.3 本族的两处"看起来一样实则不同"（普查时先记下，实现时写差异断言）
+
+| 处 | 差异 | 说明 |
+|---|---|---|
+| `InPutInteger` vs `InPutString` | **`Copy` 的起点/长度不同**：整数版 `Copy(sLabel, **15**, Length-14)`（`:2477`），字符串版 `Copy(sLabel, **14**, Length-13)`（`:2490`） | 差 1 个字符；且**过滤检查的位置也不同**（整数版在 `StrToIntDef` **之前**（:2470），字符串版在**之后**（:2496）） |
+| `InPutInteger` vs `InPutString` | 写入目标不同：`m_nInteger[nNo]`（:2480）vs `m_sString[nNo]`（:2503） | |
+| 过滤命中时的标签不同 | `'@InputIntegerFilter'`（:2472）vs `'@InputStringFilter'`（:2498） | 两个不同标签，勿互抄 |
+
+## 24.4 附带发现：这两个过程**不在 `nNF_*` 派发体里**
+
+`InPutInteger`/`InPutString` 由**我尚未移植的 2597-2631 段**调用（`CompareLStr(sLabel, sNF_InputInteger, ...)` 前置分支，带 `boCanGoto` 门与长度上限检查），
+**不是** `case nNF_InputInteger`。⇒ 实现本族时需**同时**落 **2597-2631**（约 35 行，含 `@@copytoclipboard` 分支），
+我已在 §23 的解析段里停在 2596，正好接得上。**这 35 行将并入本片**，请一并批准。
+
+## 24.5 本轮状态
+
+- **未落代码**：普查发现 4 项缺失宿主 + 1 处范围扩展（2597-2631），按流程停下报告。
+- 工作树**干净**；最后一次提交 `21793862` **全绿**（9,382 例）；已 `merge main`（无冲突）。
+- `UserSelect` 三条**继续 `Missing`**；已移植 `case` 分支累计 **16 条**（未变）。
