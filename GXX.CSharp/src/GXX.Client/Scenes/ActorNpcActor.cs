@@ -1207,6 +1207,13 @@ public partial class TActorCore
     public virtual void Destroy() => NotPorted(nameof(Destroy), 2945);
 
     /// <summary>
+    /// `TActor.light`（原文 **5415-5418，4 行**）1:1：<c>Result := m_nChrLight;</c>。
+    /// <para>本虚槽位是 <c>THumActor.light</c>（14520）的覆写目标。基类体是**原文的实体**
+    /// （不是留痕），故 <c>TActor</c> 派的角色取到的就是自己的 <c>m_nChrLight</c>。</para>
+    /// </summary>
+    public virtual int light() => m_nChrLight;
+
+    /// <summary>
     /// 台帐 §48.1 的显式留痕：暂时做不了的成员**必须**以本方法标出，禁止裸 <c>=&gt; true;</c>。
     /// <para>返回值恒 <c>false</c> 且**每次调用都记录**，使"未移植"在运行期可观测（而非静默中性值）。</para>
     /// </summary>

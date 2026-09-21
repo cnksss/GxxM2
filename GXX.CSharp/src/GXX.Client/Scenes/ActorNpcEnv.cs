@@ -215,6 +215,14 @@ public static class ActorNpcEnv
     /// <summary>`LegendMap.Stop`（原文 17432）。</summary>
     public static Action LegendMapStopFn = () => { };
 
+    /// <summary>
+    /// `FlyEffect.ClientConfig.Sounds[custMagicExplosion]`（原文 13644 的 `Length(...) &gt; 0` 判据）。
+    /// <para>返回 <c>null</c> = <c>Sender</c> **不是** <c>TCustomMonFlyEffect</c>
+    /// （对应原文 13641 的 <c>is</c> 门为假）；返回**空串** = 是飞行特效但该条音效未配置
+    /// （对应 13644 的 <c>Length &gt; 0</c> 为假）。两级语义在类型层面可区分。</para>
+    /// </summary>
+    public static Func<object?, string?> MonFlyEffectExplosionSoundFn = _ => null;
+
     // ---- CheckLoadUserName（10266-10295）的四个开关 ----
 
     /// <summary>`PlugInEnabled`（原文 10271）。</summary>
@@ -283,6 +291,7 @@ public static class ActorNpcEnv
         MouseCurrXFn = () => 0;
         MouseCurrYFn = () => 0;
         LegendMapStopFn = () => { };
+        MonFlyEffectExplosionSoundFn = _ => null;
         PlugInEnabled = true;
         ClientConfigBoHideGhost = false;
         ConfigDlgCkHideGhost = false;
