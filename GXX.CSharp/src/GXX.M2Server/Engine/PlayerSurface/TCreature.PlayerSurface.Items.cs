@@ -130,8 +130,10 @@ public abstract partial class TCreature
     /// （Grobal2.pas:4169，`MAX_USE_ITEM_COUNT = 30`，Grobal2.pas:51）。
     ///
     /// ★★ **本字段不在此声明** —— 托管侧**已存在**同名成员：
-    /// `Engine/RecalcChain.cs:101` `public TUserItemView?[] m_UseItems = new TUserItemView?[UseSlots.SlotCount];`
-    /// （§14.2「不造第三份」/ 防 CS0102）。本车道**复用它**，并登记两处偏差：
+    /// `Engine/RecalcChain.cs` `public TUserItem?[] m_UseItems = new TUserItem?[UseSlots.SlotCount];`
+    /// （★ 第十一轮口径统一：原为 `TUserItemView?[]` —— **视图类型选错**，现与 `m_ItemList` 同为
+    /// 权威可空值类型数组，见报告 §17）。
+    /// 防 CS0102）。本车道**复用它**，并登记两处偏差：
     /// <list type="number">
     ///   <item><description>**槽位数 21 vs 30**：`UseSlots.SlotCount = 21`（RecalcChain.cs:21），
     ///     原文是 30（Grobal2.pas:51/:4169「加盾牌 原为0..15」后为 30）。
@@ -219,6 +221,25 @@ public abstract partial class TCreature
     /// 与原文"加入指针、共享同一对象"的**别名语义不同** —— 即正式偏差 **D35**，详见 <see cref="BagItems"/>。</para>
     /// </summary>
     public void AddToBag(TUserItem? item) => m_ItemList.Add(item);
+
+    /// <summary>
+    /// 方案 A 的**视图现造点**：把权威记录 `TUserItem`（唯一存储）转成能力聚合用的
+    /// `TUserItemView`（`AddAbility.cs:64`，只含 `wIndex` + `BtValue[14]` + `CustomProperties`）。
+    /// <para>调用点：`SendAddItem`（背包物品编码）与 `RecalcAbilitys`（装备槽遍历，`RecalcChain.cs:50`）
+    /// —— 两者都只**读**视图，不把视图写回存储。</para>
+    /// <para>⚠ **有损**：`TUserItem.btValue` 原文是 `array[0..13] of Integer`（托管 `fixed int btValue[14]`），
+    /// 而 `TUserItemView.BtValue` 是 `byte[14]` —— 大于 255 的附加值会被截断（按 `(byte)` 窄化，与原文
+    /// 消费方 `GetAccessory`/`RecalcBonus` 读 byte 的口径一致）。已登记，见报告 §12.5 同族的"视图 ≠ 存储"说明。</para>
+    /// <para>★ 放在 `TCreature`（而非 `TPlayObject`）上：`RecalcAbilitys` 在 `RecalcChain.cs` 里以
+    /// `TCreature.ToItemView(...)` 现造视图，故必须在这一层可见。</para>
+    /// </summary>
+    internal static TUserItemView ToItemView(TUserItem item)
+    {
+        var view = new TUserItemView { wIndex = item.wIndex };
+        for (int i = 0; i < view.BtValue.Length; i++)
+            view.BtValue[i] = (byte)item.GetBtValue(i);
+        return view;
+    }
 
     /// <summary>
     /// 原文 `function TBaseObject.GetMaxBagCount: Integer;`（ObjBase.pas:26738-26741）
@@ -474,21 +495,6 @@ public partial class TPlayObject
             // 原文 3392：IncBeadExp(_dwRecordBeadExp, False);
             PlayerSurfaceItemSeams.IncBeadExp(this, old);
         }
-    }
-
-    /// <summary>
-    /// 方案 A 的**视图现造点**：把权威记录 `TUserItem`（唯一存储）转成能力聚合用的
-    /// `TUserItemView`（`AddAbility.cs:64`，只含 `wIndex` + `BtValue[14]` + `CustomProperties`）。
-    /// <para>⚠ **有损**：`TUserItem.btValue` 原文是 `array[0..13] of Integer`（托管 `fixed int btValue[14]`），
-    /// 而 `TUserItemView.BtValue` 是 `byte[14]` —— 大于 255 的附加值会被截断（按 `(byte)` 窄化，与原文
-    /// 消费方 `GetAccessory` 读 byte 的口径一致）。已登记，见报告 §12.5 同族的"视图 ≠ 存储"说明。</para>
-    /// </summary>
-    internal static TUserItemView ToItemView(TUserItem item)
-    {
-        var view = new TUserItemView { wIndex = item.wIndex };
-        for (int i = 0; i < view.BtValue.Length; i++)
-            view.BtValue[i] = (byte)item.GetBtValue(i);
-        return view;
     }
 
     /// <summary>

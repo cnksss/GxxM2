@@ -2,9 +2,9 @@
 // 源单元：Source\M2Engine\ObjNpc.pas
 // 测试对象：TMerchant.UpgradeWapon 外层体（原文 **1830-1901，72 行**）
 //           —— 嵌套过程 sub_4A0218 已在 NpcObjNpcSub4A0218Tests.cs 覆盖。
-// 前置（本轮核实）：① `m_UseItems[U_WEAPON]` 读写 → 走 GetUseItemsWeapon / SetUseItemsWeapon
-//                   两个按权威侧定名的接缝（D35 契约：取出→改→写回）；
-//                 ② GotoLable 未移植 → PlayerSurfaceNpcSeams.GotoLable。
+// 前置（第十轮核实；第十一轮 `m_UseItems` 口径统一为权威 `TUserItem?[]` 后改为**直填槽位**）：
+//   ① `m_UseItems[U_WEAPON]` 读写 → 直接写 `p.m_UseItems[UseSlots.U_WEAPON]`（D35 契约：取出→改→写回）；
+//   ② GotoLable 未移植 → PlayerSurfaceNpcSeams.GotoLable。
 // ============================================================================
 
 using System;
@@ -22,7 +22,6 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
     private readonly List<string> _logs = new();
     private readonly List<string> _labels = new();
     private readonly List<string> _sysMsgs = new();
-    private readonly List<TUserItem> _slotWrites = new();
 
     /// <summary>用于观测 `RecalcAbilitys()` 是否被调用（原文 :1887）。</summary>
     private sealed class SpyPlayer : TPlayObject
@@ -46,7 +45,8 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
         NpcSeams.SysMsgFB = (t, msg, f, b, type) => _sysMsgs.Add($"FB|{msg}|{f}|{b}|{type}");
         NpcSeams.MainOutMessage = _ => { };
         NpcSeams.SaveUpgradeWeaponRecord = (_, _) => { };
-        NpcSeams.SetUseItemsWeapon = (p, item) => _slotWrites.Add(item);
+        // ★ 第十一轮：`SetUseItemsWeapon` 接缝已删除 → 清空武器格改为**直写权威槽位**，
+        //   故 `_slotWrites` 不再由接缝填充；改为在用例里直接读 `p.m_UseItems[U_WEAPON]` 断言。
         PlayerSurfaceNpcSeams.GotoLable = (npc, player, label, ext) => { _labels.Add(label); return true; };
         PlayerSurfaceNpcSeams.MyGetTickCount = () => 12345u;
         PlayerSurfaceItemSeams.GetStdItemName = _ => NpcSeams.sBlackStone;
@@ -81,7 +81,8 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
         p.m_wAbil.MaxWeight = 30000;
         TStdItem s = std ?? Std();
         NpcSeams.GetStdItem = _ => s;
-        NpcSeams.GetUseItemsWeapon = _ => weapon ?? Weapon();
+        // ★ 第十一轮：替身接缝已删 → 直填权威装备槽
+        p.m_UseItems[UseSlots.U_WEAPON] = weapon ?? Weapon();
         if (addBlackStone)
             p.AddToBag(new TUserItem { wIndex = 99, MakeIndex = 1, Dura = 1000, DuraMax = 1000 });
         M2Config.nUpgradeWeaponPrice = 500;
@@ -102,7 +103,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         Assert.Equal(ObjNpcConst.sNF_Upgradeing, Assert.Single(_labels));
         Assert.Equal(10000u, p.m_nGold);          // 未扣费
-        Assert.Empty(_slotWrites);                // 未清空武器格
+        Assert.NotEqual((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);   // 未清空武器格
     }
 
     [Fact]
@@ -224,9 +225,9 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
         // 1889：RM_ABILITY（⚠ 总数不止 1 —— 1900 的 `sub_4A0218` 会为被消耗的黑铁矿
         //   额外走 `SendDelItem`/日志路径，故此处只断言"**包含** RM_ABILITY"）
         Assert.Contains(_sent, s => s.StartsWith($"{Grobal2Const.RM_ABILITY}|0|0|0|0|"));
-        // 1886：武器格被清空（★ D35：写回，不是改本地副本）
-        Assert.Single(_slotWrites);
-        Assert.Equal((ushort)0, _slotWrites[0].wIndex);
+        // 1886：武器格被清空（★ D35：写回权威槽位，不是只改本地副本）
+        Assert.NotNull(p.m_UseItems[UseSlots.U_WEAPON]);
+        Assert.Equal((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);
         // 1879-1880：升级记录保留了**清空之前**的整件武器
         var info = Assert.IsType<TUpgradeInfo>(Assert.Single(m.m_UpgradeWeaponList));
         Assert.Equal("玩家", info.sUserName);

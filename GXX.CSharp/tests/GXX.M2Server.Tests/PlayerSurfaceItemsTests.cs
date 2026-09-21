@@ -65,7 +65,8 @@ public class PlayerSurfaceItemsTests : IDisposable
     [Fact]
     public void UseItems_ExistingSlotArrayIsReused_NotRedeclared()
     {
-        // ★ `Engine/RecalcChain.cs:101` 已声明 `public TUserItemView?[] m_UseItems`
+        // ★ `Engine/RecalcChain.cs` 已声明 `public TUserItem?[] m_UseItems`
+        //   （第十一轮口径统一：原为 `TUserItemView?[]`，**视图类型选错**，现与 `m_ItemList` 同口径）
         //   本车道**未重复声明**（否则 CS0102）。反射确认只有一个字段。
         var fields = typeof(TPlayObject).GetFields(
             System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
@@ -73,7 +74,7 @@ public class PlayerSurfaceItemsTests : IDisposable
         System.Type? t = null;
         foreach (var f in fields) if (f.Name == "m_UseItems") { count++; t = f.FieldType; }
         Assert.Equal(1, count);
-        Assert.Equal(typeof(TUserItemView[]), t);
+        Assert.Equal(typeof(TUserItem?[]), t);
 
         // 槽位数 = UseSlots.SlotCount = 21（原文是 30，偏差已在报告登记）
         var p = new TPlayObject();
@@ -94,17 +95,19 @@ public class PlayerSurfaceItemsTests : IDisposable
     public void UseItems_NewSlotIsNull_NotAZeroedItem()
     {
         // ★ 差异断言：原文 `m_UseItems` 是**值数组**，新元素 = 全零 TUserItem（wIndex = 0）；
-        //   托管是**引用数组**，新元素 = null → 读 `.wIndex` 会 NRE。
+        //   托管是**可空值类型数组** `TUserItem?[]`，新元素 = null（保住"空槽"语义，同 `m_ItemList`）。
         var p = new TPlayObject();
         Assert.Null(p.m_UseItems[UseSlots.U_WEAPON]);
 
         // 写入（ObtainWapon 场景：ObjNpc.pas:1886 `User.m_UseItems[U_WEAPON].wIndex := 0;`）
-        p.m_UseItems[UseSlots.U_WEAPON] = new TUserItemView { wIndex = 1234 };
-        Assert.Equal((ushort)1234, p.m_UseItems[UseSlots.U_WEAPON]!.wIndex);
+        p.m_UseItems[UseSlots.U_WEAPON] = new TUserItem { wIndex = 1234 };
+        Assert.Equal((ushort)1234, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);
 
-        // 就地清零（原文 1886 的等价写法）
-        p.m_UseItems[UseSlots.U_WEAPON]!.wIndex = 0;
-        Assert.Equal((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.wIndex);
+        // ★ D35 契约：值类型元素**不能**原地改（`!.Value.wIndex = 0` 不可编译）→ 取出→改→写回
+        var slot = p.m_UseItems[UseSlots.U_WEAPON]!.Value;
+        slot.wIndex = 0;
+        p.m_UseItems[UseSlots.U_WEAPON] = slot;
+        Assert.Equal((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);
     }
 
     [Fact]
@@ -113,14 +116,17 @@ public class PlayerSurfaceItemsTests : IDisposable
         // ObjNpc.pas:1850 读 `User.m_UseItems[U_WEAPON].wIndex <> 0`，
         // ObjNpc.pas:1880 读整件、1886 写回 wIndex = 0 —— 三个动作都要能表达
         var p = new TPlayObject();
-        p.m_UseItems[UseSlots.U_WEAPON] = new TUserItemView { wIndex = 42 };
-        Assert.NotEqual(0, p.m_UseItems[UseSlots.U_WEAPON]!.wIndex);  // 1850 的判定
+        p.m_UseItems[UseSlots.U_WEAPON] = new TUserItem { wIndex = 42 };
+        Assert.NotEqual(0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);  // 1850 的判定
 
-        var saved = p.m_UseItems[UseSlots.U_WEAPON];                   // 1880 读整件
-        Assert.Equal((ushort)42, saved!.wIndex);
+        var saved = p.m_UseItems[UseSlots.U_WEAPON];                        // 1880 读整件
+        Assert.Equal((ushort)42, saved!.Value.wIndex);
 
-        p.m_UseItems[UseSlots.U_WEAPON]!.wIndex = 0;                   // 1886 写回
-        Assert.Equal((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.wIndex);
+        // 1886 写回（D35：取出→改→写回）
+        var cleared = saved!.Value;
+        cleared.wIndex = 0;
+        p.m_UseItems[UseSlots.U_WEAPON] = cleared;
+        Assert.Equal((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);
     }
 
     // ---------------------------------------------------------------

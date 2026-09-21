@@ -643,7 +643,8 @@ public partial class TMerchant
             }
             if (sVariable == "$USERWEAPON")
             {
-                TUserItem weapon = NpcSeams.GetUseItemsWeapon(PlayObject);
+                // ★ 第十一轮：`m_UseItems` 口径统一为权威 `TUserItem?[]` 后，替身接缝已删除 → 直读
+                TUserItem weapon = PlayObject.m_UseItems[UseSlots.U_WEAPON] ?? default;
                 string sText;
                 if (weapon.wIndex != 0)
                 {

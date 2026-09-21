@@ -1,4 +1,4 @@
-﻿using GXX.Core.Protocol;
+using GXX.Core.Protocol;
 using GXX.M2Server.Engine;
 using Xunit;
 
@@ -52,8 +52,8 @@ public sealed class RecalcChainTests : IDisposable
             2 => Std(10, 2, dc2: 3, ac2: 4),  // 衣服 DC2+3 AC2+4
             _ => null
         };
-        player.m_UseItems[UseSlots.U_WEAPON] = new TUserItemView { wIndex = 1 };
-        player.m_UseItems[UseSlots.U_DRESS] = new TUserItemView { wIndex = 2 };
+        player.m_UseItems[UseSlots.U_WEAPON] = new TUserItem { wIndex = 1 };
+        player.m_UseItems[UseSlots.U_DRESS] = new TUserItem { wIndex = 2 };
 
         player.RecalcAbilitys();
 
@@ -76,8 +76,8 @@ public sealed class RecalcChainTests : IDisposable
             6 => Std(10, 6, hp: 30),   // 衣服 +30
             _ => null
         };
-        player.m_UseItems[UseSlots.U_HELMET] = new TUserItemView { wIndex = 5 };
-        player.m_UseItems[UseSlots.U_DRESS] = new TUserItemView { wIndex = 6 };
+        player.m_UseItems[UseSlots.U_HELMET] = new TUserItem { wIndex = 5 };
+        player.m_UseItems[UseSlots.U_DRESS] = new TUserItem { wIndex = 6 };
 
         player.RecalcAbilitys();
         Assert.Equal(19u + 50u + 30u, player.m_wAbil.MaxHP);
@@ -113,7 +113,7 @@ public sealed class RecalcChainTests : IDisposable
         var ringStd = Std(22, 9);
         ringStd.Shape = 111;
         player.StdItemResolver = _ => ringStd;
-        player.m_UseItems[UseSlots.U_RINGL] = new TUserItemView { wIndex = 9 };
+        player.m_UseItems[UseSlots.U_RINGL] = new TUserItem { wIndex = 9 };
 
         player.RecalcAbilitys();
         Assert.True(player.m_boHideMode); // AddAbilitysByCode 在遍历内触发
@@ -129,7 +129,7 @@ public sealed class RecalcChainTests : IDisposable
             s.MAC2 = 3;
             return s;
         };
-        player.m_UseItems[UseSlots.U_NECKLACE] = new TUserItemView { wIndex = 3 };
+        player.m_UseItems[UseSlots.U_NECKLACE] = new TUserItem { wIndex = 3 };
 
         player.RecalcAbilitys();
         Assert.Equal(5, player.m_AddAbil.wAntiMagic);
