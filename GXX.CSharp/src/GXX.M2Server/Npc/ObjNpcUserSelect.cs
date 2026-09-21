@@ -68,34 +68,190 @@ public partial class TMerchant
     }
 
     /// <summary>
-    /// `UserSelect` 派发体里**本分片负责的两个 `case` 分支**（原文 2702-2706 / 2737-2741）：
+    /// 原文 `TMerchant.UserSelect` 内的**嵌套过程**
+    /// `procedure SellItem(User: TPlayObject); // 004A1544`（ObjNpc.pas:2257-2260）：
     /// <code>
-    ///   nNF_SuperRepair: begin if m_boS_repair then SuperRepairItem(PlayObject); end;
-    ///   nNF_Repair:      begin if m_boRepair   then RepairItem(PlayObject);      end;
+    ///   User.SendMsg(Self, RM_SENDUSERSELL, 0, NativeInt(Self), 0, 0, '');
     /// </code>
-    /// <para><b>为什么是一个独立方法</b>：`UserSelect` 的派发体（2547-2899）尚未移植，
-    /// 而本分片的两条分支是**可独立验证的完整语义单元**。等派发体移植时，
-    /// 这两条分支原样搬进 `case` 即可（本方法随之删除）。
-    /// **它不是新 API** —— 名字直接标出它对应原文 `UserSelect` 内 `@repair` 的那两条 `case`。</para>
-    /// <para>返回 `true` 表示 `nNF` 命中本分片的两条分支之一（已处理）；`false` 表示该命令号
-    /// 不属 `@repair` 族 —— **调用方必须区分**，不要把它当成"命令未实现"的静默兜底。</para>
-    /// <para><b>★ 删除条件（可执行，勿留给后人猜）</b>：当 `TMerchant.UserSelect` 的派发体
-    /// （原文 2547-2899，含 `nIndex := NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)`
-    /// 后的 `switch (nIndex)`）落地时，把本方法 `switch` 里的两个 `case` 分支**原样搬进**那个
-    /// `switch`，然后**删除本方法**。判据：`UserSelect` 在登记表里由 `Missing` 变为
-    /// `Covered`，且 `UserSelectRepairCommands` 在 `src` 与 `tests` 中**零引用**（`grep` 可验）。</para>
+    /// <para>触发点：`nNF_Sell` 分支（原文 2732-2736），守卫 `m_boSell`。</para>
+    /// <para>⚠ 与 <see cref="RepairItem"/>/<see cref="ArmRemoveStoneItem"/> 是**三个不同的包号**，
+    /// 只有包号与守卫不同 —— 已写互相对照的差异断言（勿互相抄）。</para>
     /// </summary>
-    public bool UserSelectRepairCommands(TPlayObject PlayObject, int nNF)
+    public void SellItem(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_SENDUSERSELL, 0, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>
+    /// 原文 `TMerchant.UserSelect` 内的**嵌套过程**
+    /// `procedure ArmRemoveStoneItem(User: TPlayObject); // 004A1570`（ObjNpc.pas:2267-2270）：
+    /// <code>
+    ///   User.SendMsg(Self, RM_ARMREMOVESTONE, 0, NativeInt(Self), 0, 0, '');
+    /// </code>
+    /// <para>触发点：`nNF_ArmRemoveStone` 分支（原文 2742-2746），守卫 `m_boArmRemoveStone`。</para>
+    /// <para>⚠ 原文里本过程与 `RepairItem` 的注释都写 `// 004A1570`（**同一个地址注释**）——
+    /// 原文如此，**不是**我抄错；两者的包号仍不同（`RM_ARMREMOVESTONE` vs `RM_SENDUSERREPAIR`）。</para>
+    /// </summary>
+    public void ArmRemoveStoneItem(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_ARMREMOVESTONE, 0, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>原文 `AutoGetExp(User, sMsg)`（ObjNpc.pas:2206-2210）：`User.m_sAutoSendMsg := sMsg;`
+    /// （原文 2209 的 `// User.SysMsg('挂机成功！', ...)` 注释保留）。触发：`nNF_OfflineMsg`，守卫 `m_boofflinemsg`。</summary>
+    public void AutoGetExp(TPlayObject User, string sMsg)
+    {
+        User.m_sAutoSendMsg = sMsg;
+        // 原文 2209：`// User.SysMsg('挂机成功！', c_Red, t_Hint);` —— 原文如此，保留
+    }
+
+    /// <summary>原文 `ItemPrices(User)`（ObjNpc.pas:2307-2309）—— ★ **过程体为空**（`begin end` 之间无任何语句）。
+    /// 照抄成空方法体，**不**"顺手补实现"。触发：`nNF_Prices`，守卫 `m_boPrices`。</summary>
+    public void ItemPrices(TPlayObject User)
+    {
+        // 原文 2307-2309：过程体为空 —— 原文如此，保留空实现
+    }
+
+    /// <summary>原文 `Storage(User, nPage)`（ObjNpc.pas:2311-2314）：`SendMsg(Self, RM_USERSTORAGEITEM, 0, Self, nPage, 0, '')`。
+    /// ★ **参数位易抄错**：`nPage` 在 **`nParam2`**（第 4 实参），`wParam` 是 **0**，`nParam1` 才是 `Self`。
+    /// 对照 <see cref="BigGetBack"/>（page 在 **`wParam`**）。触发：`nNF_Storage`(0)/`2`(1)/`3`(2)/`4`(3)，**共用守卫 `m_boStorage`**。</summary>
+    public void Storage(TPlayObject User, int nPage)
+    {
+        User.SendTo(this, Grobal2Const.RM_USERSTORAGEITEM, 0, m_nRecogId, nPage, 0, "");
+    }
+
+    /// <summary>原文 `GetBack(User, nPage)`（ObjNpc.pas:2316-2319）：`SendMsg(Self, RM_USERGETBACKITEM, 0, Self, nPage, 0, '')`。
+    /// 参数位同 <see cref="Storage"/>。触发：`nNF_Getback`(0)/`2`(1)/`3`(2)/`4`(3)，**共用守卫 `m_boGetback`**。</summary>
+    public void GetBack(TPlayObject User, int nPage)
+    {
+        User.SendTo(this, Grobal2Const.RM_USERGETBACKITEM, 0, m_nRecogId, nPage, 0, "");
+    }
+
+    /// <summary>原文 `BigStorage(User)`（ObjNpc.pas:2321-2324）：`SendMsg(Self, RM_USERSTORAGEITEM, 0, Self, 0, 0, '')`。
+    /// ★ 与 <see cref="Storage"/>(User, 0) **同包同实参**，差别**只在守卫**（`m_boBigStorage` vs `m_boStorage`）。触发：`nNF_BigStorage`。</summary>
+    public void BigStorage(TPlayObject User)
+    {
+        User.SendTo(this, Grobal2Const.RM_USERSTORAGEITEM, 0, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>原文 `BigGetBack(User)`（ObjNpc.pas:2326-2330）：`m_nBigStoragePage := 0;` 再
+    /// `SendMsg(Self, RM_USERBIGGETBACKITEM, m_nBigStoragePage, Self, 0, 0, '')`。
+    /// ★ **参数位与 Storage/GetBack 相反**：page 落在 **`wParam`**，`nParam1` 是 `Self`。触发：`nNF_BigGetback`，守卫 `m_boBigGetback`。</summary>
+    public void BigGetBack(TPlayObject User)
+    {
+        User.m_nBigStoragePage = 0;
+        User.SendTo(this, Grobal2Const.RM_USERBIGGETBACKITEM, User.m_nBigStoragePage, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>原文 `GetPreviousPage(User)`（ObjNpc.pas:2332-2339）：`page &gt; 0` 则 `Dec`，否则**显式置 0**
+    /// （结果相同，写法照抄）→ 再按 BigGetBack 的参数位发包。触发：`nNF_GetPreviousPage`，守卫 `m_boGetPreviousPage`。</summary>
+    public void GetPreviousPage(TPlayObject User)
+    {
+        if (User.m_nBigStoragePage > 0)
+            User.m_nBigStoragePage -= 1;
+        else
+            User.m_nBigStoragePage = 0;
+        User.SendTo(this, Grobal2Const.RM_USERBIGGETBACKITEM, User.m_nBigStoragePage, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>原文 `GetNextPage(User)`（ObjNpc.pas:2341-2345）：`Inc(page)` 后发包。
+    /// ★ 与 <see cref="GetPreviousPage"/> 一样**无任何上界**（原文没有 Max 夹取）—— 照抄，不夹取。
+    /// 触发：`nNF_GetNextPage`，守卫 `m_boGetNextPage`。</summary>
+    public void GetNextPage(TPlayObject User)
+    {
+        User.m_nBigStoragePage += 1;
+        User.SendTo(this, Grobal2Const.RM_USERBIGGETBACKITEM, User.m_nBigStoragePage, m_nRecogId, 0, 0, "");
+    }
+
+    /// <summary>
+    /// `UserSelect` 派发体里**本车道已移植的 `case` 分支**
+    /// （原文 2702-2706 / 2722-2726 / 2732-2736 / 2737-2741 / 2742-2746 / 2752-2816）。
+    /// <para><b>为什么是一个独立方法</b>：`UserSelect` 的派发体（2597-2899）尚未移植，而这些分支是
+    /// **可独立验证的完整语义单元**；等派发体移植时**原样搬进** `switch`，本方法随之删除。
+    /// **它不是新 API** —— 名字标出它对应原文 `UserSelect` 内的 `case` 片段。</para>
+    /// <para>返回 `true` = 命中已移植分支；`false` = 该命令号**不在已移植集合内** —— 调用方**必须区分**，
+    /// 不要把它当成"命令未实现"的静默兜底。</para>
+    /// <para><b>★ 删除条件（可执行）</b>：当 `TMerchant.UserSelect` 派发体落地（含
+    /// `NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)` 后的 `switch`）时，把本方法的全部 `case`
+    /// 原样搬进那个 `switch`，并**删除本方法**。判据：`UserSelect` 由 `Missing` → `Covered`，
+    /// 且 `UserSelectPortedArms` 在 `src`/`tests` 中**零引用**（`grep` 可验）。</para>
+    /// <para>`sMsg` 仅为 `nNF_OfflineMsg` → <see cref="AutoGetExp"/> 保留（其余分支不用）。</para>
+    /// </summary>
+    public bool UserSelectPortedArms(TPlayObject PlayObject, int nNF, string sMsg = "")
     {
         switch (nNF)
         {
-            case NpcProcessCmd.nNF_SuperRepair:   // 原文 2702-2706
+            case NpcProcessCmd.nNF_SuperRepair:        // 原文 2702-2706
                 if (m_boS_repair)
                     SuperRepairItem(PlayObject);
                 return true;
-            case NpcProcessCmd.nNF_Repair:        // 原文 2737-2741
+            case NpcProcessCmd.nNF_Sell:               // 原文 2732-2736
+                if (m_boSell)
+                    SellItem(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_Repair:             // 原文 2737-2741
                 if (m_boRepair)
                     RepairItem(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_ArmRemoveStone:     // 原文 2742-2746
+                if (m_boArmRemoveStone)
+                    ArmRemoveStoneItem(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_Prices:             // 原文 2752-2756（ItemPrices 过程体为空）
+                if (m_boPrices)
+                    ItemPrices(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_Storage:            // 原文 2757-2761
+                if (m_boStorage)
+                    Storage(PlayObject, 0);
+                return true;
+            case NpcProcessCmd.nNF_Storage2:           // 原文 2762-2766
+                if (m_boStorage)
+                    Storage(PlayObject, 1);
+                return true;
+            case NpcProcessCmd.nNF_Storage3:           // 原文 2767-2771
+                if (m_boStorage)
+                    Storage(PlayObject, 2);
+                return true;
+            case NpcProcessCmd.nNF_Storage4:           // 原文 2772-2776
+                if (m_boStorage)
+                    Storage(PlayObject, 3);
+                return true;
+            case NpcProcessCmd.nNF_Getback:            // 原文 2777-2781
+                if (m_boGetback)
+                    GetBack(PlayObject, 0);
+                return true;
+            case NpcProcessCmd.nNF_Getback2:           // 原文 2782-2786
+                if (m_boGetback)
+                    GetBack(PlayObject, 1);
+                return true;
+            case NpcProcessCmd.nNF_Getback3:           // 原文 2787-2791
+                if (m_boGetback)
+                    GetBack(PlayObject, 2);
+                return true;
+            case NpcProcessCmd.nNF_Getback4:           // 原文 2792-2796
+                if (m_boGetback)
+                    GetBack(PlayObject, 3);
+                return true;
+            case NpcProcessCmd.nNF_BigStorage:         // 原文 2797-2801
+                if (m_boBigStorage)
+                    BigStorage(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_BigGetback:         // 原文 2802-2806
+                if (m_boBigGetBack)
+                    BigGetBack(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_GetPreviousPage:    // 原文 2807-2811
+                if (m_boGetPreviousPage)
+                    GetPreviousPage(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_GetNextPage:        // 原文 2812-2816
+                if (m_boGetNextPage)
+                    GetNextPage(PlayObject);
+                return true;
+            case NpcProcessCmd.nNF_OfflineMsg:         // 原文 2722-2726（离线挂机 → AutoGetExp）
+                if (m_boofflinemsg)
+                    AutoGetExp(PlayObject, sMsg);
                 return true;
             default:
                 return false;
