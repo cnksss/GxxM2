@@ -49,10 +49,10 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 28 之后）：Covered 66 / Seam 4 / Missing 42 = 112。
-        Assert.Equal(66, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        // 落地口径（切片 37 之后）：Covered 67 / Seam 4 / Missing 41 = 112。
+        Assert.Equal(67, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
         Assert.Equal(4, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
-        Assert.Equal(42, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
+        Assert.Equal(41, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
     [Fact]

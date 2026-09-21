@@ -114,7 +114,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 9767, EndLine = 9788, Signature = "procedure TNormNpc.ScriptConditionError(BaseObject: TBaseObject; QuestConditionInfo: pTQuestConditionInfo);", Status = "Covered", Home = "ObjNpcLabels.cs" },
         new() { StartLine = 9789, EndLine = 9799, Signature = "procedure TNormNpc.SendMsgToUser(PlayObject: TPlayObject; sMsg: string; boShowNPCName: Boolean); // 0049AD14", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 9800, EndLine = 9806, Signature = "procedure TNormNpc.MessageBox(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcConversation.cs" },
-        new() { StartLine = 9807, EndLine = 9836, Signature = "procedure TNormNpc.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
+        new() { StartLine = 9807, EndLine = 9836, Signature = "procedure TNormNpc.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Covered", Home = "ObjNpcUserSelect.cs（UserSelect 虚分派链的基类落点）" },
         new() { StartLine = 9837, EndLine = 9863, Signature = "procedure TNormNpc.SendCustemMsg(PlayObject: TPlayObject; sMsg: string);", Status = "Covered", Home = "ObjNpcConversation.cs" },
         new() { StartLine = 9864, EndLine = 9876, Signature = "procedure TNormNpc.Initialize;", Status = "Missing", Home = "" },
         new() { StartLine = 9877, EndLine = 9899, Signature = "function TNormNpc.GetDynamicVarList(PlayObject: TPlayObject; sType: string; var sName: string): TList;", Status = "Covered", Home = "ObjNpcVars.cs" },

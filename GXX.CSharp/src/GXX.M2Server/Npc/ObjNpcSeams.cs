@@ -494,6 +494,25 @@ public static class NpcSeams
     public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
         (string _, ref TUserItem _) => false;
 
+    /// <summary>
+    /// 原文 `TUserCastle(m_Castle).m_boUnderWar`（**Castle.pas**"城堡处于攻城中"标志；
+    /// ObjNpc.pas:2533 的 `UserSelect` 前置门）。
+    /// <para><b>★ 为什么是接缝而不是字段（调度方裁定 B①；报告 §21 登记为偏差 D37）</b>：
+    /// `TUserCastle` 确已移植（`Engine/Castle.cs`），但 `m_boUnderWar` 的**赋值点在未移植的
+    /// 城堡战逻辑里**（只有 `ArcherGuardCore.cs:24`、`CanWalkCore.cs:80` 的注释提到）。
+    /// 若在真实类型上加一个**没人赋值的字段**，它会**恒为 false** —— 那是"伪装成正式归属的
+    /// 静默中性值"，比接缝更糟（接缝可检索/可登记/可删除；恒假字段会被后人当成已完成的状态）。</para>
+    /// <para><b>默认抛异常</b>（台账 §25.2）：未接线时**立即暴露**，不静默返回 false。</para>
+    /// <para><b>★ 删除条件（可执行）</b>：当 `TUserCastle.m_boUnderWar` 字段落地**且其赋值点接通**时，
+    /// 删除本接缝，改为直读。判据：`grep -n 'm_boUnderWar' src/GXX.M2Server/Engine/Castle.cs`
+    /// 中出现**赋值**（`=` 左侧）而非仅声明。</para>
+    /// <para>⚠ 触发面是**窄路径**：仅 `m_boCastle = true` 的城堡 NPC 调用 `UserSelect` 才走到；
+    /// 绝大多数 NPC 的 `m_boCastle` 为假，不会触达本接缝。</para>
+    /// </summary>
+    public static Func<object, bool> GetCastleUnderWar { get; set; } =
+        _ => throw new NotSupportedException(
+            "NpcSeams.GetCastleUnderWar 未接线：原文 TUserCastle.m_boUnderWar 未移植（报告 §21 / 偏差 D37）");
+
     // ★ 第十二轮：`NpcProcessCommandIndexOf` 接缝**已删除** —— 派发基础设施
     //   （`g_NpcProcessCommand` 表 + `nNF_*`/`sNF_*` 常量）已按原文 1:1 落地在
     //   `Npc/NpcProcessCommand.cs`（原文同属 NpcCommon.pas），故直接调用
@@ -755,6 +774,8 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
+        GetCastleUnderWar = _ => throw new NotSupportedException(
+            "NpcSeams.GetCastleUnderWar 未接线：原文 TUserCastle.m_boUnderWar 未移植（报告 §21 / 偏差 D37）");
         g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
         g_boGameLogGold = false;
         SysMsgFB = (_, _, _, _, _) => { };
