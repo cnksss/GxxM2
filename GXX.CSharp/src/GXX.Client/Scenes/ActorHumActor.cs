@@ -549,6 +549,14 @@ public partial class TActorCore
     public bool m_boWeaponEffectDrawNoBlend;
     public bool m_boShieldEffectDrawNoBlend;
 
+    /// <summary>
+    /// `m_boMedalEffectDrawNoBlend`（原文声明 **1400**；使用点 11297；
+    /// 赋值点 **16307** `<c>m_boMedalEffectDrawNoBlend := m_boMedalEffectNoBlend;</c>`，在 <c>LoadSurface</c> 段内）。
+    /// <para>★ 它与 <c>m_boMedalEffectNoBlend</c>（已存在于 <c>PlaySceneActors.cs:164</c>）**是两个字段**：
+    /// 后者是配置来源，前者是绘制判据 —— 直接合并会让 16307 的赋值消失。</para>
+    /// </summary>
+    public bool m_boMedalEffectDrawNoBlend;
+
     /// <summary>`m_boTrainingXF`（11187 是否学习过心法）。<c>m_boTrainingNG</c> 已在 PlaySceneActors.cs:205。</summary>
     public bool m_boTrainingXF;
 

@@ -275,8 +275,11 @@ public partial class TActorCore
     /// <summary>
     /// DefaultMotion 1:1（6217-6232）：清反向帧 → 战斗模式 4 秒超时自动退出 →
     /// 取默认帧 → Shift(dir,0,1,1) → 返回帧号是否变化并写回 m_nCurrentFrame。
+    /// ★ 车道 p17-client-actor 切片3d：原文 1750 声明为 <c>virtual</c>
+    /// （<c>THumActor.DefaultMotion</c> 2016 <c>override</c>），此处补 <c>virtual</c>
+    /// —— 否则子类覆写只能 <c>new</c> 隐藏，而调用点全是基类静态类型（台帐 §18.8）。
     /// </summary>
-    public bool DefaultMotion()
+    public virtual bool DefaultMotion()
     {
         m_boReverseFrame = false;
         if (m_boWarMode)
@@ -297,8 +300,12 @@ public partial class TActorCore
 
     // ===================== RunFrameAction / ActionChanged / ActionEnded =====================
 
-    /// <summary>RunFrameAction 1:1（7097-7099）：原文空函数体。</summary>
-    public void RunFrameAction(int frame) { }
+    /// <summary>
+    /// RunFrameAction 1:1（7097-7099）：原文空函数体。
+    /// ★ 车道 p17-client-actor 切片3d：原文 1821 声明为 <c>virtual</c>
+    /// （<c>THumActor.RunFrameAction</c> 2025 <c>override</c>，13310-13353 有实体），此处补 <c>virtual</c>。
+    /// </summary>
+    public virtual void RunFrameAction(int frame) { }
 
     /// <summary>ActionChanged 1:1（7101-7104）：原文空函数体（虚方法，子类覆写）。</summary>
     public virtual void ComputeActionChanged() { }
