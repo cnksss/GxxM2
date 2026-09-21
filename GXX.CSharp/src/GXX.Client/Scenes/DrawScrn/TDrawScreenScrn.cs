@@ -477,7 +477,7 @@ public class TDrawScreenScrn
 
                 if (myHero != null)
                 {
-                    s1 = DelphiRTL.Format("我的英雄: {0}({1}/{2})", myHero.m_sUserName, myHero.m_nCurrX, myHero.m_nCurrY);
+                    s1 = DelphiRTL.Format("我的英雄: %s(%d/%d)", myHero.m_sUserName, myHero.m_nCurrX, myHero.m_nCurrY);
                     if (DelphiRTL.Pos("\r", str) <= 0)
                     {
                         if (DrawScrnEnv.TextWidth(DrawScrnEnv.CurrentFont, str + s1 + " ") > DrawScrnEnv.SCREENWIDTH)
