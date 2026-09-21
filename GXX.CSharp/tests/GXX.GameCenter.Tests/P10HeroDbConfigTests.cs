@@ -471,22 +471,14 @@ public sealed class P10HeroDbConfigTests : GXX.GameCenter.Tests.GameCenterTestBa
     {
         _db = FieldSets.CompleteFake();
         string dir = MakeDbDir(Dir);
-        var pre = "DIAGF dir=" + dir
-            + "; files=" + File.Exists(Path.Combine(dir, "StdItems.DB"))
-                + File.Exists(Path.Combine(dir, "Monster.DB")) + File.Exists(Path.Combine(dir, "Magic.DB"))
-            + "; tables=" + string.Join(",", _db.Tables)
-            + "; alias=" + _db.AliasExists
-            + "; proxy=" + ReferenceEquals(HeroDBFactory.Create(), _db)
-            + "; aliasCheck=" + HeroDBFactory.Create().HeroDBExist("X")
-            + "; stdColor=" + HeroDBFactory.Create().FieldExist("X", "StdItems", "Color");
         FormSta.Run(() =>
         {
             using var f = new TFrmHeroDB();
+            f.Show();                                            // 原文 :161 Close 只有在窗体显示时才会生效
             f.EditHeroDB.Text = " MyHeroDB ";
             f.EditHeroDBPath.Text = dir + "\\";                  // :141-142 剥尾反斜杠
             f.ButtonSaveHeroDBConfigClick(f);
-            if (!g_boHeroDBOK) throw new Xunit.Sdk.XunitException(pre + "; POST memo=["
-                + string.Join("|", f.MemoLogLines) + "]; ok=" + g_boHeroDBOK);
+
             Assert.Equal("MyHeroDB", g_sHeroDBName);
             Assert.Single(_db.SavedConfigFiles);
             Assert.Equal(("MyHeroDB", dir), _db.SavedConfigFiles[0]);      // :153 不带尾反斜杠

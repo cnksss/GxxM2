@@ -1169,23 +1169,20 @@ public sealed class TFrmHeroDB : System.Windows.Forms.Form
 /// <c>GetTabVisible</c>/<c>SetTabVisible</c>/<c>HideAllTabVisible</c>/<c>RestoreActivePage</c>）。
 /// <para>
 /// Delphi 的 <c>TabVisible</c>（页签是否出现在页签行）与 <c>Visible</c>（页面是否显示）是**两个属性**；
-/// WinForms 的 <c>TabPage</c> 只有 <c>Visible</c>，且实测：
+/// WinForms 的 <c>TabPage</c> 只有 <c>Visible</c>，且实测（见测试
+/// <c>TabPage_VisibleOnlyForSelectedPage</c> 与 <c>TabPage_VisibleIsNotTheTabVisibleProperty</c>）：
 /// <list type="bullet">
-/// <item>设置 <c>TabPage.Visible</c> 不会把页签从 <c>TabControl</c> 摘除；</item>
-/// <item><c>TabPage.Visible</c> 对**未被选中**的页恒为 <c>false</c>，对当前选中页为 <c>true</c>。</item>
+/// <item>设置 <c>TabPage.Visible</c> **不会**把页签从 <c>TabControl</c> 摘除；</item>
+/// <item><c>TabPage.Visible</c> 对**未被选中**的页为 <c>false</c>，对当前选中页为 <c>true</c>。</item>
 /// </list>
-/// （两条实测见测试 <c>TabPage_VisibleOnlyForSelectedPage</c> 与 <c>TabPage_VisibleSetterDoesNotHideTab</c>。）
 /// </para>
 /// <para>
-/// 因此 <c>TabVisible</c> 的可见效果落为"从 <c>TabControl.Controls</c> 摘除/追加"，
-/// 并额外保证"摘除/追加**不会**改变当前选中页"——否则 <c>CheckHeroDB:338</c> 的
-/// <c>TabSheet3.Visible</c> 会翻成 True，原文缺陷 1 的条件语义就被悄悄改掉了。
-/// 具体做法：摘除当前选中页时先把选中页钉在 <c>TabSheet2</c> 上（<see cref="TFrmHeroDB.RestoreActivePage"/>）。
+/// 因此托管侧把 <c>TabVisible</c> 落为窗体自己的状态（<c>_tabVisibleState</c>），**不触碰**页签集合：
+/// 一旦真的把页签摘掉/追加，WinForms 会把"孤页"当成可见页渲染，<c>TabSheet3.Visible</c> 翻成 True，
+/// 原文缺陷 1（<c>CheckHeroDB:338</c>）的条件语义就被悄悄改掉，而 :340 的 Magic 检查会被误跳过（实测三次）。
 /// </para>
-/// <para>
-/// <b>偏差 D-P10-19</b>：Delphi 恢复页签会回到原位置，本垫片追加在**页签行末尾**，
-/// 终态页签顺序可能与原文不同（页面集合/选中页/各 <c>Visible</c> 与原文一致）。
-/// </para>
+/// <para><b>偏差 D-P10-19</b>：代价是页签行**始终显示 4 个页签**（纯视觉差异；
+/// 所有分支判定、弹窗与落盘行为与原文一致）。</para>
 /// </summary>
 internal static class P10TabVisible
 {
