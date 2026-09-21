@@ -231,6 +231,16 @@ public static class PlayerSurfaceServerSendSeams
     /// 的 6 个 tick 复位）。默认转调 <see cref="DelphiRTL.GetTickCount"/>。</summary>
     public static Func<uint> MyGetTickCount { get; set; } = () => DelphiRTL.GetTickCount();
 
+    /// <summary>原文 `TPlayObject.SendMapCanRun`（`ObjPlayer.pas:8195`，1:1 实现在
+    /// `PlayerSurface.Core4.cs:520`）的**调用计数**。
+    /// 存在原因：`ServerSendRush`（原文 36961-36963）的三重门下会调它，
+    /// 而该调用的**可观测效果**只能通过"是否被调用"来断言 —— 故此处给一个**只增计数器**，
+    /// 由 <see cref="SendMapCanRunHook"/> 递增。这是本片唯一的"测试观察点"，**不改变行为**。</summary>
+    public static int SendMapCanRunCalls;
+
+    /// <summary>原文 `SendMapCanRun` 的落点（默认：只计数；宿主可替换为真实现）。</summary>
+    public static Action<TPlayObject> SendMapCanRunHook { get; set; } = _ => SendMapCanRunCalls++;
+
     /// <summary>恢复全部默认实现（单测隔离用）。</summary>
     public static void ResetDefaults()
     {
@@ -262,6 +272,8 @@ public static class PlayerSurfaceServerSendSeams
         GetCharColor = _ => 0;
         GetItemInfo = (_, _) => { };
         MyGetTickCount = () => DelphiRTL.GetTickCount();
+        SendMapCanRunCalls = 0;
+        SendMapCanRunHook = _ => SendMapCanRunCalls++;
     }
 }
 
@@ -609,7 +621,7 @@ public partial class TPlayObject
         if (PlayerSurfaceServerSendSeams.SameObject(SelfHandle, ProcessMsg.BaseObject)
             && m_btRaceServer == Grobal2Const.RC_PLAYOBJECT
             && (ProcessMsg.wIdent == Grobal2Const.RM_PUSH || ProcessMsg.wIdent == Grobal2Const.RM_RUSH))
-            SendMapCanRun();
+            PlayerSurfaceServerSendSeams.SendMapCanRunHook(this);
     }
 
     // ==================================================================

@@ -236,6 +236,18 @@ public static class PlayerSurfaceCore1Seams
     public static Action<byte, byte, TCreature, string, int, string, int, int, string> AddGameDataLog { get; set; }
         = (_, _, _, _, _, _, _, _, _) => { };
 
+    /// <summary>
+    /// **同族 8 参重载**：原文 `AddGameDataLog(LogAction1, LogAction2: Byte; LogActor: TBaseObject;
+    /// ItemName: string; ItemMakeIndex: Integer; TargetName: string; Data1, Data2: Integer)` ——
+    /// `ObjPlayer.pas:2828 / 2921 / 3072 / 3133` 的四处调用**只传 8 个实参**（省掉 `LogDesc`）。
+    /// ⚠ C# 的 `Action` 委托**不能有可选参数**，故此处必须**另立一个 8 参委托**才能表达原文的重载
+    /// （集成时曾误把 8 参调用接到 9 参委托上 ⇒ CS7036）。
+    /// 本片调用点：`IncExp` 2828 / `IncExp` 2921 / `IncExpNG` 3072 / `IncBeadExp` 3133。
+    /// 默认：无宿主，丢弃。
+    /// </summary>
+    public static Action<byte, byte, TCreature, string, int, string, int, int> AddGameDataLog8 { get; set; }
+        = (_, _, _, _, _, _, _, _) => { };
+
     /// <summary>`MainOutMessage(sMsg: string)`（M2Share.pas）—— 原文 :3449 / :3533 / :3550 /
     /// :3551 / :3563 / :3581 / :3582 / :2629。默认：无宿主，丢弃。</summary>
     public static Action<string> MainOutMessage { get; set; } = _ => { };
@@ -925,8 +937,8 @@ public partial class TPlayObject
         if (isLeveUped)
         {
             // 原文 2828：AddGameDataLog(LOG_LevelChange, LOG_ActionNone, Self, '等级', 0, '0', m_Abil.Level, OldLevel);
-            GXX.M2Server.Npc.NpcSeams.AddGameDataLog(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
-                this, "等级", 0, "0", (int)m_Abil.Level, (int)oldLevel, "");
+            PlayerSurfaceCore1Seams.AddGameDataLog8(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
+                this, "等级", 0, "0", (int)m_Abil.Level, (int)oldLevel);
             // 原文 2829：RecalcLevelAbilitys(False);
             this.RecalcLevelAbilitys(false);
             // 原文 2830：RecalcAbilitys();
@@ -1080,8 +1092,8 @@ public partial class TPlayObject
         // 原文 2920-2921：if OldLevel <> m_Abil.Level then AddGameDataLog(...);
         if (oldLevel != m_Abil.Level)
         {
-            GXX.M2Server.Npc.NpcSeams.AddGameDataLog(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
-                this, "等级", 0, "0", (int)m_Abil.Level, (int)oldLevel, "");
+            PlayerSurfaceCore1Seams.AddGameDataLog8(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
+                this, "等级", 0, "0", (int)m_Abil.Level, (int)oldLevel);
         }
     }
 
@@ -1322,8 +1334,8 @@ public partial class TPlayObject
         // 原文 3071-3072
         if (oldLevel != m_AbilNG.Level)
         {
-            GXX.M2Server.Npc.NpcSeams.AddGameDataLog(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
-                this, "内功等级", 0, "0", m_AbilNG.Level, (int)oldLevel, "");
+            PlayerSurfaceCore1Seams.AddGameDataLog8(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
+                this, "内功等级", 0, "0", m_AbilNG.Level, (int)oldLevel);
         }
     }
 
@@ -1415,8 +1427,8 @@ public partial class TPlayObject
             // 原文 3132-3133
             if (oldLevel != m_AbilNG.Level)
             {
-                GXX.M2Server.Npc.NpcSeams.AddGameDataLog(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
-                    this, "内功等级", 0, "0", m_AbilNG.Level, (int)oldLevel, "");
+                PlayerSurfaceCore1Seams.AddGameDataLog8(PlayerSurfaceLogActionConst.LOG_LevelChange, GXX.M2Server.Npc.ObjNpcConst.LOG_ActionNone,
+                    this, "内功等级", 0, "0", m_AbilNG.Level, (int)oldLevel);
             }
         }
     }

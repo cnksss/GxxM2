@@ -13,6 +13,7 @@ using Xunit;
 
 namespace GXX.M2Server.Tests;
 
+[Collection(PlayerSurfacePortLedgerSerialCollection.Name)]
 public class ObjPlayerWarrContinueHitManagerTests : IDisposable
 {
     public ObjPlayerWarrContinueHitManagerTests() => PlayerSurfaceWarrContinueConfig.ResetDefaults();

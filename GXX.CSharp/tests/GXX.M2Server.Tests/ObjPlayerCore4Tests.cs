@@ -26,6 +26,7 @@ using Xunit;
 
 namespace GXX.M2Server.Tests;
 
+[Collection(PlayerSurfacePortLedgerSerialCollection.Name)]
 public class ObjPlayerCore4Tests : IDisposable
 {
     // SendArrButtonConfig 的字节布局断言会写 M2Config 全局，构造/析构时保存并还原。
