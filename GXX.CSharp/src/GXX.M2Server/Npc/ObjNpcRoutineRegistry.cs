@@ -50,7 +50,7 @@ public static class ObjNpcRoutineRegistry
         new() { StartLine = 1630, EndLine = 1644, Signature = "function TMerchant.CheckItemType(nStdMode: Integer): Boolean;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 1645, EndLine = 1673, Signature = "function TMerchant.GetItemPrice(nIndex: Integer): Integer;", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 1674, EndLine = 1683, Signature = "procedure TMerchant.SaveUpgradingList();", Status = "Covered", Home = "ObjNpcMerchant.cs" },
-        new() { StartLine = 1684, EndLine = 1902, Signature = "procedure TMerchant.UpgradeWapon(User: TPlayObject); // 004A0920", Status = "Seam", Home = "嵌套过程 sub_4A0218(1686-1828) 已 1:1 in ObjNpcMerchant.cs；外层体 1830-1901 阻塞未做" },
+        new() { StartLine = 1684, EndLine = 1902, Signature = "procedure TMerchant.UpgradeWapon(User: TPlayObject); // 004A0920", Status = "Covered", Home = "嵌套 sub_4A0218(1686-1828) in ObjNpcMerchant.cs + 外层体(1830-1901) in ObjNpcMerchantUpgrade.cs" },
         new() { StartLine = 1903, EndLine = 2051, Signature = "procedure TMerchant.GetBackupgWeapon(User: TPlayObject); // 004A0CB8", Status = "Missing", Home = "" },
         new() { StartLine = 2052, EndLine = 2086, Signature = "function TMerchant.GetUserPrice(PlayObject: TPlayObject; nPrice: Integer): Integer; // 0049F6E0", Status = "Covered", Home = "ObjNpcMerchant.cs" },
         new() { StartLine = 2087, EndLine = 2900, Signature = "procedure TMerchant.UserSelect(PlayObject: TPlayObject; sData: string);", Status = "Missing", Home = "" },
