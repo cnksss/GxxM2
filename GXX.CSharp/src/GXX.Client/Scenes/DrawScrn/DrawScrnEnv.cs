@@ -520,6 +520,25 @@ public static class DrawScrnEnv
     /// <summary>MShare.pas g_LastHintMakeIndex（THintWindows.Clear 回写 -1）。</summary>
     public static int g_LastHintMakeIndex = -1;
 
+    /// <summary>MShare.pas:1464 `HintWindows:THintWindows`（单元级全局提示窗集合）。</summary>
+    public static THintWindows HintWindows = new THintWindows();
+
+    // ---------------- 场景全局（MShare.pas:1457-1461） ----------------
+    /// <summary>MShare.pas:1457 WelcomeScene:TWelcomeScene。</summary>
+    public static TWelcomeScene WelcomeScene;
+
+    /// <summary>MShare.pas:1458 LoginScene:TLoginScene。</summary>
+    public static TLoginScene LoginScene;
+
+    /// <summary>MShare.pas:1459 SelectChrScene:TSelectChrScene。</summary>
+    public static TSelectChrScene SelectChrScene;
+
+    /// <summary>MShare.pas:1460 PlayScene:TPlayScene。</summary>
+    public static TPlayScene PlayScene;
+
+    /// <summary>MShare.pas:1461 LoginNoticeScene:TLoginNotice。</summary>
+    public static TLoginNotice LoginNoticeScene;
+
     // ---------------- 绿色信息（DrawScreen 的 g_MySelf/g_FocusCret/g_MyHero/鼠标坐标） ----------------
     /// <summary>MShare.pas:1864 g_MySelf（复用车道 GUI/Mir 的 MShareGlobals）。</summary>
     public static TActor g_MySelf { get => MShareGlobals.g_MySelf; set => MShareGlobals.g_MySelf = value; }
@@ -678,6 +697,12 @@ public static class DrawScrnEnv
         boHumStruckShowNumber = true;
         boMonStruckShowNumber = true;
         g_LastHintMakeIndex = -1;
+        HintWindows = new THintWindows();
+        WelcomeScene = null;
+        LoginScene = null;
+        SelectChrScene = null;
+        PlayScene = null;
+        LoginNoticeScene = null;
         g_MySelf = null;
         g_FocusCret = null;
         g_MyHero = null;
