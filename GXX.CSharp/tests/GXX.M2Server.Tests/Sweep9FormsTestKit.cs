@@ -208,9 +208,15 @@ public static class Sweep9FormsReconcile
     {
         string s = NormalizeKeyName(fieldName);
         if (string.Equals(s, eventName, StringComparison.OrdinalIgnoreCase)) return true;
-        // 另一些组件的字段名是 `onXxx`（`Timer.Tick` 在 .NET 里就是 `onTick`）
-        if (s.Length > 2 && s.StartsWith("on", StringComparison.OrdinalIgnoreCase))
-            return string.Equals(s.Substring(2), eventName, StringComparison.OrdinalIgnoreCase);
+        // 另一些组件的字段名是 `onXxx`（`Timer.Tick` 在 .NET 里就是 `onTimer`）
+        if (s.Length > 2 && s.StartsWith("on", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(s.Substring(2), eventName, StringComparison.OrdinalIgnoreCase))
+            return true;
+        // 实测例外：`Control.TextChanged` 的静态键叫 `EventText`（不是 `EventTextChanged`）
+        // ⇒ 事件名去掉尾部 `Changed` 后再比一次（`EventText` ↔ `TextChanged`）。
+        if (eventName.EndsWith("Changed", StringComparison.Ordinal) && eventName.Length > 7
+            && string.Equals(s, eventName.Substring(0, eventName.Length - 7), StringComparison.OrdinalIgnoreCase))
+            return true;
         return false;
     }
 

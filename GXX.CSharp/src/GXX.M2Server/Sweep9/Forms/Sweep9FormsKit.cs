@@ -143,10 +143,35 @@ public static class Sweep9FormsKit
 /// </summary>
 public sealed class Sweep9Memo : System.Windows.Forms.TextBox
 {
-    private readonly Sweep9MemoLines _lines = new();
+    private readonly Sweep9MemoLines _lines;
+
+    /// <summary>构造：把 `Lines` 的变更回调接到 `TextChanged`（复刻 Delphi `TMemo.OnChange`）。</summary>
+    public Sweep9Memo()
+    {
+        _lines = new Sweep9MemoLines();
+        _lines.Changed = () => OnTextChanged(EventArgs.Empty);
+        Multiline = true;
+    }
 
     /// <summary>原文 `TMemo.Lines`（`TStrings`）。</summary>
     public new Sweep9MemoLines Lines => _lines;
+
+    /// <summary>
+    /// 最近一次**赋给** `Visible` 的值。
+    /// <para>
+    /// ⚠ 观测性偏离 **D-P9-05**：VCL `TControl.Visible` 就是控件**自身**的标志；
+    /// WinForms `Control.Visible` 会与**父链**求与，且 `Form` 未 `Show` 前**恒为 false**。
+    /// ⇒ 无头测试里 `MemoScript.Visible` 永远读不到 true，故单独留证（赋值时同步）。
+    /// </para>
+    /// </summary>
+    public bool DfmVisibleStored = true;
+
+    /// <summary>Delphi `TControl.Visible`（赋值时同步 <see cref="DfmVisibleStored"/>）。</summary>
+    public new bool Visible
+    {
+        get => base.Visible;
+        set { DfmVisibleStored = value; base.Visible = value; }
+    }
 
     /// <summary>Delphi `TMemo.Text` == `Lines.Text`（同一份存储 ⇒ 读写都走 Lines）。</summary>
     public override string Text
@@ -161,6 +186,12 @@ public sealed class Sweep9MemoLines
 {
     private readonly TStringList _list = new();
 
+    /// <summary>
+    /// 内容变更回调 —— 复刻 Delphi `TMemo.OnChange` 在 **`Lines[i] := x` / `Add` / `Clear`**
+    /// 时**也**触发的事实（WinForms 的 `TextChanged` 只在 `Text` 被赋值时触发）。
+    /// </summary>
+    public Action? Changed;
+
     /// <summary>`TStrings.Count`。</summary>
     public int Count => _list.Count;
 
@@ -168,21 +199,21 @@ public sealed class Sweep9MemoLines
     public string this[int index]
     {
         get => _list[index];
-        set => _list[index] = value;
+        set { _list[index] = value; Changed?.Invoke(); }
     }
 
     /// <summary>`TStrings.Text`（Delphi 语义由既有 <see cref="TStringList"/> 保证）。</summary>
     public string Text
     {
         get => _list.Text;
-        set => _list.Text = value ?? "";
+        set { _list.Text = value ?? ""; Changed?.Invoke(); }
     }
 
     /// <summary>`TStrings.Add`。</summary>
-    public void Add(string s) => _list.Add(s ?? "");
+    public void Add(string s) { _list.Add(s ?? ""); Changed?.Invoke(); }
 
     /// <summary>`TStrings.Clear`。</summary>
-    public void Clear() => _list.Clear();
+    public void Clear() { _list.Clear(); Changed?.Invoke(); }
 
     /// <summary>`TStrings.GetTextStr`（Delphi：**每行后**都补 LineBreak，含末行）。</summary>
     public string GetTextStr() => _list.GetTextStr();
@@ -192,4 +223,12 @@ public sealed class Sweep9MemoLines
     /// GBK 固定写出口径 + 编码状态），不自己写盘，避免第二份实现。
     /// </summary>
     public void SaveToFile(string fileName) => _list.SaveToFile(fileName);
+
+    /// <summary>按行快照（测试用）。</summary>
+    public string[] ToArray()
+    {
+        var a = new string[_list.Count];
+        for (int i = 0; i < a.Length; i++) a[i] = _list[i];
+        return a;
+    }
 }
