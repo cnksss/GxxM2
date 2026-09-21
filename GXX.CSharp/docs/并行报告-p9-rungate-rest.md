@@ -73,8 +73,16 @@ DllUpdateCommon.pas ──► ∅（无引用者）
 
 **链条的根**是 `TIocpCore`/`TIocpContext`（`IocpUtils.pas` 的 IOCP 管道本体）。
 该单元已被**前一条同区车道 `p2-rungate-impl` 裁定为「管道本体不移植」**
-（`docs/并行报告-p2-rungate-impl.md` §2.1 第 4 行、§2.2 第 21 行），
-理由是 `GatewayKit/GatewayProtocol.cs` 的 `IocpManager`（`SocketAsyncEventArgs`，底层即 Windows IOCP）等价覆盖。
+（`docs/并行报告-p2-rungate-impl.md` **:80**：`Common/IocpUtils.pas` → "管道本体不移植 + 新建纯策略"，
+理由是 `GatewayKit/GatewayProtocol.cs` 的 `IocpManager`（`SocketAsyncEventArgs`，底层即 Windows IOCP）等价覆盖）。
+该报告同时也对下游三单元给出了初判：
+**`:102`**（`IocpTcpClient` → `GatewayKit/TcpLink.cs` 等价覆盖）、
+**`:103`**（`IODataPool` → 不移植，托管侧无 `OVERLAPPEDEx` 池需求）、
+**`:104`**（`Qos` → 不移植，仅被 `IocpWinsock2.pas:79` 引用）。
+但 **`:102`–`:104` 三条都没有给出取证**（台账 §18.5 第 6 条要求"证据"），
+`DllUpdateCommon` 更只有一句"仅在 `RunGate_LEG.dproj` 出现"（`:114`，见 §3-7 实测反证）。
+**本车道的职责正是给这四条补上可复现的证据，并复核初判是否站得住。**
+
 **本车道遵守该裁定**：不在其下游另造一份池/连接器，否则就是台账 §14.2「不造第三份实现」所禁的
 "两份正确但语义不同的实现"（§35.4「已移植但零生产调用方 = 没接上」同样适用）。
 
@@ -408,7 +416,6 @@ dotnet test GXX.CSharp/tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj -c Debug
 | 不改任何既有文件 | 四单元的全部依赖（`IocpUtils`/`IocpWinsock2`/`GatewayKit`）都在分区外 |
 
 ### 6.3 交付物清单
-
 | 文件 | 大小 | 说明 |
 |---|---|---|
 | `GXX.CSharp/src/GXX.RunGate/Rest9/Rest9NotPortedEvidence.cs` | 约 20 KB | 四单元的证据数据（成员清单/行号/计数/调用点）+ 3 个纯判定函数（`UsesClauseContainsUnit`、`StripPascalComments`），**无运行时算法** |
@@ -422,6 +429,8 @@ dotnet test GXX.CSharp/tests/GXX.RunGate.Tests/GXX.RunGate.Tests.csproj -c Debug
 
 ## 7. 给集成方的一句话结论
 
-本车道的四单元**不需要再派车道移植**，它们的不移植已有可复现的证据链
-（原文逐行号核对 + 全树调用点计数 + C# 侧 0 命中计数 + GatewayKit 公开 API 差异）；
-集成方只需做 **§6.1 的 B1/B2**（在 `GatewayKit` 两个文件头补源单元注释）即可让覆盖审计报表闭合。
+本车道的四单元**不需要再派车道移植**：前一条车道 `p2-rungate-impl` 给出的初判（:102–:104）经本车道取证后**全部成立**，
+`DllUpdateCommon` 的"仅在 `RunGate_LEG.dproj` 出现"这半句被实测反证（§3-7，主结论不变）；
+四单元的不移植现在都有可复现的证据链
+（原文逐行号核对 + 全树调用点计数 + C# 侧 0 命中计数 + GatewayKit 公开 API 差异）。
+集成方只需做 **§6.1 的 B1/B2**（在 `GatewayKit` 的两个文件头补源单元注释）即可让覆盖审计报表闭合。
