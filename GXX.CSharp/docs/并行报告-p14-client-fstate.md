@@ -10,20 +10,20 @@
 ## 0. 一句话结论（本轮）
 
 把"515 个 `throw` 壳"这件事从**传闻**变成**逐条实测的对账表**（533 行，见附录 A），
-并按原文 1:1 落地了**九个切片共 83 条**成员，同时把 D-P10-06 的三段接缝按既定条件**核对并删除**。
+并按原文 1:1 落地了**十个切片共 84 条**成员，同时把 D-P10-06 的三段接缝按既定条件**核对并删除**。
 
 | 指标 | 本轮实测值 | 取证方式 |
 |---|---|---|
-| `TFrmDlg.Decl.g.cs` 内 `throw new NotSupportedException` | **432**（本轮起始 **515**，净减 83） | `Select-String ... \| Measure-Object` |
+| `TFrmDlg.Decl.g.cs` 内 `throw new NotSupportedException` | **431**（本轮起始 **515**，净减 84） | `Select-String ... \| Measure-Object` |
 | TFrmDlg 声明面成员（去重名字） | **533**（`TFrmDlgMethodTable` 538 条声明，含 5 组重载同名） | `FStateDeclManifest.g.cs` |
-| `REAL`（已有 1:1 真实现） | **104**（其中本车道 **83**：切片 1..9 = 25/25/6/5/6/2/4/6/4） | 生成器 `$Handwritten` + `TFrmDlg.Handlers.cs` |
-| `PENDING`（原文有体、托管仍是 throw 壳） | **157** | `gen-recon-table.py` |
+| `REAL`（已有 1:1 真实现） | **105**（其中本车道 **84**：切片 1..10 = 25/25/6/5/6/2/4/6/4/1） | 生成器 `$Handwritten` + `TFrmDlg.Handlers.cs` |
+| `PENDING`（原文有体、托管仍是 throw 壳） | **156** | `gen-recon-table.py` |
 | `ORIGINAL_EMPTY`（原文空体/仅注释） | **40** | 同上 |
 | `ABSTRACT_NO_BODY`（原文无实现体） | **232** | 同上 |
-| **当前真实覆盖率** | **104/533 = 19.51%** | 同上 |
-| 可移植面完成率（分母 `REAL+PENDING+ORIGINAL_EMPTY` = 301） | **104/301 = 34.55%** | 同上 |
-| 本车道落地的成员 | **83** | `TFrmDlgPortLedger.LaneCount` |
-| 本车道新增用例 | **约 143**（实测 4904 → 5023） | `GXX.Client.Tests` |
+| **当前真实覆盖率** | **105/533 = 19.70%** | 同上 |
+| 可移植面完成率（分母 `REAL+PENDING+ORIGINAL_EMPTY` = 301） | **105/301 = 34.88%** | 同上 |
+| 本车道落地的成员 | **84** | `TFrmDlgPortLedger.LaneCount` |
+| 本车道新增用例 | **约 160**（本车道切片累计；工作树合计 4904 → 5394，含同步进来的其它车道用例） | `GXX.Client.Tests` |
 
 > **`ABSTRACT_NO_BODY` 的独立取证（本轮补做）**：对 `TFrmDlg` 类体（原文 311-1114）逐行扫描，
 > **带 `abstract` 的声明共 220 条**；对当前 428 个去重 throw 名字做交集，
@@ -66,11 +66,11 @@
 
 | 文件 | 变更 |
 |---|---|
-| `GUI/Share/TFrmDlg.Handlers.cs` | **新增**：切片 1..9 共 **83** 条 1:1 真实现 + `TFrmDlgPortLedger` 机器可读台账 |
+| `GUI/Share/TFrmDlg.Handlers.cs` | **新增**：切片 1..10 共 **84** 条 1:1 真实现 + `TFrmDlgPortLedger` 机器可读台账 |
 | `GUI/Share/FStateScreenSeam.cs` | **新增**：`DScreen.ClearHint` 的显式留痕接缝（真实对象未落地，调一次记一次） |
 | `GUI/Share/FStateResStrSeam.cs` | **新增**：`DecodeResStr` + 3 条 `S*` resourcestring 注入接缝（切片 2 用；默认值=常量名，不静默成空串） |
-| `GUI/Share/FStateDeclGen.ps1` | `$Handwritten` 由 20 条扩到 104 条（切片 1..9 = 25/25/6/5/6/2/4/6/4，另 21 条为前任车道）；新增 `$CsTypeOverrides`（`FSayItemHintWin`）；源码改显式 UTF-8 读取 |
-| `GUI/Share/TFrmDlg.Decl.g.cs` | 生成器重跑：83 个成员不再声明（`throw` 515→432）；`FSayItemHintWin` 类型 `object` → `THintWindows` |
+| `GUI/Share/FStateDeclGen.ps1` | `$Handwritten` 由 20 条扩到 105 条（切片 1..10 = 25/25/6/5/6/2/4/6/4/1，另 21 条为前任车道）；新增 `$CsTypeOverrides`（`FSayItemHintWin`）；源码改显式 UTF-8 读取 |
+| `GUI/Share/TFrmDlg.Decl.g.cs` | 生成器重跑：84 个成员不再声明（`throw` 515→431）；`FSayItemHintWin` 类型 `object` → `THintWindows` |
 | `GUI/Share/FStateDeclManifest.g.cs` | 生成器重跑（字段表 `FSayItemHintWin` 类型同步；西文注释乱码修复为正确中文） |
 | `GUI/Share/FStatePure.cs` | `GetHitLines` 的 `THintLines` 形参改指 `GXX.Client.Scenes.THintLines`（D-P10-06） |
 | `GUI/Share/FStateSeams.cs` | **删除** `THintLines`（旧 407-452）、`THintWindows` + `DrawScrn` 静态接缝（旧 599-612） |
@@ -161,7 +161,7 @@
 测试 `ForwardersDelegateToTheOriginalTarget` 用"异常消息里必须出现 `TFrmDlg.<目标方法>:`"
 把"真的转发了"这一事实锁死（而不是靠注释自证）。
 
-**壳内剩余 `throw` 数**：**432**（切片 2 起点 490 → 3: 459 → 4: 454 → 5: 448 → 6: 446 → 7: 442 → 8: 436 → 9: 432；起始 515）。
+**壳内剩余 `throw` 数**：**431**（切片 2 起点 490 → 3: 459 → 4: 454 → 5: 448 → 6: 446 → 7: 442 → 8: 436 → 9: 432 → 10: 431；起始 515）。
 
 ---
 
@@ -193,6 +193,34 @@ function DMessageDlg(MsgStr:string; DlgButtons:TMsgDlgButtons; DefaultText:strin
 
 > 我上一轮 §11.1 曾建议"先落 `DMessageDlg` 一族（它本身就是一个可移植的成员）" —— **那句是错的**，
 > 已在此更正。它对后续车道的价值：**不要把 abstract 钩子当工作量**。
+
+---
+
+## 3j. 切片 10 的 1 条成员（真实体 1 / NotPorted 0 / 原文如此 0）
+
+| # | 成员 | 原文行 | 说明 |
+|---:|---|---|---|
+| 1 | `ShowMDlg` | 1864-1889 | 声明在原文 867，**concrete**（该族唯一）；体只做 NPC 大对话框的几何/图号/浮动/关闭按钮可见性 |
+
+### 为什么这一族只落得到 1 条（逐行核对声明段 846-892 的结论）
+
+| 成员 | 原文声明 | 定性 |
+|---|---|---|
+| `CloseSayItemDlg`(859) | concrete | 已在切片 8 落地 |
+| `ShowMDlg`(867) | **concrete** | **本切片落地** |
+| `AttactkModeChange`(879) | concrete | 已在切片 1 落地 |
+| `OpenDChallengeDlg`/`CloseDChallengeDlg`/`RefreshChallengeDlg`/`OpenDUpgradeDlg`/`CloseDUpgradeDlg`/`OpenDRandomCodeDlg`/`CloseDRandomCodeDlg`/`ReInputDRandomCode` | concrete | 已在切片 1/5 落地 |
+| `ShowGorupJoinDlg`(868) / `ResetMenuDlg`(869) / `CloseMDlg`(870) / `ToggleShowGroupDlg`(871) / `ViewBottomBox`(872) / `ShowProgressBarDlg`(855) / `CloseProgressBarDlg`(856) / `ShowSayItemDlg`(858) / `DMessageDlg*`(863-866) … | **`virtual; abstract`** | **ABSTRACT_NO_BODY**（B-9、B-10）：**没有原文体可落** |
+
+### ★ 本条登记的原文缺陷（第 12 条）
+
+`ShowMDlg` 的**五个形参 `face` / `mname` / `msgstr` / `boSetBagItemPos` / `IsDesigning`
+在函数体里一个都没被使用** —— 整段体只做"NPC 大对话框的几何 / 图号 / 浮动 / 关闭按钮可见性"设置。
+托管侧逐字保留（形参同样未用并显式标注），**不顺手接上**；
+用例 `ShowMDlgIgnoresAllFiveParameters` 用"两次只改形参、可观测状态完全相同"把它锁死。
+
+另：原文 1879-1885 是**整段 `{ }` 块注释**（`cvMirs` 分支，含 `AutoSize`/`Width + 20`），
+托管侧逐字保留为注释、**不执行**（原文如此）。
 
 ---
 
@@ -429,6 +457,7 @@ function DMessageDlg(MsgStr:string; DlgButtons:TMsgDlgButtons; DefaultText:strin
 | **D-P14-07** | 对账表把 538 条声明按**名字去重**为 533 行（5 组重载同名合并一行） | 表以"版本/成员"为单位才可读；重载的逐条签名仍完整保留在 `FStateDeclManifest.g.cs` 的 `Decls` 数组里（含原文行号）。 |
 | **D-P14-08** | 切片 2 里 18 条"一行转发"被登记为**真实体**，即使被转发方仍是 `throw` 壳 | 原文这一族就是纯转发（`CloseDSellDlg;` 一行）。按 1:1 必须保留转发形态：内联被调者会**造第三份实现**（§14.2），加"目标未移植则跳过"会把缺口**静默**掉（§25.2）。台账只声称转发体已落地，并把"抛点在被转发方"写进代码注释与报告 §3b。 |
 | **D-P14-09** | 3 条 `S*` resourcestring（`SGuildDelMem` / `SGuildEditNotice` / `SGuildEditGradeHint`）用 `FStateResStrSeam` 注入，**默认值 = 常量名本身** | 这 3 个常量在 ClFunc/MShare.pas（不在本单元）。默认值取常量名而非空串：忘记注入时表现为**可见占位**，不会静默变成空提示。真实文本待 resourcestring 落地后替换；**不计入 FState 缺口**。 |
+| **D-P14-16** | `ShowMDlg` 的两处**已登记等价改写**：① 1869 的 `Assign` 改为**逐字段拷贝**；② 1873/1887 的 `g_ClientConfig` 走 `FStateMShareSeam.g_ClientConfig_*` 两字段接缝 | ① `TDxControl.ImageIndex` 是 `TDxImageIndex`（有 `Checked`），而 `MShareGlobals.g_MerchantImageIndex`（`ClientGlobals.cs:217`）是旧接缝类型 `TGuiImageIndex`（字段名 `Image`、**无** `Checked`）⇒ 无法 `Assign`；字段集与原文相同，只少一个源类型本来就没有的 `Checked`。待该全局换成 `TDxImageIndex` 即可还原成一行。② 原文 `g_ClientConfig` 指 **Grobal2 的 `TClientConfig`**（`Common/Grobal2.pas:6388`；`boNPCGuiCanMove`:5080、`DMerchantDlgHelp`:5022 都在其中），**不是** MShare 的 `g_ConfigClient:TConfigClient`（后者是 `MShare.pas:493` 的 packed record）—— 两者只差一个字母，极易混。该全局托管侧未落地，故按单字段接缝承载。 |
 | **D-P14-10** | 切片 2 的 25 条用 `public virtual`（与切片 1 同） | 同 D-P14-03。 |
 | **D-P14-11** | B-2 的增量补充**没有**新建授权给我的 `Scenes/FStateClMainSeam.cs`，而是扩了既有的 `GUI/Share/FStateSeams.cs::FStateClMainSeam` | 该授权文件与既有类**同名**。同一程序集里再造同名类型会让所有同时 `using` 两命名空间的文件 CS0104 —— 正是本工程多次登记的"同一单元两条车道各造一套接缝"事故。⇒ 沿用既有类（授权未使用，也不产生二义性）。 |
 | **D-P14-12** | `g_ClientConfig.sHomePage` 的最小承载放在 `FStateClMainSeam.sHomePage` | 车道1 的 `GXX.Client.GUI.Mir.TConfigClient`（`MirForms.cs:23`）**没有**该字段且不在本车道分区。默认值与 M2 端 `M2Config.sHomePage` 一致（`M2Config.ClientConf.cs:128`）。 |
@@ -459,13 +488,14 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 > 故以 `-Repo <本车道工作树>` 指过来运行；`-Log` 指向临时目录以避免在仓库内留日志。
 > 三个判据（build exit 0 / test exit 0 / 无崩溃标记）全部为脚本自身打印的实测值。
 
-（基线：本轮开工前 `GXX.Client.Tests` 为 4904 例全绿；切片 1..9 累计新增 → **5023**。）
+（基线：本轮开工前 `GXX.Client.Tests` 为 4904 例全绿；切片 1..10 累计新增 → **5040**。）
 
 **新增用例分布（`GuiShareHandlersTests.cs`，约 143 例）**
 
 | 组 | 例数 | 覆盖 |
 |---|---:|---|
-| A. 台账 / 生成壳一致性（含 IL 级"已不是壳"闸门） | 13 | 台账 25/25/6/5/6/2/4/6/4 条、行号区间合法、名字唯一且存在、**成员体不得再 `newobj NotSupportedException`** |
+| A. 台账 / 生成壳一致性（含 IL 级"已不是壳"闸门） | 13 | 台账 25/25/6/5/6/2/4/6/4/1 条、行号区间合法、名字唯一且存在、**成员体不得再 `newobj NotSupportedException`** |
+| 切片 10：ShowMDlg（含形参全未用锁死） | 17 | 大对话框标志短路、几何/图号/矩形拷贝、浮动二分 `[Theory]` 4 行、三版本白名单 `[Theory]` 6 行、nil 容错、**形参无关性** |
 | 切片 9：公会增删/结盟（含 abstract 钩子接缝语义） | 7 | `Format(Guild)` 代入、**不看返回值 vs 看返回值**、拼接顺序、未注入接缝返回 `mrNone` 不误触发 |
 | C. 原文空体成员（`[Theory]` 11 行数据） | 11 | 调用即"什么都不发生"且行号登记一致 |
 | D. RealArea 恒真（两个 `[Theory]` × 2） | 4 | `initial=false/true` 两向 |
@@ -490,8 +520,8 @@ GATE: PASS (build 0 error, test exit 0, no crash markers)
 
 | State | 判定 | 条数 |
 |---|---|---:|
-| `REAL` | 该成员名在 `FStateDeclGen.ps1` 的 `$Handwritten` 里（⇒ 生成壳不再声明它，真体在手写 partial） | 104 |
-| `PENDING` | 原文 `implementation` 段有该成员体、且体行数 > 3，托管侧仍是 `throw` 壳 | 157 |
+| `REAL` | 该成员名在 `FStateDeclGen.ps1` 的 `$Handwritten` 里（⇒ 生成壳不再声明它，真体在手写 partial） | 105 |
+| `PENDING` | 原文 `implementation` 段有该成员体、且体行数 > 3，托管侧仍是 `throw` 壳 | 156 |
 | `ORIGINAL_EMPTY` | 原文有体但体行数 ≤ 3（空体/仅注释） | 41 |
 | `ABSTRACT_NO_BODY` | 原文**声明了但整单元没有实现体** | 232 |
 | 合计（去重名字） | | **533** |
@@ -522,7 +552,7 @@ python "$share\gen-recon-table.py" `
     --out      $env:TEMP\recon.md
 # 期望输出：
 # MANIFEST=538 DECLARED_THROW_NAMES=450 HANDWRITTEN=82 DISTINCT=533
-# REAL=104 PENDING=157 ORIGINAL_EMPTY=40 ABSTRACT=232 THROW_NOW=432
+# REAL=105 PENDING=156 ORIGINAL_EMPTY=40 ABSTRACT=232 THROW_NOW=431
 
 # 3) 重新生成声明面（改了 $Handwritten 之后）
 & "$share\FStateDeclGen.ps1" `
@@ -536,7 +566,7 @@ python "$share\gen-recon-table.py" `
 
 ### 11.1 未完成（本车道明确的待办主体）
 
-- **`PENDING` 157 条**：原文有实现体、托管侧仍是 `throw` 壳。这是本车道的**主战场**。
+- **`PENDING` 156 条**：原文有实现体、托管侧仍是 `throw` 壳。这是本车道的**主战场**。
   建议按"依赖半径"从小到大推进：
   1. **无依赖 / 单跳转发** —— 切片 1/2/8 已把这一层基本扫完；
   2. **tick / 动作守卫族** —— 切片 4/5/6/7 已吃掉 **11 条，该族已清零**；
@@ -557,6 +587,8 @@ python "$share\gen-recon-table.py" `
 |---|---|---|
 | B-1 | `DScreen:TDrawScreen`（MShare/DrawScrn）未见托管实体 | 约十余个鼠标/绘制处理器的**第一步**只能走 `FStateScreenSeam` 留痕（D-P14-06）。**不计入 FState 未移植缺口**。 |
 | B-9 | `DMessageDlg`/`DMessageDiceDlg`/`DMessageLoadDataDlg`/`DMessageNoticeDlg` 等 **220 条原文 `abstract` 钩子** | 它们在原文里**没有实现体**（本单元不实现，由 `StateWindows`/`SerialWindowsDlg` 等子类实现）⇒ 托管侧保留 `throw` 壳**是正确的**，**不是缺口**。切片 9 起用 `FStateClMainSeam.DMessageDlg` 注入接缝供本单元处理器使用。 |
+| B-10 | **220 条原文 `virtual; abstract` 钩子**（`DMessageDlg`/`DMessageDiceDlg`/`DMessageLoadDataDlg`/`DMessageNoticeDlg`/`ResetMenuDlg`/`CloseMDlg`/`ToggleShowGroupDlg`/`ViewBottomBox`/`ShowGorupJoinDlg`/`ShowProgressBarDlg` …） | 它们在原文里**没有实现体**（由 `StateWindows`/`SerialWindowsDlg` 等子类实现）⇒ 托管侧保留 `throw` 壳**是正确的**，**不是缺口**。独立取证：类体带 `abstract` 的声明共 **220** 条，与当时 428 个去重 throw 名字求交**恰好 220**，零误差。 |
+| B-11 | ~~接缝退役无法在本工作树执行~~ → **已解除并执行完毕** | main 已由集成方同步进本工作树（`dad3ce04`）；本车道据此执行 §12.2 全部步骤：**12 项接缝退役**、CR-1 改持整条记录、Reset 改调 `MShareGlobalsReset`。**结果见 §12.4。** |
 | B-2 | `frmMain`（ClMain.pas）在车道1 的 `GXX.Client.GUI.Mir.frmMain` 里**只有** `boNpcDlgCanMove` 一条 | 切片 3 已按调度方授权补进 6 个成员（见 §3c），由此**解锁 4 条**并把 `DWebClick`/`DActionLogClick`/`DGetBackDeleteHumanClick`/`DCustomButtonClick` 从"主动放弃"改为**已 1:1**。**仍缺约 12 条**（`Close`/`ReConnectClientSocketGate`/`SendSay`/`SendGuildAddMem`/`SendGuildDelMem`/`SendAdjustBonus`/`SendCancelGameGoldDealItem`/`SendGetShopItems`/`SendDealTry`/`SendChallengeTry`/`SendGroupMode`/`AppLogout` …）—— 清单写在 `FStateSeams.cs` 的 `FStateClMainSeam` 注释里，每条都挡着一个 `PENDING`。 |
 | B-3 | `GXX.Client.GUI.Mir.TFrmDlg`（车道1 早期接缝）与本车道 `GXX.Client.GUI.Share.TFrmDlg` **同名不同类型** | 每个引用点都要 `using TFrmDlg = ...` 消歧（`GuiSharePureTests.cs`/`GuiShareHandlersTests.cs` 已如此）。**建议后续合并**，但跨分区，本车道不动。 |
 | B-4 | `S*` resourcestring（`SGuildDelMem` 等）与 `DecodeResStr` 无正式归属 | 已用 `FStateResStrSeam`（默认值=常量名）承载（D-P14-09）。凡原文提示文本走 resourcestring 的处理器都受此影响。**不计入 FState 缺口**。 |
@@ -567,13 +599,115 @@ python "$share\gen-recon-table.py" `
 
 ### 11.3 给调度方的状态建议
 
-- 本车道证据已足以把 `FState` 从 **REFUTED** 推进到 **PARTIAL（部分，**19.51%**）**：
+- 本车道证据已足以把 `FState` 从 **REFUTED** 推进到 **PARTIAL（部分，**19.70%**）**：
   分母与算法在 §0 与 §9 全部给出，可独立复算。
 - **建议继续加宽本车道分区**：`PENDING` 里相当一部分成员只差**一个接缝**
   （`g_dwQueryMsgTick` / `g_boMagicMoving` / `g_nMinMapX` 一类 `MShare` 全局）。
   目前这些全局散落在 `GUI/Mir/ClientGlobals.cs`（车道1 分区）与本车道的
   `FStateSeams.cs`。若能把 `MShareGlobals` 的**增量补充权**下放给本车道，
   可显著降低每条的接缝成本（否则每条都要在报告里登记一个新接缝）。
+
+---
+
+## 12. 接缝退役（B-11：**已执行完毕**）
+
+调度方指派本车道退役 `GUI/Share/FStateSeams.cs` 里的接缝（10 项），依据是 `p17-client-mshare`
+给出的"可直接退役"证明。**核对结果：方案正确，但在本工作树里执行不了。** 如实登记如下。
+
+### 12.1 阻塞事实（实测，非推断）
+
+| 项 | 本车道工作树（`par/p14-client-fstate`，基于 `main @ 838ad9ae`） | main（`98707a3e`） |
+|---|---|---|
+| `MShareGlobals.g_dwQueryMsgTick` 等 **9 个 `g_*`** | **不存在**（实测 `GUI/Mir/ClientGlobals.cs` 全部 ABSENT；这些名字只出现在本车道的 `FStateSeams.cs`） | **存在**（`ClientGlobals.cs:210-238`） |
+| `MShareGlobalsReset.ResetForTests()` 覆盖那 9 个字段 | 不存在（`ClientGlobals.cs:301` 的 Reset 不含它们） | **存在**（`ClientGlobals.cs:421-429`） |
+| `TUserCharacterInfo.sChrName`（CR-1） | **不存在**（Core 侧无该成员） | **存在**（`Grobal2.Types6.cs` 的 `TUserCharacterInfo`，`NameStr` 同缓冲别名） |
+
+⇒ 改指后本工作树**无法编译**：目标标识符在当前快照里根本没有。
+而本车道的硬性禁止含 **`git merge/rebase/checkout`**，且 `GUI/Mir/ClientGlobals.cs`
+**不在本车道分区**（只有 `!GUI/Share/**` + `!tests/GuiShare*`），不能由我补字段。
+
+**★ 另有一条对集成方的资产性风险（必须点出）**：main 的 `ClientGlobals.cs` 与本车道的
+`FStateSeams.cs` 在**同一命名空间（`GXX.Client.GUI.Mir`）里各自声明了同名的 9 个 `public static` 字段**。
+合并时若两侧都保留，会直接 **CS0102（类型已包含相同定义）**。
+⇒ **合并前必须先做 §12.2 的第 1-3 步**，否则集成会编译失败。
+（退役**不是**新增实现：**不计入**本报告的覆盖率分子，单独列在本节。）
+
+### 12.2 可机械执行的退役步骤（交集成方，或待 main 同步进本工作树后由我执行）
+
+前提：main 的 `ClientGlobals.cs` 已在工作树里可见。然后：
+
+1. 删除 `GUI/Share/FStateSeams.cs::FStateMShareSeam` 里的 **9 个字段**：
+   `g_SellDlgItem` / `g_ExtBagOpenItemCount` / `g_dwQueryMsgTick` / `g_dwDealActionTick` /
+   `g_dwChallengeActionTick` / `g_boDealEnd` / `g_nDealGold` / `g_boChallengeEnd` / `g_nChallengeGold`。
+2. 全树把 `FStateMShareSeam.<那 9 个名字>` 改成 `MShareGlobals.<同名>`；
+   **只改限定名，不动裸名** —— 裸名由文件头的 `using static GXX.Client.GUI.Mir.MShareGlobals;`
+   解析，删掉接缝字段后会自动落到真身（当前绝大多数调用点本来就是裸名，
+   只有 `TFrmDlg.Core.cs` 的 `g_SellDlgItem` 与 `g_ExtBagOpenItemCount` 带 `FStateMShareSeam.` 限定）。
+3. 删 `FStateMShareSeam.ResetForTests()`，把 `FStateClMainSeam.ResetForTests()` 里的那一行
+   换成 `MShareGlobalsReset.ResetForTests()`（**这一项无损**：p17 已证明 Reset 覆盖全部 10 个字段）。
+4. `g_SelDeleteHumanInfo_sChrName`（CR-1 后也可退役）：原文 `g_SelDeleteHumanInfo` 是**记录本身**
+   （`TUserCharacterInfo`），故按 1:1 应改为**持有整条记录**而不是再接一个单字段：
+   `public static TUserCharacterInfo g_SelDeleteHumanInfo;`，调用点写
+   `g_SelDeleteHumanInfo.sChrName != ""` / `SendGetBackDeleteChr(g_SelDeleteHumanInfo.sChrName)`。
+   **理由**：原文 20594/20595 两次访问的是**同一记录的同一字段**；单字段接缝会掩盖
+   "这是个记录"这一事实，而 CR-1 已给出同缓冲别名 `sChrName` ⇒ 直接持有记录才与原文同形。
+   同步删掉 `ResetForTests()` 里的 `g_SelDeleteHumanInfo_sChrName = "";`（记录按值承载 ⇒ `default` 即空）。
+5. 跑门禁；应无行为变化（p17 已逐字段核对类型与初值一致）。
+
+### 12.3 本车道已就绪的守卫（防回潮）
+
+`GuiShareHandlersTests` 已加守卫用例 `NoMShareSeamFieldShadowsTheLandedGlobal`：
+断言 `FStateMShareSeam` 里**不得**再出现与 `MShareGlobals` 同名的接缝字段。
+退役执行后它仍为绿；若后人把同名接缝加回来，它立刻红。
+
+> 本节三条事实（9 个 `g_*` / Reset 覆盖 / `sChrName`）都是在 **main 上只读核对**的，
+> 本车道的实现一行未改。
+
+
+### 12.4 ★ 执行结果（本轮，提交 `f6205ce2`）
+
+**12 项接缝已退役**（字段从 `FStateMShareSeam` 删除，调用点改指 `MShareGlobals` 真身）：
+
+| # | 接缝字段 | 真身 |
+|---:|---|---|
+| 1 | `g_SellDlgItem` | `MShareGlobals.g_SellDlgItem`（`ClientGlobals.cs:211`） |
+| 2 | `g_ExtBagOpenItemCount` | `MShareGlobals.g_ExtBagOpenItemCount`（`:214`） |
+| 3 | `g_dwQueryMsgTick` | `MShareGlobals.g_dwQueryMsgTick`（`:220`） |
+| 4 | `g_dwDealActionTick` | `MShareGlobals.g_dwDealActionTick`（`:223`） |
+| 5 | `g_dwChallengeActionTick` | `MShareGlobals.g_dwChallengeActionTick`（`:226`） |
+| 6 | `g_boDealEnd` | `MShareGlobals.g_boDealEnd`（`:229`） |
+| 7 | `g_nDealGold` | `MShareGlobals.g_nDealGold`（`:232`） |
+| 8 | `g_boChallengeEnd` | `MShareGlobals.g_boChallengeEnd`（`:235`） |
+| 9 | `g_nChallengeGold` | `MShareGlobals.g_nChallengeGold`（`:238`） |
+| 10 | `g_dwChangeGroupModeTick` | `MShareGlobals.g_dwChangeGroupModeTick`（`:242`） |
+| 11 | `g_boAllowGroup` | `MShareGlobals.g_boAllowGroup`（`:245`） |
+| 12 | `g_GameGoldDeal` | `MShareGlobals.g_GameGoldDeal`（`:266`） |
+
+**比原方案多退了 3 项**：同步进来的 p17 批次把 `g_dwChangeGroupModeTick` / `g_boAllowGroup` /
+`g_GameGoldDeal` 的真身也落在了 `MShareGlobals`（`ClientGlobals.cs` 的 "B-6 剩余项" 段），
+且 `MShareGlobalsReset`（`:430-437`）**覆盖它们** ⇒ 与那 9 项同样可无损退役，已一并处理。
+
+**CR-1（第 4 步）已按整条记录落地**：
+`FStateMShareSeam.g_SelDeleteHumanInfo_sChrName`（string 单字段）→
+**`FStateMShareSeam.g_SelDeleteHumanInfo`（整条 `TUserCharacterInfo`）**，
+调用点写 `g_SelDeleteHumanInfo.sChrName`（原文 20594/20595 访问的是同一记录的同一字段）。
+
+**Reset 改指**：`FStateClMainSeam.ResetForTests()` 里对 `MShareGlobalsReset.ResetForTests()` 的调用已移除，
+改由测试的 `ResetAll()` 直接调用（那里本来就有）—— 避免在 `GUI/Share` 分区里重复复位同一批全局。
+`FStateMShareSeam.ResetForTests()` **保留**，但只复位**仍未退役**的 8 个接缝字段。
+
+**仍保留的接缝（8 个，都是"真身尚未落地"，不是遗漏）**：
+`g_SelDeleteHumanInfo`（记录承载）、`g_MouseUserStateItem_sName`、`g_DealDlgItem`、
+`g_GameGoldDealRemoteItems`、`g_nMinMapX`、`g_nMinMapY`、
+`g_ClientConfig_boNPCGuiCanMove / g_ClientConfig_DMerchantDlgHelp`（原文 Grobal2 的 `g_ClientConfig`，与 MShare 的 `g_ConfigClient` **不是**一回事）。
+
+**守卫（2 例，退役后仍全绿）**：
+- `NoMShareSeamFieldShadowsTheLandedGlobal` —— 接缝字段与 `MShareGlobals` 真身**不得同名并存**
+  （这次退役正是为它而做；12 项退役后它由"暂态可容忍"变为"必须无同名"）。
+- `EveryMShareSeamFieldIsEitherRetirableOrExplicitlyStays` —— 接缝上每个 `g_` 字段都必须有归属；
+  上面那 8 个保留项逐条写明原因，**后人再塞一个未登记的 `g_` 接缝字段就会红**。
+
+**口径**：退役**不是**新增实现 ⇒ **不计入**覆盖率分子（`REAL` 仍为 105）。
 
 ---
 
@@ -584,16 +718,16 @@ python "$share\gen-recon-table.py" `
 本表由 `src/GXX.Client/GUI/Share/gen-recon-table.py` 从**原文镜像 + 当前生成壳 + 生成器 `$Handwritten`** 实测生成（非手抄；随时可重跑复现）。
 
 - **TFrmDlg 声明面成员**（`FStateDeclManifest.g.cs` 的 `TFrmDlgMethodTable`：538 条声明，其中 5 组重载同名 ⇒ 去重后 **533** 个名字）：**538**
-  - 生成壳 `TFrmDlg.Decl.g.cs` **仍声明并 `throw`** 的名字：**428**（`throw` 语句实测 **432** 条）
-  - `FStateDeclGen.ps1` 的 `$Handwritten` 跳过、由手写 partial 供给真体的名字：**104**
-- 生成壳内 `throw new NotSupportedException` 实测条数：**432**
-- `REAL`（托管侧已有 1:1 真实现）：**104**
-- `PENDING`（原文有实现体、托管侧仍是 throw 壳 ⇒ **本车道待办主体**）：**157**
+  - 生成壳 `TFrmDlg.Decl.g.cs` **仍声明并 `throw`** 的名字：**427**（`throw` 语句实测 **431** 条）
+  - `FStateDeclGen.ps1` 的 `$Handwritten` 跳过、由手写 partial 供给真体的名字：**105**
+- 生成壳内 `throw new NotSupportedException` 实测条数：**431**
+- `REAL`（托管侧已有 1:1 真实现）：**105**
+- `PENDING`（原文有实现体、托管侧仍是 throw 壳 ⇒ **本车道待办主体**）：**156**
 - `ORIGINAL_EMPTY`（原文自带空体/仅注释 ⇒ 可零风险照抄为 空体）：**40**
 - `ABSTRACT_NO_BODY`（原文声明但本单元无实现体 ⇒ 保持 throw 壳）：**232**
 
-**当前真实覆盖率（分母 = 全部声明成员 533）= 104/533 = 19.51%**
-**可移植面完成率（分母 = REAL+PENDING+ORIGINAL_EMPTY = 301）= 104/301 = 34.55%**
+**当前真实覆盖率（分母 = 全部声明成员 533）= 105/533 = 19.70%**
+**可移植面完成率（分母 = REAL+PENDING+ORIGINAL_EMPTY = 301）= 105/301 = 34.88%**
 
 `State` 取值：`REAL` = 真实现已落；`PENDING` = 待办（原文有体）；`ORIGINAL_EMPTY` = 原文空体；`ABSTRACT_NO_BODY` = 原文无实现体。
 
@@ -927,7 +1061,7 @@ python "$share\gen-recon-table.py" `
 | 324 | 864 | `DMessageDiceDlg` | n/a | n/a | ABSTRACT_NO_BODY |
 | 325 | 865 | `DMessageLoadDataDlg` | n/a | n/a | ABSTRACT_NO_BODY |
 | 326 | 866 | `DMessageNoticeDlg` | n/a | n/a | ABSTRACT_NO_BODY |
-| 327 | 867 | `ShowMDlg` | `1865-1889` | 25 | PENDING |
+| 327 | 867 | `ShowMDlg` | `1865-1889` | 25 | REAL |
 | 328 | 868 | `ShowGorupJoinDlg` | n/a | n/a | ABSTRACT_NO_BODY |
 | 329 | 869 | `ResetMenuDlg` | n/a | n/a | ABSTRACT_NO_BODY |
 | 330 | 870 | `CloseMDlg` | n/a | n/a | ABSTRACT_NO_BODY |

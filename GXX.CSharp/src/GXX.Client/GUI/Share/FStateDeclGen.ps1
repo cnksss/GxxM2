@@ -81,7 +81,14 @@ $Handwritten = @(
   # Guild member/ally handlers. NOTE: they call DMessageDlg, which is `virtual; abstract` in the
   # original (FState.pas:863) and has NO body in this unit -> it is an ABSTRACT_NO_BODY member
   # served by a seam, NOT a portable body. See the block comment in FStateSeams.cs.
-  'DGDAddMemClick','DGDDelMemClick','DGDAllyClick','DGDBreakAllyClick'
+  'DGDAddMemClick','DGDDelMemClick','DGDAllyClick','DGDBreakAllyClick',
+  # ---- lane p14-client-fstate slice 10 (TFrmDlg.Handlers.cs) -------------------------------
+  # ShowMDlg (FState.pas:867 CONCRETE, body 1865-1889): the ONLY non-abstract member left in
+  # the ShowDlg / ResetMenuDlg family (ShowGorupJoinDlg/ResetMenuDlg/CloseMDlg/
+  # ToggleShowGroupDlg/ViewBottomBox are all `virtual; abstract` -> ABSTRACT_NO_BODY).
+  # Its body needs the `g_ClientConfig` global (the Grobal2 TClientConfig one, NOT MShare's
+  # `g_ConfigClient` record) -> served by two single-field seams. See FStateSeams.cs.
+  'ShowMDlg'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

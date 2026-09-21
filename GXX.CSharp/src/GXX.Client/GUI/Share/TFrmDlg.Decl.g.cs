@@ -1215,9 +1215,6 @@ public partial class TFrmDlg
     /// <summary>Source line 866 : function DMessageNoticeDlg(MsgStr:string):TModalResult; virtual; abstract;</summary>
     public virtual TModalResult DMessageNoticeDlg(string MsgStr)
         => throw new NotSupportedException("TFrmDlg.DMessageNoticeDlg: abstract in Delphi (FState.pas:866)");
-    /// <summary>Source line 867 : procedure ShowMDlg(face:Integer; mname, msgstr:string; boSetBagItemPos:Boolean = True; IsDesigning:Boolean = False); virtual;</summary>
-    public virtual void ShowMDlg(int face, string mname, string msgstr, bool boSetBagItemPos = true, bool IsDesigning = false)
-        => throw new NotSupportedException("TFrmDlg.ShowMDlg: not ported yet (FState.pas:867)");
     /// <summary>Source line 868 : procedure ShowGorupJoinDlg(MsgStr:string; Data:string); virtual; abstract;</summary>
     public virtual void ShowGorupJoinDlg(string MsgStr, string Data)
         => throw new NotSupportedException("TFrmDlg.ShowGorupJoinDlg: abstract in Delphi (FState.pas:868)");

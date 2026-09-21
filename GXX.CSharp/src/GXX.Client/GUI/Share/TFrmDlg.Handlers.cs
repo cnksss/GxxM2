@@ -524,8 +524,8 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGetBackDeleteHumanClick(object Sender, int X, int Y)
     {
-        if (FStateMShareSeam.g_SelDeleteHumanInfo_sChrName != "")    // 20594
-            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo_sChrName); // 20595
+        if (FStateMShareSeam.g_SelDeleteHumanInfo.sChrName != "")    // 20594
+            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo.sChrName); // 20595
     }
 
     /// <summary>
@@ -579,9 +579,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGDHomeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17876
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 17876
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
             FStateClMainSeam.SendGuildHome();           // 17878
             BoGuildChat = false;                        // 17879
         }
@@ -593,9 +593,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DGDListClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17885
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 17885
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
             FStateClMainSeam.SendGuildMemberList();     // 17887
             BoGuildChat = false;                        // 17888
         }
@@ -643,9 +643,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DBotTradeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18914
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 18914
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
             FStateClMainSeam.SendDealTry();             // 18916
         }
     }
@@ -656,9 +656,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void BotChallengeClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18906
+        if (FStateSeamClock.Now > g_dwQueryMsgTick)   // 18906
         {
-            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
+            g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
             FStateClMainSeam.SendChallengeTry();        // 18908
         }
     }
@@ -670,7 +670,7 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DDealCloseClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwDealActionTick)   // 17535
+        if (FStateSeamClock.Now > g_dwDealActionTick)   // 17535
         {
             CloseDDealDlg();                            // 17536
             FStateClMainSeam.SendCancelDeal();          // 17537
@@ -684,9 +684,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DealZeroGold()
     {
-        if (!FStateMShareSeam.g_boDealEnd && FStateMShareSeam.g_nDealGold > 0)   // 17748
+        if (!g_boDealEnd && g_nDealGold > 0)   // 17748
         {
-            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
+            g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
             FStateClMainSeam.SendChangeDealGold(0);     // 17750
         }
     }
@@ -697,7 +697,7 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DChallengeCloseClick(object Sender, int X, int Y)
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChallengeActionTick)   // 20815
+        if (FStateSeamClock.Now > g_dwChallengeActionTick)   // 20815
         {
             CloseDChallengeDlg();                       // 20816
             FStateClMainSeam.SendCancelChallenge();     // 20817
@@ -710,9 +710,9 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void ChallengeZeroGold()
     {
-        if (!FStateMShareSeam.g_boChallengeEnd && FStateMShareSeam.g_nChallengeGold > 0)   // 20791
+        if (!g_boChallengeEnd && g_nChallengeGold > 0)   // 20791
         {
-            FStateMShareSeam.g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
+            g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
             FStateClMainSeam.SendChangeChallengeGold(0);    // 20793
         }
     }
@@ -778,11 +778,11 @@ public partial class TFrmDlg
     /// </summary>
     private void ToggleGroupMode()
     {
-        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChangeGroupModeTick)
+        if (FStateSeamClock.Now > g_dwChangeGroupModeTick)
         {
-            FStateMShareSeam.g_boAllowGroup = !FStateMShareSeam.g_boAllowGroup;      // 18924 / 18943
-            FStateMShareSeam.g_dwChangeGroupModeTick = FStateSeamClock.Now + 5000;   // 18925 / 18944
-            FStateClMainSeam.SendGroupMode(FStateMShareSeam.g_boAllowGroup);         // 18926 / 18945
+            g_boAllowGroup = !g_boAllowGroup;      // 18924 / 18943
+            g_dwChangeGroupModeTick = FStateSeamClock.Now + 5000;   // 18925 / 18944
+            FStateClMainSeam.SendGroupMode(g_boAllowGroup);         // 18926 / 18945
         }
     }
 
@@ -793,17 +793,17 @@ public partial class TFrmDlg
     /// </summary>
     public virtual void DealItemReturnBag(TClientItem mitem)
     {
-        if (!FStateMShareSeam.g_boDealEnd)                          // 17619
+        if (!g_boDealEnd)                          // 17619
         {
             FStateMShareSeam.g_DealDlgItem = mitem;                 // 17620
             FStateClMainSeam.SendDelDealItem(FStateMShareSeam.g_DealDlgItem);   // 17621
-            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17622
+            g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17622
         }
     }
 
     /// <summary>
     /// FState.pas:18660-18665 procedure TFrmDlg.DGameGoldDealMenuDlgCloseClick。
-    /// 原文三步：关菜单对话框 → 清 `g_GameGoldDealRemoteItems`
+    /// 原文三步：关菜单对话框 → 清 `FStateMShareSeam.g_GameGoldDealRemoteItems`
     /// （`SafeFillChar(..., SizeOf(TClientItem) * 9, #0)` ⇒ 托管侧 `Array.Clear` 同长度）
     /// → 清 `g_GameGoldDeal`（`SafeFillChar(..., SizeOf(TGameGoldDeal), #0)` ⇒ `= default`）。
     /// **不判**任何前置条件，也不重装任何 tick（原文如此）。
@@ -813,7 +813,7 @@ public partial class TFrmDlg
         CloseDGameGoldDealMenuDlg();                                // 18662
         Array.Clear(FStateMShareSeam.g_GameGoldDealRemoteItems, 0,
                     FStateMShareSeam.g_GameGoldDealRemoteItems.Length);   // 18663
-        FStateMShareSeam.g_GameGoldDeal = default;                  // 18664
+        g_GameGoldDeal = default;                  // 18664
     }
 
     // ==========================================================================================
@@ -961,6 +961,90 @@ public partial class TFrmDlg
         {
             FStateClMainSeam.SendSay(
                 FStateResStrSeam.DecodeResStr(FStateResStrSeam.SGuildBreakAllyScript) + DlgEditText); // 17938
+        }
+    }
+
+    // ==========================================================================================
+    // 切片 10：`ShowMDlg`（原文 867 **concrete**，体 1865-1889）
+    //
+    // ★ 为什么这一族只落这一条：`ShowGorupJoinDlg`(868) / `ResetMenuDlg`(869) / `CloseMDlg`(870) /
+    //   `ToggleShowGroupDlg`(871) / `ViewBottomBox`(872) **全是 `virtual; abstract`**
+    //   ⇒ 属 ABSTRACT_NO_BODY，**没有原文体可落**（已逐行核对声明段 846-892）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:1864-1889 procedure TFrmDlg.ShowMDlg(face:Integer; mname, msgstr:string;
+    /// boSetBagItemPos:Boolean = True; IsDesigning:Boolean = False)。
+    ///
+    /// ★ **原文缺陷照抄（重要）**：形参 `face` / `mname` / `msgstr` / `boSetBagItemPos` / `IsDesigning`
+    ///   **在函数体里一个都没被使用** —— 整段体只做"NPC 大对话框的几何 / 图号 / 浮动 / 关闭按钮可见性"设置。
+    ///   托管侧逐字保留（形参同样未用并显式标注），**不顺手接上**（接上就是新行为）。
+    ///
+    /// 控制流（顺序即语义）：
+    ///   1) `if not g_boOpenMerchantBigDlg then begin ... end`（**为真整段跳过**）；
+    ///   2) `DMerchantDlg.Left/Top := 0;`
+    ///   3) `DMerchantDlg.ImageIndex.Assign(g_MerchantImageIndex);`（**整体拷贝**）
+    ///   4) `DMerchantDlgClose.ClientRect := g_MerchantCloseButtonRect;`
+    ///   5) `if g_ClientConfig.boNPCGuiCanMove or frmMain.boNpcDlgCanMove then Floating := True else False`
+    ///      （**显式二分**；与 `Floating := 条件` 等价，但逐字保留原文形态）
+    ///   6) `DMerchantDlgClose.Visible := True;`
+    ///   7) 原文 1879-1885 是**整段 `{ }` 块注释**（`cvMirs` 分支）⇒ 逐字保留为注释、不执行；
+    ///   8) `if (g_ClientVersion in [cvSerial, cvMirSequel, cvMirNewUI205]) and (DMerchantDlgHelp &lt;&gt; nil) then`
+    ///      `DMerchantDlgHelp.Visible := g_ClientConfig.DMerchantDlgHelp;`
+    ///      —— **先判版本、再判 nil**（原文顺序；nil 判断**没有**提前 return）。
+    ///
+    /// 托管侧两处**已登记的等价改写**（都在报告 D-P14-16，均有据）：
+    ///   - 1869 的 `Assign`：`TDxControl.ImageIndex` 是 `TDxImageIndex`，而
+    ///     `MShareGlobals.g_MerchantImageIndex`（ClientGlobals.cs:217）是旧接缝类型 `TGuiImageIndex`
+    ///     （字段名 `Image`、且**无** `Checked`）⇒ 改为**逐字段拷贝**（字段集与原文 Assign 相同，
+    ///     只是少一个 `Checked`，因为源类型没有）。待 ClientGlobals 把该全局换成 `TDxImageIndex` 后
+    ///     即可还原成一行 `Assign`。
+    ///   - 1873/1887 的 `g_ClientConfig`：原文指的是 **Grobal2 的 `TClientConfig`**
+    ///     （`Common/Grobal2.pas:6388`；`boNPCGuiCanMove`:5080、`DMerchantDlgHelp`:5022），
+    ///     **不是** MShare 的 `g_ConfigClient:TConfigClient`（那是 packed record）。
+    ///     该全局托管侧未落地，故走 `FStateMShareSeam.g_ClientConfig_*` 两个字段接缝。
+    /// </summary>
+    public virtual void ShowMDlg(int face, string mname, string msgstr,
+        bool boSetBagItemPos = true, bool IsDesigning = false)
+    {
+        // 原文 1866-1888 体内**未使用** face/mname/msgstr/boSetBagItemPos/IsDesigning（原文如此）。
+        if (g_boOpenMerchantBigDlg == 0)                    // 1866（原文 not g_boOpenMerchantBigDlg）
+        {
+            DMerchantDlg.Left = 0;                          // 1867
+            DMerchantDlg.Top = 0;                           // 1868
+            // 1869：原文 `DMerchantDlg.ImageIndex.Assign(g_MerchantImageIndex);`（见上方改写说明）
+            DMerchantDlg.ImageIndex.ImageType = g_MerchantImageIndex.Image;
+            DMerchantDlg.ImageIndex.Up = g_MerchantImageIndex.Up;
+            DMerchantDlg.ImageIndex.Hot = g_MerchantImageIndex.Hot;
+            DMerchantDlg.ImageIndex.Down = g_MerchantImageIndex.Down;
+            DMerchantDlg.ImageIndex.Disabled = g_MerchantImageIndex.Disabled;
+            DMerchantDlgClose.ClientRect = g_MerchantCloseButtonRect;      // 1870
+
+            // 1872：{ TODO -opiaoyun -cGUI : NPC界面能否移动 【2013-07-23】 }
+            if (FStateMShareSeam.g_ClientConfig_boNPCGuiCanMove != 0
+                || frmMain.boNpcDlgCanMove)                 // 1873
+                DMerchantDlg.Floating = true;               // 1874
+            else
+                DMerchantDlg.Floating = false;              // 1876
+
+            DMerchantDlgClose.Visible = true;               // 1878
+
+            // 1879-1885：原文整段 `{ }` 块注释（cvMirs 分支）—— 原文如此，逐字保留为注释：
+            // {
+            // if g_ClientVersion = cvMirs then
+            // begin
+            //   DMerchantDlg.AutoSize := False;
+            //   DMerchantDlg.Width := DMerchantDlg.Width + 20;
+            // end;
+            // }
+
+            if ((g_ClientVersion == TClientVersion.cvSerial
+                 || g_ClientVersion == TClientVersion.cvMirSequel
+                 || g_ClientVersion == TClientVersion.cvMirNewUI205)
+                && DMerchantDlgHelp != null)                // 1886（原文先版本、后 nil）
+            {
+                DMerchantDlgHelp.Visible = FStateMShareSeam.g_ClientConfig_DMerchantDlgHelp != 0;   // 1887
+            }
         }
     }
 }
@@ -1143,9 +1227,17 @@ public static class TFrmDlgPortLedger
         new PortedMember("DGDBreakAllyClick",         "17934-17939"),
     };
 
+    /// <summary>
+    /// 切片 10 落地的成员（1 条）：`ShowMDlg`（该族唯一 concrete）。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice10 = new[]
+    {
+        new PortedMember("ShowMDlg",                     "1864-1889"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8, Slice9 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8, Slice9, Slice10 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -1174,10 +1266,13 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 9 的真实现成员数。</summary>
     public static int Slice9Count => Slice9.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..9）。</summary>
+    /// <summary>切片 10 的真实现成员数。</summary>
+    public static int Slice10Count => Slice10.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..10）。</summary>
     public static int LaneCount =>
         Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count
-        + Slice6.Count + Slice7.Count + Slice8.Count + Slice9.Count;
+        + Slice6.Count + Slice7.Count + Slice8.Count + Slice9.Count + Slice10.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
