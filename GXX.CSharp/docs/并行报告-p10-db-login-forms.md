@@ -121,7 +121,7 @@
 | `FormCreate` | 1 | `FrmRoleDataEdit`(OnCreate) |
 | `edtPasswordChange` | **31** | `edtPassword, edtDearName, edtMasterName, edtCurMap, seCurX, seCurY, seHomeX, seHomeY, seLevel, seGold, seGameGold, seGamePoint, seCreditPoint, sePayPoint, sePKPoint, seContribution, EditDC, EditMC, EditSC, EditAC, EditMAC, EditHP, EditMP, EditHit, EditSpeed, EditX2, seBonusPoint, seGameDiamond, seGameGird`（29×OnChange）+ `edtHomeMap, chkIsMaster`（2×**OnClick**） |
 | `ButtonSaveDataClick` | 1 | `ButtonSaveData`(OnClick) |
-| `ButtonExportDataClick` | **2** | `ButtonExportData`(OnClick) **与 `ButtonImportData`(OnClick)** ← ★ "导入"按钮绑的是**导出**处理器 |
+| `ButtonExportDataClick` | **2** | `ButtonExportData`(OnClick) **与 `ButtonImportData`(OnClick)** ← 同一处理器被两个按钮共用（**不是缺陷**：`:722-733` 用 `Sender` 分流；但其中 `Sender = ButtonSaveData` 那支是**空体死代码**，因为 `ButtonSaveData` 绑的是另一个处理器） |
 | 合计 | **35** | 另有 **4 个无任何绑定**的控件（含 `lvMagic/lvUserItem/lvFenghaoItem/lvStorage/strGridVarU/strGridVarT` 等） |
 
 `GHeroDBConfig.dfm`：**6 条**绑定，**窗体根无 `OnCreate`**：
@@ -130,6 +130,21 @@
 
 `GrobalSession.dfm`：**4 个 object / 1 条绑定**（`OnCreate=FormCreate`）；
 `ButtonRefGrid`（`'刷新(&R)'`）**没有任何 `OnClick`** ⇒ §2 缺陷清单第 1 条。
+
+---
+
+## 0.7 活代码取证：本车道另外 4 个单元**都是活代码**（与 `GLoginServerRouteSet` 形成对照）
+
+用与 §0.2 同一套计数口径复核，避免"死代码"这一成因只抓到一个：
+
+| 单元 | `.dpr` 命中 | `.dproj` 命中 | 其他单元的引用（不含自身） |
+|---|---|---|---|
+| `LoginSrv/MasSock` | **1**（`LoginSrv.dpr:6`，`{FrmMasSoc}`） | **1**（`LoginSrv.dproj:78`） | **3**：`LMain.pas:223`（uses）、`MonSoc.pas:28`（uses）、`FrmFindId.pas:37`（uses） |
+| `LoginSrv/GrobalSession` | **1**（`LoginSrv.dpr:17`，`{frmGrobalSession}`） | **1**（`LoginSrv.dproj:71`） | **1**：`LMain.pas:223`（uses） |
+| `DBServer/uFrmRoleDataEdit` | **1**（`DBServer.dpr:15`，`{FrmRoleDataEdit}`） | **1**（`DBServer.dproj:91`） | **1**：★ `LoginSrv/uFrmDataManager.pas:64`（**跨模块** uses，见 B-P10-08） |
+| `GameCenter/GHeroDBConfig` | **1**（`GameCenter.dpr:15`，`{FrmHeroDB}`） | **1**（`GameCenter.dproj:62`） | **1**：`GMain.pas:574`（uses） |
+
+⇒ 4 个单元全部**在构建里、被别处引用**，必须真移植；而 `GLoginServerRouteSet` 三项全 0（§0.2）。
 
 ---
 
@@ -200,7 +215,16 @@
 | 13 | `FileSearchPool.pas:364-370` `GetSearch` | `Result := True; if nWhere <= 0 then Exit;` ⇒ `nWhere<=0` 恒返回 **True**（"不筛选"） | 调用方若误传 0/负数 ⇒ 过滤器**全部通过** | `GetSearch_WhereZero_ReturnsTrue` |
 | 14 | `FileSearchPool.pas:130-138` `Seek` | `case Origin of` **无 `else`** ⇒ 未知 Origin 时 `FPosition` 不变（不报错） | 错误 Origin 被静默忽略 | `TCustomMemoryStreamEx_Seek_UnknownOrigin_LeavesPositionUnchanged` |
 | 15 | `FileSearchPool.pas:330-337` `TSearchThread.DoExecuteLoop` | `if Tasks.Count = 0 then Exit;` 位于 `try` 内 ⇒ `finally` 里的 `UnlockTaskList` **仍会执行**（正确），但 `Exit` 与 `FreeAndNil(FContextTask)` 的顺序使"上一轮任务"总是被释放 | 任务对象生命周期与调用方预期可能不符 | `TSearchManager_Search_*` 端到端 6 例 |
-| 16 | `uFrmRoleDataEdit.dfm` | `ButtonImportData.OnClick` 绑的是 **`ButtonExportDataClick`**（"导入"按钮触发"导出"处理器） | 见 §0.6；由子车道判定是否 `Sender` 分流 | 见 §1（uFrmRoleDataEdit 行） |
+| 16 | `uFrmRoleDataEdit.pas:876-883` `edtPasswordChange` | ★★ `seHomeX` 分支之后写的是 **`else if Sender = seCurY then FHumData.wHomeY := seHomeY.Value;`** —— 判据用的是 **`seCurY`**（`:868` 已经判过一次 ⇒ 该支**永不可达**），而 `seHomeY` **根本没有分支** | **改 `seHomeY` 什么都不会发生**（`wHomeY` 永不更新）；`seCurY` 只更新 `wCurY`。典型复制粘贴缺陷 | 子车道用例（断言 `Server=seHomeY` 时 `wHomeY` 不变 + `seCurY`/`seHomeY` 两个 sender 的实际效果） |
+| 17 | `uFrmRoleDataEdit.pas:821-827` `ProcessLoadDataformFile` | 英雄分支里 `GetMem(ReadBuf, SizeOf(**THumData**))`，却 `FileRead(..., SizeOf(**THeroData**))` —— **按 THumData 分配、按 THeroData 读取** | 若 `SizeOf(THeroData) > SizeOf(THumData)` ⇒ **堆越界写**（内存破坏）；反之只是多分配 | 子车道用例（用 `StructBytes.SizeOf<THumData/THeroData>()` 把两者大小关系钉死；越界本身无法在托管侧复现 ⇒ 用"分配尺寸取自哪个类型"的结构断言锁死） |
+| 18 | `uFrmRoleDataEdit.pas:802-806 / 823-827` | 读文件失败时 `Exit` —— `finally` 只 `FreeMem(ReadBuf)`，**`FileClose(nFileHandle)` 在 `Exit` 之后（`:837`）⇒ 文件句柄泄漏** | 每次导入失败泄漏一个文件句柄 | 子车道用例（失败路径后句柄计数/可再次打开同一文件） |
+| 19 | `uFrmRoleDataEdit.pas:749-752` `ProcessSaveDataToFile` | 目标文件已存在时用 `FileOpen(..., fmOpenReadWrite)`（**不截断**）后从 0 写 `SizeOf(THumData)` 字节 | 新记录比旧文件短时**尾部残留旧字节** ⇒ 导出的文件比记录长、再导入会被多读 | 子车道用例（先写长文件再导短记录，断言长度 == SizeOf） |
+| 20 | `uFrmRoleDataEdit.pas:730-733` | `ButtonExportDataClick` 里 `Sender = ButtonSaveData` 那一支是**空体**，而 `ButtonSaveData` 的 `OnClick` 绑定的是 `ButtonSaveDataClick` ⇒ 该支**死代码** | 无（仅证明"共用处理器"的写法不完整） | 子车道计数用例（35 条绑定地图 + 该处理器只被 2 个按钮触发） |
+| 21 | `MasSock.pas:628` `MSocketClientRead` | `MsgServer.sReceiveMsg := sReviceMsg;` 位于 **`for I := 0 to m_ServerList.Count - 1` 的循环体里、`if MsgServer.Socket = Socket` 之外** ⇒ 每轮都会把"当前这条 socket 的粘包残留"写进**列表里每一个** `MsgServer.sReceiveMsg`（`sReviceMsg` 是局部变量，只有命中那一轮才被赋值） | 命中项**之后**的所有服务器条目，其未完成报文缓冲被**串台覆盖** ⇒ 多服务器并发时**跨连接丢包/错包**。这是本单元最严重的原文缺陷 | 子车道用例（两条 server 条目 + 只让第 0 条收到半包，断言第 1 条的 `sReceiveMsg` 未被污染；**当前实现按原文照抄，用例应断言"污染确实发生"**） |
+| 22 | `MasSock.pas:820` `LoadServerAddr` | `if (sLineText <> '') and (sLineText[I] <> ';')` —— `I` 是**文件行号**，却拿去索引**该行字符串**（本意是 `sLineText[1] <> ';'` 的注释行判断） | `I > Length(sLineText)` 时 Delphi 的 `s[I]` 越界（range check 关 ⇒ 读到相邻字节/垃圾）；注释行判断**基本失效** | 子车道用例（按原文口径断言越界索引语义 / 或登记为不可稳定复现） |
+| 23 | `MasSock.pas:917-951` `LoadUserLimit` | 逐行 `UserLimit[nC] := ...; Inc(nC);` —— **对 `nC` 没有任何上界检查**（`UserLimit: array[0..99]`） | `!UserLimit.txt` 超过 100 行 ⇒ **写穿静态数组**（Delphi 下破坏相邻全局内存） | 子车道用例（>100 行输入时的实际行为；托管侧必须按 §25.2 显式表达而非静默截断） |
+| 24 | `MasSock.pas:949-950` `LoadUserLimit` | 文件不存在时 `ShowMessage('[Critical Failure] file not found. .\!UserLimit.txt')` —— **启动路径上的阻塞式模态框** | 无头/服务模式下会挂死 | 子车道用例（消息框接缝被调用 + 不阻塞） |
+| 25 | `MasSock.pas:217-232` `CheckAccountValid` | 唯一调用点在 `:389-398` 的 **`{ }` 注释块**里 ⇒ 该函数是**死代码** | 无 | 子车道计数用例（全单元调用点 1 处，且位于注释内） |
 | 17 | `FileSearchPool.pas:284-293` + `ThreadPool.pas:168-174` | `TSearchThread.Destroy` 先 `FMemoryStream.Free` 再 `inherited`（后者才 `Terminate+WaitFor`）⇒ **先释放缓冲区、后等线程退出** | 后台线程可能在缓冲已释放后继续用（原文靠时序侥幸） | D-P10-05（托管侧把"等待退出"提前，见 §3） |
 
 ---
@@ -240,6 +264,7 @@
 | B-P10-05 | `src/GXX.GameCenter/GLoginServer.cs:85-130` 的既有 `LoginServerRouteSetForm` 三处小偏离（`GroupBox1.Text` 应为字面量 `'GroupBox1'`、窗体尺寸、行数注释） | 界面一致性；见 §0.2 |
 | B-P10-06 | `TMemoryStream`/`TMemoryStreamEx` 全仓现有 **3 份接缝**（`GXX.RunGate/IniFilesEx.cs:637`、`GXX.Core/Paradox/ParadoxDataSet.Seams.cs:129`、本车道 `Pool/FileSearchPool.cs`）+ 待移植的 `Common/MemoryStreamEx.pas` | 建议下一波统一到 `MemoryStreamEx.pas` 的真移植上（§14.2 家族） |
 | B-P10-07 | ★ **`unit-map.tsv` 的车道行收口**（按 §38.2/§41.10，车道一经合并必须回头清理）：<br>① `:123 GLoginServerRouteSet par/p10-db-login-forms` —— **应删行**：本单元是**死代码**（见 §0.2 六条取证）+ 已有重命名实现，不属于"在飞"，留着就是"永久占位行"；<br>② `:119-122`、`:124-125`（`uFrmRoleDataEdit`/`MasSock`/`GrobalSession`/`GHeroDBConfig`/`LogDataServer/ThreadPool`/`FileSearchPool`）—— 合并后**删行**（E1 同名 `.cs` 会接管）；<br>③ `FileSearchPool` 目前是**裸 basename** 行，全树只有一份副本（实测），可安全删；`LogDataServer/ThreadPool` 必须保留**逐副本键**（`SelGate/ThreadPool`、`LoginGate/ThreadPool` 仍是 VENDOR/not-ported，见 `tools/audit-coverage.ps1:90-100`） | 不清理则报表同时"假装在飞"与"不是缺口"（§41.10 的第 3 批系统性缺陷） |
+| B-P10-08 | ★★ **`uFrmRoleDataEdit` 的跨模块接线需要架构裁定**（本车道**没有**擅自接线）：<br>原文里 `uFrmRoleDataEdit.pas` 是 **DBServer** 单元，却被 **LoginSrv** 的 `uFrmDataManager.pas:64` `uses`，并在 `:199/:207/:454/:462` 调用 `ShowFrmRoleDataEdit`。托管侧现状：`src/GXX.LoginSrv/RoleDBSeam.cs:80` 已有接缝 `public static Action<int, THumData?, THeroData?> ShowFrmRoleDataEdit`（`uFrmDataManager.cs:203/213/427/437` 已在调，`DataManagerFormTests.cs` 有 6 处在替换），**但那里的 `THumData`/`THeroData` 是两个空类**（`RoleDBSeam.cs:36/41`，注释："仅作为不透明句柄在窗体间传递"），而 `GXX.Core.Protocol.THumData/THeroData` 是 `unsafe struct`；且 `GXX.LoginSrv` **不引用** `GXX.DBServer`（两个独立 exe）。<br>⇒ 需要集成方二选一：**(a)** 把 LoginSrv 的接缝统一到 `GXX.Core.Protocol.THumData`（并把空句柄类退役）；或 **(b)** 由 LoginSrv 引用 DBServer 程序集（跨 exe 依赖，需评估）。**本车道只登记、不擅改** | 不裁定则 `uFrmDataManager` 的"编辑角色数据"按钮**永远打不开窗体**（且是静默空实现） |
 
 ### 4.2 本车道未完成项
 
