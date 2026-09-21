@@ -92,10 +92,10 @@ ConfigMonGen	par/p9-m2-forms
 uAliyunSendSMSThread	par/p9-m2-forms
 uFrmClientPlugManager	par/p9-m2-forms
 # RunGate leftovers that stayed unported when par/p2-rungate-impl closed:
-IODataPool	par/p9-rungate-rest
-Qos	par/p9-rungate-rest
-IocpTcpClient	par/p9-rungate-rest
-DllUpdateCommon	par/p9-rungate-rest
+# par/p9-rungate-rest CLOSED 2026-09-21 (merged into main, ledger section 40): all four units
+# were ruled "not ported + evidence", so their rows are REMOVED here -- leaving them would be
+# exactly the "permanently parked row" failure of ledger 38.2.  They are now registered in
+# tools/audit-coverage.ps1 $VENDOR_UNITS (not-ported bucket), not here.
 #
 # ---- P10 wave (2026-09-21, round 51): the two giants the WEAK triage exposed.
 # Class-declaration evidence (ledger 38.6b): TMirConfigDlg has NO declaration

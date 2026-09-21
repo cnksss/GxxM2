@@ -76,7 +76,16 @@ $VENDOR_UNITS = @(
     # MAPPED, which would claim a port that was never made.  These units are NOT ported.
     'imm',              # c3 IME P/Invoke -> WinForms native IME; verified 76/76 routines absent
     'SendQueue',        # c3 both copies (LoginGate/SelGate) -> GatewayKit send queue
-    'IOCPManager'       # c3 both copies (LoginGate/SelGate) -> SocketAsyncEventArgs
+    'IOCPManager',      # c3 both copies (LoginGate/SelGate) -> SocketAsyncEventArgs
+    # ---- P9 lane par/p9-rungate-rest (2026-09-21, ledger section 40): four RunGate/IOCP units
+    # ruled "not ported + evidence" (empty shell / replaced by GatewayKit / callers already
+    # not-ported).  That lane's evidence file deliberately spells "<unit>.pas" in its HEADER,
+    # which would score them MAPPED -- a port that was never made.  Registered here so the
+    # report says "not ported" instead.  All four basenames are unique (verified).
+    'IODataPool',       # P9: 586 lines, POVERLAPPEDEx raw pointers; every caller already not-ported
+    'IocpTcpClient',    # P9: 340 lines, 20 Win32 IOCP calls inside one method; TcpLink is the live path
+    'Qos',              # P9: 293 lines, header-only translation; 42 of 49 names absent from C#
+    'DllUpdateCommon'   # P9: 10-line empty shell, 0 declarations, 0 uses anywhere
     # NOTE: 'ThreadPool' is deliberately NOT registered here.  It exists in LogDataServer (a REAL
     # gap: 445 lines, TPoolManager/TPoolThread unported) as well as in LoginGate/SelGate (replaced
     # by design).  This registry keys on the BASENAME, so a row would silently hide the
