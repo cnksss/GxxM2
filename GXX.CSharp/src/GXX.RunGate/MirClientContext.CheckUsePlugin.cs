@@ -32,6 +32,7 @@
 // **已完成**：
 //   * 局部常量 3467-3472（5 个）
 //   * 忠实前导段 3505-3519
+//   * **CM_SITDOWN 分支 8997-9469**（本轮，提取为 `CheckUsePluginSitDown`；474 行）
 //   * CM_DROPITEM 分支 9474-9487
 //   * CM_PICKUP  分支 9492-9505
 //   * else       分支 9506-9516
@@ -40,8 +41,8 @@
 //
 // **未覆盖（显式早退，见 `UnportedIdentFamilies`）**：
 //   * CM_WALK 3528-4696 / CM_RUN 4697-5857 / CM_TURN 5858-6689 /
-//     攻击族 6690-7888 / CM_SPELL 7889-8999 / CM_SITDOWN 9000-9473
-//     → 合计 **5,472 行**
+//     攻击族 6690-7888 / CM_SPELL 7889-8999
+//     → 合计 **4,998 行**（本轮从 5,472 行减掉 CM_SITDOWN 的 474 行）
 //
 // -------------------------------------------------------------------------------------
 // ★ 偏差（本车道唯一一处结构性偏差，必须登记）
@@ -74,6 +75,7 @@ using static GXX.RunGate.GateShareSeam;
 using static GXX.RunGate.FormGlobals;
 using static GXX.RunGate.RunGateConst;
 using static GXX.RunGate.RunGateUtilsConst;
+using static GXX.Core.Rtl.DelphiRTL;
 using static GXX.Core.Protocol.Grobal2Const;
 
 namespace GXX.RunGate;
@@ -90,9 +92,12 @@ public partial class TMirClientContext
     private const int DROP_CONCURRENT_RATE = 3;                         // :3472
 
     /// <summary>
-    /// 未覆盖的 6 个 ident 族（原文 :3528-9473）—— 见本文件头 §偏差。
+    /// **尚未移植**的 ident 族（原文 :3528-8999）—— 见本文件头 §偏差。
     /// 这些 ident 直接早退 `return false`（= 不判定 = 放行），**不**进入公共收尾。
-    /// 后续车道移植完某一族后，把对应行删掉即可。
+    /// 后续车道移植完某一族后，把对应行删掉即可（各族互不影响）。
+    /// <para>
+    /// ✅ 已从本表移除：`CM_SITDOWN`（:9000-9469，本轮移植为 <see cref="CheckUsePluginSitDown"/>）。
+    /// </para>
     /// </summary>
     private static bool UnportedIdentFamilies(ushort ident)
     {
@@ -112,19 +117,19 @@ public partial class TMirClientContext
             (ident >= CM_CUSTOM_HIT001 && ident < CM_CUSTOM_HIT001 + CUSTOM_MAGIC_COUNT)) return true;
         // :7889 CM_SPELL
         if (ident == CM_SPELL) return true;
-        // :9000 CM_SITDOWN
-        if (ident == CM_SITDOWN) return true;
+        // :9000 CM_SITDOWN —— **已移植**（见 CheckUsePluginSitDown），故不在此早退。
         return false;
     }
 
     /// <summary>
     /// 原文 :3465-9688 <c>function TMirClientContext.CheckUsePlugin(Msg: PProcessMsg): Boolean;</c>
     /// <para>
-    /// **已覆盖**：前导段 3505-3519、`CM_DROPITEM` 9474-9487、`CM_PICKUP` 9492-9505、
-    /// `else` 9506-9516、公共收尾 9521-9681（提取为 <see cref="CheckUsePluginPostlude"/>）、兜底 9682-9686。
+    /// **已覆盖**：前导段 3505-3519、`CM_SITDOWN` 8997-9469（<see cref="CheckUsePluginSitDown"/>）、
+    /// `CM_DROPITEM` 9474-9487、`CM_PICKUP` 9492-9505、`else` 9506-9516、
+    /// 公共收尾 9521-9681（提取为 <see cref="CheckUsePluginPostlude"/>）、兜底 9682-9686。
     /// </para>
     /// <para>
-    /// **未覆盖**：3528-9473（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL / CM_SITDOWN，5,472 行）
+    /// **未覆盖**：3528-8999（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL，4,998 行）
     /// —— 显式早退，见 <see cref="UnportedIdentFamilies"/>。
     /// </para>
     /// </summary>
@@ -180,7 +185,8 @@ public partial class TMirClientContext
         try
         {
             // =========================================================================
-            // ★未覆盖族早退（原文 :3528 / :4697 / :5858 / :6690 / :7889 / :9000 各自的分支）
+            // ★**未移植**族早退（原文 :3528 CM_WALK / :4697 CM_RUN / :5858 CM_TURN /
+            //   :6690 攻击族 / :7889 CM_SPELL —— CM_SITDOWN 已于本轮移植，不再早退）
             //   见本文件头 §偏差。
             // =========================================================================
             if (UnportedIdentFamilies(DefMsg.Ident))
@@ -189,10 +195,23 @@ public partial class TMirClientContext
             }
 
             // 原文 :3522/3528 的 `{$IF NEED_REGISTER = 0} case DefMsg.Ident of {$ELSE} if DefMsg.Ident = CM_WALK`
-            // 结构 → 活分支是 if/else-if 链；下面从 CM_DROPITEM (9474) 起逐字对应。
-            if (false)
+            // 结构 → 活分支是 if/else-if 链；**已移植的分支按原文顺序排列在本链首部**：
+            //   * CM_SITDOWN :9000-9469 ✅（本轮）
+            //   * CM_WALK :3528 / CM_RUN :4697 / CM_TURN :5858 / 攻击族 :6690 / CM_SPELL :7889
+            //     → 仍由上面的 `UnportedIdentFamilies` 早退拦下，后续车道按序插入本链首部。
+            // 下面依次是原文 :9474 CM_DROPITEM / :9492 CM_PICKUP / :9506 else。
+
+            // {$IF NEED_REGISTER = 0} CM_SITDOWN: {$ELSE}     :8997-9000
+            if (DefMsg.Ident == CM_SITDOWN)
             {
-                // 占位：保持 if/else-if 链的形状（原文 CM_WALK..CM_SITDOWN 六族的锚点）
+                // ---- 分支体 :9002-9469（提取为 CheckUsePluginSitDown）----
+                if (CheckUsePluginSitDown(Msg, DefMsg, dwCurTick,
+                        ref sSendMsg, ref nDelayTime, ref AntiPlugAction, ref ErrorCode, ref dwCurrentInterval))
+                {
+                    // 原文 :9039 / :9069 / :9286 / :9322 的 `Exit` —— 跳出整个 CheckUsePlugin，
+                    // **跳过公共收尾 9521-9681**；此时 Result 仍是 :3507 的 False。
+                    return Result;
+                }
             }
 
             // {$IF NEED_REGISTER = 0} CM_DROPITEM: {$ELSE}   :9471-9474
@@ -255,6 +274,557 @@ public partial class TMirClientContext
         // {$I VMProtectEnd.inc}                                  // :9686
         return Result;                                           // :3507 的 Result
     }
+
+    // =================================================================================
+    // 原文 :8997-9469  `else if DefMsg.Ident = CM_SITDOWN then`（**挖肉**）分支体
+    //
+    // ★ 分支骨架（与原文 begin/end 配对逐行对应）
+    //   :9003      ErrorCode := 6;
+    //   :9005-9009 环形缓冲写入 baCutMeat
+    //   :9012-9072 暗杀检测（**两条互斥路径**，见下）
+    //   :9073      Inc(nRecordActionIndex)          —— 在暗杀检测之后、限速之前
+    //   :9076-9246 FLastAction ∈ {baWalk,baRun} → **移动到挖肉** amMoveToCutMeat 限速
+    //   :9249-9427 否则若 amCutMeat.boEnabled   → **挖肉** amCutMeat 限速
+    //   :9429-9459 按 FLastAction 三态打调试日志（ErrorCode 64/65/66）
+    //   :9461-9466 nDelayTime = 0 时刷新 dwTicks[amCutMeat] / [amCutMeatToHit]
+    //   :9468      FLastAction := baCutMeat;
+    //
+    // ★ 两条暗杀检测路径的**真实差异**（不可合并，已用测试钉死）
+    //   (a) “采集满”（:9012 `RecordActionArr[MAX-1].Tick <> 0` 为真）：
+    //       索引用 `mod MAX_RECORD_ACTION_COUNT`，**没有**正数守卫 → 槽 0 也参与判定。
+    //   (b) 未满（:9043 else）：索引是裸减法 `nRecordActionIndex - I`，靠
+    //       `PreIndex > 0` / `PrePreIndex > 0` 守卫 → **槽 0 与负下标都被跳过**；
+    //       而 :9047 首判用的是 `PreIndex >= 0`（**与 :9055/:9058 的 `> 0` 不对称**，原文如此）。
+    //   两路径都依赖 `{$B-}`（默认短路求值）：MirClientContext.pas 内**没有** `{$B+}`（已核实）
+    //   → Delphi 的 `and` 等价 C# 的 `&&`，越界读不会发生（托管侧的 `&&` 同理短路）。
+    //
+    // ★ 原文缺陷 / 易错点（全部照抄，不做“顺手修正”）
+    //   D-S1 :9012 的判据是**固定槽 MAX-1**，不是 nRecordActionIndex —— 写满一圈后恒为真
+    //        （只要该槽 Tick 非 0），于是之后所有 CM_SITDOWN 都走 (a) 路径。
+    //   D-S2 :9249 的 `else if` 只在 FLastAction ∉ {baWalk,baRun} 时才被评估：
+    //        若 FLastAction 是走路/跑步而 amMoveToCutMeat.boEnabled = False，
+    //        **amCutMeat 的整套限速被跳过**（不是“落到 else 再判一次”）。
+    //   D-S3 :9461 的条件里 `and (not Msg.boDelay)` 被 `{ }` 注释掉 → 只判 `nDelayTime = 0`。
+    //   D-S4 :9463 与 :9465 对 `dwTicks[amCutMeat]` **赋同一个值两次**（中间 :9464 是 amCutMeatToHit）。
+    //   D-S5 :9039/:9069/:9286/:9322 的 `Exit` 都是**跳出整个 CheckUsePlugin**（跳过公共收尾）；
+    //        本方法用 `return true` 表达，调用点 `return Result;`（此时 Result 仍为 False）。
+    //   D-S6 :9275/:9311 的 `(nCollectIndex - I + nCollectCount) mod nCollectCount`：Delphi 的 `mod`
+    //        结果符号随被除数（与 C# `%` 一致）；当 `nContinueSpeedCount > nCollectCount + nCollectIndex`
+    //        时下标为负 —— Delphi 越界读内存、托管侧抛 IndexOutOfRangeException（照抄，不修正）。
+    // =================================================================================
+
+    /// <summary>
+    /// 原文 :9002-9469 —— <c>CM_SITDOWN</c>（挖肉）分支体，1:1 移植。
+    /// <para>
+    /// 返回 <c>true</c> 表示原文在该分支内执行了 <c>Exit</c>（:9039 / :9069 / :9286 / :9322），
+    /// 调用点据此 **跳过公共收尾 9521-9681**。
+    /// </para>
+    /// <para>
+    /// 形参是原文 <c>CheckUsePlugin</c> 的函数级局部量中被本分支改写的部分
+    /// （`sSendMsg` :3474 / `nDelayTime` :3475 / `dwCurrentInterval` :3476 /
+    /// `AntiPlugAction` :3478 / `ErrorCode` :3504）；
+    /// 其余函数级局部量只被本分支使用，故在本方法内以同名局部量重新声明（`dwTempInterval` /
+    /// `boCurrentSpeed` / `boContinueSpeed` / `boCollectSpeed` / `boContinueSpeedPass` /
+    /// `nSpeedCount` / `I` / `nCollectIndex` / `nCollectCount` / `PreIndex` / `PrePreIndex` /
+    /// `nAssasinate`）。
+    /// </para>
+    /// </summary>
+    private bool CheckUsePluginSitDown(TProcessMsg Msg, in TDefaultMessage DefMsg, uint dwCurTick,
+        ref string sSendMsg, ref int nDelayTime, ref TAntiPlugAction AntiPlugAction, ref int ErrorCode,
+        ref uint dwCurrentInterval)
+    {
+        // ---- 原文 :3474-3502 中被本分支独占的局部量（同名同类型）----
+        uint dwTempInterval;                                        // :3476
+        bool boCurrentSpeed, boContinueSpeed, boCollectSpeed;       // :3486
+        bool boContinueSpeedPass;                                   // :3487
+        int nSpeedCount;                                            // :3481
+        int I, nCollectIndex, nCollectCount, PreIndex, PrePreIndex;  // :3483
+        int nAssasinate;                                            // :3489
+
+        // 原文在本分支反复取 `g_Config.ActionList[amMoveToCutMeat]` / `[amCutMeat]`（并取址赋给
+        // AntiPlugAction）。托管侧 TAntiPlugAction 是引用类型 → 取局部别名与 `@g_Config.ActionList[…]`
+        // **对象同一**，语义等价。
+        int modeMoveToCutMeat = (int)TAntiPlugActionMode.amMoveToCutMeat;   // 22
+        int modeCutMeat = (int)TAntiPlugActionMode.amCutMeat;               // 5
+        TAntiPlugAction MoveToCutMeatAction = g_Config.ActionList[modeMoveToCutMeat];
+        TAntiPlugAction CutMeatAction = g_Config.ActionList[modeCutMeat];
+
+        ErrorCode = 6;                                              // :9003
+        // :9004 原文此处是一行只有空格的空行
+
+        if (nRecordActionIndex >= MirClientContextConst.MAX_RECORD_ACTION_COUNT || nRecordActionIndex < 0)
+            nRecordActionIndex = 0;                                 // :9006
+        RecordActionArr[nRecordActionIndex].Action = TBaseAction.baCutMeat;   // :9007
+        RecordActionArr[nRecordActionIndex].Tick = MyGetTickCount();          // :9008
+        RecordActionArr[nRecordActionIndex].DefMsg = DefMsg;                  // :9009
+
+        // 所有采集满了
+        if (RecordActionArr[MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1].Tick != 0)   // :9012
+        {
+            nAssasinate = 0;                                        // :9014
+            PreIndex = (nRecordActionIndex - 1 + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                % MirClientContextConst.MAX_RECORD_ACTION_COUNT;     // :9015
+            // 挖肉前面是其他包
+            if (IsAssasinatePreAction(RecordActionArr[PreIndex].Action) &&              // :9017
+                RunGateTiming.TickDiff(RecordActionArr[PreIndex].Tick, MyGetTickCount()) <= 250)   // :9018
+            {
+                nAssasinate++;                                      // :9020 Inc
+
+                for (I = 2; I <= MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1; I++)   // :9022
+                {
+                    PreIndex = (nRecordActionIndex - I + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                        % MirClientContextConst.MAX_RECORD_ACTION_COUNT;    // :9024
+                    if (RecordActionArr[PreIndex].Action == TBaseAction.baCutMeat)          // :9025
+                    {
+                        PrePreIndex = (nRecordActionIndex - I - 1 + MirClientContextConst.MAX_RECORD_ACTION_COUNT)
+                            % MirClientContextConst.MAX_RECORD_ACTION_COUNT;                // :9027
+                        if (IsAssasinatePreAction(RecordActionArr[PrePreIndex].Action) &&   // :9028
+                            RunGateTiming.TickDiff(RecordActionArr[PrePreIndex].Tick,
+                                RecordActionArr[PreIndex].Tick) <= 250)                     // :9029
+                        {
+                            nAssasinate++;                              // :9031 Inc
+                        }
+                    }
+                }
+
+                if (nAssasinate >= 3)                               // :9036
+                {
+                    ProcessAssasinate();                            // :9038
+                    return true;                                    // :9039 Exit
+                }
+            }
+        }
+        else
+        {
+            nAssasinate = 0;                                        // :9045
+            PreIndex = nRecordActionIndex - 1;                      // :9046
+            if (PreIndex >= 0 && IsAssasinatePreAction(RecordActionArr[PreIndex].Action) &&   // :9047
+                RunGateTiming.TickDiff(RecordActionArr[PreIndex].Tick, MyGetTickCount()) <= 250)   // :9048
+            {
+                nAssasinate++;                                      // :9050 Inc
+
+                for (I = 2; I <= MirClientContextConst.MAX_RECORD_ACTION_COUNT - 1; I++)   // :9052
+                {
+                    PreIndex = nRecordActionIndex - I;              // :9054
+                    if (PreIndex > 0 && RecordActionArr[PreIndex].Action == TBaseAction.baCutMeat)   // :9055
+                    {
+                        PrePreIndex = nRecordActionIndex - I - 1;   // :9057
+                        if (PrePreIndex > 0 && IsAssasinatePreAction(RecordActionArr[PrePreIndex].Action) &&   // :9058
+                            RunGateTiming.TickDiff(RecordActionArr[PrePreIndex].Tick,
+                                RecordActionArr[PreIndex].Tick) <= 250)                             // :9059
+                        {
+                            nAssasinate++;                          // :9061 Inc
+                        }
+                    }
+                }
+
+                if (nAssasinate >= 3)                               // :9066
+                {
+                    ProcessAssasinate();                            // :9068
+                    return true;                                    // :9069 Exit
+                }
+            }
+        }
+        nRecordActionIndex++;                                       // :9073 Inc
+
+        // 移动到挖肉
+        if (FLastAction == TBaseAction.baWalk || FLastAction == TBaseAction.baRun)   // :9076
+        {
+            if (MoveToCutMeatAction.boEnabled)                      // :9078
+            {
+                dwTempInterval = MoveToCutMeatAction.nInterval;      // :9080
+
+                if (FLastAction == TBaseAction.baWalk)              // :9082
+                    dwCurrentInterval = RunGateTiming.TickDiff(
+                        GameSpeed.dwTicks[(int)TAntiPlugActionMode.amWalk], dwCurTick);          // :9083
+                else
+                    dwCurrentInterval = RunGateTiming.TickDiff(
+                        GameSpeed.dwTicks[(int)TAntiPlugActionMode.amRun], dwCurTick);           // :9085
+
+                boCurrentSpeed = dwCurrentInterval < dwTempInterval;    // :9087
+                // :9088 原文此处是一行只有空格的空行
+
+                nSpeedCount = 0;                                    // :9089
+                boCollectSpeed = false;                             // :9090
+
+                if (SumSpeedProcessArr[modeMoveToCutMeat, 0] == 0)  // :9092
+                    SumSpeedProcessArr[modeMoveToCutMeat, 0] = MyGetTickCount();    // :9093
+
+                if (g_Config.dwCollectCount /*{g_Config.ActionList[amMoveToCutMeat].nCollectCount}*/ >= 2)   // :9095
+                {
+                    nCollectIndex = nCollectIntervalIndexArr[modeMoveToCutMeat];        // :9097
+                    nCollectCount = g_Config.dwCollectCount /*{g_Config.ActionList[amMoveToCutMeat].nCollectCount}*/;   // :9098
+
+                    // 倒数第2条数据采集到，加本次就是最一条搞定
+                    if (dwCollectIntervalArr[modeMoveToCutMeat, nCollectCount - 2] != 0)    // :9101
+                    {
+                        // { :9103-9116 原文整段被注释：'本次和上次都超速就算超速' 的
+                        //   boContinueSpeed := … < 0 判据 + 连续三次超速直接 ContinuousSpeed + Exit }
+
+                        for (I = 0; I <= nCollectCount - 1; I++)    // :9118
+                        {
+                            if (I != nCollectIndex &&
+                                dwCollectIntervalArr[modeMoveToCutMeat, I] < 0)             // :9120
+                                nSpeedCount++;                      // :9121 Inc
+                        }
+                        if (boCurrentSpeed) nSpeedCount++;          // :9123 Inc
+                        boCollectSpeed = nSpeedCount >= g_Config.dwSpeedValue;  // :9124  // g_Config.ActionList[amMoveToCutMeat].nCollectSpeedCount;
+                    }
+                    else
+                    {
+                        // 至少采集了1条
+                        if (nCollectIndex >= 1)                     // :9129
+                        {
+                            // { :9131-9143 原文整段被注释：同上，`nCollectIndex - 1` / `- 2` 版本 }
+
+                            for (I = 0; I <= nCollectIndex - 1; I++)    // :9145
+                            {
+                                if (dwCollectIntervalArr[modeMoveToCutMeat, I] < 0)     // :9147
+                                    nSpeedCount++;                  // :9148 Inc
+                            }
+                            if (boCurrentSpeed) nSpeedCount++;      // :9150 Inc
+
+                            if (dwCurrentInterval <= dwTempInterval / 3)    // :9152 dwTempInterval div 3
+                            {
+                                boCollectSpeed = true;              // :9154
+                            }
+                            else
+                            {
+                                if (nCollectIndex + 1 <= 3)         // :9158
+                                    boCollectSpeed = nSpeedCount >= 2;                      // :9159
+                                else if (nCollectIndex + 1 <= 7)    // :9160
+                                {
+                                    boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2;    // :9162
+                                }
+                                else
+                                {
+                                    boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2 - 1;   // :9166
+                                }
+                            }
+                        }
+                        // 网进入游戏，就双倍（表现为一个表正常，一个包间隔很小），第一个包不会被采集
+                        else if (dwCurrentInterval <= dwTempInterval / 3)   // :9171
+                        {
+                            boCollectSpeed = true;                  // :9173
+                        }
+                    }
+                }
+                else if (dwCurrentInterval <= dwTempInterval / 3)   // :9177
+                {
+                    boCollectSpeed = true;                          // :9179
+                }
+
+                // 连续加速主要用于卡刀反弹，因为卡刀反弹没有延时，所以会边续反弹 chongchong 2015-12-20
+                boContinueSpeedPass = GameSpeed.boContinueSpeed &&  // :9183
+                    (RunGateTiming.TickDiff(GameSpeed.dwStartSpeedTick, MyGetTickCount()) >=
+                        dwTempInterval + g_Config.dwContinueSpeedPassIncTime);   // :9184
+
+                if ((dwCurrentInterval <= dwTempInterval / 10) ||   // :9186
+                    ((!boContinueSpeedPass) && boCurrentSpeed && boCollectSpeed))   // :9187
+                {
+                    if (MoveToCutMeatAction.boShowHint)             // :9189
+                        sSendMsg = MoveToCutMeatAction.sHintText;   // :9190
+
+                    AntiPlugAction = MoveToCutMeatAction;           // :9192 AntiPlugAction := @g_Config.ActionList[amMoveToCutMeat]
+                    LastLockAntiPlugActionMode = TAntiPlugActionMode.amMoveToCutMeat;   // :9193
+
+                    if (RunGateTiming.TickDiff(SumSpeedProcessArr[modeMoveToCutMeat, 0],
+                            MyGetTickCount()) <= g_Config.nSumSpeedCheckTime * 1000)    // :9195
+                        SumSpeedProcessArr[modeMoveToCutMeat, 1]++;                 // :9196 Inc
+                    else
+                    {
+                        SumSpeedProcessArr[modeMoveToCutMeat, 1] = 1;               // :9199
+                        SumSpeedProcessArr[modeMoveToCutMeat, 0] = MyGetTickCount();   // :9200
+                    }
+
+                    if (AntiPlugAction.ProcessMode == TActionProcessMode.apmDelay &&
+                        dwCurrentInterval < dwTempInterval)         // :9203
+                    {
+                        nDelayTime = (int)(dwTempInterval - dwCurrentInterval) + DELAY_TIME_ADD;   // :9205
+
+                        // 修正加速一段时间后恢复到正常状态，一直提示加速
+                        GameSpeed.nDelayCount[modeMoveToCutMeat] =
+                            GameSpeed.nDelayCount[modeMoveToCutMeat] + 1;           // :9208
+                        if (GameSpeed.nDelayCount[modeMoveToCutMeat] > 8)           // :9209
+                        {
+                            GameSpeed.nDelayCount[modeMoveToCutMeat] = 0;           // :9211
+                            nDelayTime = 0;                                     // :9212
+                            SendActionRet(true);                                // :9213
+                        }
+                    }
+
+                    if (g_Config.boShowAttackLog)                   // :9217
+                    {
+                        ErrorCode = 62;                             // :9219
+                        AddMainLogMsg(Format("【用户超速】%s:%d; 用户:%s",      // :9220-9223
+                            AntiPlugActionModeNames3[modeMoveToCutMeat], dwCurrentInterval, sChrName), 0);
+                    }
+                }
+                else
+                {
+                    if (!Msg.boDelay && !boContinueSpeedPass)       // :9228
+                    {
+                        GameSpeed.nDelayCount[modeMoveToCutMeat] = 0;   // :9230
+                    }
+                }
+
+                if (nDelayTime == 0 && !Msg.boDelay)                // :9234
+                {
+                    nCollectIndex = nCollectIntervalIndexArr[modeMoveToCutMeat];    // :9236
+
+                    if (dwCurrentInterval >= dwTempInterval)        // :9238
+                        dwCollectIntervalArr[modeMoveToCutMeat, nCollectIndex] = 1;         // :9239
+                    else
+                        dwCollectIntervalArr[modeMoveToCutMeat, nCollectIndex] =
+                            unchecked((int)(dwCurrentInterval - dwTempInterval));           // :9241
+
+                    nCollectIntervalIndexArr[modeMoveToCutMeat] = (nCollectIndex + 1)
+                        % g_Config.dwCollectCount /*{g_Config.ActionList[amMoveToCutMeat].nCollectCount}*/;   // :9243
+                }
+            }
+        }
+
+        // 去掉 (FLastAction = baCutMeat) and 是因为边挖肉边吃药的时候，加速检测不到 chongchong 2016-10-06
+        else if (/*{(FLastAction = baCutMeat) and}*/ CutMeatAction.boEnabled)   // :9249
+        {
+            dwTempInterval = CutMeatAction.nInterval;               // :9251
+            dwCurrentInterval = RunGateTiming.TickDiff(GameSpeed.dwTicks[modeCutMeat], dwCurTick);   // :9252
+            boCurrentSpeed = dwCurrentInterval < dwTempInterval;    // :9253
+            // :9254 原文此处是一行只有空格的空行
+
+            nSpeedCount = 0;                                        // :9255
+            boCollectSpeed = false;                                 // :9256
+
+            if (SumSpeedProcessArr[modeCutMeat, 0] == 0)            // :9258
+                SumSpeedProcessArr[modeCutMeat, 0] = MyGetTickCount();   // :9259
+
+            if (g_Config.dwCollectCount /*{g_Config.ActionList[amCutMeat].nCollectCount}*/ >= 2)   // :9261
+            {
+                nCollectIndex = nCollectIntervalIndexArr[modeCutMeat];      // :9263
+                nCollectCount = g_Config.dwCollectCount /*{g_Config.ActionList[amCutMeat].nCollectCount}*/;   // :9264
+
+                // 倒数第2条数据采集到，加本次就是最一条搞定
+                if (dwCollectIntervalArr[modeCutMeat, nCollectCount - 2] != 0)   // :9267
+                {
+                    // 本次和上次都超速就算超速 chongchong 2016-10-07
+                    if (g_Config.boContinueSpeedCloseSocket && boCurrentSpeed)   // :9270
+                    {
+                        boContinueSpeed = true;                         // :9272
+                        for (I = 1; I <= g_Config.nContinueSpeedCount; I++)   // :9273
+                        {
+                            if (dwCollectIntervalArr[modeCutMeat,
+                                    (nCollectIndex - I + nCollectCount) % nCollectCount] >= 0)   // :9275
+                            {
+                                boContinueSpeed = false;                // :9277
+                                break;                                  // :9278 Break
+                            }
+                        }
+
+                        // 连续三次超速直接断开
+                        if (boContinueSpeed)                        // :9283
+                        {
+                            ContinuousSpeed(TAntiPlugActionMode.amCutMeat, dwCurrentInterval);   // :9285
+                            return true;                            // :9286 Exit
+                        }
+                    }
+
+                    for (I = 0; I <= nCollectCount - 1; I++)        // :9290
+                    {
+                        if (I != nCollectIndex && dwCollectIntervalArr[modeCutMeat, I] < 0)   // :9292
+                            nSpeedCount++;                          // :9293 Inc
+                    }
+                    if (boCurrentSpeed) nSpeedCount++;              // :9295 Inc
+                    boCollectSpeed = nSpeedCount >= g_Config.dwSpeedValue;   // :9296  // g_Config.ActionList[amCutMeat].nCollectSpeedCount;
+                }
+                else
+                {
+                    // 至少采集了1条
+                    if (nCollectIndex >= 1)                         // :9301
+                    {
+                        // 本次和上次都超速就算超速 chongchong 2016-10-07
+                        if (g_Config.boContinueSpeedCloseSocket && boCurrentSpeed)   // :9304
+                        {
+                            if (nCollectIndex >= g_Config.nContinueSpeedCount)      // :9306
+                            {
+                                boContinueSpeed = true;             // :9308
+                                for (I = 1; I <= g_Config.nContinueSpeedCount; I++)   // :9309
+                                {
+                                    if (dwCollectIntervalArr[modeCutMeat, nCollectIndex - I] >= 0)   // :9311
+                                    {
+                                        boContinueSpeed = false;        // :9313
+                                        break;                          // :9314 Break
+                                    }
+                                }
+
+                                // 连续三次超速直接断开
+                                if (boContinueSpeed)            // :9319
+                                {
+                                    ContinuousSpeed(TAntiPlugActionMode.amCutMeat, dwCurrentInterval);   // :9321
+                                    return true;                    // :9322 Exit
+                                }
+                            }
+                        }
+
+                        for (I = 0; I <= nCollectIndex - 1; I++)    // :9327
+                        {
+                            if (dwCollectIntervalArr[modeCutMeat, I] < 0)   // :9329
+                                nSpeedCount++;                      // :9330 Inc
+                        }
+                        if (boCurrentSpeed) nSpeedCount++;          // :9332 Inc
+
+                        if (dwCurrentInterval <= dwTempInterval / 3)    // :9334
+                        {
+                            boCollectSpeed = true;                  // :9336
+                        }
+                        else
+                        {
+                            if (nCollectIndex + 1 <= 3)             // :9340
+                                boCollectSpeed = nSpeedCount >= 2;                  // :9341
+                            else if (nCollectIndex + 1 <= 7)        // :9342
+                            {
+                                boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2;    // :9344
+                            }
+                            else
+                            {
+                                boCollectSpeed = nSpeedCount >= (nCollectIndex + 1) / 2 - 1;   // :9348
+                            }
+                        }
+                    }
+                    // 网进入游戏，就双倍（表现为一个表正常，一个包间隔很小），第一个包不会被采集
+                    else if (dwCurrentInterval <= dwTempInterval / 3)   // :9353
+                    {
+                        boCollectSpeed = true;                      // :9355
+                    }
+                }
+            }
+            else if (dwCurrentInterval <= dwTempInterval / 3)       // :9359
+            {
+                boCollectSpeed = true;                              // :9361
+            }
+
+            // 连续加速主要用于卡刀反弹，因为卡刀反弹没有延时，所以会边续反弹 chongchong 2015-12-20
+            boContinueSpeedPass = GameSpeed.boContinueSpeed &&      // :9365
+                (RunGateTiming.TickDiff(GameSpeed.dwStartSpeedTick, MyGetTickCount()) >=
+                    dwTempInterval + g_Config.dwContinueSpeedPassIncTime);   // :9366
+
+            if ((dwCurrentInterval <= dwTempInterval / 10) ||       // :9368
+                ((!boContinueSpeedPass) && boCurrentSpeed && boCollectSpeed))   // :9369
+            {
+                if (CutMeatAction.boShowHint)                       // :9371
+                    sSendMsg = CutMeatAction.sHintText;             // :9372
+
+                AntiPlugAction = CutMeatAction;                     // :9374 AntiPlugAction := @g_Config.ActionList[amCutMeat]
+                LastLockAntiPlugActionMode = TAntiPlugActionMode.amCutMeat;   // :9375
+
+                if (RunGateTiming.TickDiff(SumSpeedProcessArr[modeCutMeat, 0],
+                        MyGetTickCount()) <= g_Config.nSumSpeedCheckTime * 1000)    // :9377
+                    SumSpeedProcessArr[modeCutMeat, 1]++;                       // :9378 Inc
+                else
+                {
+                    SumSpeedProcessArr[modeCutMeat, 1] = 1;                     // :9381
+                    SumSpeedProcessArr[modeCutMeat, 0] = MyGetTickCount();      // :9382
+                }
+
+                if (AntiPlugAction.ProcessMode == TActionProcessMode.apmDelay &&
+                    dwCurrentInterval < dwTempInterval)         // :9385
+                {
+                    nDelayTime = (int)(dwTempInterval - dwCurrentInterval) + DELAY_TIME_ADD;   // :9387
+
+                    // 修正加速一段时间后恢复到正常状态，一直提示加速
+                    GameSpeed.nDelayCount[modeCutMeat] = GameSpeed.nDelayCount[modeCutMeat] + 1;   // :9390
+                    if (GameSpeed.nDelayCount[modeCutMeat] > 8)     // :9391
+                    {
+                        GameSpeed.nDelayCount[modeCutMeat] = 0;     // :9393
+                        nDelayTime = 0;                             // :9394
+                        SendActionRet(true);                        // :9395
+                    }
+                }
+
+                if (g_Config.boShowAttackLog)                       // :9399
+                {
+                    ErrorCode = 63;                                 // :9401
+                    AddMainLogMsg(Format("【用户超速】%s:%d; 用户:%s",          // :9402-9405
+                        AntiPlugActionModeNames3[modeCutMeat], dwCurrentInterval, sChrName), 0);
+                }
+            }
+            else
+            {
+                if (!Msg.boDelay && !boContinueSpeedPass)           // :9410
+                {
+                    GameSpeed.nDelayCount[modeCutMeat] = 0;         // :9412
+                }
+            }
+
+            if (nDelayTime == 0 && !Msg.boDelay)                    // :9416
+            {
+                nCollectIndex = nCollectIntervalIndexArr[modeCutMeat];   // :9418
+
+                if (dwCurrentInterval >= dwTempInterval)            // :9420
+                    dwCollectIntervalArr[modeCutMeat, nCollectIndex] = 1;       // :9421
+                else
+                    dwCollectIntervalArr[modeCutMeat, nCollectIndex] =
+                        unchecked((int)(dwCurrentInterval - dwTempInterval));   // :9423
+
+                nCollectIntervalIndexArr[modeCutMeat] = (nCollectIndex + 1)
+                    % g_Config.dwCollectCount /*{g_Config.ActionList[amCutMeat].nCollectCount}*/;   // :9425
+            }
+        }
+
+        if (!Msg.boDelay)                                           // :9429
+        {
+            if (FLastAction == TBaseAction.baCutMeat)               // :9431
+            {
+                if (CutMeatAction.boDebug)                          // :9433
+                {
+                    ErrorCode = 64;                                 // :9435
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",          // :9436-9437
+                        AntiPlugActionModeNames[modeCutMeat],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[modeCutMeat], dwCurTick), sChrName), 0);
+                }
+            }
+            else if (FLastAction == TBaseAction.baWalk)             // :9440
+            {
+                if (MoveToCutMeatAction.boDebug)                    // :9442
+                {
+                    ErrorCode = 65;                                 // :9444
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",          // :9445-9446
+                        AntiPlugActionModeNames3[modeMoveToCutMeat],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amWalk], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+            else if (FLastAction == TBaseAction.baRun)              // :9450
+            {
+                if (MoveToCutMeatAction.boDebug)                    // :9452
+                {
+                    ErrorCode = 66;                                 // :9454
+                    AddMainLogMsg(Format("%s:%d; 用户:%s",          // :9455-9456
+                        AntiPlugActionModeNames3[modeMoveToCutMeat],
+                        RunGateTiming.TickDiff(GameSpeed.dwTicks[(int)TAntiPlugActionMode.amRun], dwCurTick),
+                        sChrName), 0);
+                }
+            }
+        }
+
+        if (nDelayTime == 0 /*{and (not Msg.boDelay)}*/)            // :9461
+        {
+            GameSpeed.dwTicks[modeCutMeat] = dwCurTick;                                          // :9463
+            GameSpeed.dwTicks[(int)TAntiPlugActionMode.amCutMeatToHit] = dwCurTick;              // :9464
+            GameSpeed.dwTicks[modeCutMeat] = dwCurTick;   // :9465（与 :9463 同值重复赋值 —— 原文缺陷 D-S4）
+        }
+
+        FLastAction = TBaseAction.baCutMeat;                        // :9468
+
+        return false;   // 原文 :9469 分支体结束 → 继续进入公共收尾 9521-9681
+    }
+
+    /// <summary>
+    /// 原文 `RecordActionArr[…].Action in [baHit, baSpell, baWalk, baRun, baTurn]`
+    /// （:9017 / :9028 / :9047 / :9058 四处，集合内容一致）。
+    /// </summary>
+    private static bool IsAssasinatePreAction(TBaseAction action) =>
+        action == TBaseAction.baHit || action == TBaseAction.baSpell || action == TBaseAction.baWalk ||
+        action == TBaseAction.baRun || action == TBaseAction.baTurn;
 
     /// <summary>
     /// 原文 **9521-9681** —— 所有 ident 分支共用的公共收尾（逐行等价）。

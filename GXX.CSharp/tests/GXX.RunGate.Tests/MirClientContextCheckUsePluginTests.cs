@@ -16,9 +16,11 @@ namespace GXX.RunGate.Tests;
 // =====================================================================================
 // CheckUsePlugin（原文 3465-9688）的**已覆盖切片**测试。
 //
-// 已覆盖：前导段 3505-3519、CM_DROPITEM 9474-9487、CM_PICKUP 9492-9505、
-//         else 9506-9516、公共收尾 9521-9681（CheckUsePluginPostlude）、兜底 9682-9686。
-// 未覆盖：3528-9473（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL / CM_SITDOWN）
+// 已覆盖：前导段 3505-3519、CM_SITDOWN 9000-9469（独立测试类
+//         MirClientContextCheckUsePluginSitDownTests）、CM_DROPITEM 9474-9487、
+//         CM_PICKUP 9492-9505、else 9506-9516、公共收尾 9521-9681（CheckUsePluginPostlude）、
+//         兜底 9682-9686。
+// 未覆盖：3528-8999（CM_WALK / CM_RUN / CM_TURN / 攻击族 / CM_SPELL）
 //         → 显式早退，见 MirClientContext.CheckUsePlugin.cs 文件头 §偏差。
 // =====================================================================================
 [Collection("RunGateFormLane")]
@@ -66,7 +68,8 @@ public class MirClientContextCheckUsePluginTests
     [InlineData(CM_CUSTOM_HIT001)]
     [InlineData(CM_CUSTOM_HIT001 + 299)]     // 自定义技能区间上界内
     [InlineData(CM_SPELL)]
-    [InlineData(CM_SITDOWN)]
+    // CM_SITDOWN 已于本轮移植（见 MirClientContextCheckUsePluginSitDownTests），
+    // 故**不再**出现在本早退名单里。
     public void CheckUsePlugin_UnportedIdentFamilies_ReturnFalseWithoutSideEffects(ushort ident)
     {
         // ★ 本车道的**已知缺口**（原文 3528-9473 未移植）：

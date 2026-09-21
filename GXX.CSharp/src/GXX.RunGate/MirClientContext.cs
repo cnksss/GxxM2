@@ -290,6 +290,23 @@ public partial class TMirClientContext : TIocpClientContext
     // 与 uBuffer*.cs 的 `*Internal` 探针同一约定，生产语义不变）
     public byte[] ServerMsgStrProbe => FServerMsgStr;
     public TBaseAction LastActionProbe => FLastAction;
+
+    /// <summary>
+    /// **可写探针**（仅测试用；生产语义不变）。
+    /// <para>
+    /// <c>FLastAction</c>（原文 :43）是 private，而 `CheckUsePlugin` 的 CM_WALK / CM_RUN /
+    /// CM_TURN / 攻击族 / CM_SPELL 五个 ident 族**尚未移植**，测试无法用"真的走一次走路包"
+    /// 的方式把它设成 `baWalk`/`baRun`/`baCutMeat`，也就无法覆盖 CM_SITDOWN 分支里
+    /// `:9076 FLastAction in [baWalk, baRun]`（移动到挖肉）与 `:9249 amCutMeat`
+    /// 这两条互斥限速路径。故按 uBuffer*.cs 的探针约定公开一个可写入口
+    /// （**只影响测试**，接缝层与生产代码都不写它）。
+    /// </para>
+    /// </summary>
+    public TBaseAction LastActionForTest
+    {
+        get => FLastAction;
+        set => FLastAction = value;
+    }
     public uint DelayTickProbe => FDelayTick;
     public uint LastSendMyHeartbeatTickProbe => FLastSendMyHeartbeatTick;
     public TSafeMemoryStream ScreenshotStreamProbe => FScreenshotStream;
