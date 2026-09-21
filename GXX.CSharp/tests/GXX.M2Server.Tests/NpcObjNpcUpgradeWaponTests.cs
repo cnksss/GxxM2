@@ -101,7 +101,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         m.UpgradeWapon(p);
 
-        Assert.Equal(ObjNpcConst.sNF_Upgradeing, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_Upgradeing, Assert.Single(_labels));
         Assert.Equal(10000u, p.m_nGold);          // 未扣费
         Assert.NotEqual((ushort)0, p.m_UseItems[UseSlots.U_WEAPON]!.Value.wIndex);   // 未清空武器格
     }
@@ -115,7 +115,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         m.UpgradeWapon(p);
 
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));
     }
 
     [Fact]
@@ -127,7 +127,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         m.UpgradeWapon(p);
 
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));
     }
 
     [Fact]
@@ -135,7 +135,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
     {
         var (m, p) = Setup(weapon: new TUserItem { wIndex = 0 });
         m.UpgradeWapon(p);
-        Assert.Equal(ObjNpcConst.sNF_UpgradeFail, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeFail, Assert.Single(_labels));
         Assert.Equal(10000u, p.m_nGold);
     }
 
@@ -144,7 +144,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
     {
         var (m, p) = Setup(gold: 499);            // 499 < 500
         m.UpgradeWapon(p);
-        Assert.Equal(ObjNpcConst.sNF_UpgradeFail, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeFail, Assert.Single(_labels));
     }
 
     [Fact]
@@ -153,7 +153,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
         // 原文 1850 用的是 `>=`
         var (m, p) = Setup(gold: 500);
         m.UpgradeWapon(p);
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));
         Assert.Equal(0u, p.m_nGold);
     }
 
@@ -162,7 +162,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
     {
         var (m, p) = Setup(addBlackStone: false);
         m.UpgradeWapon(p);
-        Assert.Equal(ObjNpcConst.sNF_UpgradeFail, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeFail, Assert.Single(_labels));
         Assert.Equal(10000u, p.m_nGold);
     }
 
@@ -191,7 +191,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         m.UpgradeWapon(p);
 
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));
         Assert.Empty(_sysMsgs);
     }
 
@@ -204,7 +204,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
 
         m.UpgradeWapon(p);
 
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));   // 未被禁升级分支拦住
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));   // 未被禁升级分支拦住
         Assert.Empty(_sysMsgs);
     }
 
@@ -237,7 +237,7 @@ public sealed class NpcObjNpcUpgradeWaponTests : IDisposable
         Assert.True(info.dtTime > DateTime.MinValue);
         Assert.Equal(12345u, info.dwGetBackTick);
         // 出口标签
-        Assert.Equal(ObjNpcConst.sNF_UpgradeOK, Assert.Single(_labels));
+        Assert.Equal(NpcProcessCmd.sNF_UpgradeOK, Assert.Single(_labels));
     }
 
     [Fact]

@@ -69,23 +69,18 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `LOG_ItemUpgrade = 14; // 物品升级`（M2Share.pas:101）。</summary>
     public const byte LOG_ItemUpgrade = 14;
 
-    /// <summary>
-    /// 接缝：原文 `sNF_Upgradeing = '~@upgradenow_ing'`（**NpcCommon.pas:75** —— 来自 NpcCommon，不是 M2Share）。
-    /// `TNormNpc.GotoLable` 的目标标签（ObjNpc.pas:1846）。
-    /// </summary>
-    public const string sNF_Upgradeing = "~@upgradenow_ing";
-
-    /// <summary>接缝：原文 `sNF_UpgradeOK = '~@upgradenow_ok'`（NpcCommon.pas:77）。ObjNpc.pas:1898。</summary>
-    public const string sNF_UpgradeOK = "~@upgradenow_ok";
-
-    /// <summary>接缝：原文 `sNF_UpgradeFail = '~@upgradenow_fail'`（NpcCommon.pas:79）。ObjNpc.pas:1900。</summary>
-    public const string sNF_UpgradeFail = "~@upgradenow_fail";
+    // ★ 第十二轮：`sNF_Upgradeing/OK/Fail` 三条**已移出本类** → `NpcProcessCmd`
+    //   （原文同属 `NpcCommon.pas:75/77/79`，单一来源）。
 
     /// <summary>接缝：原文 `LOG_GoldChange = 50; // 金币改变`（M2Share.pas:116）。</summary>
     public const byte LOG_GoldChange = 50;
 
     /// <summary>接缝：原文 `sSTRING_GOLDNAME = '金币'`（M2Share.pas:210）。</summary>
     public const string sSTRING_GOLDNAME = "金币";
+
+    // ★ 第十二轮：`sNF_Repair`/`sNF_RepairOK`/`nNF_SuperRepair`/`nNF_Repair` 四条**已移出本类**，
+    //   统一声明在 `NpcProcessCmd`（原文同属 `NpcCommon.pas`，单一来源）。
+    //   同理 `sNF_Upgradeing/OK/Fail` 也迁到 `NpcProcessCmd`。
 
     /// <summary>
     /// 接缝：原文 `TUserItemBindValueType` 的 `ubNoSell { 禁止出售 }`（M2Share.pas:395；
@@ -236,6 +231,48 @@ public static class NpcSeams
     /// `AllowSelect` 的诊断输出判定，ObjNpc.pas:5943）。
     /// </summary>
     public static Func<TNormNpc, bool> IsFunctionOrMissionNpc { get; set; } = _ => false;
+
+    // -----------------------------------------------------------------------
+    // g_FunctionNPC / g_ManageNPC / g_MissionNPC 的**身份判定**（ObjNpc.pas:2572/2581/2590）
+    //
+    // 原文这三处是 `Self = g_FunctionNPC` / `Self = g_ManageNPC` / `Self = g_MissionNPC`
+    // （**对象同一性**比较，不是"是不是某类 NPC"）。
+    //
+    // ★ 为什么默认值是 `false` 而**不是**抛异常（与偏差 D37 的 `GetCastleUnderWar` 区别）：
+    //   这三个是 `M2Share.pas` 的**未初始化全局 = nil** ⇒ 原文在服务器初始化前
+    //   `Self = g_FunctionNPC` **本来就恒为 false**。故 `_ => false` 是**忠实**表达，
+    //   不是"静默中性值"占位（D37 那种情况是"真值不可知"，才必须抛）。
+    //   `g_ManageNPC` 目前**全仓未移植**（连全局都没有），但它同样等价于 nil。
+    //
+    // ★ 删除条件（可执行）：当 `g_FunctionNPC`/`g_ManageNPC`/`g_MissionNPC` 三个全局
+    //   在托管侧落地时，删除本组接缝，改为 `Self == G_NpcGlobals.g_FunctionNPC` 之类的直读。
+    //   判据：`grep -n 'g_FunctionNPC\|g_ManageNPC\|g_MissionNPC' src/GXX.M2Server/`
+    //   出现**赋值**（`=` 左侧）而非仅注释。
+    // -----------------------------------------------------------------------
+
+    /// <summary>原文 `Self = g_FunctionNPC`（ObjNpc.pas:2572/2581/2590）。见上方说明。</summary>
+    public static Func<TNormNpc, bool> IsFunctionNpc { get; set; } = _ => false;
+
+    /// <summary>原文 `Self = g_ManageNPC`（ObjNpc.pas:2572）。该全局**全仓未移植**，等价于 nil。</summary>
+    public static Func<TNormNpc, bool> IsManageNpc { get; set; } = _ => false;
+
+    /// <summary>原文 `Self = g_MissionNPC`（ObjNpc.pas:2572/2581/2590）。</summary>
+    public static Func<TNormNpc, bool> IsMissionNpc { get; set; } = _ => false;
+
+    /// <summary>
+    /// 原文 `PlayObject.LableIsCanJmp(sLabel): Boolean`（`ObjPlayer.pas` 的
+    /// `function TPlayObject.LableIsCanJmp`；`ObjNpc.pas:2573/2575` 调用）。
+    /// <para><b>默认 `false` 是忠实的（非占位）</b>：该函数查 `m_CanJmpScriptLableList`，
+    /// 而那张表在原文里**恒为空** —— 因为 `GetScriptLabel`(ObjPlayer.pas:15216) 在**原文中就是坏的**
+    /// （误用 `GetValidStr3_Ex`，永远填不进去）。⇒ 实际只命中 `@main`/`@HeroMap`/Yes/No 等**硬编码**分支，
+    /// 对一般标签返回"没查到"**就是原文的真实行为**。</para>
+    /// <para>判据（台账规程）：**能把默认值对应到原文某个已定义状态（此处 = 查表未命中 / 表恒空）
+    /// 就是忠实；对应不到才必须抛**（对照偏差 D37，那是"真值不可知"）。</para>
+    /// <para><b>★ 删除条件（可执行）</b>：当 `LableIsCanJmp` 在托管侧落地时删除本接缝、改为直调。
+    /// 判据：`grep -n 'LableIsCanJmp' src/GXX.M2Server/Engine/` 出现**代码声明**
+    /// （形如 `bool LableIsCanJmp(`）—— **不是**"某处注释提到过"。</para>
+    /// </summary>
+    public static Func<TPlayObject, string, bool> LableIsCanJmp { get; set; } = (_, _) => false;
 
     /// <summary>原文 `MainOutMessage(sMsg)`（M2Share.pas，ObjNpc.pas:5945 调用）。</summary>
     public static Action<string> MainOutMessage { get; set; } = _ => { };
@@ -499,6 +536,31 @@ public static class NpcSeams
     public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
         (string _, ref TUserItem _) => false;
 
+    /// <summary>
+    /// 原文 `TUserCastle(m_Castle).m_boUnderWar`（**Castle.pas**"城堡处于攻城中"标志；
+    /// ObjNpc.pas:2533 的 `UserSelect` 前置门）。
+    /// <para><b>★ 为什么是接缝而不是字段（调度方裁定 B①；报告 §21 登记为偏差 D37）</b>：
+    /// `TUserCastle` 确已移植（`Engine/Castle.cs`），但 `m_boUnderWar` 的**赋值点在未移植的
+    /// 城堡战逻辑里**（只有 `ArcherGuardCore.cs:24`、`CanWalkCore.cs:80` 的注释提到）。
+    /// 若在真实类型上加一个**没人赋值的字段**，它会**恒为 false** —— 那是"伪装成正式归属的
+    /// 静默中性值"，比接缝更糟（接缝可检索/可登记/可删除；恒假字段会被后人当成已完成的状态）。</para>
+    /// <para><b>默认抛异常</b>（台账 §25.2）：未接线时**立即暴露**，不静默返回 false。</para>
+    /// <para><b>★ 删除条件（可执行）</b>：当 `TUserCastle.m_boUnderWar` 字段落地**且其赋值点接通**时，
+    /// 删除本接缝，改为直读。判据：`grep -n 'm_boUnderWar' src/GXX.M2Server/Engine/Castle.cs`
+    /// 中出现**赋值**（`=` 左侧）而非仅声明。</para>
+    /// <para>⚠ 触发面是**窄路径**：仅 `m_boCastle = true` 的城堡 NPC 调用 `UserSelect` 才走到；
+    /// 绝大多数 NPC 的 `m_boCastle` 为假，不会触达本接缝。</para>
+    /// </summary>
+    public static Func<object, bool> GetCastleUnderWar { get; set; } =
+        _ => throw new NotSupportedException(
+            "NpcSeams.GetCastleUnderWar 未接线：原文 TUserCastle.m_boUnderWar 未移植（报告 §21 / 偏差 D37）");
+
+    // ★ 第十二轮：`NpcProcessCommandIndexOf` 接缝**已删除** —— 派发基础设施
+    //   （`g_NpcProcessCommand` 表 + `nNF_*`/`sNF_*` 常量）已按原文 1:1 落地在
+    //   `Npc/NpcProcessCommand.cs`（原文同属 NpcCommon.pas），故直接调用
+    //   `NpcProcessCmd.g_NpcProcessCommand.GetCommand(sLabel)` / `.IndexOf(sLabel)`，
+    //   不再经委托。这正是"正式归属落地后去掉替身"。
+
     // -----------------------------------------------------------------------
     // TMerchant.UpgradeWapon 外层体（ObjNpc.pas:1830-1901）需要的宿主面。
     // -----------------------------------------------------------------------
@@ -698,6 +760,10 @@ public static class NpcSeams
         //   八个委托已删除（改为直读 Engine 成员），故此处不再复位。
         IsCopyMon = _ => false;
         IsFunctionOrMissionNpc = _ => false;
+        IsFunctionNpc = _ => false;
+        IsManageNpc = _ => false;
+        IsMissionNpc = _ => false;
+        LableIsCanJmp = (_, _) => false;
         MainOutMessage = _ => { };
         GetValNameNo = CombatPowerUtils.GetValNameNo;
         GetVariableText = (_, _, sMsg, _, _) => (false, sMsg, false);
@@ -754,6 +820,8 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
+        GetCastleUnderWar = _ => throw new NotSupportedException(
+            "NpcSeams.GetCastleUnderWar 未接线：原文 TUserCastle.m_boUnderWar 未移植（报告 §21 / 偏差 D37）");
         g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
         g_boGameLogGold = false;
         SysMsgFB = (_, _, _, _, _) => { };
