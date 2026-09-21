@@ -69,6 +69,13 @@ public static class Sweep9FormsKit
     public const string sLineBreak = "\r\n";
 
     /// <summary>
+    /// 接缝未接线时抛的异常（《并行派发台账》§25.2：**不提供静默中性值默认实现**）。
+    /// </summary>
+    public static InvalidOperationException NotWired(string name, string delphi)
+        => new($"接缝未接线：{name}（原文 {delphi}）——待对应单元移植后接入；" +
+               "按《并行派发台账》§25.2，接缝不提供〔静默中性值〕默认实现。");
+
+    /// <summary>
     /// 原文 `SysUtils.CompareText(S1, S2)`（Delphi 7 实现是**ASCII 大写表**逐字节比较，
     /// 非区域敏感）⇒ 托管侧用 <see cref="StringComparison.OrdinalIgnoreCase"/>（ASCII 上等价）。
     /// </summary>

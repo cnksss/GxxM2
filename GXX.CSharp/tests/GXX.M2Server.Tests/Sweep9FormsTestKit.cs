@@ -146,13 +146,37 @@ public static class Sweep9FormsReconcile
         return n;
     }
 
-    /// <summary>field-like event：与事件同名的私有实例委托字段非 null。</summary>
+    /// <summary>
+    /// 已知的"事件名 ↔ 承载字段名**不同源**"例外表（.NET 实现细节，实测得到）。
+    /// <para>
+    /// `System.Windows.Forms.Timer` 的 `Tick` 事件由**实例委托字段**承载，但字段名是
+    /// <c>onTimer</c>（.NET Framework 实测；由 protected 虚方法 `OnTick` 触发），
+    /// 名字与事件名无法机械对齐 ⇒ 单列此表。**不猜**：只登记实测确认过的条目。
+    /// </para>
+    /// </summary>
+    private static readonly Dictionary<(Type Type, string Event), string[]> KnownBackingFieldAliases = new()
+    {
+        [(typeof(System.Windows.Forms.Timer), "Tick")] = new[] { "onTimer", "_onTimer", "s_onTimer" },
+    };
+
+    /// <summary>
+    /// field-like event：与事件同名的私有实例委托字段非 null。
+    /// 另有组件（如 `System.Windows.Forms.Timer.Tick`）用 <c>onXxx</c> 命名的实例委托字段
+    /// ⇒ 两种名字 + <see cref="KnownBackingFieldAliases"/> 都试。
+    /// </summary>
     private static bool TryFieldLike(Type declaringType, object instance, string eventName)
     {
-        var f = declaringType.GetField(eventName,
-            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly);
-        if (f == null || !typeof(Delegate).IsAssignableFrom(f.FieldType)) return false;
-        return f.GetValue(instance) != null;
+        KnownBackingFieldAliases.TryGetValue((declaringType, eventName), out var aliases);
+        foreach (var f in declaringType.GetFields(
+                     BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.DeclaredOnly))
+        {
+            if (!typeof(Delegate).IsAssignableFrom(f.FieldType)) continue;
+            bool nameMatches = IsKeyFieldNameFor(f.Name, eventName)
+                || (aliases != null && aliases.Contains(f.Name, StringComparer.Ordinal));
+            if (!nameMatches) continue;
+            if (f.GetValue(instance) != null) return true;
+        }
+        return false;
     }
 
     /// <summary>WinForms 式：静态键对象（`EventXxx` / `EVENT_XXX` / `s_xxxEvent` 等命名都实测存在）⇒ `EventHandlerList[key]` 非 null。</summary>
@@ -183,7 +207,11 @@ public static class Sweep9FormsReconcile
     private static bool IsKeyFieldNameFor(string fieldName, string eventName)
     {
         string s = NormalizeKeyName(fieldName);
-        return string.Equals(s, eventName, StringComparison.OrdinalIgnoreCase);
+        if (string.Equals(s, eventName, StringComparison.OrdinalIgnoreCase)) return true;
+        // 另一些组件的字段名是 `onXxx`（`Timer.Tick` 在 .NET 里就是 `onTick`）
+        if (s.Length > 2 && s.StartsWith("on", StringComparison.OrdinalIgnoreCase))
+            return string.Equals(s.Substring(2), eventName, StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     private static string NormalizeKeyName(string fieldName)

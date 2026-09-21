@@ -108,13 +108,33 @@ ThreadInfo.nRunFlag    := 0;                  // :121
 
 | 单元 | 行数 | 已移植方法数/总方法数 | DFM 控件数（对账） | DFM 绑定数（对账） | 状态 |
 |---|---|---|---|---|---|
-| `NoticeM.pas` | 119 | 待填 | 无窗体 | 无窗体 | 未开始 |
-| `ConfigMonGen.pas` | 60 | 待填 | 待填 | 待填 | 未开始 |
-| `uFrmClientPlugManager.pas` | 151 | 待填 | 待填 | 待填 | 未开始 |
-| `ViewHeroRcd.pas` | 453 | 待填 | 待填 | 待填 | 未开始 |
-| `ViewKernelInfo.pas` | 198 | 待填 | 待填 | 待填 | 未开始 |
-| `ConfigMerchant.pas` | 654 | 待填 | 待填 | 待填 | 未开始 |
-| `uAliyunSendSMSThread.pas` | 320 | 待填 | 无窗体 | 无窗体 | 未开始 |
+| `NoticeM.pas` | 119 | 4/4（ctor/dtor/LoadingNotice/GetNoticeMsg） | 无窗体 | 无窗体 | ✅ 完成 |
+| `ConfigMonGen.pas` | 60 | 2/2（ListBoxMonGenDblClick/Open） | 2 / 2 ✅ | 1 / 1 ✅ | ✅ 完成 |
+| `uFrmClientPlugManager.pas` | 151 | 3/3（LoadPlugClientFiles/Open/ButtonRefClick） | 2 / 2 ✅ | 1 / 1 ✅ | ✅ 完成 |
+| `ViewHeroRcd.pas` | 453 | 16/16（含 4 个**空体**：整段被原文注释掉） | 29 / 29 ✅ | 1 / 1 ✅ | ✅ 完成 |
+| `ViewKernelInfo.pas` | 198 | 3/3（FormCreate/Open/TimerTimer） | 63 控件 + 1 组件 = 64 / 64 ✅ | 2 / 2 ✅ | ✅ 完成 |
+| `ConfigMerchant.pas` | 654 | 进行中 | 进行中 | 进行中 | 进行中 |
+| `uAliyunSendSMSThread.pas` | 320 | 进行中 | 无窗体 | 无窗体 | 进行中 |
+
+**已完成单元的用例数**：62（切片1）→ 93（切片2 +ViewHeroRcd）→ **120**（切片3 +ViewKernelInfo），全绿。
+
+### ★ 对账方法论的一处**实测修正**（重要，供后续窗体车道复用）
+
+`§37.3` 要求"DFM 绑定数 vs 托管 `+=` 数"对账。本车道实现该对账时踩出**两个会直接造成假绿/假红的坑**，
+已写进 `tests/GXX.M2Server.Tests/Sweep9FormsTestKit.cs`：
+
+1. **.NET 8 WinForms 的事件不是 field-like event**
+   —— `Control`/`Form` 的事件由 `Component.Events`（`EventHandlerList`）+ 声明类型上的
+   **静态键对象**承载（`.NET Framework` 叫 `EventXxx`、`.NET 8` 叫 `s_xxxEvent`、
+   另一些是 `EVENT_XXX`）。**只有**"按同名私有委托字段"找 ⇒ 实测一律数成 **0**（假绿）。
+   正确做法：静态键（多种命名归一化后比较）+ field-like 字段两条路都走。
+2. **复合控件自带匿名内部子控件**
+   —— 每张 `DataGridView` 内部有 2 个匿名 `ScrollBar`、`TabControl` 有内部 `UpDown`。
+   若按 `Controls` 递归计数，ViewHeroRcd 的 29 个 DFM 控件会被数成 **51**（假红）。
+   正确做法：只数**有名字**的控件（DFM 的 `object` 节点全部有名字）。
+3. **`System.Windows.Forms.Timer.Tick` 的承载字段叫 `onTimer`**（与事件名不同源，
+   实测于 .NET Framework；`OnTick` 是另一个 protected 虚方法）⇒ 名字机械对齐会漏计，
+   已在测试工具里以**仅含实测条目的例外表**登记（不猜）。
 
 ---
 
