@@ -1265,6 +1265,116 @@ public sealed class GuiShareHandlersTests : IDisposable
     }
 
     // =====================================================================================
+    // 切片 8：提示清理族 + 关闭转发 + 小地图坐标 + 原文 Exit 短路
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice8RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice8Count);
+    }
+
+    [Fact]
+    public void DSSrvCloseClickClosesTheServerDlgThenTheMainForm()
+    {
+        var frm = NewForm();
+        int closes = 0;
+        FStateClMainSeam.CloseHandler = () => closes++;
+
+        // 2296 的 CloseDSelServerDlg 仍是 throw 壳 ⇒ 抛点在被转发方，2297 不会执行
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DSSrvCloseClick(null, 0, 0));
+        Assert.Contains("CloseDSelServerDlg", ex.Message);
+        Assert.Equal(0, closes);                              // 顺序证据：先关对话框再关主窗体
+    }
+
+    [Fact]
+    public void DGameGoldDealDlgMouseMoveClearsBothHints()
+    {
+        var frm = NewForm();
+        DrawScrnEnv.HintWindows.Add(new THintWindow());
+
+        frm.DGameGoldDealDlgMouseMove(null, TShiftState.ssNone, 0, 0);
+
+        Assert.Equal(1, FStateScreenSeam.ClearHintCount);     // 18523
+        Assert.Equal(0, DrawScrnEnv.HintWindows.Count);       // 18524
+    }
+
+    [Fact]
+    public void DMinMapDlgMouseMoveStoresTheRawCoordinatesWithoutConversion()
+    {
+        var frm = NewForm();
+
+        frm.DMinMapDlgMouseMove(null, TShiftState.ssNone, 1234, -5678);
+
+        Assert.Equal(1234, FStateMShareSeam.g_nMinMapX);      // 18224：原始 X，不换算
+        Assert.Equal(-5678, FStateMShareSeam.g_nMinMapY);     // 18225：原始 Y（负数也照存）
+    }
+
+    [Fact]
+    public void DUserState1MouseMoveClearsTheItemNameThenBothHints()
+    {
+        var frm = NewForm();
+        FStateMShareSeam.g_MouseUserStateItem_sName = "某物品";
+        DrawScrnEnv.HintWindows.Add(new THintWindow());
+
+        frm.DUserState1MouseMove(null, TShiftState.ssNone, 0, 0);
+
+        Assert.Equal("", FStateMShareSeam.g_MouseUserStateItem_sName);   // 17802
+        Assert.Equal(0, DrawScrnEnv.HintWindows.Count);                  // 17803
+        Assert.Equal(1, FStateScreenSeam.ClearHintCount);                // 17804
+    }
+
+    [Fact]
+    public void DGoToLieDragonClickSendsTheHeroMapCommandThenHidesTheDialog()
+    {
+        var frm = NewForm();
+        var sent = new List<(int Merchant, string Cmd)>();
+        FStateClMainSeam.SendMerchantDlgSelectHandler = (m, c) => sent.Add((m, c));
+        FStateClMainSeam.g_nCurMerchant = 77;
+        frm.DLieDragon = new TDxImageForm { Visible = true };
+
+        frm.DGoToLieDragonClick(null, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal(77, sent[0].Merchant);                  // 24289：用当前商人号
+        Assert.Equal("@HeroMap", sent[0].Cmd);               // 24289：命令字面量
+        Assert.False(frm.DLieDragon.Visible);                // 24290
+    }
+
+    [Fact]
+    public void CloseSayItemDlgShortCircuitsAtTheOriginalUnconditionalExit()
+    {
+        // ★ 原文缺陷锁死：24376 是**无条件 Exit** ⇒ 24378-24382 的"移出即关闭"永远不可达。
+        //   即使把两个前置条件都摆成"成立"的样子，对话框也**不会**被关掉。
+        var frm = NewForm();
+        frm.DSayItemDlg = new TDxImageForm { Visible = true };
+        SetProtectedBool(frm, "boSayItemDlgMoveOutClose", true);
+
+        frm.CloseSayItemDlg(-9999, -9999);   // 坐标远在矩形外
+
+        Assert.True(frm.DSayItemDlg.Visible);                // 原文如此：Exit 之后一切不执行
+        Assert.True(GetProtectedBool(frm, "boSayItemDlgMoveOutClose"));   // 该字段本身未被改动
+    }
+
+    /// <summary>
+    /// 原文 `protected` 段的字段在托管生成壳里同样是 `protected`；测试只能经反射读写
+    /// （**不为测试改原文可见性** —— 台账本轮采信的判据）。
+    /// </summary>
+    private static System.Reflection.FieldInfo ProtectedField(TFrmDlg frm, string name)
+    {
+        var f = frm.GetType().GetField(name,
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.False(f == null, "生成壳里找不到字段: " + name);
+        return f;
+    }
+
+    private static bool GetProtectedBool(TFrmDlg frm, string name)
+        => (bool)ProtectedField(frm, name).GetValue(frm);
+
+    private static void SetProtectedBool(TFrmDlg frm, string name, bool value)
+        => ProtectedField(frm, name).SetValue(frm, value);
+
+    // =====================================================================================
     // H. D-P10-06：THintWindows 的正式归属已是 GXX.Client.Scenes
     // =====================================================================================
 

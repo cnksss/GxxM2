@@ -71,7 +71,12 @@ $Handwritten = @(
   # ---- lane p14-client-fstate slice 7 (TFrmDlg.Handlers.cs) --------------------------------
   # Group-mode toggle pair (two entry points sharing one handler body) and the
   # deal-item / game-gold-deal clear handlers.
-  'DBotGroupMouseDown','DGrpAllowGroupClick','DealItemReturnBag','DGameGoldDealMenuDlgCloseClick'
+  'DBotGroupMouseDown','DGrpAllowGroupClick','DealItemReturnBag','DGameGoldDealMenuDlgCloseClick',
+  # ---- lane p14-client-fstate slice 8 (TFrmDlg.Handlers.cs) --------------------------------
+  # Hint-clearing mouse handlers, the two remaining "close/hide" forwarders, the minimap
+  # coordinate recorder, and the early-Exit CloseSayItemDlg.
+  'DSSrvCloseClick','DGoToLieDragonClick','DGameGoldDealDlgMouseMove','DMinMapDlgMouseMove',
+  'CloseSayItemDlg','DUserState1MouseMove'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

@@ -631,6 +631,21 @@ public static class FStateMShareSeam
     /// </summary>
     public static TGameGoldDeal g_GameGoldDeal;
 
+    /// <summary>MShare.pas `g_nMinMapX:Integer`（小地图上鼠标 X；原文 18224 赋值）。</summary>
+    public static int g_nMinMapX;
+
+    /// <summary>MShare.pas `g_nMinMapY:Integer`（小地图上鼠标 Y；原文 18225 赋值）。</summary>
+    public static int g_nMinMapY;
+
+    /// <summary>
+    /// MShare.pas `g_MouseUserStateItem:TClientItem`（人物状态窗口上鼠标所指的物品）。
+    /// 原文 17802 / 2612 只做 `g_MouseUserStateItem.S.Name := ''`（清空短串名）。
+    /// 这里只暴露**被用到的那一个字段**，而不是整份 645 KB 级结构体
+    /// （**禁止按值传递巨型结构体** —— 台账本轮新规程）。
+    /// 【接缝：待 MShare.pas 落地后换成真实 TClientItem 的 s.Name】
+    /// </summary>
+    public static string g_MouseUserStateItem_sName = "";
+
     /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
@@ -649,6 +664,9 @@ public static class FStateMShareSeam
         g_DealDlgItem = default;
         g_GameGoldDealRemoteItems = new TClientItem[9];
         g_GameGoldDeal = default;
+        g_nMinMapX = 0;
+        g_nMinMapY = 0;
+        g_MouseUserStateItem_sName = "";
     }
 }
 
@@ -989,6 +1007,12 @@ public static class FStateClMainSeam
     /// <summary>ClMain.pas frmMain.SendDelDealItem（原文 17621 调用）。</summary>
     public static void SendDelDealItem(TClientItem item) => SendDelDealItemHandler?.Invoke(item);
 
+    /// <summary>ClMain.pas `frmMain.Close`（原文 2249 / 2297 调用，无参）。</summary>
+    public static Action CloseHandler;
+
+    /// <summary>ClMain.pas frmMain.Close（原文 2297 调用）。</summary>
+    public static void Close() => CloseHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -1018,6 +1042,7 @@ public static class FStateClMainSeam
         ReConnectClientSocketGateHandler = null;
         SendGroupModeHandler = null;
         SendDelDealItemHandler = null;
+        CloseHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

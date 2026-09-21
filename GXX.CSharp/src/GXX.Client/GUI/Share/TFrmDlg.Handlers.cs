@@ -814,6 +814,82 @@ public partial class TFrmDlg
                     FStateMShareSeam.g_GameGoldDealRemoteItems.Length);   // 18663
         FStateMShareSeam.g_GameGoldDeal = default;                  // 18664
     }
+
+    // ==========================================================================================
+    // 切片 8：提示清理族 + 两个关闭转发 + 小地图坐标记录 + 原文 Exit 短路
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:2294-2298 procedure TFrmDlg.DSSrvCloseClick。
+    /// 原文**两步**：先关选服对话框，再关主窗体（顺序保留）。
+    /// </summary>
+    public virtual void DSSrvCloseClick(object Sender, int X, int Y)
+    {
+        CloseDSelServerDlg();                               // 2296
+        FStateClMainSeam.Close();                           // 2297
+    }
+
+    /// <summary>
+    /// FState.pas:18521-18525 procedure TFrmDlg.DGameGoldDealDlgMouseMove。
+    /// 原文只清两处提示：先 `DScreen.ClearHint` 再 `HintWindows.Clear`（顺序保留）。
+    /// </summary>
+    public virtual void DGameGoldDealDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
+    {
+        FStateScreenSeam.ClearHint();                       // 18523
+        DrawScrnEnv.HintWindows.Clear();                    // 18524
+    }
+
+    /// <summary>
+    /// FState.pas:18222-18226 procedure TFrmDlg.DMinMapDlgMouseMove。
+    /// 原文只把**原始事件坐标**记进两个全局（**不做**任何坐标换算；换算在 MouseUp 里）。
+    /// </summary>
+    public virtual void DMinMapDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
+    {
+        FStateMShareSeam.g_nMinMapX = X;                    // 18224
+        FStateMShareSeam.g_nMinMapY = Y;                    // 18225
+    }
+
+    /// <summary>
+    /// FState.pas:17800-17804 procedure TFrmDlg.DUserState1MouseMove。
+    /// 原文三步：清"鼠标所指人物状态物品"的名 → 清提示窗 → 清提示（**顺序**保留）。
+    /// </summary>
+    public virtual void DUserState1MouseMove(object Sender, TShiftState Shift, int X, int Y)
+    {
+        FStateMShareSeam.g_MouseUserStateItem_sName = "";   // 17802（原文 g_MouseUserStateItem.S.Name := ''）
+        DrawScrnEnv.HintWindows.Clear();                    // 17803
+        FStateScreenSeam.ClearHint();                       // 17804
+    }
+
+    /// <summary>
+    /// FState.pas:24287-24291 procedure TFrmDlg.DGoToLieDragonClick。
+    /// 原文**两步**：先把商人选择命令发出去（`'@HeroMap'`），再隐藏卧龙对话框。
+    /// </summary>
+    public virtual void DGoToLieDragonClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.SendMerchantDlgSelect(FStateClMainSeam.g_nCurMerchant, "@HeroMap");  // 24289
+        DLieDragon.Visible = false;                         // 24290
+    }
+
+    /// <summary>
+    /// FState.pas:24374-24383 procedure TFrmDlg.CloseSayItemDlg(X, Y:Integer)。
+    ///
+    /// ★ **原文缺陷照抄（重要）**：函数体第一句就是**无条件 `Exit;`** ——
+    ///   其后的 `if DSayItemDlg.Visible and boSayItemDlgMoveOutClose then ...`
+    ///   （24378-24382）**永远不可达**，即"鼠标移出即关闭 SayItem 对话框"这个功能
+    ///   **在原文里是失效的**。托管侧逐字保留：先 `return`，再保留不可达代码并标 `// 原文如此`。
+    ///   **不顺手修**（修了就是新行为，且会与原文可观测行为不一致）。
+    /// </summary>
+    public virtual void CloseSayItemDlg(int X, int Y)
+    {
+        return;                                             // 24376：原文无条件 Exit
+
+        // ↓↓↓ 以下为原文 24378-24382 的**不可达**代码（原文如此，逐字保留）
+        // if (DSayItemDlg.Visible && boSayItemDlgMoveOutClose)
+        // {
+        //     if (!PtInRect(DSayItemDlg.VisibleRect, Point(X, Y)))
+        //         DSayItemDlg.Visible = false;
+        // }
+    }
 }
 
 /// <summary>
@@ -970,9 +1046,22 @@ public static class TFrmDlgPortLedger
         new PortedMember("DGrpAllowGroupClick",               "18940-18947"),
     };
 
+    /// <summary>
+    /// 切片 8 落地的成员（6 条）：提示清理族 + 两个关闭转发 + 小地图坐标记录 + 原文 Exit 短路。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice8 = new[]
+    {
+        new PortedMember("DSSrvCloseClick",             "2294-2298"),
+        new PortedMember("DUserState1MouseMove",        "17800-17804"),
+        new PortedMember("DMinMapDlgMouseMove",         "18222-18226"),
+        new PortedMember("DGameGoldDealDlgMouseMove",   "18521-18525"),
+        new PortedMember("DGoToLieDragonClick",         "24287-24291"),
+        new PortedMember("CloseSayItemDlg",             "24374-24383"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
     public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
-        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7 };
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6, Slice7, Slice8 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -995,10 +1084,13 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 7 的真实现成员数。</summary>
     public static int Slice7Count => Slice7.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1..7）。</summary>
+    /// <summary>切片 8 的真实现成员数。</summary>
+    public static int Slice8Count => Slice8.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..8）。</summary>
     public static int LaneCount =>
         Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count
-        + Slice6.Count + Slice7.Count;
+        + Slice6.Count + Slice7.Count + Slice8.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
