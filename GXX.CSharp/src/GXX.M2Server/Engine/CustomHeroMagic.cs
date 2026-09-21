@@ -433,7 +433,8 @@ public sealed class TCustomHeroMagicMgr
 
         try
         {
-            File.WriteAllText(fileName, sb.ToString(), Encoding.GetEncoding(936));
+            // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+            File.WriteAllText(fileName, sb.ToString(), GXX.Core.EncodingInit.GBK);
         }
         catch
         {

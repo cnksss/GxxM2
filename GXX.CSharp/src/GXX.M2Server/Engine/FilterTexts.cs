@@ -133,7 +133,8 @@ public class TFilterTexts
         string sFileName = Path.Combine(M2Config.sEnvirDir, "FilterMsgList.txt");
         if (!File.Exists(sFileName))
             return;
-        foreach (var line in File.ReadLines(sFileName, Encoding.GetEncoding(936)))
+        // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+        foreach (var line in File.ReadLines(sFileName, GXX.Core.EncodingInit.GBK))
         {
             string sLineText = line;
             if (sLineText.Length > 0 && sLineText[0] != ';')
@@ -158,7 +159,7 @@ public class TFilterTexts
         string sFileName = Path.Combine(M2Config.sEnvirDir, "FilterMsgList.txt");
         try
         {
-            File.WriteAllLines(sFileName, saveList, Encoding.GetEncoding(936));
+            File.WriteAllLines(sFileName, saveList, GXX.Core.EncodingInit.GBK);
         }
         catch
         {

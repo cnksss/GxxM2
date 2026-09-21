@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Windows.Forms;
 using GXX.Core;
@@ -44,6 +44,51 @@ public class M2EngineService : IDisposable
 
     public event Action<string, int>? OnLogMsg;
 
+    // ========================================================================
+    // 宿主接线接缝（车道 p17-m2-hostwire，台账 §58.5）
+    //
+    // 背景：§58.5 裁定"没有任何接缝真正接上宿主 ⇒ 无端到端行为被验证"。
+    // 本区两处接缝是**本车道**为"宿主可观测 / 可注入"加的最小面，遵循
+    // p14-logingate-wire 的既定做法：**opt-in + 默认（null）时第一行短路，
+    // 默认路径逐字节不变**（台账 §59.7 的教训 —— 不许把默认分支的语句搬进
+    // opt-in 分支）。
+    //
+    // 与既有设施的关系（不造第三份实现，§14.2）：
+    //   * 主循环节拍本来只有 `MainLoop` 的 `Thread.Sleep(10)`，原文
+    //     `svMain.pas` 的 `dwProcessTime` 无对应回调 ⇒ 本接缝只是**观测点**，
+    //     不复制任何计时/调度实现（计时仍走 `GXX.Core.Rtl.DelphiRTL.GetTickCount`）。
+    //   * 消息派发仍完全由既有的 `OnGateClientData` 默认 `switch` 承担；本接缝
+    //     只在**默认分派之前**插一个"我消费掉了"的出口，供把某条已移植的
+    //     `DeCodeUserMsg`/`HandleCmds` 实现接进真宿主。
+    // ========================================================================
+
+    /// <summary>
+    /// 主循环节拍接缝：每个 <see cref="MainLoop"/> 迭代开始时调用一次，参数为当轮
+    /// `GetTickCount()`（uint，与原文回绕语义一致）。
+    /// <para>
+    /// **默认 <c>null</c> ⇒ 连 `GetTickCount()` 都不取**（第一行短路），行为与接线前逐字节一致。
+    /// </para>
+    /// <para>
+    /// ⚠ 这是**实例**字段（不是 static）：既避免污染进程级静态全局，也免于
+    /// <c>M2ConfigIsolationState</c> 的静态快照口径是否覆盖本类型的不确定性。
+    /// 注入方必须在退出前置回 <c>null</c>。
+    /// </para>
+    /// </summary>
+    public Action<uint>? MainLoopTickHook;
+
+    /// <summary>
+    /// 网关消息派发接缝（opt-in）：<see cref="OnGateClientData"/> 在
+    /// **解码之后、进入默认 `CM_*` 分派之前**调用。
+    /// 返回 <c>true</c> = "本帧已被消费，跳过默认分派"；返回 <c>false</c> = 落到默认分派。
+    /// <para>
+    /// **默认 <c>null</c> ⇒ 第一行短路，默认 `CM_*` 分派路径逐字节不变**（含既有的
+    /// `data.Length &lt; 22` 提前返回与 `EDcode.DecodeMessage`，二者都**留在默认路径上**，
+    /// 不得搬进本接缝分支 —— 这正是 §59.7 那次真实回归的形态）。
+    /// </para>
+    /// <para>参数：`sockId`（原文 `nSocket`/会话号）+ 已解码的 `TDefaultMessage`。</para>
+    /// </summary>
+    public Func<int, TDefaultMessage, bool>? GateMessageDispatchHook;
+
     public bool StartService()
     {
         if (_running) return true;
@@ -79,6 +124,10 @@ public class M2EngineService : IDisposable
         {
             try
             {
+                // 接缝：默认 null ⇒ 第一行短路（连 GetTickCount 都不取）⇒ 默认路径不变。
+                var tickHook = MainLoopTickHook;
+                if (tickHook != null) tickHook(DelphiRTL.GetTickCount());
+
                 UserEngine.Process();
             }
             catch (Exception ex)
@@ -94,6 +143,12 @@ public class M2EngineService : IDisposable
     {
         if (data.Length < 22) return;
         TDefaultMessage msg = EDcode.DecodeMessage(data);
+
+        // 接缝：默认 null ⇒ 第一行短路；返回 false 也落默认分派。
+        // ⚠ 上面两行（长度门控 + 解码）**必须留在默认路径**，不得移入本分支（§59.7）。
+        var dispatchHook = GateMessageDispatchHook;
+        if (dispatchHook != null && dispatchHook(sockId, msg)) return;
+
         switch (msg.Ident)
         {
             case Grobal2Const.CM_WALK:
@@ -102,7 +157,20 @@ public class M2EngineService : IDisposable
                 var player = FindPlayerBySocket(sockId);
                 if (player != null)
                 {
-                    byte dir = (byte)msg.Recog;
+                    // ★ D-P17-01（车道 p17-m2-hostwire 修）：原实现读 `msg.Recog` 当方向。
+                    //   `Recog` 是**对象标识**（原文 `MakeDefaultMsg(SM_USERNAME, NativeInt(Target), ...)`
+                    //   把 `TBaseObject` 指针放这一格；本文件自己的**出站**帧
+                    //   `Make(SM_TURN, player.m_nRecogId, dir, x, y)` 也把它当对象标识）
+                    //   ⇒ 用 `Recog` 当方向 **自相矛盾**，且 `WalkTo` 里
+                    //   `s_DirX[Math.Min(dir, 7)]` 会把任何越界方向**静默夹到 7**，
+                    //   于是"走错方向"不报错、不抛异常（§58.5 说的"无端到端行为被验证"的典型后果）。
+                    //   方向在原文取 `ProcessMsg.wParam`（`ObjPlayer.pas:17337` `ProcessMsg.wParam { dir }`）
+                    //   ⇒ 线上对应 `TDefaultMessage.Param`。
+                    //   ⚠ 本分支仍是**近似物**：原文 `TPlayObject.ClientWalk`
+                    //   （`ObjPlayer.pas:17464`，1,100+ 行）从 `nParam1{x}`/`nParam2{y}`
+                    //   反解方向并做速度控制/`CanParaly`/延时投递；那些**未移植**，
+                    //   已登记为 `docs/接线工单表.md` 的未接条目。
+                    byte dir = (byte)msg.Param;
                     if (player.WalkTo(dir))
                     {
                         // 广播 RM_WALK（此处简化为回执本人）
@@ -122,14 +190,31 @@ public class M2EngineService : IDisposable
                 var player = FindPlayerBySocket(sockId);
                 if (player != null)
                 {
-                    player.m_btDirection = (byte)msg.Recog;
-                    byte[] ack = EDcode.EncodeMessage(TDefaultMessage.Make(Grobal2Const.SM_TURN, player.m_nRecogId, (byte)msg.Recog, (ushort)player.m_nCurrX, (ushort)player.m_nCurrY));
+                    // ★ D-P17-01：同上，方向取自 `Param`（原文 `ProcessMsg.wParam { dir }`，
+                    //   `ObjPlayer.pas:17337`）；原实现读 `msg.Recog` 与自己的出站帧自相矛盾。
+                    byte dir = (byte)msg.Param;
+                    if (dir > Grobal2Const.DR_UPLEFT)
+                    {
+                        // 原文 `ClientChangeDir`（`ObjPlayer.pas:17269`）：
+                        //   `if not(nDir in [DR_UP .. DR_UPLEFT]) then begin Result := True; Exit; end;`
+                        //   ⇒ 越界方向**原样接受、原地不动**（Result := True = "已处理"）。照抄。
+                        break;
+                    }
+                    player.m_btDirection = dir;
+                    byte[] ack = EDcode.EncodeMessage(TDefaultMessage.Make(Grobal2Const.SM_TURN, player.m_nRecogId, dir, (ushort)player.m_nCurrX, (ushort)player.m_nCurrY));
                     GateMgr.SendToClient(sockId, ack);
                 }
                 break;
             }
             case Grobal2Const.CM_QUERYUSERNAME:
             {
+                // ⚠ 未 1:1（登记在 `docs/接线工单表.md`，不假装已接线）：
+                //   原文 `TPlayObject.ClientQueryUserName`（`ObjPlayer.pas:20189-20207`）读的是
+                //   `nParam1`(=目标对象) / `nParam2`(=X) / `nParam3`(=Y)，并要过
+                //   `CretInNearXY(Target, X, Y)` 门控，再发 `MakeDefaultMsg(SM_USERNAME,
+                //   NativeInt(Target), GetCharColor(Target), 0, 0)` + `SendSocket(@Def, GetShowName(...))`。
+                //   托管侧缺 `CretInNearXY` / `GetCharColor` / `GetShowName` / `SendSocket` 面
+                //   ⇒ 这里只回一个 `SM_USERNAME` 空名帧，**不是**原文行为。
                 byte[] ack = EDcode.EncodeMessage(TDefaultMessage.Make(Grobal2Const.SM_USERNAME, msg.Recog, 0, 0, 0));
                 GateMgr.SendToClient(sockId, ack);
                 break;

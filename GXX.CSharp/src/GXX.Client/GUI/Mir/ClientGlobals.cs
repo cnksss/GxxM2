@@ -126,7 +126,7 @@ public static class frmMain
 /// <summary>
 /// MShare.pas / ClFunc.pas 的单元级全局与函数（原名保留）。
 /// </summary>
-public static class MShareGlobals
+public static partial class MShareGlobals
 {
     // ---------------- 版本与登录模式 ----------------
     /// <summary>MShare.pas:2324 g_ClientVersion:TClientVersion = cvSerial。</summary>
@@ -192,6 +192,100 @@ public static class MShareGlobals
 
     /// <summary>MShare.pas:1843 g_nGameGird:LongWord（灵符）。</summary>
     public static uint g_nGameGird;
+
+    // ---------------- 特性长度指纹（GetFeatureLen 用；MShare.pas:2337/2338 + HUtil32 SizeOf） ----------------
+    /// <summary>MShare.pas:2337 g_nHumFeature:Integer = 0（SizeOf(THumFeature) 由启动时算得）。</summary>
+    public static int g_nHumFeature = 0;
+
+    /// <summary>MShare.pas:2338 g_nMonFeature:Integer = 0（SizeOf(TMonFeature) 由启动时算得）。</summary>
+    public static int g_nMonFeature = 0;
+
+    // ================================================================================
+    // 【P17 切片1】MShare.pas 中 FState.pas（车道 p14-client-fstate，B-6）报告为"最密集阻塞类"
+    // 的全局真身。此前由 `GUI/Share/FStateSeams.cs::FStateMShareSeam` 以接缝承载；
+    // 现在真身落在这里，**接缝类保留不动**（退役动作由集成方执行，见报告"seam 退役清单"）。
+    // 行号 = `_analysis/utf8_mirror/Client-HGE/MShare.pas` 的 UTF-8 镜像行号。
+    // ================================================================================
+
+    /// <summary>MShare.pas:2008 g_SellDlgItem:TClientItem（出售对话框中被选中的物品）。</summary>
+    public static TClientItem g_SellDlgItem;
+
+    /// <summary>MShare.pas:1879 g_ExtBagOpenItemCount:Word = 0（扩展背包已开格数）。</summary>
+    public static ushort g_ExtBagOpenItemCount;
+
+    /// <summary>
+    /// MShare.pas:1825 g_dwQueryMsgTick:longword（"查询"类动作的 3 秒节流时间戳）。
+    /// 原文在 17876/17885/18906/18914 以 `if MyGetTickCount &gt; g_dwQueryMsgTick` 使用（严格 `&gt;`）。
+    /// </summary>
+    public static uint g_dwQueryMsgTick;
+
+    /// <summary>MShare.pas:1824 g_dwDealActionTick:longword（交易动作节流时间戳；原文 17535/17749）。</summary>
+    public static uint g_dwDealActionTick;
+
+    /// <summary>MShare.pas:2076 g_dwChallengeActionTick:Longword = 0（挑战动作节流时间戳；原文 20815/20792）。</summary>
+    public static uint g_dwChallengeActionTick;
+
+    /// <summary>MShare.pas:2040 g_boDealEnd:Boolean（交易已结束；原文 17748 判据，**先判它**）。</summary>
+    public static bool g_boDealEnd;
+
+    /// <summary>MShare.pas:2038 g_nDealGold:Integer（交易中的金币数；原文 17748 判据）。</summary>
+    public static int g_nDealGold;
+
+    /// <summary>MShare.pas:2074 g_boChallengeEnd:Boolean = False（挑战已结束；原文 20791 判据）。</summary>
+    public static bool g_boChallengeEnd;
+
+    /// <summary>MShare.pas:2068 g_nChallengeGold:Integer = 0（挑战中的金币数；原文 20791 判据）。</summary>
+    public static int g_nChallengeGold;
+
+    // ---------------- B-6 剩余项（原文同段，一并落地） ----------------
+    /// <summary>MShare.pas:1823 g_dwChangeGroupModeTick:longword（改编组模式节流）。</summary>
+    public static uint g_dwChangeGroupModeTick;
+
+    /// <summary>MShare.pas:1827 g_boAllowGroup:Boolean（是否允许编组）。</summary>
+    public static bool g_boAllowGroup;
+
+    /// <summary>MShare.pas:1740 g_dwLatestStruckTick:longword（最后弯腰时间）。</summary>
+    public static uint g_dwLatestStruckTick;
+
+    /// <summary>MShare.pas:1749 g_dwLatestMagicTick:longword（最后放魔法时间）。</summary>
+    public static uint g_dwLatestMagicTick;
+
+    /// <summary>MShare.pas:1748 g_dwLatestHitTick:longword = 0（最后物理攻击时间）。</summary>
+    public static uint g_dwLatestHitTick = 0;
+
+    /// <summary>MShare.pas:2089 g_boMagicMoving:Boolean（正在拖拽技能图标）。</summary>
+    public static bool g_boMagicMoving;
+
+    /// <summary>
+    /// MShare.pas:2090 g_MovingMagic:PTClientMagic（被拖拽的技能；nil = 无）。
+    /// 托管侧用可空值类型承载：`null` 即原文的 `nil`，`HasValue` 即 `Assigned(...)`。
+    /// </summary>
+    public static GXX.Core.Protocol.TClientMagic? g_MovingMagic;
+
+    /// <summary>MShare.pas:2054 g_GameGoldDeal:TGameGoldDeal（元宝交易状态）。</summary>
+    public static GXX.Core.Protocol.TGameGoldDeal g_GameGoldDeal;
+
+    /// <summary>MShare.pas:2055 g_nDealGameDiamond:Integer（交易中的金刚石数）。</summary>
+    public static int g_nDealGameDiamond;
+
+    /// <summary>MShare.pas:2056 g_boGameGoldDealing:Boolean（元宝交易进行中）。</summary>
+    public static bool g_boGameGoldDealing;
+
+    /// <summary>MShare.pas:2057 g_dwGameGoldDealTick:LongWord（元宝交易节流时间戳）。</summary>
+    public static uint g_dwGameGoldDealTick;
+
+    // ---------------- 排行榜分页（原文 2280-2283） ----------------
+    /// <summary>MShare.pas:2280 g_nRankingsTablePage:Integer = 0。</summary>
+    public static int g_nRankingsTablePage = 0;
+
+    /// <summary>MShare.pas:2281 g_nRankingsTableType:Integer = 0。</summary>
+    public static int g_nRankingsTableType = 0;
+
+    /// <summary>MShare.pas:2282 g_nRankingsPage:Integer = -1。</summary>
+    public static int g_nRankingsPage = -1;
+
+    /// <summary>MShare.pas:2283 g_nRankingsPageCount:Integer = 0。</summary>
+    public static int g_nRankingsPageCount = 0;
 
     // ---------------- 名称 ----------------
     /// <summary>MShare.pas:1439 g_sGameGoldName:string = '元宝'。</summary>
@@ -321,6 +415,41 @@ public static class MShareGlobalsReset
         MShareGlobals.g_nMyAntiMagic = 0;
         MShareGlobals.g_nGameDiamond = 0;
         MShareGlobals.g_nGameGird = 0;
+        MShareGlobals.g_nHumFeature = 0;
+        MShareGlobals.g_nMonFeature = 0;
+        // ---- P17 切片1：fstate（p14-client-fstate）B-6 阻塞类的真身复位 ----
+        MShareGlobals.g_SellDlgItem = default;
+        MShareGlobals.g_ExtBagOpenItemCount = 0;
+        MShareGlobals.g_dwQueryMsgTick = 0;
+        MShareGlobals.g_dwDealActionTick = 0;
+        MShareGlobals.g_dwChallengeActionTick = 0;
+        MShareGlobals.g_boDealEnd = false;
+        MShareGlobals.g_nDealGold = 0;
+        MShareGlobals.g_boChallengeEnd = false;
+        MShareGlobals.g_nChallengeGold = 0;
+        MShareGlobals.g_dwChangeGroupModeTick = 0;
+        MShareGlobals.g_boAllowGroup = false;
+        MShareGlobals.g_dwLatestStruckTick = 0;
+        MShareGlobals.g_dwLatestMagicTick = 0;
+        MShareGlobals.g_dwLatestHitTick = 0;
+        MShareGlobals.g_boMagicMoving = false;
+        MShareGlobals.g_MovingMagic = null;
+        MShareGlobals.g_GameGoldDeal = default;
+        MShareGlobals.g_nDealGameDiamond = 0;
+        MShareGlobals.g_boGameGoldDealing = false;
+        MShareGlobals.g_dwGameGoldDealTick = 0;
+        MShareGlobals.g_nRankingsTablePage = 0;
+        MShareGlobals.g_nRankingsTableType = 0;
+        MShareGlobals.g_nRankingsPage = -1;
+        MShareGlobals.g_nRankingsPageCount = 0;
+        // ---- P17 切片3：平台族 / 黑名单 / 连击限流配置 ----
+        MShareGlobals.g_MyBlacklist = null;
+        MShareGlobals.g_boContinuous = false;
+        MShareWarrConfigSeam.ResetForTests();
+        MShareFunctions.PerformanceCounterProvider = null;
+        MShareFunctions.QueryPerformanceCounterFailsForTests = false;
+        MShareFunctions.RandomProvider = null;
+        MShareFunctions.CheckBlockListSysExceptionHandler = null;
         MShareGlobals.g_sGameGoldName = "元宝";
         MShareGlobals.g_sGameGirdName = "灵符";
         MShareGlobals.g_sGameDiamondName = "金刚石";

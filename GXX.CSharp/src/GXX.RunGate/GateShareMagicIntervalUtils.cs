@@ -5,7 +5,8 @@
 //
 // 抽取/回读流程（非手工转录）：
 //   $b=[IO.File]::ReadAllBytes('Source\RunGate\MagicIntervalUtils.pas')
-//   $t=[Text.Encoding]::GetEncoding(936).GetString($b) -replace "`r`n","`n"
+//   $t=[Text.Encoding]::GetEncoding('GBK').GetString($b) -replace "`r`n","`n"
+//   （抽取命令原写作数字代码页形式，此处改为等价的 GBK 名称；代码侧 GBK 实例一律经 GXX.Core.EncodingInit.GBK 获取，以消除加载顺序依赖。）
 //   逐行对照，行尾裸 LF/CRLF 混用已归一化后再定行号。
 //   主树 Source\RunGate\MagicIntervalUtils.pas 与本工作树同名文件 SHA256 相同：
 //   593E6D539841F1D9BE80AEDBDEE9E5C051482D48582E75FA4F5D12B99B461FD9

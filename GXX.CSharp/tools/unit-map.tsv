@@ -57,22 +57,23 @@ MirConfigDlg	par/p10-client-mirconfig
 JSYConfigDlg	par/p10-client-mirconfig
 DrawScrn	par/p10-client-scrn
 DropItemsMgr	par/p10-client-scrn
-# ---- P10-db-login-forms (per-copy key on ThreadPool: only the LogDataServer copy is a real gap;
-#      SelGate/LoginGate copies are registered as not-ported in audit-coverage.ps1) ----
-uFrmRoleDataEdit	par/p10-db-login-forms
-MasSock	par/p10-db-login-forms
-GrobalSession	par/p10-db-login-forms
-GHeroDBConfig	par/p10-db-login-forms
-# GLoginServerRouteSet row REMOVED 2026-09-21 (ledger 47.3-1): the unit was already ported --
-# under the renamed class LoginServerRouteSetForm -- and its source-unit note sat at line 86 of
-# GLoginServer.cs, outside the 40-line E2 window.  Moving that note to the header made the unit
-# read MAPPED, so the row must go (a leftover row would re-park a finished unit).
-LogDataServer/ThreadPool	par/p10-db-login-forms
-FileSearchPool	par/p10-db-login-forms
+# ---- P10-db-login-forms CLOSED 2026-09-21 (merged, ledger 54).  All seven units are done:
+# ThreadPool 32/32, FileSearchPool 28/28, GrobalSession 3/3, MasSock 21/22 (the missing one is
+# inside {$IFDEF LOG_SESSION} with an effective define count of 0), GHeroDBConfig 10/10,
+# uFrmRoleDataEdit 15/15; GLoginServerRouteSet had already been ported under a renamed class.
+# => every row below is REMOVED: the ports carry E1/E2 evidence now, and a leftover row would
+#    re-park finished work (ledger 38.2/45.3).  The ThreadPool row is gone for the same reason --
+#    its E1 hit is LogDataServer's own ThreadPool.cs, while the SelGate/LoginGate copies stay
+#    closed by the PER-COPY entries in audit-coverage.ps1 ($VENDOR_UNITS).
+# GLoginServerRouteSet row was removed earlier (ledger 47.3-1) for the same "already ported" reason.
+#
 # ---- P10-m2-misc (the last unowned product-UI units; basenames verified unique) ----
-uFrmGlobalVarEdit	par/p10-m2-misc
-dlgReplaceText	par/p10-m2-misc
-dlgConfirmReplace	par/p10-m2-misc
+# ---- P10-m2-misc CLOSED 2026-09-21 (merged, ledger 51): MemoryIniFiles 41/41, uFrmHumanExport 3/3,
+# CreateChr 3/3, GateSet 8/8 all landed; and its re-verification proved three of MY earlier gap
+# verdicts wrong -- uFrmGlobalVarEdit / dlgReplaceText / dlgConfirmReplace were ALREADY implemented
+# (under renamed classes, past the 40-line E2 window).  Source-unit evidence was added to the header
+# of InterServerForms.cs / TextSearchReplaceDialogs.cs, so their rows are REMOVED here.
+# Their remaining FORMAT deviations are tracked in ledger 51.3 (X-P10-03/04/05).
 MemoryIniFiles	par/p10-m2-misc
 uFrmHumanExport	par/p10-m2-misc
 CreateChr	par/p10-m2-misc

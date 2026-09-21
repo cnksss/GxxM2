@@ -742,7 +742,11 @@ public sealed class PlaySceneMessagesTests : IDisposable
 
         // BACKSTEP：不写 m_nChrLight，仅旧值同步；cdir 保持打包值
         Assert.Equal(9, actor.m_nChrLight);
-        Assert.Equal(9, actor.m_nOldChrLight);
+        // ★ 集成方修正（台账 §64.8 / D-P17-09）：原文三个写点**都带 `if Actor is TCustomActor` 守卫**
+        //   （PlayScn.pas:7852-7853 / 8019-8020 / 8023-8024）⇒ **普通角色根本不会被写**。
+        //   本用例原断言 `Assert.Equal(9, actor.m_nOldChrLight)`，那是按**丢了守卫的托管实现**写的
+        //   （§19.2 的"锁定偏离现状"型断言）；补回原文守卫后改为断言真值 0。
+        Assert.Equal(0, actor.m_nOldChrLight);
         Assert.Single(actor.MsgList);
         Assert.Equal(0x0302, actor.MsgList[0].Dir);
     }
@@ -758,7 +762,8 @@ public sealed class PlaySceneMessagesTests : IDisposable
         scene.SendMsg(TActorCore.SM_RUN, 201, 2, 3, 0x0504, null, 0, "");
 
         Assert.Equal(5, actor.m_nChrLight);
-        Assert.Equal(5, actor.m_nOldChrLight);
+        // ★ 集成方修正（同上 D-P17-09）：普通角色不写 `m_nOldChrLight`（原文有 `is TCustomActor` 守卫）。
+        Assert.Equal(0, actor.m_nOldChrLight);
         Assert.Equal(4, actor.MsgList[0].Dir);
     }
 

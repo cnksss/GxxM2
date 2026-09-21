@@ -54,7 +54,8 @@ public static class ClientModuleState
         foreach (var m in g_ModuleList)
             saveList.Add(m.sMD5 + "|" + m.sFileName + "|" + (m.boMode ? 1 : 0));
 
-        var raw = System.Text.Encoding.GetEncoding(936).GetBytes(text);
+        // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+        var raw = GXX.Core.EncodingInit.GBK.GetBytes(text);
         g_ModuleListTextLen = raw.Length;
         g_ModuleListText = ZlibEx.CompressBuf(raw, raw.Length);
         g_ModuleListTextCRC = CRC32Of(g_ModuleListText);
@@ -62,7 +63,7 @@ public static class ClientModuleState
         try
         {
             Directory.CreateDirectory(M2Config.sEnvirDir);
-            File.WriteAllLines(Path.Combine(M2Config.sEnvirDir, "ModuleList.txt"), saveList, System.Text.Encoding.GetEncoding(936));
+            File.WriteAllLines(Path.Combine(M2Config.sEnvirDir, "ModuleList.txt"), saveList, GXX.Core.EncodingInit.GBK);
         }
         catch
         {
@@ -77,7 +78,7 @@ public static class ClientModuleState
         var saveList = new List<string>();
         foreach (var m in g_BlackModuleList)
             saveList.Add(m.sMD5 + "|" + m.sFileName + "|" + (m.boMode ? 1 : 0));
-        File.WriteAllLines(path, saveList, System.Text.Encoding.GetEncoding(936));
+        File.WriteAllLines(path, saveList, GXX.Core.EncodingInit.GBK);
     }
 
     /// <summary>M2Share.pas LoadClientModules 1:1（清表 → 逐行 MD5|FileName|Mode，MD5 必须满 32 位）。</summary>
@@ -93,7 +94,7 @@ public static class ClientModuleState
 
         g_ModuleList.Clear();
 
-        var lines = File.ReadAllLines(fileName, System.Text.Encoding.GetEncoding(936));
+        var lines = File.ReadAllLines(fileName, GXX.Core.EncodingInit.GBK);
         var text = "";
         foreach (var raw in lines)
         {
@@ -113,7 +114,7 @@ public static class ClientModuleState
             }
         }
 
-        var rawBytes = System.Text.Encoding.GetEncoding(936).GetBytes(text);
+        var rawBytes = GXX.Core.EncodingInit.GBK.GetBytes(text);
         g_ModuleListTextLen = rawBytes.Length;
         g_ModuleListText = ZlibEx.CompressBuf(rawBytes, rawBytes.Length);
         g_ModuleListTextCRC = CRC32Of(g_ModuleListText);
@@ -126,7 +127,7 @@ public static class ClientModuleState
         if (!File.Exists(path))
             return;
         g_BlackModuleList.Clear();
-        foreach (var raw in File.ReadAllLines(path, System.Text.Encoding.GetEncoding(936)))
+        foreach (var raw in File.ReadAllLines(path, GXX.Core.EncodingInit.GBK))
         {
             var parts = raw.Split('|');
             if (parts.Length >= 3 && parts[0].Length == 32)

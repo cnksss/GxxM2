@@ -71,6 +71,13 @@ public abstract class GateService : IGateUiService
         ServerAddr = Config.ReadString("Server", "ServerAddr", "127.0.0.1");
         ServerPort = Config.ReadInteger("Server", "ServerPort", ServerDefaultPort);
         MaxConnOfIPaddr = Config.ReadInteger("PacketRule", "MaxConnOfIPaddr", 20);
+
+        // ★ opt-in 的 LoginGate 原文段名（[LoginGate]/[Integer]/[Switch]/[Method]，19 字段）
+        //   —— 见本文件末尾 "可选（opt-in）LoginGate 执法面接线" 一节。
+        //   默认（Rest11Kernel == null）不进入；**在既有 5 键之后**执行，故既有 5 键的读取
+        //   与回写序列逐字节不变（Rest11 写的是另一组段名/键名，两者并存不冲突）。
+        if (Rest11GateHook is { Enabled: true } k && (Rest11Options?.EnableLoginGateIniSections ?? false))
+            k.LoadLoginGateConfigSections();
     }
 
     protected abstract int GateDefaultPort { get; }
@@ -84,7 +91,7 @@ public abstract class GateService : IGateUiService
 
     // ---------------- 启动/停止 ----------------
 
-    public bool StartService()
+    public virtual bool StartService()
     {
         if (ServiceStarted) return true;
         try
@@ -112,7 +119,7 @@ public abstract class GateService : IGateUiService
         }
     }
 
-    public void StopService()
+    public virtual void StopService()
     {
         if (!ServiceStarted) return;
         ServiceStarted = false;
@@ -203,6 +210,40 @@ public abstract class GateService : IGateUiService
     private bool CheckIP(GateSession session)
     {
         uint ip = (uint)Share.MakeIPToInt(session.RemoteIP);
+
+        // ★ opt-in 的 LoginGate 原文三连判定（`AcceptExWorkedThread.pas:576/587/598`）。
+        //   默认（Rest11Kernel == null）在第一行短路 ⇒ 下行**一行都不执行**，
+        //   既有 `_blockList`/`_perIP` 判定链与 SelGate/RunGate 行为逐字节不变。
+        //   关闭时不做任何新的计数、不写任何表、不发任何日志。
+        //
+        // ⚠ **地址口径（D-P14-08，接线正确性的关键）**：原文这三处传的是
+        //   `pRemoteSockaddr.sin_addr.S_addr` —— WinSock `in_addr` 结构体里的
+        //   **网络序 DWORD**；而 `IPAddrFilter` 两张表里存的是 `inet_addr()` 的返回值，
+        //   两者在小端机上**数值相同**（`inet_addr("1.2.3.4")` = 0x04030201 = 67305985）。
+        //   但既有 `GateService._perIP`/`_blockList` 用的是 `Share.MakeIPToInt`
+        //   （"1.2.3.4" → 0x01020304 = 16909060），**与 `inet_addr` 逐字节相反**。
+        //   ⇒ Rest11 侧一律以**点分字符串**入参，由 `Rest11LoginGateEnforcement`
+        //   统一按 `inet_addr` 口径换算；**绝不**把 `MakeIPToInt` 的结果直接喂给
+        //   `IPAddrFilter`（否则黑名单与 IP 段表全部失效）。既有 `_perIP` 的口径不动。
+        if (Rest11GateHook is { Enabled: true } rest11 && (Rest11Options?.EnableIpAddrFilterResidual ?? false))
+        {
+            if (rest11.IsBlockIP(session.RemoteIP))              // :576 IPAddrFilter.IsBlockIP（两张表）
+            {
+                rest11.LogBlockIP(session.RemoteIP);             // :579-580 if g_pLogMgr.CheckLevel(5)
+                return false;                                    // :582 bClose := True
+            }
+            if (rest11.IsBlockIPArea(session.RemoteIP))          // :587 IPAddrFilter.IsBlockIPArea（IP 段表）
+            {
+                rest11.LogBlockIPArea(session.RemoteIP);         // :590-591
+                return false;                                    // :593 bClose := True
+            }
+            if (rest11.OverConnectOfIP(session.RemoteIP))        // :598 IPAddrFilter.OverConnectOfIP（Count+1 > Max）
+            {
+                rest11.LogOverConnectOfIP(session.RemoteIP);     // :600-601
+                return false;                                    // :603 bClose := True
+            }
+        }
+
         lock (IpLock)
         {
             if (_blockList.Contains(ip)) return false;
@@ -225,6 +266,116 @@ public abstract class GateService : IGateUiService
     {
         lock (IpLock) _blockList.Add((uint)Share.MakeIPToInt(ip));
     }
+
+    // =====================================================================================
+    // 可选（opt-in）LoginGate 执法面接线 —— 车道 p14-logingate-wire
+    //
+    // 背景：车道 p11-logingate-filter 把 `Source/LoginGate` 的 5 个 C 类/残部单元
+    // （`Misc.pas` / `FuncForComm.pas` / `IPAddrFilter.pas` / `ConfigManager.pas` /
+    // `ClientSession.pas`）1:1 移植成了**并存设施**（`GXX.GatewayKit.Rest11` +
+    // `GXX.LoginGate.Rest11`），但当时**没有接线**（kernal 默认不构造）。
+    // 本节把"可接线"变成"已接线"：`GateService.CheckIP`（:203）与 `LoadConfig`（:67）
+    // 的判定链上提供**默认不生效**的插入点。
+    //
+    // ★★ 三条硬约束（本节的每一个成员都必须满足）：
+    //   1. **默认 OFF**：`Rest11Options` 默认返回 null ⇒ `CheckIP` / `LoadConfig` 里
+    //      `Rest11Kernel is { }` 在第一行短路，**不执行任何新分支、不做任何新计数、
+    //      不写任何文件**；默认路径行为与接线前逐字节一致。
+    //   2. **绝不改变 SelGate/RunGate 行为**：这两个网关不覆写 `Rest11Options`/`Rest11Kernel`
+    //      ⇒ 本节对本类新增的成员对它们是**死代码**。SelGate 侧三处头注
+    //      （`SelGateIPAddrFilter.cs:17-25`、`SelGateMisc.cs:11-16`、`SelGateSession.cs:17-24`）
+    //      要求的"与 GatewayKit 的差异必须保留"由此满足；门禁含 `GXX.SelGate.Tests` 全绿。
+    //   3. **虚分派必须保留**：`CheckIP` 是 `private` 且只被 `OnClientAccept` 调用，
+    //      这里**不改它的可见性与调用点**，只在方法体内插入提前返回分支。
+    //
+    // Rest11 设施与既有设施的关系是**并存**，不替换：
+    //   · 既有 `_blockList` + `_perIP`（判据 `rec.Count > Max`，**先自增再比**）继续生效；
+    //   · Rest11 另有**两张**表（永久 + 临时）与判据 `Count + 1 > Max`（超限**不自增**），
+    //     以及既有设施**完全没有**的 IP 段过滤（`IsBlockIPArea`）与换 ID 频率限制
+    //     （`CheckNewIDOfIP`）—— 逐项对照见
+    //     `GXX.CSharp/docs/并行报告-p14-logingate-wire.md` 的接线对照表。
+    // =====================================================================================
+
+    /// <summary>
+    /// Rest11 设施的开关集合。**默认 null**（= 全部关闭）。
+    ///
+    /// <para>
+    /// 只有 `GXX.LoginGate.LoginGateService` 覆写它；`SelGate`/`RunGate` 不覆写 ⇒
+    /// 本类新增的所有 opt-in 分支对它们永不进入。
+    /// </para>
+    /// </summary>
+    // ★ 集成方修复（台账 §62.1 / X-P17-01）：原文只有 `protected virtual … => null;`（get-only），
+    //   而派生类 `LoginGateService` 用 `public … { get; set; }` **隐藏**它（C# 不允许把 override 放宽可见性，
+    //   也不允许 get-only→get-set）⇒ **本类内部第 79/228 行的读取静态绑定到恒 null 的基类属性**
+    //   ⇒ `IsBlockIP`/`IsBlockIPArea`/`OverConnectOfIP` 三处 Enforcement **永远不可达**，
+    //   `EnableIpAddrFilterResidual` 成了装饰品（**静默失效**，且被 `Directory.Build.props` 的
+    //   `NoWarn=…;CS0108;CS0114` 全局掩盖）。证据：车道 `p17-m2-hostwire` 工单表 X-P17-01。
+    //   修法：加一个 **protected 可写访问器**并在本类内改读它；派生类的 public 属性保留（对外 API 不变）但代理到它。
+    private GXX.GatewayKit.Rest11.Rest11LoginGateOptions? _rest11Options;
+
+    /// <summary>可写的 opt-in 选项入口（**protected**：只有派生宿主能装配）。默认 null = 全部关闭。</summary>
+    protected GXX.GatewayKit.Rest11.Rest11LoginGateOptions? Rest11OptionsValue
+    {
+        get => _rest11Options;
+        set => _rest11Options = value;
+    }
+
+    /// <summary>
+    /// opt-in 选项的**基类视图**（本类内部第 79/228 行读的是它）。
+    /// 保留 `virtual` 以备真正的覆写；但**不要**再用"同名 public 属性"去隐藏它 —— 那就是 X-P17-01。
+    /// </summary>
+    protected virtual GXX.GatewayKit.Rest11.Rest11LoginGateOptions? Rest11Options => _rest11Options;
+
+    /// <summary>
+    /// Rest11 LoginGate 执法 kernel（`GXX.LoginGate.Rest11.Rest11LoginGateKernel`）。
+    /// **默认 null**；由 `LoginGateService` 在构造末尾按选项装配。
+    ///
+    /// <para>
+    /// 返回类型是 `object?` 而不是具体类型，是为了让 `GXX.GatewayKit` **不引用**
+    /// `GXX.LoginGate`（依赖方向保持 GatewayKit ← LoginGate）。实际使用时由
+    /// `LoginGateService` 覆写为协变返回 `Rest11LoginGateKernel?`，
+    /// `GateService` 内部经 <see cref="IRest11GateEnforcement"/> 接缝访问。
+    /// </para>
+    /// </summary>
+    protected virtual object? Rest11Kernel => null;
+
+    /// <summary>
+    /// `GateService` 侧访问 Rest11 kernel 的**最小接缝**（只列 `CheckIP` 判定链与
+    /// `LoadConfig` 判定链需要的成员）。由 `GXX.LoginGate.Rest11.Rest11LoginGateKernel` 实现，
+    /// 从而在 GatewayKit 内不出现对 LoginGate 项目类型的静态引用。
+    /// </summary>
+    public interface IRest11GateEnforcement
+    {
+        /// <summary>本设施是否启用（默认 false ⇒ 不进入任何 Rest11 分支）。</summary>
+        bool Enabled { get; }
+
+        /// <summary>`IPAddrFilter.pas:149-176 IsBlockIP`（永久表 + 临时表）。</summary>
+        bool IsBlockIP(string remoteIP);
+
+        /// <summary>`IPAddrFilter.pas:315-335 IsBlockIPArea`（IP 段表，`ReverseIP` 后闭区间）。</summary>
+        bool IsBlockIPArea(string remoteIP);
+
+        /// <summary>`IPAddrFilter.pas:178-207 OverConnectOfIP`（每 IP 连接数，`Count + 1 > Max`）。</summary>
+        bool OverConnectOfIP(string remoteIP);
+
+        /// <summary>`AcceptExWorkedThread.pas:579-580` 的日志（`CheckLevel(5)` 门）。</summary>
+        void LogBlockIP(string szRemoteIP);
+
+        /// <summary>`AcceptExWorkedThread.pas:590-591` 的日志（`CheckLevel(5)` 门）。</summary>
+        void LogBlockIPArea(string szRemoteIP);
+
+        /// <summary>`AcceptExWorkedThread.pas:600-601` 的日志（`CheckLevel(5)` 门）。</summary>
+        void LogOverConnectOfIP(string szRemoteIP);
+
+        /// <summary>`ConfigManager.pas:143-210 LoadConfig` 的 19 字段 + 原文段名。</summary>
+        void LoadLoginGateConfigSections();
+    }
+
+    /// <summary>
+    /// 便捷出口：把 <see cref="Rest11Kernel"/> 按接缝取出。
+    /// 返回 null 表示"未接线/未启用"，调用方据此短路。
+    /// </summary>
+    protected IRest11GateEnforcement? Rest11GateHook => Rest11Kernel as IRest11GateEnforcement;
 
     public void Dispose()
     {

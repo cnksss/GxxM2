@@ -484,17 +484,15 @@ public partial class TActor : TActorCore
 {
 }
 
-/// <summary>THumActor（Actor.pas：人物绘制子类）。</summary>
-public class THumActor : TActor
-{
-    public override string ActorClass => "THumActor";
-}
-
-/// <summary>THeroActor（英雄）。</summary>
-public class THeroActor : TActor
-{
-    public override string ActorClass => "THeroActor";
-}
+// ★ 车道 p17-client-actor：原在此处的 TActor.pas 五个实体类的「空壳」已**迁走** ——
+//   THumActor        → Scenes/ActorHumActor.cs      （原文 Actor.pas 1935 / 11130-17436）
+//   THeroActor       → Scenes/ActorHeroActor.cs     （原文 Actor.pas 2049 / 17437-17533，基类更正为 THumActor）
+//   TNpcActor        → Scenes/ActorNpcActor.cs      （原文 Actor.pas 1877 /  9936-11122）
+//   TStatuaryNpcActor→ Scenes/ActorStatuaryNpc.cs   （原文 Actor.pas 1903 / 17537-18008，基类 TNpcActor）
+//   TActor           → Scenes/ActorFamilyBase.cs 等 （partial，原本就在 Actor* 文件里）
+//   迁走的原因：这些类名原本是从 **PlayScn.pas 的 wRaceImg 分派表**照抄来的，
+//   与 Actor.pas 的同名类只是「同名」，实现为空 —— 详见
+//   docs/并行报告-p12-e2only-review.md §5.2/§5.3。
 
 // TCustomActor（自定义怪）已 1:1 移植到独立文件 Scenes/CustomActor.cs
 // （源单元 Source\Client-HGE\CustomActor.pas 1,130 行）。此处原为 6 行桩，已删除以免重名。
@@ -533,8 +531,8 @@ public partial class TBeeQueen : TActor { public override string ActorClass => "
 public class TArcherMon : TActor { public override string ActorClass => "TArcherMon"; }
 public class TSculptureMon : TActor { public override string ActorClass => "TSculptureMon"; }
 public class TSculptureKingMon : TActor { public override string ActorClass => "TSculptureKingMon"; }
-public class TNpcActor : TActor { public override string ActorClass => "TNpcActor"; }
-public class TStatuaryNpcActor : TNpcActor { public override string ActorClass => "TStatuaryNpcActor"; }
+// TNpcActor / TStatuaryNpcActor 的空壳已迁至 Scenes/ActorNpcActor.cs / ActorStatuaryNpc.cs
+// （见上方 p17-client-actor 迁移说明）。
 public class TSmallElfMonster : TActor { public override string ActorClass => "TSmallElfMonster"; }
 public class TWarriorElfMonster : TActor { public override string ActorClass => "TWarriorElfMonster"; }
 public class TMoonMon : TActor { public override string ActorClass => "TMoonMon"; }

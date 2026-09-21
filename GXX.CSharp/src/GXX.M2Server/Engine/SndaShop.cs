@@ -127,7 +127,8 @@ public class TSndaShopList
         }
         try
         {
-            File.WriteAllLines(Path.Combine(M2Config.sEnvirDir, "ShopItemList.txt"), saveList, Encoding.GetEncoding(936));
+            // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+            File.WriteAllLines(Path.Combine(M2Config.sEnvirDir, "ShopItemList.txt"), saveList, GXX.Core.EncodingInit.GBK);
         }
         catch
         {
@@ -279,7 +280,7 @@ public class TSndaShopList
 
     private static IEnumerable<string> ReadLinesDefault(string path)
     {
-        foreach (var line in File.ReadLines(path, Encoding.GetEncoding(936)))
+        foreach (var line in File.ReadLines(path, GXX.Core.EncodingInit.GBK))
             yield return line;
     }
 

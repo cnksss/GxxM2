@@ -13,7 +13,8 @@
 //
 // 抽取/回读：全文用
 //   $b=[IO.File]::ReadAllBytes('Source\RunGate\GateShare.pas')
-//   $t=[Text.Encoding]::GetEncoding(936).GetString($b) -replace "`r`n","`n"
+//   $t=[Text.Encoding]::GetEncoding('GBK').GetString($b) -replace "`r`n","`n"
+//   （抽取命令原写作数字代码页形式，此处改为等价的 GBK 名称；代码侧 GBK 实例一律经 GXX.Core.EncodingInit.GBK 获取，以消除加载顺序依赖。）
 //   归一化行尾后按物理 LF 行号定位（原文混用 CRLF 与裸 LF，未归一时行号会漂移）。
 //
 // ── INET 语义（关键，容易移植错）────────────────────────────────────────────────────
