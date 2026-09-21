@@ -106,5 +106,10 @@ p13-m2-objmon-real	!GXX.CSharp/src/GXX.M2Server/ObjMon*.cs;!GXX.CSharp/tests/GXX
 # lives in Engine/PlayerSurface/**, so that directory gets a '!' grant: extending the existing
 # partial-class files is the only correct move (a second home would be a third implementation).
 p13-m2-objplayer	!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/**;!GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurface*;GXX.CSharp/tests/GXX.M2Server.Tests/ObjPlayer*;GXX.CSharp/docs/并行报告-p13-m2-objplayer.md
+# ---- P14 (round 61): makes the LoginGate opt-in facilities ACTUALLY WIRED (ledger 50.3 item 1:
+# "wirable" is not "wired", ledger 33.4).  It therefore gets '!' grants on the wiring points --
+# LoginGateService.cs and GatewayKit/GateService.cs -- which are SHARED with SelGate/RunGate, so
+# the lane must keep the switch default-OFF and must leave GXX.SelGate.Tests green.
+p14-logingate-wire	!GXX.CSharp/src/GXX.LoginGate/LoginGateService.cs;!GXX.CSharp/src/GXX.LoginGate/Rest11/**;!GXX.CSharp/src/GXX.GatewayKit/GateService.cs;!GXX.CSharp/src/GXX.GatewayKit/Rest11/**;GXX.CSharp/tests/GXX.GatewayKit.Tests/Rest14*;GXX.CSharp/docs/并行报告-p14-logingate-wire.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1

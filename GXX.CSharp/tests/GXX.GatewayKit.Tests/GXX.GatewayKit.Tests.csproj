@@ -7,6 +7,10 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\GXX.GatewayKit\GXX.GatewayKit.csproj" />
     <ProjectReference Include="..\..\src\GXX.RunGate\GXX.RunGate.csproj" />
+    <!-- 集成方加（台账 §50.3 第 2 条）：车道 p11-logingate-filter 把 LoginGate 的执法面残部
+         移植成 GXX.LoginGate/Rest11/Rest11LoginGateKernel.cs，但本测试工程当时不引用 GXX.LoginGate
+         ⇒ kernel 无法直接单测（该车道只能退化为契约测试）。加上引用后，p14-logingate-wire 可直测。 -->
+    <ProjectReference Include="..\..\src\GXX.LoginGate\GXX.LoginGate.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
