@@ -55,8 +55,14 @@
 | `tests/GXX.Client.Tests/ScrnDrawDropItemsTests.cs` | 561 | 31 例 |
 | `docs/并行报告-p10-client-scrn.md` | 本文件 | — |
 
-> **未改动**任何既有文件（`git status --porcelain` 为空；`GUI/Share/**`、`Scenes.cs`、`DropItemFx.cs`、
-> `GXX.slnx`、`*.csproj`、`Directory.Build.props`、`tools/**` **一个字节都没动**）。
+> **未改动**任何既有文件。取证命令与结果：
+> ```
+> git diff --name-only c078f78d..HEAD          → 13 个文件，**全部为新增**（10 个 src + 3 个 tests，+ 本报告）
+> git status --porcelain                       → 空
+> ```
+> 即 `GUI/Share/**`、`Scenes/Scenes.cs`、`Scenes/DropItemFx.cs`、`Scenes/PlaySceneCore.cs`、
+> `GXX.slnx`、任何 `*.csproj`、`Directory.Build.props`、`tools/**`、`docs/Checklist.md`、
+> `docs/并行派发台账.md`、`docs/并行覆盖审计.md` **一个字节都没动**。
 
 ---
 
