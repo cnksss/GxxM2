@@ -245,11 +245,11 @@ public static class Rest9NotPortedEvidence
 
     public const string QosTCNonconfBorrowPlus = "TC_NONCONF_BORROW_PLUS";
 
-    /// <summary>原文 <c>type</c> 段的 5 处（:75/:145/:199/:248/:278），<c>const</c> 段 5 处。</summary>
+    /// <summary>原文 <c>type</c> 段的 5 处（:75/:145/:199/:248/:278）。</summary>
     public const int QosTypeSectionCount = 5;
 
-    /// <summary>原文 <c>const</c> 段处数。</summary>
-    public const int QosConstSectionCount = 5;
+    /// <summary>原文 <c>const</c> 段的 4 处（:81/:175/:215/:261）。★ 初版误记 5，被取证用例算出来是 4。</summary>
+    public const int QosConstSectionCount = 4;
 
     /// <summary>
     /// Qos.pas 在整棵树里的**唯一**引用点。
@@ -299,7 +299,7 @@ public static class Rest9NotPortedEvidence
     public const string QosAlreadyPortedInCSharpWhere =
         "GXX.CSharp/src/GXX.Client/Tail/WinSock2Constants.cs";
 
-    /// <summary>已在 <see cref="QosAlreadyPortedInCSharpWhere"/> 落地的 8 条 SERVICETYPE_* 常量。</summary>
+    /// <summary>已在 <see cref="QosAlreadyPortedInCSharpWhere"/> 落地的 7 条 SERVICETYPE_* 常量。</summary>
     public static readonly IReadOnlyList<string> QosAlreadyPortedInCSharp = new[]
     {
         "SERVICETYPE_NOTRAFFIC", "SERVICETYPE_BESTEFFORT", "SERVICETYPE_CONTROLLEDLOAD",
@@ -307,8 +307,16 @@ public static class Rest9NotPortedEvidence
         "SERVICETYPE_GENERAL_INFORMATION", "SERVICETYPE_NOCHANGE",
     };
 
-    /// <summary>Qos.pas 独有、C# 侧 0 命中的 32 条符号（40 − 8 已落地）。</summary>
-    public const int QosSymbolsWithZeroCSharpHits = 32;
+    /// <summary>
+    /// Qos.pas 独有、C# 侧 0 命中的符号数 = <b>42</b>。
+    /// 口径（实测，见本文件头「自我纠错」）：Qos.pas 共 27 常量 + 22 类型 = 49 个名字；
+    /// 其中 **7** 条 <c>SERVICETYPE_*</c> 已由 Client 车道落地（各出现在
+    /// <c>WinSock2Constants.cs</c> 与 <c>TailWinSock2Golden.g.cs</c> 两处）⇒ 49 − 7 = 42。
+    /// </summary>
+    public const int QosSymbolsWithZeroCSharpHits = 42;
+
+    /// <summary>Qos.pas 的名字总数（27 常量 + 22 类型）。</summary>
+    public const int QosSymbolCount = 49;
 
     // ------------------------------------------------------------------
     // 4) DllUpdateCommon.pas —— 空壳孤儿单元
@@ -339,36 +347,68 @@ public static class Rest9NotPortedEvidence
     }
 
     /// <summary>
-    /// 「块注释内成员」判定：把源文本按 <c>{ }</c> / <c>(* *)</c> 注释剥离后，
-    /// 再看某个方法签名是否仍出现。用于把 IODataPool 的 2 个 SendBuffer 成员
-    /// 与 Qos 的注释块剥离干净。
+    /// 「注释剥离」：把 <c>{ }</c> / <c>(* *)</c> / <c>//</c> 三种注释**内容**删掉，但
+    /// <b>整行保留行结构</b>（被删掉的部分用空串替代、换行符一律保留）。
+    /// <para>
+    /// ★ 为什么必须保留换行：本函数用于判定「某成员是不是整段在注释里」。若把注释连同
+    /// 换行一起删掉，前后两行会被粘成一行，行首标记（如 <c>type</c>）就再也匹配不上——
+    /// 本车道第一版正是这样丢掉了 Qos.pas 的一个 <c>type</c> 段（5 → 4），被取证用例抓出。
+    /// </para>
+    /// <para>
+    /// 已知局限（如实登记，不做超出用途的加工）：本函数**不解析字符串字面量**，
+    /// 因此 <c>'//'</c> 或 <c>'{'</c> 出现在单引号字符串里会被误当注释。本车道的四个输入
+    /// （IODataPool / IocpTcpClient / Qos / DllUpdateCommon）经核对不含此类字面量。
+    /// </para>
     /// </summary>
     public static string StripPascalComments(string source)
     {
         if (source == null) return string.Empty;
         var sb = new System.Text.StringBuilder(source.Length);
+        bool inBlock = false;   // 跨行的 { } / (* *) 块注释
         int i = 0;
         while (i < source.Length)
         {
-            if (source[i] == '{')
+            char c = source[i];
+
+            if (inBlock)
             {
-                int end = source.IndexOf('}', i + 1);
-                i = end < 0 ? source.Length : end + 1;
+                if (c == '}')
+                {
+                    inBlock = false;
+                    i++;
+                    continue;
+                }
+                if (c == '*' && i + 1 < source.Length && source[i + 1] == ')')
+                {
+                    inBlock = false;
+                    i += 2;
+                    continue;
+                }
+                if (c == '\n') sb.Append('\n');   // 保留行结构
+                i++;
                 continue;
             }
-            if (source[i] == '(' && i + 1 < source.Length && source[i + 1] == '*')
+
+            if (c == '{')
             {
-                int end = source.IndexOf("*)", i + 2, StringComparison.Ordinal);
-                i = end < 0 ? source.Length : end + 2;
+                inBlock = true;
+                i++;
                 continue;
             }
-            if (source[i] == '/' && i + 1 < source.Length && source[i + 1] == '/')
+            if (c == '(' && i + 1 < source.Length && source[i + 1] == '*')
             {
-                int end = source.IndexOf('\n', i + 1);
-                i = end < 0 ? source.Length : end + 1;
+                inBlock = true;
+                i += 2;
                 continue;
             }
-            sb.Append(source[i]);
+            if (c == '/' && i + 1 < source.Length && source[i + 1] == '/')
+            {
+                // 行注释：吃到行尾（换行符本身留给下一轮原样输出，从而保留行结构）
+                while (i < source.Length && source[i] != '\n') i++;
+                continue;
+            }
+
+            sb.Append(c);
             i++;
         }
         return sb.ToString();

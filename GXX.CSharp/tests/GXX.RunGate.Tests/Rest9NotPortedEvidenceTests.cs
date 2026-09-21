@@ -297,6 +297,9 @@ public class Rest9NotPortedEvidenceTests
         foreach (var f in Directory.EnumerateFiles(
                      Path.Combine(root, "GXX.CSharp", "src"), "*.cs", SearchOption.AllDirectories))
         {
+            // 排除本车道自己的取证文件（Rest9/** 与 Rest9*.cs 都**故意**写下这些名字）
+            if (f.Contains($"{Path.DirectorySeparatorChar}Rest9{Path.DirectorySeparatorChar}") ||
+                Path.GetFileName(f).StartsWith("Rest9", StringComparison.Ordinal)) continue;
             var text = File.ReadAllText(f);
             if (!text.Contains("TIODataPool", StringComparison.Ordinal)) continue;
             mentions.Add(Path.GetRelativePath(root, f).Replace('\\', '/'));
@@ -484,12 +487,21 @@ public class Rest9NotPortedEvidenceTests
         Assert.DoesNotContain("function", impl, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("class", impl, StringComparison.OrdinalIgnoreCase);
 
-        // 只有 5 个 type 段 + 5 个 const 段（原文 :75/81/145/175/199/215/248/261/278）
+        // 只有 5 个 type 段（:75/:145/:199/:248/:278）+ 4 个 const 段（:81/:175/:215/:261）
         var typeAnchors = CountExactLines(live, "type");
         var constAnchors = CountExactLines(live, "const");
         _out.WriteLine($"Qos.pas 剥注释后 type 段 = {typeAnchors}，const 段 = {constAnchors}");
+        Assert.Equal(Rest9NotPortedEvidence.QosTypeSectionCount, typeAnchors);
+        Assert.Equal(Rest9NotPortedEvidence.QosConstSectionCount, constAnchors);
         Assert.Equal(5, typeAnchors);
-        Assert.Equal(5, constAnchors);
+        Assert.Equal(4, constAnchors);
+
+        // 原文的 9 个段锚行号（第二真源：按行号逐个核对）
+        var lines = File.ReadAllLines(RepoPath("Source/RunGate/Common/Qos.pas"));
+        foreach (var ln in new[] { 75, 145, 199, 248, 278 })
+            Assert.Equal("type", lines[ln - 1].Trim());
+        foreach (var ln in new[] { 81, 175, 215, 261 })
+            Assert.Equal("const", lines[ln - 1].Trim());
     }
 
     [Fact]
@@ -556,7 +568,8 @@ public class Rest9NotPortedEvidenceTests
         {
             var line = lines[e.Line - 1];
             Assert.StartsWith(e.Name, line.TrimStart());
-            if (e.Name.StartsWith("QOS_OBJECT_", StringComparison.Ordinal))
+            if (e.Name.StartsWith("QOS_OBJECT_", StringComparison.Ordinal) &&
+                !string.Equals(e.Name, "QOS_OBJECT_HDR", StringComparison.Ordinal))
             {
                 // QOS_OBJECT_* = $0000000N + QOS_GENERAL_ID_BASE ⇒ 2001..2004
                 Assert.Contains("+ QOS_GENERAL_ID_BASE", line);
@@ -564,6 +577,11 @@ public class Rest9NotPortedEvidenceTests
                 Assert.True(hm.Success, $"取不到 QOS_OBJECT_* 的十六进制加数：{line}");
                 var addend = Convert.ToUInt32(hm.Groups["hex"].Value, 16);
                 Assert.Equal(e.Value - 2000u, addend);
+            }
+            else if (e.Name == "QOS_GENERAL_ID_BASE")
+            {
+                Assert.Contains("= 2000;", line);
+                Assert.Equal(2000u, e.Value);
             }
             else
             {
@@ -687,9 +705,8 @@ public class Rest9NotPortedEvidenceTests
     }
 
     [Fact]
-    public void Qos_ThirtyTwoSymbols_HaveLiteralZeroCSharpHits()
-    {
-        // §37.3：先证明 C# 语料非空，再断言"0 命中"。排除本车道自己的取证文件
+    public void Qos_FortyTwoSymbols_HaveLiteralZeroCSharpHits()
+    {        // §37.3：先证明 C# 语料非空，再断言"0 命中"。排除本车道自己的取证文件
         // （它们**故意**写下这些名字——初版忘了排除，被这条用例当场否掉）。
         var all = ReadAllCSharpSources(excludeRest9: true);
         Assert.True(all.Length > 100_000, $"C# 语料读取异常，长度 = {all.Length}");
@@ -709,10 +726,13 @@ public class Rest9NotPortedEvidenceTests
             else _out.WriteLine($"非零命中：{sym} = {n}");
         }
 
-        _out.WriteLine($"Qos 独有且 C# 0 命中的符号 = {zeroHit.Count} / 40");
+        _out.WriteLine($"Qos 名字总数 = {Rest9NotPortedEvidence.QosSymbolCount}，"
+                       + $"其中 C# 0 命中 = {zeroHit.Count}，已由 Client 车道落地 = {already.Count}");
         Assert.Equal(Rest9NotPortedEvidence.QosSymbolsWithZeroCSharpHits, zeroHit.Count);
-        // 40 个 EXTERNALSYM 中 8 条已在 Client 车道落地 ⇒ 32 条确实无落点
-        Assert.Equal(40 - 8, zeroHit.Count);
+        Assert.Equal(42, zeroHit.Count);
+        // 49 个名字中只有 7 条 SERVICETYPE_* 已在 Client 车道落地 ⇒ 42 条确实无落点
+        Assert.Equal(Rest9NotPortedEvidence.QosSymbolCount - already.Count, zeroHit.Count);
+        Assert.Equal(7, already.Count);
     }
 
     [Fact]
@@ -759,14 +779,23 @@ public class Rest9NotPortedEvidenceTests
         var src = DllUpdateCommonSource;
         Assert.Equal(10, PhysicalLineCount("Source/RunGate/DllUpdateCommon.pas"));
 
-        // interface 与 implementation 之间必须**只有空白**
-        var m = Regex.Match(src, @"interface(?<gap>.*?)implementation", RegexOptions.Singleline);
-        Assert.True(m.Success);
+        // interface 段必须**只有空白**（原文 :6 的 `uses Windows;` 也在其中，但 uses 之后到
+        // implementation 之间必须什么都没有 ⇒ 该 uses 是"编译期空转"）
+        var m = Regex.Match(src, @"^interface\s*$(?<gap>.*?)^implementation\s*$",
+            RegexOptions.Singleline | RegexOptions.Multiline);
+        Assert.True(m.Success, "取不到 interface..implementation 段");
         var gap = m.Groups["gap"].Value;
-        _out.WriteLine($"interface..implementation 间隔 = {gap.Length} 字符，内容 = \"{gap.Replace("\r", "\\r").Replace("\n", "\\n")}\"");
-        Assert.True(string.IsNullOrWhiteSpace(gap), "interface 段必须是空的");
-        Assert.Equal(0, gap.Trim().Length);
+        var gapNorm = gap.Replace("\r\n", "\n").Trim('\n');
+        _out.WriteLine($"interface..implementation 段 = {gap.Length} 字符："
+                       + $"\"{gap.Replace("\r", "\\r").Replace("\n", "\\n")}\"");
+        Assert.Equal("uses\n  Windows;", gapNorm);        // 只有这一条 uses，别无他物
         Assert.Equal(0, Rest9NotPortedEvidence.DllUpdateCommonInterfaceSectionLength);
+
+        // implementation..end. 必须空
+        var impl = src.Substring(src.IndexOf("implementation", StringComparison.Ordinal));
+        Assert.EndsWith("end.", impl.Trim(), StringComparison.Ordinal);
+        Assert.Equal(0, Rest9NotPortedEvidence.StripPascalComments(
+            impl.Replace("implementation", "").Replace("end.", "")).Trim().Length);
 
         // 全文只有 unit/interface/uses Windows/implementation/end. 五行有效内容
         var declarations = CountMatches(src,
@@ -864,18 +893,33 @@ public class Rest9NotPortedEvidenceTests
     // ================= 5) 工具函数自检 =================
 
     [Fact]
-    public void StripPascalComments_HandlesAllThreeCommentForms()
+    public void StripPascalComments_RemovesContentButKeepsLineStructure()
     {
-        var src = "a{b}1(*c*)2//d" + "\n" + "e";
-        Assert.Equal("a12\ne", Rest9NotPortedEvidence.StripPascalComments(src));
-        // 未闭合注释吞到末尾（与 Delphi 编译器一致的错误情形，不抛异常）
+        var live = Rest9NotPortedEvidence.StripPascalComments("a{b}1(*c*)2//d" + "\n" + "e");
+        // 注释内容被删掉；换行符保留 ⇒ 行结构不变（行首标记仍可匹配）
+        Assert.Equal("a12" + "\n" + "e", live);
+        Assert.Equal(2, live.Split('\n').Length);
+
+        // ★ 本车道踩过的坑：换行若被吃掉，两个 type 段会被粘成一行 → 计数少 1
+        var two = Rest9NotPortedEvidence.StripPascalComments(
+            "type" + "\n" + "{c}" + "\n" + "type" + "\n");
+        Assert.Equal(2, CountExactLines(two, "type"));
+
+        // 未闭合注释吞到末尾（与 Delphi 编译器的错误情形一致，不抛异常）
         Assert.Equal("a", Rest9NotPortedEvidence.StripPascalComments("a{never closed"));
-        Assert.Equal("a", Rest9NotPortedEvidence.StripPascalComments("a(*never closed"));
-        // 被注释掉的方法签名必须消失——这正是 IODataPool 两个 SendBuffer 成员的判据
+        Assert.Equal("a", Rest9NotPortedEvidence.StripPascalComments("a(*never closed").TrimEnd('\n'));
+
+        // 被 `{ }` 包住的方法签名必须消失——这正是 IODataPool 两个 SendBuffer 成员的判据
         Assert.DoesNotContain("TIODataPool.GetNewSendBufer",
-            Rest9NotPortedEvidence.StripPascalComments("function TIODataPool.GetNewSendBufer(x: Integer): PSendBuffer;"));
+            Rest9NotPortedEvidence.StripPascalComments("{ function TIODataPool.GetNewSendBufer(x: Integer): PSendBuffer; }"));
+        Assert.DoesNotContain("TIODataPool.GiveBackSendBuffer",
+            Rest9NotPortedEvidence.StripPascalComments("(* function TIODataPool.GiveBackSendBuffer(const B: PSendBuffer): Boolean; *)"));
         Assert.Contains("TIODataPool.Create",
             Rest9NotPortedEvidence.StripPascalComments("constructor TIODataPool.Create;"));
+
+        // `//function ...` 形态（IODataPool.pas:47/48）也必须消失
+        Assert.DoesNotContain("GetNewSendBufer",
+            Rest9NotPortedEvidence.StripPascalComments("     //function GetNewSendBufer(BufSize: Integer): PSendBuffer;"));
     }
 
     [Fact]
