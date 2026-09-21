@@ -208,3 +208,67 @@
   是**对照组**（对一个已知未移植的单元跑同一判据）暴露了它偏松。
   ⇒ **教训：任何"验证脚本"在被用来支持结论之前，必须先在一个已知为反例的输入上跑通**
   （本批把这个反例固化在 8.2 节，供日后回归）。这与第 6 节"共现 ≠ 归属"是同一类错误的两个方向。
+
+## 9. 批次J251：**显式声明**的尝试 —— 三种自动归属判定**全部失败**，归属必须**从台账人工播种**
+
+J240 的结论与第 8 节都指向同一个修法：**别再猜归属，改成显式数据**。
+本批据此实现"生成 + 注入声明行 + 只读声明行校验"的流水线
+（脚本 `tools/gen-objmon-manifest.ps1`、修正版 `tools/audit-objmon-owner.ps1`），
+并引入两个**与散文无关的不变量**：
+**A 全集**（55 个类都要被声明）、**B 唯一**（每个类只能被一个文件认领）、
+**C 存在**（声明里的行号必须与 `ObjMon.pas` 的实际声明行一致）。
+
+### 9.1 三种归属判定都失败了（每种失败方式不同）
+
+| # | 判定方式 | 结果 | 失败原因 |
+|---|---|---|---|
+| ① | 头 4 行 `///` 里的类名（J241 原判据） | 46 / 9 | **偏严**：同族第一个类名占住头 4 行、兄弟类名落到第 5 行之后 ⇒ 9 个假阴性（第 8.1 节） |
+| ② | **全部** `///` 行里的类名（本批第一版 bootstrap） | 声称 55 / 55 | **偏松且错**：散文里的**跨类引用**被当成移植目标 ⇒ 注入后**唯一性校验报出 51 个重复** |
+| ③ | **特征方法名**（单元内唯一的方法名）+ 只扫代码行 | 仅 **5 / 55** 可判定 | **过稀**：43 个类的**全部**方法名都与其他类共用（`Create`/`Destroy`/`Run`/`MagicAttackTarget` 等），另 7 个类的特征名在 C# 侧因改名而查不到 |
+
+### 9.2 ②的失败细节（本批最有价值的一次"判据自证伪"）
+
+②对 46 个文件跑出来的第一印象是**完美**的（"推断到归属 55/55、重复 0"），
+但注入声明行后，**只读声明行**的唯一性校验立刻报出 **51 个类被多个文件认领**，例如：
+
+```
+TMLSBAttackMonster   -> ObjMonExtinguishFireCore.cs, ObjMonIcePeakCore.cs,
+                        ObjMonMagicAttackCore.cs, ObjMonMagicNotMove2AttackCore.cs,
+                        ObjMonMagicNotMoveAttackCore.cs, ObjMonMeteoriteRainCore.cs,
+                        ObjMonMlsbCore.cs, ObjMonMon38_12Core.cs, ObjMonStoneFoxCore.cs
+TChickenDeer         -> ObjMonATMonsterCore.cs, ObjMonChickenDeerCore.cs,
+                        ObjMonCobwebCore.cs, ObjMonCore.cs, ObjMonExplosionCore.cs,
+                        ObjMonSpiderSubclassCore.cs, ObjMonSpitSpiderCore.cs
+```
+
+最典型的是 `ObjMonCowFamilyCore.cs` 被分配了 `TGasAttackMonster`、`TMeteoriteRainAttackMonster` ——
+**它根本没移植这两个类**；原因是 J243 的文档注释为了对照而写了
+"与 J242 的 `TGasAttackMonster` 同型"、而 `TMeteoriteRainAttackMonster` 出现在同类比较句里。
+⇒ **这正是 J240 记录的"共现 ≠ 归属"，只是换成了"全部 `///` 行"这个更宽的版本。**
+
+**好消息**：注入是**可回滚**的（每文件仅 +1 行），
+本批已 `git checkout` 撤销全部 46 个文件的注入、**未提交任何错误声明**
+（核对：`0` 个文件仍含声明行）。**坏消息**：若不引入不变量 B，这批错误数据会被静默接受。
+
+### 9.3 本批的第二个方法论失误：**空集上的全称命题恒真**
+
+②在 **dry-run** 阶段就报过 `B 唯一 : 重复归属 0 => 通过` ——
+但我当时**没有声明行**，`已声明 0 / 55`，于是"重复数为 0"是**空洞的真**，
+我却把它读成了"唯一性没问题、可以注入"。
+⇒ **教训：一个"通过"只有在**前提集合非空**时才携带信息；
+不变量校验必须同时断言**基数**（A 全集），否则 B 的通过毫无意义。**
+这也是本批把 A 与 B 并列断言的直接原因。
+
+### 9.4 结论与下一步
+
+- **归属不能从散文或方法名自动推断** —— 三种方式各有不同的失败形态（偏严 / 偏松且错 / 过稀）。
+  唯一可信的来源是**逐批台账**（`docs/Checklist.md` 的 J-行）：
+  它由人工为每批写明**类名 + 精确行号区间 + 新建的 C# 文件路径**（如 J244 的
+  `TElfMonster` 2732-2890、`TElfWarriorMonster` 2893-3064 → `ObjMonElfFamilyCore.cs`）。
+- **正确的落地顺序**应是：**先从台账人工播种 `docs/ObjMon-manifest.tsv`（55 行）**，
+  再由脚本**只做校验**（A/B/C 三个不变量）——而不是让脚本去生成归属。
+  本批只完成了工具与判定，**播种尚未完成**（下一批的首要任务）。
+- 三个脚本保留：
+  `gen-objmon-manifest.ps1`（生成+注入+校验流水线，**注入功能已验证可回滚**）、
+  `audit-objmon-owner.ps1`（特征方法名判定，**已验证过稀**）、
+  以及第 8 节的两个。**四者均不得单独用作验收**，其价值在于配合不变量做**反例检测**。
