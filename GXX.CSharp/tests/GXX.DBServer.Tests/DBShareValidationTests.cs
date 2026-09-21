@@ -402,10 +402,14 @@ public class DBShareValidationTests : TempDirTest
     }
 
     [Fact]
-    public void 主动网关路由族仍未移植_访问即抛()
+    public void 主动网关路由族已转调真实现_不再抛()
     {
-        // 与校验族不同：GateActiveRouteIP / CheckActiveRunGate **仍未移植** ⇒ 保持"未接线即抛"（§25.2）
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.GateActiveRouteIP("127.0.0.1", out _));
-        Assert.Throws<NotSupportedException>(() => SelectClientDbShareSeam.CheckActiveRunGate("127.0.0.1", 7200));
+        // 2026 第 4 轮：`GateActiveRouteIP` / `CheckActiveRunGate` 已移植（`DBShare.cs`）⇒ 接缝同样改为转调。
+        // ★ 该路径**默认关闭**（`g_boUseActiveRunGage` 默认 False，SelectClient.pas:1138 判它）
+        //   —— 真实现的行为覆盖见 `DBShareActiveGateTests`（那里显式打开开关）。
+        SelectClientDbShareSeam.Reset();
+        Assert.Equal("", SelectClientDbShareSeam.GateActiveRouteIP("127.0.0.1", out int port));
+        Assert.Equal(0, port);
+        Assert.False(SelectClientDbShareSeam.CheckActiveRunGate("127.0.0.1", 7200));
     }
 }

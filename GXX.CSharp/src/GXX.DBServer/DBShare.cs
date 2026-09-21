@@ -314,6 +314,146 @@ public static class DBShare
     }
 
     // ==========================================================================================
+    // 主动网关路由（"只取可以连接的网关" chongchong 2015-07-22）
+    // ==========================================================================================
+
+    /// <summary>
+    /// DBShare.pas:731-749 `function CheckActiveRunGate(sGateIP: string; nPort: Integer): Boolean;`
+    /// —— 在 <see cref="DBShareSeam.SessionRunGateArray"/>（100 槽）里找一条
+    /// 「远端地址同名（忽略大小写）、端口相同、且 `GetTickCount - dwReceiveTick &lt;= 2500`」的 RunGate 会话。
+    ///
+    /// ★ 判据是 `&lt;= 2500`（**含**边界）：超过 2.5 秒没收到该 RunGate 的包就算它掉了。
+    /// </summary>
+    public static bool CheckActiveRunGate(string sGateIP, int nPort)
+    {
+        bool Result = false;                                                          // :736
+        for (int I = 0; I <= DBShareSeam.RUNGATEMAXSESSION - 1; I++)                  // :737
+        {
+            TSessionRunGateInfo Session = DBShareSeam.SessionRunGateArray[I];         // :739
+            if (Session.Socket != null)                                               // :740
+            {
+                if (DelphiStrUtils.SameText(Session.sRemoteAddr, sGateIP)             // :742
+                    && (Session.nRemotePort == nPort)
+                    && (DelphiTick.GetTickCount() - Session.dwReceiveTick <= 2500))
+                {
+                    Result = true;                                                    // :744
+                    break;                                                            // :745
+                }
+            }
+        }
+        return Result;
+    }
+
+    /// <summary>
+    /// DBShare.pas:751-848 `function GateActiveRouteIP(sGateIP: string; var nPort: Integer): string;`
+    /// —— 只从**当前连得上**的游戏网关里选（与 `GateRouteIP` 的差别：不是盲目随机）。
+    ///
+    /// <para><b>★ 该路径默认关闭</b>：只有 `DBShareSeam.g_boUseActiveRunGage = True` 时
+    /// `SelectClient.pas:1138` 才会走它；默认 False ⇒ 走 `GateRouteIP`（`DBShareSeam`，已移植）。
+    /// 即**这段代码在默认配置下是死路径** —— 测试必须显式打开开关才覆盖得到
+    /// （见 `DBShareActiveGateTests` 与 `SelectClientHostWiringTests` 的正/反例）。</para>
+    ///
+    /// 内层 `GetRoute`（原文 :752-832）两段：
+    /// <list type="number">
+    ///   <item><b>主列表</b>：`nGateCount` 条里挑 `GetTickCount - dwGameGateConnectTick[I] &lt;= 3000` 的，随机取一条；</item>
+    ///   <item><b>备用列表</b>（`EnabledRunGate2List` 且"掉线数 ≥ `GameGateDisconnectCount`"）：
+    ///         在 `RunGate2List`（已按 Level 排序）里按 **Level 从高到低**挑当前档位中
+    ///         `GetTickCount - LastResponseTick &lt;= 3000` 的，随机取一条；
+    ///         **结果会覆盖主列表的选择**（原文就是允许覆盖，测试里锁定）。</item>
+    /// </list>
+    /// </summary>
+    public static string GateActiveRouteIP(string sGateIP, out int nPort)
+    {
+        int port = 0;                                                                 // :837 `nPort := 0`
+        string Result = "";                                                           // :838
+        for (int I = 0; I <= DBShareSeam.g_RouteInfo.Length - 1; I++)                 // :839 Low(g_RouteInfo)..High
+        {
+            TRouteInfo RouteInfo = DBShareSeam.g_RouteInfo[I];                        // :841
+            if (RouteInfo.sSelGateIP == sGateIP)                                      // :842（原文 `=` 即精确比较）
+            {
+                Result = GetRoute(RouteInfo, ref port);                               // :844
+                break;                                                                // :845
+            }
+        }
+        nPort = port;
+        return Result;
+    }
+
+    /// <summary>DBShare.pas:752-832 `GateActiveRouteIP` 的内嵌 `GetRoute`（原文是**嵌套函数**）。</summary>
+    private static string GetRoute(TRouteInfo RouteInfo, ref int nGatePort)
+    {
+        string Result = "";
+        var RunGateList = new System.Collections.Generic.List<int>();                 // :760（原文 TList 存 Pointer(下标)）
+        for (int I = 0; I <= RouteInfo.nGateCount - 1; I++)                           // :762
+        {
+            if (DelphiTick.GetTickCount() - RouteInfo.dwGameGateConnectTick[I] <= 3000)   // :764
+            {
+                RunGateList.Add(I);                                                   // :766
+            }
+        }
+
+        if ((RunGateList.Count == 0) && !TBool.ToBool(RouteInfo.EnabledRunGate2List)) // :770
+        {
+            return "";                                                                // :772-773
+        }
+
+        if (RunGateList.Count > 0)                                                    // :776
+        {
+            int nGateIndex = DelphiRandom.Random(RunGateList.Count);                  // :778
+            nGateIndex = RunGateList[nGateIndex];                                     // :779
+            if ((nGateIndex >= 0) && (nGateIndex < RouteInfo.nGateCount))             // :780
+            {
+                Result = RouteInfo.sGameGateIP[nGateIndex];                           // :782
+                nGatePort = RouteInfo.nGameGatePort[nGateIndex];                      // :783
+            }
+        }
+
+        // 分配备用列表（:787）
+        if (TBool.ToBool(RouteInfo.EnabledRunGate2List)                               // :788
+            && (RouteInfo.nGateCount - RunGateList.Count >= RouteInfo.GameGateDisconnectCount)   // :789
+            && (RouteInfo.RunGate2List.Count > 0))                                    // :790
+        {
+            RunGateList.Clear();                                                      // :792
+            int MaxLevel = RouteInfo.RunGate2List.SortItems(0)!.Level;                // :793
+            for (int I = 0; I <= RouteInfo.RunGate2List.Count - 1; I++)               // :794
+            {
+                TRunGateInfo RunGateInfo = RouteInfo.RunGate2List.SortItems(I)!;      // :796
+                if (TBool.ToBool(RunGateInfo.Enabled))                                // :797
+                {
+                    if (RunGateInfo.Level == MaxLevel)                                // :799
+                    {
+                        if (DelphiTick.GetTickCount() - RunGateInfo.LastResponseTick <= 3000)   // :801
+                            RunGateList.Add(I);                                       // :802
+                    }
+                    else
+                    {
+                        if (RunGateList.Count > 0)                                    // :806
+                            break;                                                    // :807
+                        else
+                        {
+                            MaxLevel = RunGateInfo.Level;                             // :810
+                            if (DelphiTick.GetTickCount() - RunGateInfo.LastResponseTick <= 3000)   // :811
+                                RunGateList.Add(I);                                   // :812
+                        }
+                    }
+                }
+            }
+
+            if (RunGateList.Count > 0)                                                // :818
+            {
+                int nGateIndex = DelphiRandom.Random(RunGateList.Count);              // :820
+                nGateIndex = RunGateList[nGateIndex];                                 // :821
+                if ((nGateIndex >= 0) && (nGateIndex < RouteInfo.RunGate2List.Count)) // :822
+                {
+                    Result = RouteInfo.RunGate2List.SortItems(nGateIndex)!.IP;        // :824
+                    nGatePort = RouteInfo.RunGate2List.SortItems(nGateIndex)!.Port;   // :825
+                }
+            }
+        }
+        return Result;                                                                // :829-831 `finally RunGateList.Free`
+    }
+
+    // ==========================================================================================
     // 内部助手
     // ==========================================================================================
 

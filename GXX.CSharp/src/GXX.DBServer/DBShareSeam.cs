@@ -105,17 +105,67 @@ public class TRouteInfo
 }
 
 /// <summary>
+/// DBShare.pas:56-66 <c>TSessionRunGateInfo</c> / <c>pTSessionRunGateInfo</c>。
+/// 一条**已连上来的 RunGate（游戏网关）会话**；由 uFrmMain 在 RunGate 连接时填写，
+/// <see cref="DBShare.CheckActiveRunGate"/>（DBShare.pas:731-749）读它判"该网关还活着吗"。
+/// 托管侧用 class 保持"数组槽被就地改写"的引用语义（与 <see cref="TRouteInfo"/> 同一处置）。
+/// </summary>
+public sealed class TSessionRunGateInfo
+{
+    /// <summary>DBShare.pas:58 `Socket: TCustomWinSocket;`（原文以 `&lt;&gt; nil` 判该槽是否在用）。</summary>
+    public TCustomWinSocket? Socket;
+
+    /// <summary>DBShare.pas:59 `dwSendTick: LongWord;`</summary>
+    public uint dwSendTick;
+
+    /// <summary>DBShare.pas:60 `dwReceiveTick: LongWord;`（CheckActiveRunGate 的 2500ms 判据）。</summary>
+    public uint dwReceiveTick;
+
+    /// <summary>DBShare.pas:61 `nSckHandle: Integer;`</summary>
+    public int nSckHandle;
+
+    /// <summary>DBShare.pas:62 `sRemoteAddr: string;`</summary>
+    public string sRemoteAddr = "";
+
+    /// <summary>DBShare.pas:63 `nRemotePort: Integer;`</summary>
+    public int nRemotePort;
+
+    /// <summary>DBShare.pas:65 `sRecvText: string;`</summary>
+    public string sRecvText = "";
+}
+
+/// <summary>
 /// DBShare.pas 的 unit 级全局（§3.3 规则：unit var → public static class）。
 /// 仅收录本车道用到的成员，其余待 DBShare 正式移植。
 /// </summary>
 public static class DBShareSeam
 {
+    /// <summary>DBShare.pas:17 `RUNGATEMAXSESSION = 100;`</summary>
+    public const int RUNGATEMAXSESSION = 100;
+
     // ---------------- 路径/文件名（DBShare.pas:112-138） ----------------
 
     public static string g_sFilePath = "";
     public static string g_sConfFileName = @".\Dbsrc.ini";
     public static string g_sGateConfFileName = @".\!ServerInfo.txt";
     public static string g_sGateListFileName = @".\!GateList.ini";
+
+    // ---------------- RunGate 会话表（DBShare.pas:247） ----------------
+
+    /// <summary>
+    /// DBShare.pas:247 `SessionRunGateArray: array[0..RUNGATEMAXSESSION - 1] of TSessionRunGateInfo;`
+    /// —— 由 uFrmMain 在 RunGate 连接/断开时填写（**该写入方尚未移植 ⇒ 目前恒为"全空槽"**），
+    /// 由 <see cref="DBShare.CheckActiveRunGate"/> 读。空表 ⇒ 该函数恒返回 False（= "没有活跃 RunGate"），
+    /// 这是**正确**的空语义，不是中性值兜底。
+    /// </summary>
+    public static TSessionRunGateInfo[] SessionRunGateArray = CreateSessionRunGateArray();
+
+    private static TSessionRunGateInfo[] CreateSessionRunGateArray()
+    {
+        var a = new TSessionRunGateInfo[RUNGATEMAXSESSION];
+        for (int i = 0; i < a.Length; i++) a[i] = new TSessionRunGateInfo();
+        return a;
+    }
 
     // ---------------- 路由（DBShare.pas:150） ----------------
 
