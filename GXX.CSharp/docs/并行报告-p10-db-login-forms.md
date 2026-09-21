@@ -275,10 +275,14 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | F18 | `:199` | `MsgServer.Socket = Socket` 判等：`nil = nil` 成立 | 传 `nil` 的 Disconnect 会**删掉第一个 nil 项** |
 | F19 | `:300-303` | 未命中 `(` 时 `ArrestStringEx` 返回原串（原文 `Result := Source`） | 缓冲区**永不丢弃**无 `(` 的垃圾 ⇒ 无限增长 |
 
-**F19 连带发现（跨区，见 B-P10-17）**：托管 `GXX.Core.Util.HUtil32.ArrestStringEx`（`HUtil32.cs:177-198`）
-把 `result` 初值写成 `""`，且两条"未找到"路径都返回 `""`；而原文 `HUtil32.pas:1761-1805`
+**F19 连带发现（跨区，见 B-P10-17 —— ✅ 已关闭）**：托管 `GXX.Core.Util.HUtil32.ArrestStringEx`
+原先把 `result` 初值写成 `""`，且两条"未找到"路径都返回 `""`；而原文 `HUtil32.pas:1761-1805`
 是 `Result := Source`（`:1766`）+ 未找到 `SearchEnd` 时**不动 `Result`**、`ArrestStr := ''`。
-**两条路径语义都不同** ⇒ 子车道在本区逐字复刻了一份 `MasSockFns.ArrestStringExAnsi`（D-P10-17 登记）。
+**两条路径语义都不同** ⇒ 子车道当时在本区逐字复刻了一份 `MasSockFns.ArrestStringExAnsi`（D-P10-17）。
+**收口状态**：集成方已按原文修 Core（`Result := Source` 起手 + 删掉 `else` 改写，台账 §48.2），
+并把 `main` 并入本车道（`b671a662`）⇒ 本车道**已删除该复刻、改回直接转调
+`HUtil32.ArrestStringEx_Ansi`**（切片 `76f2f0cc`，D-P10-17 随之退役）；F19 的差异断言改为
+锁"Core 现在与原文一致"（`ArrestStringEx_NotFoundPath_KeepsSource_BP10_17Closed`）。
 | 17 | `FileSearchPool.pas:284-293` + `ThreadPool.pas:168-174` | `TSearchThread.Destroy` 先 `FMemoryStream.Free` 再 `inherited`（后者才 `Terminate+WaitFor`）⇒ **先释放缓冲区、后等线程退出** | 后台线程可能在缓冲已释放后继续用（原文靠时序侥幸） | D-P10-05（托管侧把"等待退出"提前，见 §3） |
 
 ---
@@ -308,7 +312,7 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | 编号 | 位置 | 原文 | 托管 | 理由 |
 |---|---|---|---|---|
 | D-P10-16 | `MasSock.pas:6-7` `JSocket` | `TServerSocket` / `TCustomWinSocket` / `TErrorEvent` / `TServerType` | 在 `MasSock.cs` 内声明接缝：`TServerSocket` **派生自 `System.Windows.Forms.Control`**（DFM 本就给了 `Left=40/Top=32`，且只有组件化才能被 `CountDfmObjects` 数到 2/6）、`TCustomWinSocket`（`RemoteAddress`/`Connected`/`ReceiveText`/`SendText×2`/`Close`）、`TErrorEvent`、`TServerType`、`TClientSocketEventArgs`、`Raise*` 事件驱动面、`TFrmMasSoc.SocketFactory` | 托管无 JSocket 等价物；默认接缝在 `Active := True` 时**显式抛"未接线"**（`False` 允许 = DFM 初值），符合 §25.2 |
-| D-P10-17 | `MasSock.pas:302` 调用的 `ArrestStringEx` | `HUtil32.pas:1761-1805`（`Result := Source` 起手） | `MasSockFns.ArrestStringExAnsi` **逐字复刻**，不改调 `GXX.Core` 版 | 托管 `HUtil32.ArrestStringEx` 两条"未找到"路径都返回 `""`，与原文语义不同（见 §2.1 F19）；跨区修复登记 B-P10-17，修完可删本地复刻 |
+| D-P10-17 | `MasSock.pas:302` 调用的 `ArrestStringEx` | `HUtil32.pas:1761-1805`（`Result := Source` 起手） | **已退役**：Core 修正后本区删除逐字复刻，直接转调 `HUtil32.ArrestStringEx_Ansi`（`76f2f0cc`） | 托管 `HUtil32.ArrestStringEx` 原先两条"未找到"路径都返回 `""`，与原文语义不同（F19）；B-P10-17 已由集成方修 Core 并合并（`b671a662`）⇒ 复刻失去存在理由（§37.7 的"正式归属落地后去掉替身"闭环） |
 | D-P10-18 | `MasSock.pas:376/378` `SizeOf(TAccountInfo2)` | `SizeOf` | 显式常量 `TAccountInfo2PackedSize = 218` | 避免 `unsafe sizeof`；**实测托管 `sizeof(TAccountInfo2)==218` 且字段偏移完全重合**（原以为需补 `Pack=1`，实测不需要）⇒ 无需跨区改动 |
 | D-P10-19 | `:810` `'.\!ServerAddr.txt'`、`:926` `'.\!UserLimit.txt'` | 硬编码相对路径 | 接缝 `ServerAddrFileName` / `UserLimitFileName`，默认值即原文字面量 | 测试可指向 `Path.GetTempPath()`，不碰真实数据目录 |
 | D-P10-20 | `:784` `CompareText` / `:410` `SameText` | Delphi 大小写不敏感比较 | `StringComparison.OrdinalIgnoreCase` | `GXX.Core` 无托管 `CompareText`；沿用工程既有处置 |
@@ -338,7 +342,7 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | B-P10-08 | ★★ **`uFrmRoleDataEdit` 的跨模块接线需要架构裁定**（本车道**没有**擅自接线）：<br>原文里 `uFrmRoleDataEdit.pas` 是 **DBServer** 单元，却被 **LoginSrv** 的 `uFrmDataManager.pas:64` `uses`，并在 `:199/:207/:454/:462` 调用 `ShowFrmRoleDataEdit`。托管侧现状：`src/GXX.LoginSrv/RoleDBSeam.cs:80` 已有接缝 `public static Action<int, THumData?, THeroData?> ShowFrmRoleDataEdit`（`uFrmDataManager.cs:203/213/427/437` 已在调，`DataManagerFormTests.cs` 有 6 处在替换），**但那里的 `THumData`/`THeroData` 是两个空类**（`RoleDBSeam.cs:36/41`，注释："仅作为不透明句柄在窗体间传递"），而 `GXX.Core.Protocol.THumData/THeroData` 是 `unsafe struct`；且 `GXX.LoginSrv` **不引用** `GXX.DBServer`（两个独立 exe）。<br>⇒ 需要集成方二选一：**(a)** 把 LoginSrv 的接缝统一到 `GXX.Core.Protocol.THumData`（并把空句柄类退役）；或 **(b)** 由 LoginSrv 引用 DBServer 程序集（跨 exe 依赖，需评估）。**本车道只登记、不擅改** | 不裁定则 `uFrmDataManager` 的"编辑角色数据"按钮**永远打不开窗体**（且是静默空实现） |
 | B-P10-16 | ★ `src/GXX.LoginSrv/LoginSrvShare.cs` 的三处接缝必须在 MasSock 落地后**退役**：`TMsgServerInfo`（`:287`，**只有 4 字段**）、`TMasSocSeam`（`:278`）、`LoginSrvShare.FrmMasSoc`（`:53`）。真源现在是 `GXX.LoginSrv.Forms.TMsgServerInfo`（**7 字段**：`sReceiveMsg/Socket/sServerName/nServerIndex/nOnlineCount/dwKeepAliveTick/sIPaddr`）+ `TFrmMasSoc` + `MasSockGlobals`。★ **`src/GXX.LoginSrv/MonSoc.cs:64-67` 现在读的是 4 字段接缝**，退役时需改指 `MasSockGlobals.FrmMasSoc.m_ServerList` | 不退役则 MasSock 与 MonSoc **长期各持一套服务器列表类型**（§14.2 家族，且 MonSoc 读到的是空实现） |
 | B-P10-16b | `LoginSrvShare` 还应补 `g_ServerAddr` / `g_ServerAddrCount` / `nOnlineCountMin` / `nOnlineCountMax` / `GetSessionID()`（本区以 `MasSockGlobals` 接缝承载；`GetSessionID` 与 `CloseUser` 未接线时**显式抛"未接线"**） | 同上；这两处是真源码里的 `LMain.pas` 全局 |
-| B-P10-17 | ★ `src/GXX.Core/Util/HUtil32.cs:177-198` 的 `ArrestStringEx` / `ArrestStringEx_Ansi` 初值应为 `Result := Source`（原文 `HUtil32.pas:1719/1766`），且"未找到 `SearchEnd`"分支**不得改写 Result** | 修完可删 D-P10-17 的本地逐字复刻并改回转调；否则全仓所有 `ArrestStringEx` 调用点都带着这两条语义偏差 |
+| B-P10-17 | ~~`src/GXX.Core/Util/HUtil32.cs` 的 `ArrestStringEx` 初值应为 `Result := Source`~~ **✅ 已关闭**：集成方已按原文修正 Core（台账 §48.2）并把 `main` 并入本车道（`b671a662`）；本车道已删除 D-P10-17 的本地复刻、改回转调（`76f2f0cc`，LoginSrv 404 例全绿） | — |
 | B-P10-18 | `TAccountInfo2` 的托管尺寸/偏移经子车道实测与原文一致（218 字节、偏移重合），**无需**加 `Pack=1` —— 登记以免后人误改 | 防误改 |
 | B-P10-19 | `JSocket`（`TServerSocket`）**没有任何托管等价物** ⇒ `StartService` 的真实监听能力待接线（当前 `Active := True` 按 §25.2 显式抛） | MasSock 窗体可移植、可测试，但**还不能真的监听**；需集成方裁定用 `GatewayKit` 的 socket 设施还是新写 |
 
@@ -355,6 +359,7 @@ DFM 对账：**object 2 / 绑定 6**，托管 `CountDfmObjects()==2`、`CountChi
 | 1（Pool 2 单元） | `dotnet test tests/GXX.LogDataServer.Tests/…csproj -c Debug --nologo -m:1 -p:BuildInParallel=false` | `失败: 0，通过: 222，总计: 222`（其中本车道新增 **80** 例） |
 | 2（GrobalSession） | `dotnet test tests/GXX.LoginSrv.Tests/…csproj …` | `失败: 0，通过: 250，总计: 250`（其中本车道新增 **19** 例） |
 | 3（MasSock） | 同上（LoginSrv.Tests） | `失败: 0，通过: 404，总计: 404`（本单元新增 **154** 例；250+154=404 ✓ 与子车道自报逐例相符） |
+| 4（吸收 main + 退役复刻） | `main` 由**集成方**并入本车道（`b671a662`，无冲突；车道被硬禁 merge/rebase）→ 删 D-P10-17 复刻、改转调 Core | 同上（LoginSrv.Tests）仍 `失败: 0，通过: 404，总计: 404` |
 
 ---
 
