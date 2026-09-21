@@ -60,7 +60,10 @@ public class TFrmLogin : Form
     /// <summary>DFM:7 <c>ClientWidth = 508</c></summary>
     public const int DfmClientWidth = 508;
     /// <summary>DFM:8 <c>Color = clBtnFace</c></summary>
-    public const int DfmColor = 0x00F0F0F0;      // clBtnFace（COLOR_BTNFACE = $00F0F0F0，BGR）
+    public const int DfmColor = 0x00F0F0F0;      // clBtnFace（COLOR_BTNFACE = $00F0F0F0，Delphi TColor = BGR 整数）
+    /// <summary>DFM:8 的托管色彩（<c>clBtnFace</c> 三通道展开；Delphi TColor 的低三字节是 B,G,R）。</summary>
+    public static readonly Color DfmBackColor = Color.FromArgb(
+        DfmColor & 0xFF, (DfmColor >> 8) & 0xFF, (DfmColor >> 16) & 0xFF);   // R,G,B = F0,F0,F0
     /// <summary>DFM:11 <c>Font.Height = -12</c>（负值 = 字符高度）</summary>
     public const int DfmFontHeight = -12;
     /// <summary>DFM:12 <c>Font.Name = #23435#20307</c> = '宋体'</summary>
@@ -232,10 +235,11 @@ public class TFrmLogin : Form
     /// </summary>
     public TFrmLogin()
     {
+        Name = DfmFormName;                                 // DFM:1 object FrmLogin: TFrmLogin
         Text = DfmCaption;                                  // DFM:5
         FormBorderStyle = DfmBorderStyle;                   // DFM:4
         StartPosition = DfmPosition;                        // DFM:15
-        BackColor = Color.FromArgb(DfmColor);               // DFM:8（clBtnFace）
+        BackColor = DfmBackColor;                           // DFM:8（clBtnFace）
         Font = new Font(DfmFontName, DelphiFontSizeToPoints(DfmFontHeight));   // DFM:11-12
         ClientSize = new Size(DfmClientWidth, DfmClientHeight);                 // DFM:6-7
         // DFM:2-3 Left/Top：原文是设计期坐标，poScreenCenter 下由 VCL 在显示时重算；
@@ -310,6 +314,10 @@ public class TFrmLogin : Form
                 Height = 16,
                 TabIndex = i,
             };
+            // ★ 原文 TRzRadioGroup 的初值是 ItemIndex = -1（无选中）；WinForms 在把第一个
+            //   RadioButton 加入 GroupBox 时会**自动选中**它 ⇒ 这里逐项显式清空，使"OnCreate 之前"的
+            //   状态与原文一致（否则 FormCreate:156 的 ItemIndex 读值会被 WinForms 的默认选中污染）。
+            radio.Checked = false;
             int index = i;
             radio.Click += (sender, e) => RadioGroupClick(sender, e, index);   // DFM:60 OnClick = RadioGroupClick
             RadioGroupItems[i] = radio;
@@ -328,6 +336,18 @@ public class TFrmLogin : Form
         AcceptButton = DialogButtonsOk;
         CancelButton = DialogButtonsCancel;
     }
+
+    /// <summary>
+    /// <see cref="CreateDfmControls"/> 的可测入口（等价于"DFM 已建好控件、<c>OnCreate</c> 尚未跑"）。
+    /// </summary>
+    public void CreateDfmControlsForTests() => CreateDfmControls();
+
+    /// <summary>
+    /// <see cref="ApplyDfmProperties"/> 的可测入口：等价于 Delphi 把 DFM 流化到**已构造好的**
+    /// 窗体实例上（即 <c>OnCreate</c> 之后的那一步）。测试用它锁死 D-P11-05（DFM:50
+    /// <c>ItemIndex = 3</c> 覆盖 <c>FormCreate</c> 所写的值）。
+    /// </summary>
+    public void ApplyDfmPropertiesForTests() => ApplyDfmProperties();
 
     /// <summary>
     /// 把 DFM 文件里**声明出来的属性值**逐个写进控件。
@@ -412,9 +432,10 @@ public class TFrmLogin : Form
 
 
     /// <summary>
-    /// 原文 <c>TForm.OnCreate</c> 的托管落点。原文此处只设 <c>ItemIndex</c>（不做别的事），
-    /// 而 WinForms 的 <see cref="Form.OnLoad"/> 是"面向用户显示前"的最后一次机会，
-    /// 与 VCL <c>OnCreate</c> 的**效果**（显示前初始化一次）一致。
+    /// 原文 <c>TForm.OnCreate</c> 的托管落点（DFM:16 <c>OnCreate = FormCreate</c>）。
+    /// <para>原文 <c>OnCreate</c> 在**窗体流化之前**触发，WinForms 没有与该时点等价的公开入口，
+    /// 故本移植把"OnCreate 语义"落成 <see cref="InitDfm"/> 里的一次显式调用（见 D-P11-05）；
+    /// 本重载只保证"显示前 DFM 一定已就绪"（幂等）。</para>
     /// </summary>
     protected override void OnLoad(EventArgs e)
     {
@@ -425,6 +446,7 @@ public class TFrmLogin : Form
     /// <summary>原文 <c>RadioGroup.ItemIndex := X</c>（单选项互斥由 WinForms 自动维护，故先全清）。</summary>
     public void SetItemIndex(int value)
     {
+        CreateDfmControls();
         if (value < 0 || value >= RadioGroupItems.Length)
         {
             // 原文如此（D-P11-06）：Delphi 的 `ItemIndex := 越界值` 会被 TRzRadioGroup
@@ -497,8 +519,8 @@ public class TFrmLogin : Form
             }
             // :128 FileNameList.Free（托管侧 GC）
 
-            LoginDlgGlobals.g_MirDataDirectoryList[(int)LoginDlgGlobals.g_ClientVersion]
-                = LoginDlgGlobals.g_sMirDataDirectory;                                 // :130
+            LoginDlgGlobals.SetDirectory((int)LoginDlgGlobals.g_ClientVersion,
+                LoginDlgGlobals.g_sMirDataDirectory);                                  // :130（越界安全，见 D-P11-09）
             for (I = 0; I <= LoginDlgGlobals.g_MirDataDirectoryList.Length - 1; I++)   // :131
             {
                 IniFile.WriteString("Directory", DelphiRTL.IntToStr(I),
@@ -539,7 +561,7 @@ public class TFrmLogin : Form
                     DelphiRTL.IntToStr(I), LoginDlgGlobals.g_sMirDataDirectory);
             }
             LoginDlgGlobals.g_sMirDataDirectory
-                = LoginDlgGlobals.g_MirDataDirectoryList[(int)LoginDlgGlobals.g_ClientVersion];   // :154
+                = LoginDlgGlobals.GetDirectory((int)LoginDlgGlobals.g_ClientVersion);   // :154（越界安全，见 D-P11-09）
             EditGamePath.Text = LoginDlgGlobals.g_sMirDataDirectory;                   // :155
             SetItemIndex((int)LoginDlgGlobals.g_ClientVersion);                        // :156 RadioGroup.ItemIndex
             CheckBoxD3DFormat.Checked = LoginDlgGlobals.g_boD3DFormat;                 // :157
@@ -559,21 +581,25 @@ public class TFrmLogin : Form
 
     /// <summary>
     /// LoginDlg.pas:167-171 <c>TFrmLogin.RadioGroupClick</c> 1:1。
-    /// <para>对应 DFM 的 <c>OnClick = RadioGroupClick</c>（DFM:60）；原文的 <c>Sender</c> 未被使用，
-    /// 选中项从控件自身读 <c>RadioGroup.ItemIndex</c>。</para>
+    /// <para>对应 DFM 的 <c>OnClick = RadioGroupClick</c>（DFM:60）。原文用控件自身的
+    /// <c>RadioGroup.ItemIndex</c> 取选中项，故本重载从 <see cref="ItemIndex"/> 读
+    /// （用户点击时 WinForms 已先更新了 <c>Checked</c> 状态）。</para>
     /// </summary>
     public void RadioGroupClick(object sender, EventArgs e)
-    {
-        RadioGroupClick(sender, e, ItemIndex);
-    }
+        => RadioGroupClick(sender, e, ItemIndex);
 
-    /// <summary><c>RadioGroupClick</c> 的内部重载：把"被点的第几项"作为 <c>ItemIndex</c> 传入
-    /// （WinForms 的 <c>RadioButton.Click</c> 每项各绑一个处理器，需要在绑定时捕获下标）。</summary>
+    /// <summary>
+    /// <c>RadioGroupClick</c> 的内部重载：把"被点的第几项"作为 <c>ItemIndex</c> 传入。
+    /// <para><b>D-P11-10（偏离登记）</b>：WinForms 的 <c>RadioButton.Click</c> 每项各绑一个处理器，
+    /// 需要在绑定时捕获下标，故处理器体里必须先补一句 <c>ItemIndex = itemIndex</c> ——
+    /// 原文没有这一句（它依赖 <c>TRzRadioGroup</c> 在 Click 之前已把 <c>ItemIndex</c> 更新好）。
+    /// 该句只为表达"选中项"，对外行为与原文一致。</para>
+    /// </summary>
     public void RadioGroupClick(object sender, EventArgs e, int itemIndex)
     {
-        ItemIndex = itemIndex;                                                          // RadioGroup.ItemIndex
-        LoginDlgGlobals.g_ClientVersion = (TClientVersion)ItemIndex;                    // :169
-        EditGamePath.Text = LoginDlgGlobals.g_MirDataDirectoryList[(int)LoginDlgGlobals.g_ClientVersion];   // :170
+        SetItemIndex(itemIndex);                                                        // D-P11-10（原文无此句）
+        LoginDlgGlobals.g_ClientVersion = (TClientVersion)itemIndex;                    // :169
+        EditGamePath.Text = LoginDlgGlobals.GetDirectory((int)LoginDlgGlobals.g_ClientVersion);   // :170
     }
 
     /// <summary>LoginDlg.pas:173-176 <c>TFrmLogin.CheckBoxD3DFormatClick</c> 1:1。</summary>

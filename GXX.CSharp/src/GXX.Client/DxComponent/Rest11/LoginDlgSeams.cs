@@ -67,6 +67,27 @@ public static class LoginDlgGlobals
     /// <summary>原文 <c>High(TClientVersion) + 1</c>（DxComponents.pas:27 共 6 个枚举值）。</summary>
     public const int ClientVersionOrdinalCount = 6;
 
+    /// <summary>
+    /// <c>g_MirDataDirectoryList[TClientVersion(I)]</c> 的**越界安全**读写面。
+    ///
+    /// <para><b>为什么需要它（D-P11-09，原文缺陷的差异登记）</b>：DFM 的
+    /// <c>RadioGroup.Items.Strings</c> 有 **7** 项（LoginDlg.dfm:51-58），而
+    /// <c>TClientVersion</c> 只有 **6** 个值（DxComponents.pas:27）⇒ 第 7 项（'传奇归来'）
+    /// 在 <c>RadioGroupClick</c>（原 :169-170）里会算出 <c>TClientVersion(6)</c> 并去读
+    /// <c>g_MirDataDirectoryList[6]</c> —— Delphi 默认**不开范围检查**，这是越界读；
+    /// 托管侧越界读会抛 <see cref="IndexOutOfRangeException"/>。
+    /// 本访问器把越界定义为"返回空串 / 丢弃写入"，即"不崩但结果无意义"，与该越界读的
+    /// **现象**一致（差异：原文读的是相邻内存，托管侧是空串）。</para>
+    /// </summary>
+    public static string GetDirectory(int index)
+        => index >= 0 && index < g_MirDataDirectoryList.Length ? g_MirDataDirectoryList[index] : string.Empty;
+
+    /// <summary><see cref="GetDirectory"/> 的写侧（越界丢弃）。</summary>
+    public static void SetDirectory(int index, string value)
+    {
+        if (index >= 0 && index < g_MirDataDirectoryList.Length) g_MirDataDirectoryList[index] = value;
+    }
+
     /// <summary>测试/复位用：回到 Share.pas 的 initialization 初值。</summary>
     public static void ResetForTests()
     {
@@ -212,11 +233,26 @@ public sealed class TLoginIniFile : IDisposable
     public TLoginIniFile(string fileName)
     {
         _fileName = fileName ?? string.Empty;
+        // 原文 TIniFile.Create → TMemIniFile.Create 时即建立空文件（IniFiles.pas）。
+        //  托管侧照做：否则"同一目录两次 Create"的可见性会与原文不同。
+        if (_fileName.Length != 0 && !File.Exists(_fileName))
+        {
+            string createDir = Path.GetDirectoryName(_fileName);
+            if (!string.IsNullOrEmpty(createDir) && !Directory.Exists(createDir))
+                Directory.CreateDirectory(createDir);
+            File.WriteAllText(_fileName, string.Empty, EncodingInit.GBK);
+        }
         Load();
     }
 
     public string FileName => _fileName;
 
+    /// <summary>
+    /// ★ 语义关键：原文 <c>TIniFile</c> 在 <c>Create</c> 时把文件**整体读进缓存**，
+    /// 之后的 <c>ReadString</c> 只查缓存（写穿只写出去，不回流进同实例的读缓存）。
+    /// 故本类构造时读一次，<c>Write*</c> 只更新缓存 + 落盘，**不再从磁盘重读**。
+    /// 否则"构造 → 写 → 读"会读到别处写过的值，与原文不同。
+    /// </summary>
     private void Load()
     {
         _entries.Clear();
