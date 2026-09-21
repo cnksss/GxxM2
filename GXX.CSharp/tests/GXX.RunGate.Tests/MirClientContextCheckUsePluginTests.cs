@@ -16,12 +16,12 @@ namespace GXX.RunGate.Tests;
 // =====================================================================================
 // CheckUsePlugin（原文 3465-9688）的**已覆盖切片**测试。
 //
-// 已覆盖：前导段 3505-3519、CM_TURN 5858-6681（MirClientContextCheckUsePluginTurnTests）、
-//         CM_SPELL 7886-8995（…SpellTests）、CM_SITDOWN 9000-9469（…SitDownTests）、
+// 已覆盖：前导段 3505-3519、CM_WALK 3525-4692（MirClientContextCheckUsePluginWalkTests）、
+//         CM_RUN 4694-5853（…RunTests）、CM_TURN 5855-6681（…TurnTests）、
+//         CM_SPELL 7886-8995（…SpellTests）、CM_SITDOWN 8997-9469（…SitDownTests）、
 //         CM_DROPITEM 9474-9487、CM_PICKUP 9492-9505、else 9506-9516、
 //         公共收尾 9521-9681（CheckUsePluginPostlude）、兜底 9682-9686。
-// 未覆盖：3528-5857（CM_WALK / CM_RUN）、6690-7888（攻击族）
-//         → 显式早退，见 MirClientContext.CheckUsePlugin.cs 文件头 §偏差。
+// 未覆盖：攻击族 6690-7888 → 显式早退，见 MirClientContext.CheckUsePlugin.cs 文件头 §偏差。
 // =====================================================================================
 [Collection("RunGateFormLane")]
 public class MirClientContextCheckUsePluginTests
@@ -59,18 +59,16 @@ public class MirClientContextCheckUsePluginTests
     // ---- 未覆盖族：显式早退（差异断言，钉死本车道的已知缺口）----
 
     [Theory]
-    [InlineData(CM_WALK)]
-    [InlineData(CM_RUN)]
     [InlineData(CM_HIT)]
     [InlineData(CM_HEAVYHIT)]
     [InlineData(CM_115HIT)]
     [InlineData(CM_CUSTOM_HIT001)]
     [InlineData(CM_CUSTOM_HIT001 + 299)]     // 自定义技能区间上界内
-    // CM_TURN / CM_SITDOWN / CM_SPELL 已于本轮移植（见各自的 …TurnTests / …SitDownTests / …SpellTests），
-    // 故**不再**出现在本早退名单里。只剩 CM_WALK / CM_RUN 与攻击族。
+    // CM_TURN / CM_SITDOWN / CM_SPELL / CM_RUN / CM_WALK 均已移植（见各自的 …Tests），
+    // 故**不再**出现在本早退名单里。只剩攻击族。
     public void CheckUsePlugin_UnportedIdentFamilies_ReturnFalseWithoutSideEffects(ushort ident)
     {
-        // ★ 本车道的**已知缺口**（原文 3528-8999 未移植）：
+        // ★ 本车道的**已知缺口**（原文攻击族 6690-7888 未移植）：
         //   这些 ident 在原文里会记录动作（walk→baWalk、spell→baSpell…）并进入公共收尾；
         //   本车道却早退。差异断言：返回 false 且**不写** RecordActionArr、**不动** boContinueSpeed。
         _ctx.GameSpeed.boContinueSpeed = true;         // 若进入收尾会被置 False
