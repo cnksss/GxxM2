@@ -272,31 +272,40 @@ public sealed class ActorHiddenFieldDefectTests
     /// <list type="bullet">
     /// <item>某人把 <c>TActor.Destroy</c>(2945) / <c>CheckLoadUserName</c>(7120) /
     ///   <c>CheckLoadSurface</c>(7355) 中任何一条**真正实现**之后，
-    ///   对应调用不再进 <c>NotPortedLog</c> ⇒ **本用例立刻红** ⇒
-    ///   强制作者回来删条目并更新本报告的对账表；</item>
+    ///   对应调用不再进留痕 ⇒ **本用例立刻红** ⇒ 强制作者回来删条目并更新报告对账表；</item>
     /// <item>反过来，有人新增 <c>NotPorted</c> 却忘记登记，本用例也会红。</item>
     /// </list>
     ///
-    /// <para><b>注意</b>：<c>NotPortedLog</c> 是**静态**累积表，故本用例先清空；
-    /// 它记录的是"被调用过的留痕槽位"，不是"代码里存在多少处 NotPorted"。</para>
+    /// <para><b>★ 为什么用 <c>NotPortedCapture</c> 而不是进程级 <c>NotPortedLog</c></b>：
+    /// xUnit 默认**并行**跑测试类，而 <c>NotPortedLog</c> 是静态表 ——
+    /// 别的用例构造 <c>THumActor</c>（其构造函数会记录 <c>TActor.Create…@2777</c>）就会污染计数。
+    /// <c>NotPortedCapture</c> 是 <c>[ThreadStatic]</c>，只收**本线程本用例**产生的条目，
+    /// 故"条目数锁死"才是真的锁得住。</para>
     /// </summary>
     [Fact]
     public void NotPortedLog_ExactEntriesAreLocked()
     {
-        TActorCore.NotPortedLog.Clear();
-        var actor = new TActor();          // 基类实例：派生类的真实现不参与
+        TActorCore.NotPortedCapture = new List<string>();
+        try
+        {
+            var actor = new TActor();          // 基类实例：派生类的真实现不参与
 
-        var r1 = actor.CheckLoadUserName();   // 7120
-        var r2 = actor.CheckLoadSurface();    // 7355
-        actor.Destroy();                      // 2945
+            var r1 = actor.CheckLoadUserName();   // 7120
+            var r2 = actor.CheckLoadSurface();    // 7355
+            actor.Destroy();                      // 2945
 
-        Assert.False(r1);                     // ★ 留痕返回 false，**不是**裸 true（台帐 §48.1）
-        Assert.False(r2);
+            Assert.False(r1);                     // ★ 留痕返回 false，**不是**裸 true（台帐 §48.1）
+            Assert.False(r2);
 
-        Assert.Equal(
-            new[] { "CheckLoadUserName@7120", "CheckLoadSurface@7355", "Destroy@2945" },
-            TActorCore.NotPortedLog.ToArray());
-        Assert.Equal(3, TActorCore.NotPortedLog.Count);
+            Assert.Equal(
+                new[] { "CheckLoadUserName@7120", "CheckLoadSurface@7355", "Destroy@2945" },
+                TActorCore.NotPortedCapture.ToArray());
+            Assert.Equal(3, TActorCore.NotPortedCapture.Count);
+        }
+        finally
+        {
+            TActorCore.NotPortedCapture = null;
+        }
     }
 
     /// <summary>
@@ -306,13 +315,44 @@ public sealed class ActorHiddenFieldDefectTests
     [Fact]
     public void NotPorted_IsObservableEveryCallAndNeverReturnsTrue()
     {
-        TActorCore.NotPortedLog.Clear();
+        TActorCore.NotPortedCapture = new List<string>();
+        try
+        {
+            var actor = new TActor();
+
+            actor.Destroy();
+            actor.Destroy();
+
+            Assert.Equal(2, TActorCore.NotPortedCapture.Count);
+            Assert.All(TActorCore.NotPortedCapture, e => Assert.Equal("Destroy@2945", e));
+        }
+        finally
+        {
+            TActorCore.NotPortedCapture = null;
+        }
+    }
+
+    /// <summary>
+    /// 留痕表的**全量口径**（进程级，供审计）：至少包含当前 4 个槽位。
+    /// <para>这里用 <c>Contains</c> 而非精确相等 —— 进程级表会被并行用例追加，
+    /// 精确相等只适合上面的 <c>NotPortedCapture</c>。<c>NotPortedLog</c> 是**只追加**的
+    /// （本车道不再清空它），故本用例**自己产生**所需条目后再断言，不依赖测试执行顺序。</para>
+    /// </summary>
+    [Fact]
+    public void NotPortedLog_ProcessWideContainsCurrentSlots()
+    {
+        _ = new THumActor();                       // 产生 11132 的 inherited Create 留痕
+
         var actor = new TActor();
+        actor.CheckLoadUserName();                 // 7120
+        actor.CheckLoadSurface();                  // 7355
+        actor.Destroy();                           // 2945
 
-        actor.Destroy();
-        actor.Destroy();
+        var snapshot = TActorCore.NotPortedLog.ToArray();
 
-        Assert.Equal(2, TActorCore.NotPortedLog.Count);
-        Assert.All(TActorCore.NotPortedLog, e => Assert.Equal("Destroy@2945", e));
+        Assert.Contains("CheckLoadUserName@7120", snapshot);
+        Assert.Contains("CheckLoadSurface@7355", snapshot);
+        Assert.Contains("Destroy@2945", snapshot);
+        Assert.Contains("TActor.Create(inherited@11132)@2777", snapshot);
     }
 }

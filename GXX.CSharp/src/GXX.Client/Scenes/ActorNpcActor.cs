@@ -1216,13 +1216,32 @@ public partial class TActorCore
     /// <summary>
     /// 台帐 §48.1 的显式留痕：暂时做不了的成员**必须**以本方法标出，禁止裸 <c>=&gt; true;</c>。
     /// <para>返回值恒 <c>false</c> 且**每次调用都记录**，使"未移植"在运行期可观测（而非静默中性值）。</para>
+    /// <para><b>线程安全</b>：<see cref="NotPortedLog"/> 是**进程级静态**表，而 xUnit 默认**并行**跑
+    /// 测试类 ⇒ 用 <see cref="System.Collections.Concurrent.ConcurrentQueue{T}"/> 承载，
+    /// 避免 <c>List&lt;T&gt;</c> 并发写损坏。</para>
+    /// <para><b>精确断言用本线程采集</b>：<see cref="NotPortedCapture"/>（<c>[ThreadStatic]</c>）
+    /// 让单个用例锁死"**我这次调用**产生的条目集合与条数"，不受其它并行用例污染
+    /// （借用 `p16` 车道"留痕条目数要用例锁死"的教训）。</para>
     /// </summary>
     public static bool NotPorted(string member, int sourceLine)
     {
-        NotPortedLog.Add($"{member}@{sourceLine}");
+        string entry = $"{member}@{sourceLine}";
+        NotPortedLog.Enqueue(entry);
+        NotPortedCapture?.Add(entry);
         return false;
     }
 
-    /// <summary>已有 <c>NotPorted</c> 调用的成员清单（按调用序；测试与审计用）。</summary>
-    public static readonly List<string> NotPortedLog = new();
+    /// <summary>已有 <c>NotPorted</c> 调用的成员清单（进程级、按调用序、线程安全）。</summary>
+    public static readonly System.Collections.Concurrent.ConcurrentQueue<string> NotPortedLog = new();
+
+    /// <summary>
+    /// **本线程**的留痕采集器：非 <c>null</c> 时，<see cref="NotPorted"/> 会把条目同时追加进来。
+    /// <para>用例用法：置为新 <c>List</c> → 调用被测成员 → 断言内容与条数 → 复位为 <c>null</c>。
+    /// 因是 <c>[ThreadStatic]</c>，并行测试类互不影响。</para>
+    /// </summary>
+    [ThreadStatic]
+    public static List<string>? NotPortedCapture;
+
+    /// <summary>已有 <c>NotPorted</c> 调用的成员清单（进程级、按调用序、线程安全）。</summary>
+    // 说明：NotPortedLog 的类型与声明见上方（ConcurrentQueue）。
 }
