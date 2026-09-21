@@ -155,9 +155,11 @@ $E2_REFUTED = @(
     # Basenames verified unique repo-wide, so bare keys are safe here.
     'ObjHero',                 # 14,664
     'StateWindows',            # 14,027
-    'MShare',                  # 13,522
-    'Actor',                   # 18,009
     'ObjMon'                   # 9,502  (46 *Core.cs hold ~1,917 bare `=> true;` stubs)
+    # ledger 62.8/62.10: 'Actor' (18,009) and 'MShare' (13,522) were REMOVED from this list --
+    # both were promoted to $PARTIAL_UNITS by their lanes (measured 49.06% and 5.95% routines).
+    # Reminder: the verdict chain checks REFUTED *before* PARTIAL, so leaving a promoted unit here
+    # silently keeps it refuted (this bit me once while editing this file).
 )
 
 # ---- PARTIALLY ported units (the "third state" asked for by lane p12) -----
@@ -182,6 +184,18 @@ $PARTIAL_UNITS = @(
     # (D-P13-09) instead of being deleted -- "unverified counts as not done" applied to its own work.
     # 15 of 21 line segments remain (~189 routines).
     ,'ObjPlayer'       # 38%~45.3% (lower bound adopted)
+    # ledger 62.8: 'Actor' promoted from $E2_REFUTED by lane p17-client-actor -- measured
+    # 78 real / 77 NotPorted / 4 as-is of 159 routines = 49.06%; four Actor.pas shell classes were
+    # migrated out of PlaySceneNewActor.cs.  Remaining 81 need their own lane (THumActor's five
+    # giant methods alone are ~5,400 source lines).
+    ,'Actor'           # 78/159 = 49.06%
+    # ledger 62.10: 'MShare' promoted by lane p17-client-mshare.  Honest split: class methods
+    # 0/185 (0%), unit-level routines 21/168 (12.50%), routines total 21/353 = 5.95%, globals
+    # ~228/460 = ~49.6%.  Its priority-1 job was to become the PROVIDER for FState's densest
+    # blocker (the seven FStateMShareSeam globals) -- done, plus 15 more, plus 2 seam bodies.
+    # 185 class methods all remain (image/resource loaders, HTTP and user-centre families whose
+    # host types are themselves unported) -- do NOT fake them with unconsumed shells.
+    ,'MShare'          # 21/353 routines = 5.95% (globals ~49.6%)
     # ledger 62.4 / B-9 (lane p14-client-fstate, round 4): of the 428 dedup names still throwing in
     # TFrmDlg, EXACTLY 220 are declared `virtual; abstract` in the original with NO body anywhere in
     # the unit (verified by line-scanning the whole TFrmDlg class body: 220 abstract + 208 concrete,

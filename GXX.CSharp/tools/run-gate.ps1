@@ -84,7 +84,12 @@ try {
 
     $target = if ($Project) { $Project } else { $Solution }
     Write-Host ("== test: {0} ==" -f $target) -ForegroundColor Cyan
-    & dotnet test $target -c Debug --nologo --no-build *>&1 |
+    # NOTE (ledger 62.9, measured by lane p17-client-mshare): `dotnet test --no-build` can REPLAY
+    # STALE results -- when the incremental build decides a test project is UpToDate via its
+    # obj\*.Up2Date marker, a changed test source is not recompiled and the old parameters are
+    # replayed, which looks exactly like "my source change had no effect" (that lane got 6 false
+    # failures from it).  Correctness beats the few seconds: let `dotnet test` build first.
+    & dotnet test $target -c Debug --nologo *>&1 |
         Tee-Object -FilePath $Log -Append
     $code = $LASTEXITCODE
 
