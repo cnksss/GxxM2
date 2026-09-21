@@ -317,3 +317,53 @@ TChickenDeer         -> ObjMonATMonsterCore.cs, ObjMonChickenDeerCore.cs,
 **四条都不能用作验收。** 结论不变：**归属须从台账人工播种**（§9.4），
 脚本只负责校验 A/B/C 三个不变量；而 ④ 的修正（改用**实现区间**）
 是一条**有明确理由**、值得下一批一试的路子，但它同样必须先通过"反例输入"检验（§9.3）。
+
+### 9.7 批次J253：第五种判定（**实现头行匹配**）**成功** —— 并暴露 §9 不变量 B 本身过强
+
+J252 的失败根因是"坐标系混用"（用**声明**行分区间、却拿**实现**行号去比）。
+本批把坐标系统一到**实现区**：抽 `ObjMon.pas` 里所有 `Class.Method` **实现头行**
+（共 **206** 个），再用各 core 文件 `///` 行里记录的行号去**投票**
+（每个数字投给与之相差 `<= Tol`(=2) 的最近实现头所属的类）。
+
+**结果：ObjMon 侧 55 / 55 全部归属、A 通过**，且明细**与我逐批的记忆完全一致**：
+
+| 文件 | 认领的类 | 对应批次 |
+|---|---|---|
+| `ObjMonGasFamilyCore.cs` | `TGasAttackMonster`、`TGasMothMonster`、`TGasDungMonster` | J242 |
+| `ObjMonCowFamilyCore.cs` | `TCowMonster`、`TMagCowMonster`、`TCowKingMonster` | J243 |
+| `ObjMonElfFamilyCore.cs` | `TElfMonster`、`TElfWarriorMonster` | J244 |
+| `ObjMonZombieFamilyCore.cs` | `TLightingZombi`、`TDigOutZombi`、`TZilKinZombi` | J245 |
+| `ObjMonSkeletonScultureCore.cs` | `TWhiteSkeleton`、`TScultureMonster` | J246 |
+| `ObjMonScultureKingCore.cs` | `TScultureKingMonster` | J247 |
+| `ObjMonElectronicScolpionCore.cs` | `TElectronicScolpionMon` | J248 |
+| `ObjMonDamageArmorCore.cs` | `TDamageArmorAttackMonster` | J249 |
+
+**对照组（§9.3 的纪律，本批终于用上了）**：把**同一判据**拿去跑**未移植**的
+`Client-HGE/AxeMon.pas`（52 类）—— 得到 **30 / 52**、**22 个未归属、A 失败**，
+且票数普遍很低；而 ObjMon 侧票数普遍较高（多为 6-28）。
+⇒ **这是五种判定里第一个"既能解出已知已移植单元、又会在已知未移植单元上失败"的方法**，
+即它**具备区分力**，而不是 ② 那种"两边都通过"的空洞成功。
+
+**但必须如实标注它的**残余风险**（不夸大）**：
+- 对照组里仍被判为"已归属"的 **30/52** 是**数值巧合造成的假阳性**
+  （AxeMon 的行号恰好落在 ObjMon 实现头附近）；
+  故该判据**不能当作独立预言机**去判断"某个任意单元是否已移植"，
+  只在**"ObjMon + 它自己的 core 文件集合"这一域内**经过核对。
+- 因此本批的定位是：**判据已被"佐证"，尚未被"证明"**。
+  真正的证据仍是**逐批台账 + 探针 + 测试**；本判据的价值在于
+  **把台账结论自动化复算了一遍并得到一致结果**，且能在日后代码改动时**发现漂移**。
+
+**本批同时发现：§9 的不变量 B（"每个类只能被一个文件认领"）本身过强、与现实不符。**
+生成的 `docs/ObjMon-manifest.tsv`（56 行 = 表头 + 55 类）中 **41 个文件有归属、5 个文件为空** ——
+但空的那 5 个**并非多余**：有些类**合法地跨两个文件**
+（`TMonster` 在 `ObjMonCore.cs` + `ObjMonRunCore.cs`；`TFoxMonster` 在
+`ObjMonFoxCore.cs` + `ObjMonFoxRunCore.cs`）。我的"单 owner"结构把这类**拆分的类**
+只保留了第一个文件、丢掉了第二个。
+⇒ **正确的不变量应当是**：
+**A′ 全集**（每类至少一个文件）+ **B′ 反向**（每个文件声明的类都确实是它实现过的）
++ **D 覆盖**（对一个类，其**全部**实现方法都能在它声明的文件集合里找到）——
+而不是"恰好一个 owner"。**该修正尚未实施**，是本批留下的明确缺口。
+
+**产出**：`docs/ObjMon-manifest.tsv`（55 行清单，**可评审**）、
+`tools/gen-objmon-manifest-bymethod.ps1`（判据 v5，含 `-PascalFile` 供对照组复用）。
+四个"不可作终审"的旧脚本与本脚本**并存**，全部失败形态已记录在 §9.1/§9.2/§9.6。
