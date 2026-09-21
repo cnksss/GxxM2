@@ -125,6 +125,18 @@ public unsafe struct TUserCharacterInfo
     public byte sex;
 
     public string NameStr { get { fixed (byte* p = Name) return ShortStr.Get(p, 30); } set { fixed (byte* p = Name) ShortStr.Set(p, 30, value); } }
+
+    /// <summary>
+    /// ★ 集成方补（台账 §63.4 裁定 CR-1）：**原文客户端侧该字段名是 `sChrName`**
+    /// （`Client-HGE/ClMain.pas:23199/23214/23234` 读写 `g_DeleteHumanInfoArray[I].sChrName`、
+    /// `MShare.pas` 的 `g_SelDeleteHumanInfo.sChrName`；声明见 `Common/Grobal2.pas`
+    /// 的 `sChrName: string[ACTOR_NAME_LEN]`）。本托管类型同时服务服务端与客户端两侧，
+    /// 上面已有 `NameStr` 访问器 —— 这里补一个**同缓冲别名**（读/写都落到同一 30 字节短串），
+    /// 好让 GUI 侧把 `FStateMShareSeam.g_SelDeleteHumanInfo_sChrName` 这类"单字段接缝"退役、改指真身。
+    /// </summary>
+    /// <remarks>与 `NameStr` 是**同一块存储** —— 这也是**不能**新加一个 `fixed byte[31]` 字段的原因：
+    /// 那会变成两份状态（台账 §58.2 的 `m_wAbil`/`m_WAbil` 就是同一个坑）。</remarks>
+    public string sChrName { get => NameStr; set => NameStr = value; }
 }
 
 /// <summary>TDummyLogon。</summary>
