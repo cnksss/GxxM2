@@ -332,3 +332,117 @@ git show main:GXX.CSharp/tools/lane-zones.tsv | Select-String p7-db-selectclient
 | **(c) 一并移植** `IDSocCli.pas` 会话判定 + `DBShare.pas` 名校验族 | 最忠实 | 工作量远超本车道，建议另开 1~2 条车道 |
 
 **我没有自行选 (b)**（它是 §25.2 点名的形态，需要编号裁定）；也**没有改任何分区外文件**。
+
+---
+
+## 12. 接线执行完毕（切片9/10，`2f605d53` / `0dde7dad`）
+
+### 12.1 授权与裁定（按集成方 §2 条执行）
+
+* 授权自查：`main` 的 `a6a413cf` 已把 `!GXX.CSharp/src/GXX.DBServer/DBServerService.cs` 与
+  `!GXX.CSharp/src/GXX.DBServer/RoleDatabase.cs` 加进本车道分区（`git show main:GXX.CSharp/tools/lane-zones.tsv` 可自查）。
+* **裁定：方案 (a) —— 保持抛异常，不做放行桩。** 理由（集成方原文）：校验与过滤规则不是展示逻辑，
+  (b) 会把"拒绝"变成"接受"；**安静的错 > 响亮的缺**；可审计 ≠ 正确。
+  ⇒ 本车道**没有**为任何未移植依赖提供中性值。
+
+### 12.2 任务书 5 项的落地情况
+
+| 任务书 | 落地 | 位置 |
+|---|---|---|
+| 1. 为每个 TcpLink 建 TSelectClient / 接 SendText 与 RemoteAddress / 收包喂 ExecGateBuffers | ✅ | `DBServerService.GateAcceptLoop`（3 行）+ `SelectClient.GateWiring.cs`（`AttachTcpLink`） |
+| 2. 删除 `ProcessGateData`（整体） | ✅ 已删 | 连同 `ToByte` / `ExtractBodyText` / `SendReply` 三个**只被它调用**的死方法（§28.3 双根已核实） |
+| 3. 修 `:135` 协议字段位置 | ✅ 该行随 `ProcessGateData` 一并消失；正确目标由 `TSelectClient.QueryChr`（:1228 `MakeDefaultMsg(SM_QUERYCHR, nChrCount, 0, 1, 0)`）承担 | 验收基准：`SelectClientGateWiringTests.端到端_CM_QUERYCHR_角色数在Recog且Tag为1` / `…角色数落在Recog上` |
+| 4. `RoleDatabase.cs:46/75/88/100/125` 对齐原文 | ✅ 见 §12.3 逐条映射 | `RoleDatabase.cs` |
+| 5. 接缝赋值（能接的接、接不上的显式登记） | ✅ 接上 `HumanDB`/`HeroDB`/`SendText`/`RemoteAddress`；**未接** `FrmIDSoc` / DBShare 校验族 / 主动网关（显式抛，见 §12.4） | `DBServerService` ctor + `SelectClientRoleDbSeam.AttachRoleDatabase` |
+
+**门禁**：`GXX.DBServer.Tests` **609/609 全绿**（接线前 562 → **+47**）；
+`GXX.Integration.Tests` **2/2**；`dotnet build GXX.slnx --no-incremental` **0 error / 162 warning**
+（合并 main 后基线 163，**少 1 条**：删掉了 `DBServerService.cs` 里重复的 `using GXX.GatewayKit;`，即原有 CS0105）。
+`SelectClient*.cs` / `RoleDatabase.cs` / `DBServerService.cs` 新增警告 **0**。
+
+### 12.3 `RoleDatabase.cs` 的逐条对齐（任务书第 4 项）
+
+| 原位置 | 原文语义（`MySqlRoleDB.pas` 原样 SQL） | 处置 |
+|---|---|---|
+| `:46 QueryChr(account, byte[] outBuf)` | SM_QUERYCHR 包体是**文本** `[*]名/职业/发型/等级/性别/`（SelectClient.pas:1217-1222）；原实现发的是 `TDeleteHumanInfo` 6-bit 二进制 | **删除**（格式错 + 接线后零调用方）。正确包体由 `TSelectClient.QueryChr` + `HumanDB.QueryHumans` 产生 |
+| `:75 ChrExists(account,name,isHero)` | 原文查重判据是 `HumanDB.GetID(name) <> NO_ID **or** HeroDB.GetID(name) <> NO_ID`（:964） | **删除**；由 `GetHumanId`+`GetHeroId` 合成（`IsHero=0` / `IsHero=1` 两次查，等价于原 `ChrNameUsed` 的 `WHERE ChrName=@c`） |
+| `:88 ChrNameUsed(chrName)` | 同上 | **删除**（`GetID` 在两个适配器上合成，能力不丢） |
+| `:100 NewChr(account,name,job,gender)` | `DoAdd` = `insert into Human(Account, HumanName, IsDelete, IsSelect, CreateDate, Sex, Job, Hair) values(?,?,?,?,?,?,?,?)`；查重与等级策略**不在这一层** | **收敛为 `AddHuman`**（参数顺序/取值照原文；`CreateDate = Date2MyDate(Now())`）；查重移到 `TSelectClient.NewChr`（:964）；THumData 初始化保留 |
+| `:125 DelChr(account,name)` | `DoDelete` = `update Human set IsDelete = 1 where (Account = ?) and (HumanName = ?)`（**软删**） | **拆成 `DeleteHuman`/`DeleteRestoreHuman`**（`IsDelete=1/0`）；`Level > 45 → nCode -3` 在 `TSelectClient.DelChr`（:1097，已移植） |
+
+新增的 10 个数据操作（SQL 逐条抄自 `MySqlRoleDB.SqlStatements.cs`，注释在 `RoleDatabase.cs` 里）：
+`GetHumanId` / `GetHeroId` / `GetHumanCount` / `GetBaseInfo` / `QueryHumans` / `QueryDeleteHumans` /
+`SelectHuman`（两条 update + 事务）/ `AddHuman` / `DeleteHuman` / `DeleteRestoreHuman`；
+并加 `EnsureSchema` 的**增量列迁移**（`IsDelete` / `IsSelect` / `Hair` / `CreateDate` / `LoginDate`，
+用 `PRAGMA table_info` 判缺再 `ALTER TABLE`，旧库可直接打开）。
+**忠实保留的两处原文细节**：① `GetHumanId`/`GetBaseInfo` **不过滤 `IsDelete`**（删掉的名字仍被占用）；
+② `QueryHumans` 做 Sex/Job 钳位、`QueryDeleteHumans` **不做**（测试锁定该差异）。
+
+### 12.4 ★★ 未移植依赖的**精确清单**（集成方要求：哪个单元、多少行）
+
+接线后，**以下命令会抛 `NotSupportedException`**（不是静默放行）——原因与规模如下：
+
+| 命令 / 帧 | 抛在哪（原文行） | 缺失单元 | 规模 |
+|---|---|---|---|
+| `CM_QUERYCHR`(100) | `QueryChr` → `FrmIDSoc.CheckSession`（:1198） | **`IDSocCli.pas`** | **431 行**（13,763 字节，整单元未移植） |
+| `CM_RANDOMNAME`(106) | `DeCodeUserMsg` → `CheckSession`（:760） | 同上 | 同上 |
+| `CM_NEWCHR`(101) | `DeCodeUserMsg` → `CheckSession`（:784）；若会话通过还会撞 **`DBShare.pas` 名校验族** | `IDSocCli.pas` + `DBShare.pas` 名校验族 | 431 行 + **170 行** |
+| `CM_DELCHR`(102) | `DeCodeUserMsg` → `CheckSession`（:807） | `IDSocCli.pas` | 431 行 |
+| `CM_SELCHR`(103) | `DeCodeUserMsg` → `CheckSession`（:829） | `IDSocCli.pas` | 431 行 |
+| **任何 `%X` 帧（用户离开）** | `CloseUser` → `FrmIDSoc.GetGlobaSessionStatus`（:714） | `IDSocCli.pas` | 431 行 |
+| `g_boUseActiveRunGage = True` 时的 `CM_SELCHR` | `SelectChr` → `GateActiveRouteIP`（:1152）/ `CheckActiveRunGate`（:1158） | `DBShare.pas:731-848` | **117 行** |
+
+**`DBShare.pas` 名校验族的精确行号**（`SelectClient.pas` 实际调用的 6 个 + 1 个依赖）：
+
+| 函数 | 行号 | 行数 |
+|---|---|---|
+| `CheckDenyChrName` | :1043-1056 | 14 |
+| `CheckFilterNewHumanChrName` | :1058-1077 | 20 |
+| `CheckNumberName` | :1103-1122 | 20 |
+| `CheckLetterName` | :1124-1143 | 20 |
+| `CheckCanCaseChar`（被 `CheckChrName` 调用） | :1177-1202 | 26 |
+| `CheckChrName` | :1204-1249 | 46 |
+| `CheckSpecialChar` | :1251-1274 | 24 |
+| **合计** | | **170 行** |
+| 另需 `LoadChrNameList`（装载 `g_DenyChrNameList` / `g_FilterNewHumanNameTextList`） | :403-425 | 23 行 |
+| 另需 `GateActiveRouteIP` :751-848（98）+ `CheckActiveRunGate` :731-749（19） | | 117 行 |
+
+⇒ **要让它"全命令可用"，后续车道需要移植约 `431 + 170 + 23 + 117 ≈ 741 行`**（`IDSocCli.pas` 整单元优先，它一条就挡住 6 项）。
+（`DBShare.pas:705-729 GateRouteIP` 已在 `DBShareSeam.cs` 移植 ✅，所以**默认路由模式**的 `CM_SELCHR` 只差 `IDSocCli`。）
+
+**已经能真正跑通的**（已用端到端用例锁定）：`%-` 心跳、`%O` 接入、`%X`（**不命中槽位**时）、
+`CM_QUERYDELCHR`(105)、`CM_GETBACKDELCHR`(3006)（原文这两条本就不做 `CheckSession`），
+以及 else 分支的 `SM_CHECKISMYSELF SERVER`。
+
+### 12.5 新增偏差登记
+
+| 编号 | 偏离点 | 原文/旧行为 | 新行为 | 登记理由 |
+|---|---|---|---|---|
+| **D-p7-10** | `RoleDatabase` 删掉 `QueryChr`/`ChrExists`/`ChrNameUsed`/`NewChr`/`DelChr` 五个方法 | 为旧 `ProcessGateData` 的 4 条命令而写，语义与原文不一致（包体格式、查重范围、无等级门） | 换成 §12.3 的 10 个操作 | 接线后这 5 个**零调用方**（§28.3 双根已核实）；"零调用方的错实现"比"缺实现"更危险 |
+| **D-p7-11** | `SelectClientGateWiring.AttachTcpLink` 的 `OnReceive` 里加了宿主**异常边界** | 原文 `ExecGateBuffers` 无 try/except，但它的调用者是 **VCL 事件回调**，异常由 `Application.HandleException` 兜住（不静默、也不炸进程） | `FeedSafe` 捕获 → 写 `MainOutMessage("[ERROR] SelectClient 命令处理抛异常：…")` → **返回异常给宿主** → 宿主 `Detach` + `link.Close()` | 托管侧 `TcpLink.ProcessReceive` 的 `OnReceive?.Invoke` **没有** try，异常会升级为 IOCP 回调线程上的**进程级未处理异常**。**不是"吞"**：日志留全 + 主动断连（fail closed）。薄直通版 `Feed` 仍在，测试锁定"不加边界就原样抛" |
+| **D-p7-12** | `SelectClientHumanDb`/`SelectClientHeroDb` **只**实现 `SelectClient.pas` 用到的 Do*（Human 9 个 / Hero 1 个） | `THumanDB`/`THeroDB` 各有 27/11 个 Do* | 其余抛 `NotSupportedException` | 刻意收窄，避免把半个 HumanDB 伪装成通用 g_RoleDB。**注意**：`THumanDBBase` 的公开包装会 `catch` 并把异常降级成"日志 + 初值"（`MySqlRoleDB.Base.cs:17-27`，本车道无权改）—— 该行为已被 `适配器_未接线的Do成员被THumanDBBase包装吞成日志与初值` **锁死**，以免后来人误以为它会抛 |
+
+### 12.6 ★ 第 17 条发现（本次接线时被它绊倒）：`THumData` 是巨型结构，值复制会**栈溢出**
+
+* `THumData`（`Grobal2.Types4.cs:128`，`Pack=1`）含 `TUserItemArray206 BagItems`、
+  `TUserItemArray196 StorageItems`、`ShortStr100Array500 TValues/ZValues`（各 500×101 字节）、
+  `IntArray500 UValues/JValues`、`TSaveNpcSkillPowerAddArray550` … ⇒ **`StructBytes.SizeOf<THumData>() > 10000`**。
+* 我在适配器测试里写了 `db.LoadHum(...)` 返回 `THumData?`，然后连续访问 `hum.Value.X` 8 次
+  —— **每次 `.Value` 都是一整块值复制** ⇒ **测试宿主 "Stack overflow" / `Test Run Aborted`**
+  （477 例通过后中止，无失败列表，只在 stderr 留一行 `Stack overflow.`）。
+* 修法：按本仓既有约定（`GXX.Core.Tests/CoreTests.cs:194-198` 的注释已经点明"THumData 为巨型结构，
+  CLR 不允许创建其数组元素"）改走 `Unsafe.As<byte, THumData>(ref wire[0])` 别名。
+* **对生产代码的影响**：`RoleDatabase.LoadHum/SaveHum` 与 `ProcessM2Data` 各只做**一次**复制，安全；
+  但**任何"在栈上多复制几次 THumData"的写法都要先想想**。已把这条固化成断言
+  `SelectClientRoleDbAdapterTests.THumData是巨型结构_值复制是真实的栈开销`。
+* **规程建议**：**"测试宿主的 `Test Run Aborted` + stderr 的 `Stack overflow.`"要当成一等失败处理**
+  ——它不会出现在失败列表里，`Passed!` 数字还会变小（本次 609 → 477），只看汇总行会误判成"全绿"。
+
+### 12.7 仍未做（诚实）
+
+1. **真实 socket 端到端联调未做**：`GateAcceptLoop` 的 `Accept`→`AttachTcpLink` 路径没有自动化用例
+   （既有 `GXX.Integration.Tests` 有 TOCTOU 端口竞态的历史，不引入新的网络测试）。
+   覆盖到的是**同一条路径的等价层**：`SelectClientGateWiringTests`（20+4 例）+ `SelectClientHostWiringTests`（17 例）。
+2. `%X` 会断整条 SelGate 连接（§12.4 末行）——这是裁定 (a) 的**已知代价**，若集成方认为
+   "`CloseUser` 里的 IDSoc 只是清理通知"可以单独放宽，请给编号；**本车道没有自行放宽**。
+3. `IDSocCli.pas` / `DBShare.pas` 名校验族 / 主动网关路由**仍未移植**（规模见 §12.4）。

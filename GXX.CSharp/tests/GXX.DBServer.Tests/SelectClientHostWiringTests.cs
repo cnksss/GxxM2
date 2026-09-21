@@ -218,6 +218,39 @@ public class SelectClientHostWiringTests : TempDirTest
         Assert.Equal(1, msg.Recog);                                               // 已删角色数在 Recog
     }
 
+    [Fact]
+    public void 帧X_命中槽位时也抛_因为CloseUser要问IDSocCli会话状态()
+    {
+        // ★ 这是 §12 里最容易漏掉的一条影响面：`CloseUser`（SelectClient.pas:714 `GetGlobaSessionStatus`）
+        //   在**命中槽位**时会碰 FrmIDSoc ⇒ SelGate 每次"用户离开"都会抛，
+        //   经 `FeedSafe` 被接住后**断开整条 SelGate 连接**（一个连接上通常挂着多个玩家）。
+        //   原文这一小段是**清理通知**（"会话已失效 → 叫 LoginSrv 关掉它"），不是校验判定；
+        //   是否有必要为它单独放宽，由集成方裁定（本车道按裁定 (a) 保持抛）。
+        using var srv = new DBServerService(Path2("host.db"));
+        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        byte[] open = System.Text.Encoding.Latin1.GetBytes("%O7/1.1.1.1$");
+        SelectClientGateWiring.Feed(c, open, 0, open.Length);
+        c.SelectCharList.OnLineItems(0)!.nSessionID = 99;
+
+        byte[] close = System.Text.Encoding.Latin1.GetBytes("%X7$");
+        Exception? ex = SelectClientGateWiring.FeedSafe(c, close, 0, close.Length);
+
+        Assert.IsType<NotSupportedException>(ex);
+        Assert.Contains("IDSocCli", ex!.Message);
+        Assert.Equal("", c.m_sReceiveText);                                       // 帧被完整吃掉后再抛
+    }
+
+    [Fact]
+    public void 帧X_不命中槽位时不抛()
+    {
+        // 对照：没有匹配 ConnID 时 CloseUser 的 for 循环体根本不执行 ⇒ 不碰 FrmIDSoc。
+        using var srv = new DBServerService(Path2("host.db"));
+        var c = SelectClientGateWiring.Attach(_ => { }, "10.9.9.9");
+        byte[] close = System.Text.Encoding.Latin1.GetBytes("%X999$");
+
+        Assert.Null(SelectClientGateWiring.FeedSafe(c, close, 0, close.Length));
+    }
+
     /// <summary>从 <c>%&lt;sid&gt;/#…!$</c> 里取出 22 字节编码头。</summary>
     private static byte[] Slice(byte[] raw)
     {
