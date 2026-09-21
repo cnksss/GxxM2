@@ -82,11 +82,11 @@ public partial class TMerchant
     {
         switch (nNF)
         {
-            case ObjNpcConst.nNF_SuperRepair:   // 原文 2702-2706
+            case NpcProcessCmd.nNF_SuperRepair:   // 原文 2702-2706
                 if (m_boS_repair)
                     SuperRepairItem(PlayObject);
                 return true;
-            case ObjNpcConst.nNF_Repair:        // 原文 2737-2741
+            case NpcProcessCmd.nNF_Repair:        // 原文 2737-2741
                 if (m_boRepair)
                     RepairItem(PlayObject);
                 return true;

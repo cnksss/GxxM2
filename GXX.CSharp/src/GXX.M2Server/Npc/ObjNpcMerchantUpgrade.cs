@@ -63,7 +63,7 @@ public partial class TMerchant
             if (UpgradeInfo.sUserName == User.m_sCharName)
             {
                 // 原文 1846：GotoLable(User, sNF_Upgradeing, False)
-                PlayerSurfaceNpcSeams.GotoLable(this, User, ObjNpcConst.sNF_Upgradeing, false);
+                PlayerSurfaceNpcSeams.GotoLable(this, User, NpcProcessCmd.sNF_Upgradeing, false);
                 return;
             }
         }
@@ -149,8 +149,8 @@ public partial class TMerchant
         }
         // 原文 1897-1900
         if (bo0D)
-            PlayerSurfaceNpcSeams.GotoLable(this, User, ObjNpcConst.sNF_UpgradeOK, false);
+            PlayerSurfaceNpcSeams.GotoLable(this, User, NpcProcessCmd.sNF_UpgradeOK, false);
         else
-            PlayerSurfaceNpcSeams.GotoLable(this, User, ObjNpcConst.sNF_UpgradeFail, false);
+            PlayerSurfaceNpcSeams.GotoLable(this, User, NpcProcessCmd.sNF_UpgradeFail, false);
     }
 }
