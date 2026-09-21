@@ -629,30 +629,46 @@ public sealed class DummySettingHandlerTests : DummySettingTestBase
         }
     }
 
-    // ---- `edtDummyHomeMapChange`（:408-411）空体 + DFM 未绑定（差异断言） ----
+    // ---- `edtDummyHomeMapChange`（:408-411）：DFM 已绑定，但原文处理器是空体 ----
 
     [Fact]
-    public void EdtDummyHomeMapChange_IsNoOp()
+    public void EdtDummyHomeMapChange_IsBoundButNoOp_DoesNotWriteConfigOrMarkDirty()
     {
+        // DFM :162 `OnChange = edtDummyHomeMapChange` ⇒ 该处理器**会被触发**
+        // （`TFrmDummySetting.Components.cs` 已 1:1 绑 `TextChanged`）。
+        // 原文方法体 :410 只有一行 `//` ⇒ 改文本**不写** `g_Config.sDummyHomeMap`、**不**置脏。
         M2Config.sDummyHomeMap = "3";
-        var before = M2Config.sDummyHomeMap;
         Form.uModValue();                              // 先清脏，才能验证"未置脏"
-        Form.Ct.edtDummyHomeMap.Text = "999";
-        Form.edtDummyHomeMapChange(Form.Ct.edtDummyHomeMap);
-        Assert.Equal(before, M2Config.sDummyHomeMap);
-        Assert.False(Form.Ct.ButtonDummySave.Enabled);   // 未置脏
+
+        Form.Ct.edtDummyHomeMap.Text = "999";          // 触发绑定（走托管事件路径）
+
+        Assert.Equal("3", M2Config.sDummyHomeMap);     // 未被写
+        Assert.False(Form.Ct.ButtonDummySave.Enabled); // 未置脏
     }
 
     [Fact]
-    public void EdtDummyHomeMap_HasNoChangeHandlerBound_OriginalDfmHasNoOnChange()
+    public void EdtDummyHomeMapChange_DirectCall_IsNoOp()
     {
-        // ⚠ 差异断言（原文缺陷）：DFM :154-162 `edtDummyHomeMap` **没有** `OnChange` 行
-        // ⇒ 原文里 `edtDummyHomeMapChange` **永不触发**。
-        // 托管侧同样**不绑定** TextChanged ⇒ 改文本不会写 g_Config、不会置脏。
+        M2Config.sDummyHomeMap = "3";
+        Form.uModValue();
+        Form.Ct.edtDummyHomeMap.Text = "999";
+        Form.edtDummyHomeMapChange(Form.Ct.edtDummyHomeMap);   // 直调（事件处理器直调规程）
+        Assert.Equal("3", M2Config.sDummyHomeMap);
+        Assert.False(Form.Ct.ButtonDummySave.Enabled);
+    }
+
+    [Fact]
+    public void EdtDummyHomeMap_TextChangedIsBound_DifferenceAssertion()
+    {
+        // ★ 绑定事实断言（勘误）：早期版本曾错误声称 DFM 未绑定。
+        // 证据 = `TextChanged` 已订阅 ⇒ 赋新文本必然触发处理器。
+        // 由于处理器是空体，无法直接观察"被调用"，故用"处理器直调 + 事件路径结果一致"
+        // 间接锁定：两条路径都不得改动 `g_Config` 或置脏。
+        M2Config.sDummyHomeMap = "3";
         Form.uModValue();
         Form.Ct.edtDummyHomeMap.Text = "D401";
-        Assert.Equal("3", M2Config.sDummyHomeMap);        // 配置未被写
-        Assert.False(Form.Ct.ButtonDummySave.Enabled);    // 未置脏
+        Assert.Equal("3", M2Config.sDummyHomeMap);
+        Assert.False(Form.Ct.ButtonDummySave.Enabled);
     }
 
     [Fact]

@@ -72,7 +72,7 @@ public sealed class DummySettingControls
     public System.Windows.Forms.NumericUpDown seDummyHomeX = null!;
     /// <summary>DFM :143 `seDummyHomeY: TSpinEditEx`（Min=1 Max=2000 Value=10）。</summary>
     public System.Windows.Forms.NumericUpDown seDummyHomeY = null!;
-    /// <summary>DFM :154 `edtDummyHomeMap: TEdit`。</summary>
+    /// <summary>DFM :154 `edtDummyHomeMap: TEdit`（:162 `OnChange = edtDummyHomeMapChange`；Text 初值 `'3'`）。</summary>
     public System.Windows.Forms.TextBox edtDummyHomeMap = null!;
     /// <summary>DFM :164 `seDummyLogonTime: TSpinEditEx`（Min=1 Max=2000 Value=10）。</summary>
     public System.Windows.Forms.NumericUpDown seDummyLogonTime = null!;

@@ -9,10 +9,12 @@
 //    托管侧落为 `public` 以便单元测试**直调事件处理器**
 //    （任务书硬性要求 3 的"事件处理器直调 + 决策镜像"），与既有 `GamePetsForm` 家族一致。
 //
-//  ★ 原文**实际存在但 DFM 未绑定**的处理器：
-//    `edtDummyHomeMapChange`（:408-411，空体）在 DFM :154-162 上**没有** OnChange
-//    （DFM 该控件只有 Left/Top/…/TabOrder/Text，**无** `OnChange = edtDummyHomeMapChange`），
-//    即原文里这个事件**永不触发**。1:1 保留空体 + 本注释。
+//  ★ 勘误（本车道审计自查）：早期版本的本文件与 `TFrmDummySetting.cs` / `DummySettingControls.cs`
+//    注释曾声称「`edtDummyHomeMapChange` 在 DFM 里**没有**绑定 OnChange ⇒ 永不触发」。
+//    **该结论是错的** —— 回读 `uFrmDummySetting.dfm:154-163` 确认 `edtDummyHomeMap` 带
+//    `OnChange = edtDummyHomeMapChange`（DFM :162）。原文处理器 :408-411 本身是**空体**
+//    （只有一行 `//`），所以"绑不绑"不影响行为，但**绑定事实**照 DFM 1:1 保留
+//    （`TFrmDummySetting.Components.cs` 里已绑 `TextChanged`）。
 // ============================================================================
 
 using System;
@@ -442,9 +444,10 @@ public sealed partial class TFrmDummySetting
     /// <summary>
     /// `TFrmDummySetting.edtDummyHomeMapChange`（:408-411）1:1 —— **空体**（原文只有 `//`）。
     /// <para>
-    /// ⚠ 该处理器在 `uFrmDummySetting.dfm` 里**没有任何控件绑定 `OnChange`**
-    /// （DFM :154-162 `edtDummyHomeMap` 无 `OnChange` 行）⇒ 原文中**永不触发**。
-    /// 1:1 保留（含空体），并在 DFM 控件树上照原文"不绑定"以免改变行为。
+    /// DFM :162 `OnChange = edtDummyHomeMapChange` ⇒ 该处理器**会被触发**
+    /// （`TFrmDummySetting.Components.cs` 已 1:1 绑 `TextChanged`）；
+    /// 但原文方法体是空的 ⇒ 改文本**不写** `g_Config.sDummyHomeMap`、**不**置脏。
+    /// 差异断言见测试 `EdtDummyHomeMapChange_IsBoundButNoOp`。
     /// </para>
     /// </summary>
     public void edtDummyHomeMapChange(System.Windows.Forms.TextBox edtDummyHomeMap)

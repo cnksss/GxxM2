@@ -76,7 +76,8 @@ public sealed partial class TFrmDummySetting
         Ct.seDummyHomeX.ValueChanged += (_, _) => seDummyHomeXChange(Ct.seDummyHomeX);
         Ct.seDummyHomeY = MakeSpin(71, 64, 70, 1, 2000, 10);            // DFM Min=1 Max=2000 Value=10
         Ct.seDummyHomeY.ValueChanged += (_, _) => seDummyHomeYChange(Ct.seDummyHomeY);
-        Ct.edtDummyHomeMap = new System.Windows.Forms.TextBox { Left = 71, Top = 14, Width = 70 };
+        Ct.edtDummyHomeMap = new System.Windows.Forms.TextBox { Left = 71, Top = 16, Width = 150, Text = "3" };
+        // DFM :162 `OnChange = edtDummyHomeMapChange` ⇒ **确实绑定**（原文处理器 :408-411 是空体）
         Ct.edtDummyHomeMap.TextChanged += (_, _) => edtDummyHomeMapChange(Ct.edtDummyHomeMap);
         Ct.seDummyLogonTime = MakeSpin(71, 88, 70, 1, 2000, 10);        // DFM Min=1 Max=2000 Value=10
         Ct.seDummyLogonTime.ValueChanged += (_, _) => seDummyLogonTimeChange(Ct.seDummyLogonTime);
