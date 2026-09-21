@@ -58,3 +58,9 @@ p9-m2-pathfind	GXX.CSharp/src/GXX.M2Server/Sweep9/PathFind/**;GXX.CSharp/tests/G
 p9-m2-datalayer	GXX.CSharp/src/GXX.M2Server/Sweep9/DataLayer/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9DataLayer*;GXX.CSharp/docs/并行报告-p9-m2-datalayer.md
 p9-m2-forms	GXX.CSharp/src/GXX.M2Server/Sweep9/Forms/**;GXX.CSharp/tests/GXX.M2Server.Tests/Sweep9Forms*;GXX.CSharp/docs/并行报告-p9-m2-forms.md
 p9-rungate-rest	GXX.CSharp/src/GXX.RunGate/Rest9/**;GXX.CSharp/tests/GXX.RunGate.Tests/Rest9*;GXX.CSharp/docs/并行报告-p9-rungate-rest.md
+# ---- P10 wave (2026-09-21, round 51): the two giants found by the WEAK triage
+# (ledger 38.6b).  GameConfigDlgs.cs carries an explicit, documented seam for
+# BOTH dialogs (CreateMirConfigDlg / TJSYConfigDlg stub), so the mirconfig lane
+# gets a narrow '!' grant to replace that seam with the real factory.
+p10-client-mirconfig	GXX.CSharp/src/GXX.Client/GUI/GameConfig/Mir/**;!GXX.CSharp/src/GXX.Client/GUI/GameConfig/GameConfigDlgs.cs;GXX.CSharp/tests/GXX.Client.Tests/GuiMirConfig*;GXX.CSharp/docs/并行报告-p10-client-mirconfig.md
+p10-client-scrn	GXX.CSharp/src/GXX.Client/Scenes/DrawScrn/**;!GXX.CSharp/src/GXX.Client/Scenes/DropItemFx.cs;GXX.CSharp/tests/GXX.Client.Tests/ScrnDraw*;GXX.CSharp/docs/并行报告-p10-client-scrn.md

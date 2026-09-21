@@ -96,3 +96,11 @@ IODataPool	par/p9-rungate-rest
 Qos	par/p9-rungate-rest
 IocpTcpClient	par/p9-rungate-rest
 DllUpdateCommon	par/p9-rungate-rest
+#
+# ---- P10 wave (2026-09-21, round 51): the two giants the WEAK triage exposed.
+# Class-declaration evidence (ledger 38.6b): TMirConfigDlg has NO declaration
+# (only a stub seam), 24/27 DrawScrn classes have none.
+MirConfigDlg	par/p10-client-mirconfig
+JSYConfigDlg	par/p10-client-mirconfig
+DrawScrn	par/p10-client-scrn
+DropItemsMgr	par/p10-client-scrn
