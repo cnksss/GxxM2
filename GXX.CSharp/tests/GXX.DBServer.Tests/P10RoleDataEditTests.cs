@@ -22,6 +22,8 @@ namespace GXX.DBServer.Forms.Tests;
 //     短读文件、写盘失败、取消对话框。
 //
 // 绝不连库、绝不弹真实对话框、绝不阻塞：全部外部面由 P10RoleDataEditScope 换成内存替身。
+//
+// ★ 每个用例体都跑在 BigStack（16 MB 栈线程）上 —— 理由见 BigStack 的注释（记录是 645 KB 的值类型）。
 // ============================================================================================
 
 /// <summary>触碰静态接缝 ⇒ 关掉本集合的并行（AssemblyInfo.cs 已全局关并行，这里再显式声明一次）。</summary>
@@ -92,6 +94,38 @@ public class P10RoleDataEditTests : TempDirTest
     // ========================================================================================
     // 测试夹具
     // ========================================================================================
+
+    /// <summary>
+    /// 在**大栈线程**上跑测试体。
+    ///
+    /// 为什么必需：本单元的记录是**巨型值类型**——实测 `Marshal.SizeOf&lt;THumData&gt;() = 660,377`
+    /// （≈ 645 KB）、`Marshal.SizeOf&lt;THeroData&gt;() = 323,962`（≈ 316 KB）。
+    /// Delphi 侧它们是 `GetMem` 出来的**堆**记录（原文本单元全程用 `PTHumData`），
+    /// 托管侧 `THumData`/`THeroData` 是 `struct`。xunit 测试线程的默认栈只有 1 MB，
+    /// 放不下"1 份记录 + 被调方法的实参副本 + 调用链"，实测会 `Stack overflow` **直接打死 testhost**。
+    /// ★ 这种崩法极其阴险：`dotnet test` 退出码 = 1，但摘要行仍打印 `已通过! ... 通过: N`（N 是崩溃前的**部分**结果）
+    ///   —— 即"没跑完却显示通过"的假绿。故本类**所有**用例统一在 16 MB 栈的专用线程上执行，
+    ///   并以 `$LASTEXITCODE == 0` 为门禁判据。
+    /// ★ 与产线无关：产线把记录放堆（窗体字段 / byte[]），且 LoadDataformFile 的暂存记录也落在**字段**上
+    ///   （见 uFrmRoleDataEdit.cs 的 D-P10-29 注释），不会在 1 MB 的 UI 线程栈上摆 645 KB 局部量。
+    /// </summary>
+    private static void BigStack(Action body)
+    {
+        Exception error = null;
+        var t = new System.Threading.Thread(() =>
+        {
+            try { body(); }
+            catch (Exception ex) { error = ex; }
+        }, 16 * 1024 * 1024);
+        t.IsBackground = true;
+        t.Start();
+        t.Join();
+        if (error != null)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
+    }
+
+    /// <summary>用例体统一入口（所有 `[Fact]` 都写成 `public void X() => Run(() =&gt; { ... });`）。</summary>
+    private static void Run(Action body) => BigStack(body);
 
     /// <summary>一条"有内容"的人物记录（字段值互不相同，便于定位到底是哪一路取的值）。</summary>
     private static THumData Human()
@@ -187,37 +221,57 @@ public class P10RoleDataEditTests : TempDirTest
         mi.Invoke(control, new object[] { EventArgs.Empty });
     }
 
+    /// <summary>原文 :136/:144/:152/:169 的 4 个 TEdit `OnChange`（托管侧 = `TextBox.TextChanged`）。</summary>
+    private static readonly string[] TextChangedBoundControls =
+        { "edtPassword", "edtDearName", "edtMasterName", "edtCurMap" };
+
+    /// <summary>
+    /// `Control.TextChanged` 的绑定计数（0/1）。
+    ///
+    /// ★ 为什么必须自带这一条：共享对账工具 <see cref="P10FormReconcile"/> **数不到**
+    ///   `Control.TextChanged`。实测（本车道探针，已删）——.NET 8 里它的 EventHandlerList 键名是
+    ///   **`s_textEvent`**（.NET Framework 时代叫 `EventText`），归一化后是 "text" ≠ "TextChanged"；
+    ///   而工具里的 `KnownBackingFieldAliases` 例外表**只在 `TryFieldLike`（实例委托字段）路径被查**，
+    ///   EventHandlerList（`TryKeyed`）路径**不查该表**，故本事件恒计 0（典型假绿）。
+    ///   证据：只有挂了 `TextChanged` 的控件其 `s_textEvent` 在 EventHandlerList 里有条目，
+    ///   其余控件为 null；把该别名补进工具后 `CountEventBindings(form)` 会由 **31 → 35**
+    ///   （正好等于 DFM 的 35 条绑定）。
+    ///   本分区**无权改共享工具**（派发要求该副本"仅改命名空间一行"），故在测试侧显式补一条等价计数，
+    ///   并把"工具数不到"这一事实也**断言锁住**（见 DFM 对账用例）。
+    ///   ★ 根治 = 让三份同源副本的 `TryKeyed` 也查别名表，见跨区项 **B-P10-21**。
+    /// </summary>
+    private static int TextChangedBindingCount(System.ComponentModel.Component c)
+    {
+        var evProp = typeof(System.ComponentModel.Component).GetProperty(
+            "Events", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+        if (evProp == null) return 0;
+        if (evProp.GetValue(c) is not System.ComponentModel.EventHandlerList events) return 0;
+
+        int n = 0;
+        for (Type t = c.GetType(); t != null && t != typeof(object); t = t.BaseType)
+        {
+            foreach (var f in t.GetFields(System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.Public
+                                          | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly))
+            {
+                if (f.FieldType != typeof(object)) continue;
+                if (f.Name != "s_textEvent" && f.Name != "EventText") continue;
+                if (events[f.GetValue(null)] != null) n++;
+            }
+        }
+        return n;
+    }
+
+    /// <summary>4 个 TEdit 里确实挂上 `TextChanged` 的个数（应为 4）。</summary>
+    private static int CountTextChangedBindings(TFrmRoleDataEdit form)
+        => TextChangedBoundControls.Count(
+            n => TextChangedBindingCount(P10FormReconcile.FindByName(form, n)) == 1);
+
     // ========================================================================================
     // 1) DFM 对账（台账 §37.3 / §41.3：计数取证）
     // ========================================================================================
 
     [Fact]
-    public void ZZBisectP10()
-    {
-        string lp = Path.Combine(Path.GetTempPath(), "p10bisect.log");
-        void Mark(string s) { try { File.AppendAllText(lp, s + "\n"); } catch { } }
-        Mark("start");
-        using var scope = new P10RoleDataEditScope();
-        Mark("scope");
-        var h = Human();
-        Mark("human");
-        using var form = NewHumanForm(h, 5);
-        Mark("form");
-        form.strGridVarU.SetCells(1, 1, "1234");
-        Mark("set u1");
-        form.strGridVarU.SetCells(1, 2, "   ");
-        Mark("set u2");
-        form.strGridVarT.SetCells(1, 1, "tv");
-        Mark("set t1");
-        form.ButtonSaveDataClick(null);
-        Mark("saved");
-        Mark("u0=" + form.FHumData.UValues[0]);
-        Mark("t0=" + form.FHumData.TValues[0].Value);
-        Mark("done");
-    }
-
-    [Fact]
-    public void DFM对账_88个object节点与35条事件绑定()
+    public void DFM对账_88个object节点与35条事件绑定() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
@@ -253,10 +307,10 @@ public class P10RoleDataEditTests : TempDirTest
             .Sum(c => P10FormReconcile.CountEventBindingsOn(c));
         Assert.Equal(34, controlBindings);      // 31（edtPasswordChange）+ 3 个按钮
         Assert.Equal(31 + 3, controlBindings);
-    }
+    });
 
     [Fact]
-    public void DFM对账_31个控件挂到edtPasswordChange且事件类型与DFM一致()
+    public void DFM对账_31个控件挂到edtPasswordChange且事件类型与DFM一致() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
@@ -272,10 +326,10 @@ public class P10RoleDataEditTests : TempDirTest
             Assert.True(P10FormReconcile.IsBound(c, ev), name + " 未挂接 " + ev);
             Assert.Equal(1, P10FormReconcile.CountEventBindingsOn(c));   // 每个控件恰好 1 条绑定
         }
-    }
+    });
 
     [Fact]
-    public void DFM对账_三个按钮各一条Click绑定_导入按钮绑的也是ButtonExportDataClick()
+    public void DFM对账_三个按钮各一条Click绑定_导入按钮绑的也是ButtonExportDataClick() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
@@ -302,13 +356,17 @@ public class P10RoleDataEditTests : TempDirTest
         scope.OpenDialogFileName = Path2("in.hum");
         File.WriteAllBytes(Path2("in.hum"), StructBytes.BytesOf(h));
 
-        form2.ButtonImportData.PerformClick();      // Button 上的 PerformClick 是公开 API（真实事件派发）
+        // ★ 不能用 Button.PerformClick：它内部先查 CanSelect，而**从未显示过**的窗体其控件
+        //   CanSelect = False（Visible 沿父链为 False）⇒ 什么都不发生（假绿陷阱）。
+        //   RaiseClick 直调 OnClick，与真实点击的事件派发等价。
+        RaiseClick(form2.ButtonImportData);
+
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据导入成功！！！");
         Assert.DoesNotContain(scope.Ui.MessageBoxes, m => m.Text == "角色数据导出成功！！！");
-    }
+    });
 
     [Fact]
-    public void DFM对账_全部控件名与字段名逐字同名()
+    public void DFM对账_全部控件名与字段名逐字同名() => Run(() =>
     {
         using var form = new TFrmRoleDataEdit();
         var names = P10FormReconcile.EnumerateDfmObjects(form).Select(o => o.Name).ToHashSet();
@@ -330,14 +388,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Empty(expected.Where(n => !fieldNames.Contains(n)));
         Assert.Contains("SaveDialog", fieldNames);
         Assert.Contains("OpenDialog", fieldNames);
-    }
+    });
 
     // ========================================================================================
     // 2) TItemWhereNames / 控件壳 / 接缝默认值
     // ========================================================================================
 
     [Fact]
-    public void TItemWhereNames_30项且顺序与原文一致()
+    public void TItemWhereNames_30项且顺序与原文一致() => Run(() =>
     {
         Assert.Equal(30, RoleDataEditConst.TItemWhereNames.Length);
         Assert.Equal(30, RoleDataEditConst.HumItemsCount);          // Low..High(THumanUseItems) = 0..29
@@ -351,10 +409,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("时装衣服", RoleDataEditConst.TItemWhereNames[18]);
         Assert.Equal("时装宝石", RoleDataEditConst.TItemWhereNames[29]);
         Assert.Equal(30, RoleDataEditConst.TItemWhereNames.Distinct().Count());
-    }
+    });
 
     [Fact]
-    public void TSpinEditLongWord_承载LongWord全域且DFM零范围不裁剪()
+    public void TSpinEditLongWord_承载LongWord全域且DFM零范围不裁剪() => Run(() =>
     {
         var se = new TSpinEditLongWord();
         se.SetDfmRange(0, 0);                       // DFM: MaxValue=0 MinValue=0
@@ -371,10 +429,10 @@ public class P10RoleDataEditTests : TempDirTest
         seInt.SetDfmRange(0, 0);
         seInt.Value = 123456;
         Assert.Equal(123456, seInt.Value);
-    }
+    });
 
     [Fact]
-    public void TStringGrid_越界读写静默不抛()
+    public void TStringGrid_越界读写静默不抛() => Run(() =>
     {
         var g = new TStringGrid { ColCount = 2, RowCount = 3 };
         g.SetCells(0, 0, "a");
@@ -389,24 +447,24 @@ public class P10RoleDataEditTests : TempDirTest
         g.SetCells(9, 0, "x");
         Assert.Equal("", g.Cells(0, 1));
         Assert.Equal(3, g.RowCount);
-    }
+    });
 
     [Fact]
-    public void 接缝_DBShare两个查询默认抛未接线()
+    public void 接缝_DBShare两个查询默认抛未接线() => Run(() =>
     {
         RoleDataEditDbShareSeam.Reset();
         var ex1 = Assert.Throws<NotSupportedException>(() => RoleDataEditDbShareSeam.GetStdItemName(1));
         Assert.Contains("未接线", ex1.Message);
         var ex2 = Assert.Throws<NotSupportedException>(() => RoleDataEditDbShareSeam.GetMagicName(1, TMagicAttr.mtHum));
         Assert.Contains("未接线", ex2.Message);
-    }
+    });
 
     // ========================================================================================
     // 3) FormCreate（DFM OnCreate）
     // ========================================================================================
 
     [Fact]
-    public void FormCreate_把seLevel上限设为HighWord()
+    public void FormCreate_把seLevel上限设为HighWord() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
@@ -417,27 +475,59 @@ public class P10RoleDataEditTests : TempDirTest
         form.FormCreate(null);
 
         Assert.Equal(65535m, form.seLevel.Maximum);         // 原文 :938 seLevel.MaxValue := High(Word)
-    }
+    });
 
     [Fact]
-    public void FormCreate后_seLevel超上限赋值被裁剪()
+    public void 偏离_托管TSpinEditEx超上限赋值会抛_故本单元显式裁剪() => Run(() =>
+    {
+        // ★ D-P10-29 的锁定：托管 TSpinEdit(SpinControls.cs) 把 Minimum/Maximum 当**硬边界**，
+        //   越界赋值抛 ArgumentOutOfRangeException；原文 TSpinEditEx.CheckValue（MaxValue<>MinValue）
+        //   是**静默裁剪**。故本单元在把记录值喂给 seLevel 前显式 ClampSeLevel 还原原文语义。
+        using var scope = new P10RoleDataEditScope();
+        using var form = new TFrmRoleDataEdit();
+        form.FormCreate(null);                                  // Maximum := High(Word) = 65535
+
+        // 1) 托管控件壳本身：越界赋值**抛**（这就是偏离的证据）
+        Assert.Throws<ArgumentOutOfRangeException>(() => form.seLevel.Value = 70000);
+
+        // 2) 本单元的两条喂值路径（:287/:320）经 ClampSeLevel ⇒ 与原文一样裁剪，不抛
+        var h = Human();
+        h.Abil.Level = 70000;
+        using var form2 = NewHumanForm(h);
+        form2.RefreshBaseInfo();
+        Assert.Equal(65535, form2.seLevel.Value);
+
+        var hero = Hero();
+        hero.Abil.Level = 70000;
+        using var form3 = NewHeroForm(hero);
+        form3.RefreshBaseInfo();
+        Assert.Equal(65535, form3.seLevel.Value);
+
+        // 下界同理（原文 MinValue=0）
+        var h2 = Human();
+        h2.Abil.Level = -5;
+        using var form4 = NewHumanForm(h2);
+        form4.RefreshBaseInfo();
+        Assert.Equal(0, form4.seLevel.Value);
+    });
+
+    [Fact]
+    public void FormCreate后_seLevel在区间内赋值不被裁剪() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
         form.FormCreate(null);
 
-        form.seLevel.Value = 70000;                          // 原文 TSpinEditEx.CheckValue：MaxValue<>MinValue ⇒ 裁剪
-        Assert.Equal(65535, form.seLevel.Value);
         form.seLevel.Value = 41;
         Assert.Equal(41, form.seLevel.Value);
-    }
+    });
 
     // ========================================================================================
     // 4) DoOpen
     // ========================================================================================
 
     [Fact]
-    public void DoOpen_人类_标题栅格与TabVisible()
+    public void DoOpen_人类_标题栅格与TabVisible() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -465,13 +555,13 @@ public class P10RoleDataEditTests : TempDirTest
 
         Assert.Equal("0", form.strGridVarU.Cells(1, 1));         // RefreshUserVar 已跑过（UValues 全 0）
         Assert.Equal("0", form.strGridVarU.Cells(1, 500));       // 第 500 行 = UValues[499]
-        Assert.Equal("0", form.strGridVarT.Cells(1, 500));       // TValues[499] 是空串 ⇒ ""
+        Assert.Equal("", form.strGridVarT.Cells(1, 500));        // TValues[499] 是空串
         Assert.Empty(form.lvStorage.Items);                      // 空仓库
         Assert.Empty(form.lvMagic.Items);
-    }
+    });
 
     [Fact]
-    public void DoOpen_英雄_标题与两条TabVisible为假()
+    public void DoOpen_英雄_标题与两条TabVisible为假() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero("测试英雄");
@@ -487,10 +577,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(0, form.PageControl.SelectedIndex);
         Assert.Equal(101, form.strGridVarU.RowCount);            // 英雄分支不扩栅格（原文 :206/:212 只走人类分支）
         Assert.Equal("变量名", form.strGridVarU.Cells(0, 0));
-    }
+    });
 
     [Fact]
-    public void ApplyTabVisible_属性值与页集合同时落地()
+    public void ApplyTabVisible_属性值与页集合同时落地() => Run(() =>
     {
         using var form = new TFrmRoleDataEdit();
         Assert.Equal(8, form.PageControl.TabPages.Count);
@@ -505,14 +595,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.True(form.tsVarU.TabVisible);
         Assert.Equal(8, form.PageControl.TabPages.Count);
         Assert.Equal(6, form.PageControl.TabPages.IndexOf(form.tsVarU));   // 按 DFM 原索引插回
-    }
+    });
 
     // ========================================================================================
     // 5) RefreshBaseInfo / RefreshShow
     // ========================================================================================
 
     [Fact]
-    public void RefreshBaseInfo_人类_全字段回填()
+    public void RefreshBaseInfo_人类_全字段回填() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -560,10 +650,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.True(form.edtPassword.Enabled);
         Assert.True(form.seGold.Enabled);
         Assert.True(form.chkIsMaster.Enabled);
-    }
+    });
 
     [Fact]
-    public void RefreshBaseInfo_英雄_只填英雄字段且人类字段清零()
+    public void RefreshBaseInfo_英雄_只填英雄字段且人类字段清零() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero("测试英雄");
@@ -592,10 +682,10 @@ public class P10RoleDataEditTests : TempDirTest
         // ★ 细节（原文如此）：清零块 `seGold.Value := 0` 时控件**本来就是 0** ⇒ 不触发 OnChange
         //   ⇒ FHumData.nGold（1000）**不会**被清零。Delphi/托管两侧的触发条件一致。
         Assert.Equal(1000u, form.FHumData.nGold);
-    }
+    });
 
     [Fact]
-    public void RefreshShow_人类依次刷新六个区()
+    public void RefreshShow_人类依次刷新六个区() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -620,10 +710,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("4321", form.strGridVarU.Cells(1, 1));
         Assert.Equal("tv", form.strGridVarT.Cells(1, 1));
         Assert.Equal("测试人物", form.edtChrName.Text);
-    }
+    });
 
     [Fact]
-    public void RefreshUserVar_未扩RowCount时越界静默丢弃()
+    public void RefreshUserVar_未扩RowCount时越界静默丢弃() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -638,14 +728,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("x", form.strGridVarT.Cells(1, 1));
         Assert.Equal("", form.strGridVarU.Cells(1, 500));    // 越界 → 静默（VCL SetEditText 语义）
         Assert.Equal(101, form.strGridVarU.RowCount);
-    }
+    });
 
     // ========================================================================================
     // 6) RefreshMagicInfo
     // ========================================================================================
 
     [Fact]
-    public void RefreshMagicInfo_人类_按wMagIdx为零中断()
+    public void RefreshMagicInfo_人类_按wMagIdx为零中断() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -668,13 +758,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("1", form.lvMagic.Items[0].SubItems[5].Text);
         Assert.Equal("1", form.lvMagic.Items[1].Text);
         Assert.Equal("治愈术", form.lvMagic.Items[1].SubItems[2].Text);
-        Assert.DoesNotContain("不该出现", form.lvMagic.Items.Cast<System.Windows.Forms.ListViewItem>().Select(i => i.SubItems[2].Text));
+        Assert.DoesNotContain("不该出现",
+            form.lvMagic.Items.Cast<System.Windows.Forms.ListViewItem>().Select(i => i.SubItems[2].Text));
         Assert.Equal(6, form.lvMagic.Columns.Count);
         Assert.Equal("快捷键", form.lvMagic.Columns[5].Text);
-    }
+    });
 
     [Fact]
-    public void RefreshMagicInfo_可换成内存接缝()
+    public void RefreshMagicInfo_可换成内存接缝() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -693,16 +784,16 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("1", sink.Rows[0].SubItems[2]);
         Assert.Equal("5", sink.Rows[0].SubItems[3]);
         Assert.Equal("1", sink.Rows[0].SubItems[4]);
-        Assert.Equal(6, sink.Rows[0].SubItems.Length + 1);   // 6 列 = Caption + 5 个 SubItems
+        Assert.Equal(5, sink.Rows[0].SubItems.Length);       // 5 个 SubItems（Caption 另计）
         Assert.Null(sink.GetTag(0));
-    }
+    });
 
     // ========================================================================================
     // 7) RefreshUserItems
     // ========================================================================================
 
     [Fact]
-    public void RefreshUserItems_人类_装备首饰盒神佑盒三段行号偏移()
+    public void RefreshUserItems_人类_装备首饰盒神佑盒三段行号偏移() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -743,10 +834,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("36", form.lvUserItem.Items[3].Text);
         Assert.Equal("神佑盒1", form.lvUserItem.Items[3].SubItems[1].Text);
         Assert.Equal("神佑", form.lvUserItem.Items[3].SubItems[2].Text);
-    }
+    });
 
     [Fact]
-    public void RefreshUserItems_英雄_读FHeroData的对应字段()
+    public void RefreshUserItems_英雄_读FHeroData的对应字段() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero();
@@ -767,10 +858,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("首饰盒1", form.lvUserItem.Items[1].SubItems[1].Text);
         Assert.Equal("36", form.lvUserItem.Items[2].Text);
         Assert.Equal("神佑盒1", form.lvUserItem.Items[2].SubItems[1].Text);
-    }
+    });
 
     [Fact]
-    public void RefreshUserItems_wIndex或MakeIndex为零一律跳过()
+    public void RefreshUserItems_wIndex或MakeIndex为零一律跳过() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -784,10 +875,10 @@ public class P10RoleDataEditTests : TempDirTest
 
         Assert.Single(form.lvUserItem.Items);
         Assert.Equal("2", form.lvUserItem.Items[0].Text);
-    }
+    });
 
     [Fact]
-    public void RefreshUserItems_空数组时只清不填()
+    public void RefreshUserItems_空数组时只清不填() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -797,14 +888,14 @@ public class P10RoleDataEditTests : TempDirTest
         form.RefreshUserItems();
 
         Assert.Empty(form.lvUserItem.Items);     // 原文第一件事就是 lvUserItem.Clear
-    }
+    });
 
     // ========================================================================================
     // 8) RefreshFenghaoItems / RefreshStorages
     // ========================================================================================
 
     [Fact]
-    public void RefreshFenghaoItems_人类与英雄各读自己的字段()
+    public void RefreshFenghaoItems_人类与英雄各读自己的字段() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -829,10 +920,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Single(form2.lvFenghaoItem.Items);
         Assert.Equal("5", form2.lvFenghaoItem.Items[0].Text);
         Assert.Equal("英雄封号", form2.lvFenghaoItem.Items[0].SubItems[1].Text);
-    }
+    });
 
     [Fact]
-    public void RefreshStorages_没有FIsHuman分支_英雄模式也读FHumData()
+    public void RefreshStorages_没有FIsHuman分支_英雄模式也读FHumData() => Run(() =>
     {
         // ★ 原文缺陷锁定：:661-701 全程读 FHumData.StorageItems，**没有** if FIsHuman 分支
         //   （THeroData 里根本没有 StorageItems 字段）。
@@ -850,14 +941,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("0", form.lvStorage.Items[0].Text);
         Assert.Equal("仓库物", form.lvStorage.Items[0].SubItems[1].Text);
         Assert.Equal(6, form.lvStorage.Columns.Count);
-    }
+    });
 
     // ========================================================================================
     // 9) edtPasswordChange（31 个绑定控件）
     // ========================================================================================
 
     [Fact]
-    public void edtPasswordChange_真实控件事件驱动逐项写回()
+    public void edtPasswordChange_真实控件事件驱动逐项写回() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -915,10 +1006,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal((byte)1, form.FHumData.boMaster);
         RaiseClick(form.chkIsMaster);                          // true → false
         Assert.Equal((byte)0, form.FHumData.boMaster);
-    }
+    });
 
     [Fact]
-    public void edtPasswordChange_空密码与空白全部Trim成空串()
+    public void edtPasswordChange_空密码与空白全部Trim成空串() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -932,10 +1023,10 @@ public class P10RoleDataEditTests : TempDirTest
         form.edtHomeMap.Text = "  ";
         RaiseClick(form.edtHomeMap);
         Assert.Equal("", form.FHumData.HomeMap);
-    }
+    });
 
     [Fact]
-    public void edtPasswordChange_英雄模式seLevel与sePKPoint写FHeroData()
+    public void edtPasswordChange_英雄模式seLevel与sePKPoint写FHeroData() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero();
@@ -950,14 +1041,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(99, form.FHeroData.nPKPoint);
         Assert.Equal(42, form.FHumData.Abil.Level);          // 人类记录未被碰（有守卫）
         Assert.Equal(6, form.FHumData.nPKPoint);
-    }
+    });
 
     // ========================================================================================
     // 10) 原始缺陷锁定：edtPasswordChange
     // ========================================================================================
 
     [Fact]
-    public void 原始缺陷_seHomeY已绑定却没有分支_改动不写回wHomeY()
+    public void 原始缺陷_seHomeY已绑定却没有分支_改动不写回wHomeY() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();                                     // wHomeY = 4
@@ -975,10 +1066,10 @@ public class P10RoleDataEditTests : TempDirTest
         // 对照：seHomeX 有分支，能写回
         form.seHomeX.Value = 321;
         Assert.Equal((ushort)321, form.FHumData.wHomeX);
-    }
+    });
 
     [Fact]
-    public void 原始缺陷_31个已绑定Sender逐一试过都写不到wHomeY()
+    public void 原始缺陷_31个已绑定Sender逐一试过都写不到wHomeY() => Run(() =>
     {
         // :880 第二个 `else if Sender = seCurY` 是**死分支**（:868 已判过同一个 seCurY），
         // 因此 `FHumData.wHomeY` 在任何 UI 路径下都写不进去。
@@ -1001,10 +1092,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal((ushort)4, form.FHumData.wHomeY);       // ★ 始终没被写
         Assert.NotEqual((ushort)777, form.FHumData.wHomeY);
         Assert.Equal((ushort)888, form.FHumData.wCurY);      // 而 seCurY 的值确实进了 wCurY
-    }
+    });
 
     [Fact]
-    public void 原始缺陷_十个属性点控件与seHomeY共11个绑定控件无分支()
+    public void 原始缺陷_十个属性点控件与seHomeY共11个绑定控件无分支() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1025,7 +1116,7 @@ public class P10RoleDataEditTests : TempDirTest
         }
 
         Assert.Equal(11, noOpCount);
-        // BonusAbil 一律保持 RefreshBaseInfo 之前的内存值（没人写它们）
+        // BonusAbil 一律保持内存初值（没人写它们）
         Assert.Equal(1, form.FHumData.BonusAbil.DC);
         Assert.Equal(2, form.FHumData.BonusAbil.MC);
         Assert.Equal(3, form.FHumData.BonusAbil.SC);
@@ -1037,10 +1128,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(9, form.FHumData.BonusAbil.Speed);
         Assert.Equal(10, form.FHumData.BonusAbil.X2);
         Assert.Equal((ushort)4, form.FHumData.wHomeY);
-    }
+    });
 
     [Fact]
-    public void 原始缺陷_英雄模式下九个无守卫分支仍写FHumData()
+    public void 原始缺陷_英雄模式下九个无守卫分支仍写FHumData() => Run(() =>
     {
         // 原文 :891-932 的 seGold/seGameGold/seGamePoint/sePayPoint/seCreditPoint/seContribution/
         // seBonusPoint/seGameDiamond/seGameGird **没有** if FIsHuman 守卫（:884 seLevel 与 :911 sePKPoint 有）。
@@ -1069,7 +1160,6 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(222, form.FHumData.nBonusPoint);
         Assert.Equal(333u, form.FHumData.nGameDiamond);
         Assert.Equal(444u, form.FHumData.nGameGird);
-        Assert.Equal(9, 9);                                  // 无守卫分支计数：原文 :891/:895/:899/:903/:907/:918/:922/:926/:930
 
         // 对照：有守卫的两个不写 FHumData
         form.seLevel.Value = 12;
@@ -1078,10 +1168,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(13, form.FHeroData.nPKPoint);
         Assert.Equal(42, form.FHumData.Abil.Level);          // 未被英雄操作污染
         Assert.Equal(6, form.FHumData.nPKPoint);
-    }
+    });
 
     [Fact]
-    public void edtPasswordChange_未绑定Sender与null都落链尾不做事()
+    public void edtPasswordChange_未绑定Sender与null都落链尾不做事() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1094,14 +1184,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("pwd", form.FHumData.StoragePwd);
         Assert.Equal(1000u, form.FHumData.nGold);
         Assert.Equal((ushort)4, form.FHumData.wHomeY);
-    }
+    });
 
     // ========================================================================================
     // 11) ButtonExportDataClick（导出 / 导入 两个按钮 + 死分支）
     // ========================================================================================
 
     [Fact]
-    public void ButtonExportDataClick_按Sender分流_导出走保存_导入走读取()
+    public void ButtonExportDataClick_按Sender分流_导出走保存_导入走读取() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1121,10 +1211,10 @@ public class P10RoleDataEditTests : TempDirTest
         form.ButtonExportDataClick(form.ButtonImportData);
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据导入成功！！！");
         Assert.DoesNotContain(scope.Ui.MessageBoxes, m => m.Text == "角色数据导出成功！！！");
-    }
+    });
 
     [Fact]
-    public void 原始缺陷_ButtonExportDataClick里ButtonSaveData分支是死代码()
+    public void 原始缺陷_ButtonExportDataClick里ButtonSaveData分支是死代码() => Run(() =>
     {
         // :730-733 的 `else if Sender = ButtonSaveData then begin end;` 是**空分支**，
         // 而 DFM 里 ButtonSaveData.OnClick = ButtonSaveDataClick ⇒ 这条分支永远不会被走到（原文如此）。
@@ -1147,14 +1237,14 @@ public class P10RoleDataEditTests : TempDirTest
         form.ButtonExportDataClick(null);
         form.ButtonExportDataClick(new object());
         Assert.Empty(scope.Ui.MessageBoxes);
-    }
+    });
 
     // ========================================================================================
     // 12) ProcessSaveDataToFile
     // ========================================================================================
 
     [Fact]
-    public void ProcessSaveDataToFile_取消时不落盘不提示()
+    public void ProcessSaveDataToFile_取消时不落盘不提示() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1167,10 +1257,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("测试人物", form.SaveDialog.FileName);        // 原文 :742 先塞角色名
         Assert.Equal(".\\", form.SaveDialog.InitialDirectory);     // 原文 :746 InitialDir := '.\'
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
-    }
+    });
 
     [Fact]
-    public void ProcessSaveDataToFile_人类_写出SizeOf记录并提示成功()
+    public void ProcessSaveDataToFile_人类_写出SizeOf记录并提示成功() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1191,10 +1281,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("acct01", back.Account);
         Assert.Equal(1000u, back.nGold);
         Assert.Equal(42, back.Abil.Level);
-    }
+    });
 
     [Fact]
-    public void ProcessSaveDataToFile_英雄_写出SizeOf_THeroData()
+    public void ProcessSaveDataToFile_英雄_写出SizeOf_THeroData() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero("测试英雄");
@@ -1206,14 +1296,28 @@ public class P10RoleDataEditTests : TempDirTest
         form.ProcessSaveDataToFile();
 
         Assert.Equal((long)StructBytes.SizeOf<THeroData>(), new FileInfo(file).Length);
-        Assert.Equal("测试英雄", form.SaveDialog.FileName);         // 原文 :744 用英雄名做默认文件名
         THeroData back = StructBytes.FromBytes<THeroData>(File.ReadAllBytes(file));
         Assert.Equal("测试英雄", back.ChrName);
         Assert.Equal(30, back.Abil.Level);
-    }
+    });
 
     [Fact]
-    public void ProcessSaveDataToFile_打不开文件时提示保存文件出现错误()
+    public void ProcessSaveDataToFile_英雄_默认文件名取英雄名() => Run(() =>
+    {
+        // 原文 :744 `SaveDialog.FileName := FHeroData.sChrName;`（Execute 之前）
+        using var scope = new P10RoleDataEditScope();
+        var hero = Hero("测试英雄");
+        using var form = NewHeroForm(hero);
+        scope.SaveDialogResult = false;                 // 取消 ⇒ FileName 保持原文设的默认值
+
+        form.ProcessSaveDataToFile();
+
+        Assert.Equal("测试英雄", form.SaveDialog.FileName);
+        Assert.Empty(scope.Ui.MessageBoxes);
+    });
+
+    [Fact]
+    public void ProcessSaveDataToFile_打不开文件时提示保存文件出现错误() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1228,10 +1332,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("错误信息", scope.Ui.MessageBoxes[0].Caption);
         Assert.Equal(TMsgBox.MB_OK + TMsgBox.MB_ICONEXCLAMATION, scope.Ui.MessageBoxes[0].Flags);
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
-    }
+    });
 
     [Fact]
-    public void ProcessSaveDataToFile_目标文件已存在时走FileOpen覆盖前段()
+    public void ProcessSaveDataToFile_目标文件已存在时走FileOpen覆盖前段() => Run(() =>
     {
         // 原文 :749-752：文件已存在 → FileOpen(fmOpenReadWrite)（**不截断**）；不存在 → FileCreate。
         using var scope = new P10RoleDataEditScope();
@@ -1248,14 +1352,14 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal((long)StructBytes.SizeOf<THumData>() + 32, new FileInfo(file).Length);
         THumData back = StructBytes.FromBytes<THumData>(File.ReadAllBytes(file));
         Assert.Equal("测试人物", back.ChrName);
-    }
+    });
 
     // ========================================================================================
     // 13) ProcessLoadDataformFile
     // ========================================================================================
 
     [Fact]
-    public void ProcessLoadDataformFile_取消时不提示不改记录()
+    public void ProcessLoadDataformFile_取消时不提示不改记录() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1268,10 +1372,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(1000u, form.FHumData.nGold);
         Assert.Equal("测试人物", form.OpenDialog.FileName);         // 原文 :776 先塞角色名
         Assert.Equal(".\\", form.OpenDialog.InitialDirectory);
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_文件不存在时提示指定的文件未找到()
+    public void ProcessLoadDataformFile_文件不存在时提示指定的文件未找到() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1284,10 +1388,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Single(scope.Ui.MessageBoxes);
         Assert.Equal("指定的文件未找到！！！", scope.Ui.MessageBoxes[0].Text);
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_打开失败时提示打开文件出现错误()
+    public void ProcessLoadDataformFile_打开失败时提示打开文件出现错误() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1305,10 +1409,10 @@ public class P10RoleDataEditTests : TempDirTest
 
         Assert.Single(scope.Ui.MessageBoxes);
         Assert.Equal("打开文件出现错误！！！", scope.Ui.MessageBoxes[0].Text);
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_人类_只保留五个字段其余全取文件()
+    public void ProcessLoadDataformFile_人类_只保留五个字段其余全取文件() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
 
@@ -1378,10 +1482,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Single(form.lvMagic.Items);
         Assert.Equal("火球术", form.lvMagic.Items[0].SubItems[2].Text);
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据导入成功！！！");
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_英雄_只保留两个字段其余全取文件()
+    public void ProcessLoadDataformFile_英雄_只保留两个字段其余全取文件() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var memHero = Hero("内存英雄", "memacct");
@@ -1410,15 +1514,17 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(5, form.FHeroData.nPKPoint);
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据导入成功！！！");
-    }
+    });
 
     [Fact]
-    public void 原始缺陷_短读的错误分支不可达_照样提示导入成功()
+    public void 原始缺陷_短读的错误分支不可达_照样提示导入成功() => Run(() =>
     {
         // ★★ 原文 :802（以及 :823）`if not FileRead(...) = SizeOf(...) then`：
         //    Delphi 一元 `not` 优先级为第 1 级（最高），`=` 为第 4 级（最低）⇒ 该式实为
         //    `(not nRead) = SizeOf(...)`，即 `(-nRead-1) = SizeOf(...)`，**恒 False**
         //    ⇒ "读取文件出现错误"分支不可达，短读也一路走到 :814 赋值 + :839 提示成功。
+        //    （★ 该分支若**可**达，原文 :805 的 Exit 在 try..finally 内 ⇒ 会跳过 :837 FileClose 漏句柄；
+        //      正因为它不可达，句柄才没有泄漏 —— 两条断言一起锁死这一处。）
         using var scope = new P10RoleDataEditScope();
         var mem = Human();
         using var form = NewHumanForm(mem);
@@ -1443,10 +1549,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(0, form.FHumData.Abil.Level);
         // Exit 分支不可达 ⇒ :837 的 FileClose 一定执行 ⇒ 无句柄泄漏
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_零字节文件同样走成功分支()
+    public void ProcessLoadDataformFile_零字节文件同样走成功分支() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var mem = Human();
@@ -1462,10 +1568,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("测试人物", form.FHumData.ChrName);
         Assert.Equal(0u, form.FHumData.nGold);
         Assert.Equal(0, DelphiFileIo.OpenHandleCount);
-    }
+    });
 
     [Fact]
-    public void ProcessLoadDataformFile_人类写出再读回可往返()
+    public void ProcessLoadDataformFile_人类写出再读回可往返() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1487,19 +1593,19 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(h.nGold, form2.FHumData.nGold);
         Assert.Equal(h.Abil.Level, form2.FHumData.Abil.Level);
         Assert.Equal("测试人物", form2.FHumData.ChrName);
-    }
+    });
 
     // ========================================================================================
     // 14) ButtonSaveDataClick
     // ========================================================================================
 
     [Fact]
-    public void ButtonSaveDataClick_人类_回填栅格变量并调HumanDB_Save()
+    public void ButtonSaveDataClick_人类_回填栅格变量并调HumanDB_Save() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
         using var form = NewHumanForm(h, 5);
-        //BISECT form.DoOpen();
+        form.DoOpen();
         form.strGridVarU.SetCells(1, 1, "1234");
         form.strGridVarU.SetCells(1, 2, "   ");          // 空白 → StrToIntDef 默认 0
         form.strGridVarT.SetCells(1, 1, "tv");
@@ -1515,10 +1621,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Contains(scope.Ui.MessageBoxes, m => m.Text == "角色数据保存成功！！！");
         Assert.Equal(1, scope.HumanDb.LockCount);
         Assert.Equal(1, scope.HumanDb.UnLockCount);
-    }
+    });
 
     [Fact]
-    public void ButtonSaveDataClick_未走DoOpen时栅格越界读静默为0()
+    public void ButtonSaveDataClick_未走DoOpen时栅格越界读静默为0() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1534,10 +1640,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal(0, form.FHumData.UValues[499]);
         Assert.Single(scope.HumanDb.SaveCalls);
         Assert.Equal(3, scope.HumanDb.SaveCalls[0].HumanID);
-    }
+    });
 
     [Fact]
-    public void ButtonSaveDataClick_英雄_调HeroDB_Save且失败时提示失败()
+    public void ButtonSaveDataClick_英雄_调HeroDB_Save且失败时提示失败() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero();
@@ -1552,10 +1658,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Single(scope.Ui.MessageBoxes);
         Assert.Equal("角色数据保存失败！！！", scope.Ui.MessageBoxes[0].Text);
         Assert.Equal(TMsgBox.MB_ICONEXCLAMATION, scope.Ui.MessageBoxes[0].Flags);
-    }
+    });
 
     [Fact]
-    public void ButtonSaveDataClick_未接线时抛未接线()
+    public void ButtonSaveDataClick_未接线时抛未接线() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1565,10 +1671,10 @@ public class P10RoleDataEditTests : TempDirTest
         var ex = Assert.Throws<NotSupportedException>(() => form.ButtonSaveDataClick(null));
         Assert.Contains("未接线", ex.Message);
         Assert.Contains("HumanDB", ex.Message);
-    }
+    });
 
     [Fact]
-    public void ButtonSaveDataClick_Save抛异常时被基类吞掉并返回失败()
+    public void ButtonSaveDataClick_Save抛异常时被基类吞掉并返回失败() => Run(() =>
     {
         // THumanDBBase.Save 的公开包装 `catch (Exception E) { RoleDbSeam.MainOutMessage(E.Message); }`
         // ⇒ 异常不外泄、Result 保持初值 False ⇒ 走"保存失败"提示（原文如此）。
@@ -1595,14 +1701,14 @@ public class P10RoleDataEditTests : TempDirTest
         {
             RoleDbSeam.MainOutMessage = saved;
         }
-    }
+    });
 
     // ========================================================================================
     // 15) 单元级 ShowFrmRoleDataEdit
     // ========================================================================================
 
     [Fact]
-    public void ShowFrmRoleDataEdit_人类_设置FID与edtID并Free()
+    public void ShowFrmRoleDataEdit_人类_设置FID与edtID并Free() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var h = Human();
@@ -1617,10 +1723,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("7", edtId);
         Assert.Equal("测试人物", chrName);
         Assert.True(scope.ShownForms[0].IsDisposed);         // 原文 finally FrmRoleDataEdit.Free
-    }
+    });
 
     [Fact]
-    public void ShowFrmRoleDataEdit_英雄_走else分支()
+    public void ShowFrmRoleDataEdit_英雄_走else分支() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         var hero = Hero("测试英雄");
@@ -1635,10 +1741,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("9", edtId);
         Assert.Equal("测试英雄", chrName);
         Assert.True(scope.ShownForms[0].IsDisposed);
-    }
+    });
 
     [Fact]
-    public void ShowFrmRoleDataEdit_ShowModalHandler为null时不阻塞()
+    public void ShowFrmRoleDataEdit_ShowModalHandler为null时不阻塞() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         TFrmRoleDataEdit.ShowModalHandler = null;            // 默认未接线
@@ -1647,33 +1753,33 @@ public class P10RoleDataEditTests : TempDirTest
         RoleDataEditUnit.ShowFrmRoleDataEdit(1, h, null);    // 不应阻塞、不应抛
 
         Assert.Empty(scope.Shown);
-    }
+    });
 
     [Fact]
-    public void ShowFrmRoleDataEdit_HeroData为null时与原文一样炸()
+    public void ShowFrmRoleDataEdit_HeroData为null时与原文一样炸() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
 
         // 原文 `FHeroData := HeroData^`（nil 指针 ⇒ 访问违例）；托管 Nullable 取值抛 InvalidOperationException
         Assert.Throws<InvalidOperationException>(() => RoleDataEditUnit.ShowFrmRoleDataEdit(1, null, null));
-    }
+    });
 
     [Fact]
-    public void ShowModalEquivalent_接线后返回handler结果()
+    public void ShowModalEquivalent_接线后返回handler结果() => Run(() =>
     {
         using var scope = new P10RoleDataEditScope();
         using var form = new TFrmRoleDataEdit();
         Assert.False(form.ShowModalEquivalent());            // 默认不阻塞、返回 false
         TFrmRoleDataEdit.ShowModalHandler = f => f == form;
         Assert.True(form.ShowModalEquivalent());
-    }
+    });
 
     // ========================================================================================
     // 16) DFM 细节（列头 / 文本 / 几何）
     // ========================================================================================
 
     [Fact]
-    public void DFM_标题与标签文本对齐()
+    public void DFM_标题与标签文本对齐() => Run(() =>
     {
         using var form = new TFrmRoleDataEdit();
 
@@ -1715,10 +1821,10 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.Equal("仓库", form.tsSorage.Text);
         Assert.Equal("U变量", form.tsVarU.Text);
         Assert.Equal("T变量", form.tsVarT.Text);
-    }
+    });
 
     [Fact]
-    public void DFM_四张ListView的列头与DFM一致()
+    public void DFM_四张ListView的列头与DFM一致() => Run(() =>
     {
         using var form = new TFrmRoleDataEdit();
 
@@ -1739,10 +1845,10 @@ public class P10RoleDataEditTests : TempDirTest
 
         foreach (var lv in new[] { form.lvMagic, form.lvUserItem, form.lvFenghaoItem, form.lvStorage })
         {
-            Assert.True(lv.GridLines);              // DFM: GridLines=True
-            Assert.True(lv.FullRowSelect);          // DFM: RowSelect=True
-            Assert.Equal(System.Windows.Forms.View.Details, lv.View);   // DFM: ViewStyle=vsReport
+            Assert.True(lv.GridLines);                                     // DFM: GridLines=True
+            Assert.True(lv.FullRowSelect);                                 // DFM: RowSelect=True
+            Assert.Equal(System.Windows.Forms.View.Details, lv.View);      // DFM: ViewStyle=vsReport
             Assert.True(lv.Columns.Count >= 6);
         }
-    }
+    });
 }

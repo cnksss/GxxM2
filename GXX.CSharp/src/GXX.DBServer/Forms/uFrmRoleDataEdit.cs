@@ -1176,6 +1176,28 @@ public class TFrmRoleDataEdit : Form
     }
 
     /// <summary>
+    /// 原文 `:938 seLevel.MaxValue := High(Word)` 的上界（`High(Word)` = 65535）。
+    /// </summary>
+    public const int SeLevelMaxValue = 65535;
+
+    /// <summary>
+    /// 复刻原文 `TSpinEditEx.CheckValue`（`SpinEditEx.pas:126-136`）的**裁剪**语义：
+    /// <c>if MaxValue &lt;&gt; MinValue then</c> 把值夹到 <c>[MinValue, MaxValue]</c>；
+    /// 本单元 `seLevel` 的 DFM 是 `MaxValue=65535 MinValue=0` ⇒ 裁剪区间 `[0, 65535]`。
+    ///
+    /// ★ D-P10-29（本车道引入；**不是**修正原文，而是**还原**原文语义）：
+    ///   托管 `TSpinEdit`（`SpinControls.cs:29-33`）的 `Value` setter 直接转 `NumericUpDown.Value`，
+    ///   而后者把 `Minimum/Maximum` 当**硬边界** —— 越界赋值会抛
+    ///   `ArgumentOutOfRangeException`（实测：`Maximum=65535` 后赋 70000 即抛），
+    ///   与原文"静默裁剪"不同。`RefreshBaseInfo`（:287/:320）正是拿**数据库记录**去喂它，
+    ///   而 GXX 是"21 亿"改版、`TOAbility.Level` 完全可能 > 65535 ⇒ 托管侧会**抛异常**（Delphi 只是夹到 65535）。
+    ///   故在此显式裁剪，保持原文的可观察行为。
+    ///   ⇒ 根治点在 `SpinControls.cs` 的属主（把 setter 改成裁剪），见跨区项 **B-P10-20**。
+    /// </summary>
+    private static int ClampSeLevel(int value)
+        => value < 0 ? 0 : (value > SeLevelMaxValue ? SeLevelMaxValue : value);
+
+    /// <summary>
     /// 造一张 DFM 口径的 TListView：`ViewStyle=vsReport` + `GridLines` + `RowSelect` + `ReadOnly`。
     /// `headerPairs` 为 (标题, 宽度) 对；宽度传 -1 表示 DFM 未写 Width（保留赢控默认宽度）。
     /// </summary>
@@ -1343,7 +1365,7 @@ public class TFrmRoleDataEdit : Form
             seHomeX.Value = FHumData.wHomeX;                    // :284
             seHomeY.Value = FHumData.wHomeY;                    // :285
 
-            seLevel.Value = FHumData.Abil.Level;                // :287
+            seLevel.Value = ClampSeLevel(FHumData.Abil.Level);  // :287（★ D-P10-29：托管壳越界会抛，原文是裁剪）
             seGold.Value = FHumData.nGold;                      // :288
             seGameGold.Value = FHumData.nGameGold;              // :289
             seGamePoint.Value = (int)FHumData.nGamePoint;       // :290（原文 LongWord→Integer 隐式同宽转换）
@@ -1376,7 +1398,7 @@ public class TFrmRoleDataEdit : Form
             seCurX.Value = FHeroData.wCurX;                     // :317
             seCurY.Value = FHeroData.wCurY;                     // :318
 
-            seLevel.Value = FHeroData.Abil.Level;               // :320
+            seLevel.Value = ClampSeLevel(FHeroData.Abil.Level);  // :320（★ D-P10-29 同上）
             sePKPoint.Value = FHeroData.nPKPoint;               // :321
         }
     }
@@ -1727,7 +1749,7 @@ public class TFrmRoleDataEdit : Form
                     return;                                 // :805 Exit（原文在 try..finally 内 ⇒ 仍 FreeMem，但跳过 :837 FileClose）
                 }
 
-                THumData ReadData = StructBytes.FromBytes<THumData>(ReadBuf);   // :808-812 的接收者
+                THumData ReadData = StructBytes.FromBytes<THumData>(ReadBuf);   // :802 FileRead 的落点
                 ReadData.Account = FHumData.Account;                            // :808 sAccount ← 内存值
                 ReadData.ChrName = FHumData.ChrName;                            // :809 sChrName ← 内存值
                 ReadData.DearName = FHumData.DearName;                          // :810 sDearName ← 内存值
