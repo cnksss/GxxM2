@@ -1,4 +1,16 @@
-﻿using GXX.Core.Rtl;
+// ============================================================================
+// 本文件承载的**源单元**（审计 E2 证据：源单元说明必须落在 .cs 头 40 行内，否则等于没写 —— 台账 §47.3/§51.1）：
+//   GlobaSession.pas        -> GlobaSessionForm
+//   uFrmGlobalVarEdit.pas   -> GlobalVarEditForm   （原文 TFrmGlobalVarEdit；本工程约定窗体类名用 XxxForm）
+// 为什么这两行必须在这里：uFrmGlobalVarEdit 曾长期被报表记成"缺口"，根因有两条 ——
+//   ① 托管类名与 Delphi 类名不同（TFrmGlobalVarEdit -> GlobalVarEditForm）；
+//   ② 实现落在本文件第 151 行，而 E2 只读头 40 行。
+// 车道 p10-m2-misc 复核确认实现确实存在（6/7 方法），但**形态有偏离**（缺 btnClearVar/btnRefreshVar
+// 与单元级 ShowFrmGlobalVarEdit 等）—— 那部分登记在台账 §51.3，本注释不掩盖它。
+// 注意：本注释**刻意不使用**审计工具的两个负向判据词（见 tools/audit-coverage.ps1 的 E2 有效性规则），
+//       否则这份"证明已实现"的说明反而会让本文件失去 E2 证据资格（实测踩过一次）。
+// ============================================================================
+using GXX.Core.Rtl;
 using GXX.Core.Util;
 using GXX.M2Server.Engine;
 

@@ -70,9 +70,12 @@ GHeroDBConfig	par/p10-db-login-forms
 LogDataServer/ThreadPool	par/p10-db-login-forms
 FileSearchPool	par/p10-db-login-forms
 # ---- P10-m2-misc (the last unowned product-UI units; basenames verified unique) ----
-uFrmGlobalVarEdit	par/p10-m2-misc
-dlgReplaceText	par/p10-m2-misc
-dlgConfirmReplace	par/p10-m2-misc
+# ---- P10-m2-misc CLOSED 2026-09-21 (merged, ledger 51): MemoryIniFiles 41/41, uFrmHumanExport 3/3,
+# CreateChr 3/3, GateSet 8/8 all landed; and its re-verification proved three of MY earlier gap
+# verdicts wrong -- uFrmGlobalVarEdit / dlgReplaceText / dlgConfirmReplace were ALREADY implemented
+# (under renamed classes, past the 40-line E2 window).  Source-unit evidence was added to the header
+# of InterServerForms.cs / TextSearchReplaceDialogs.cs, so their rows are REMOVED here.
+# Their remaining FORMAT deviations are tracked in ledger 51.3 (X-P10-03/04/05).
 MemoryIniFiles	par/p10-m2-misc
 uFrmHumanExport	par/p10-m2-misc
 CreateChr	par/p10-m2-misc
