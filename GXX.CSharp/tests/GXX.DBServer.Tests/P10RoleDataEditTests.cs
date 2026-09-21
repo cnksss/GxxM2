@@ -299,14 +299,21 @@ public class P10RoleDataEditTests : TempDirTest
         Assert.IsType<System.Windows.Forms.OpenFileDialog>(form.OpenDialog);
 
         // --- 35 = 窗体自身 1 条（OnCreate → Load）+ 34 条控件绑定 ---
-        Assert.Equal(35, P10FormReconcile.CountEventBindings(form));
+        //     工具口径 31 = 35 - 4：它数不到 4 个 TEdit 的 Control.TextChanged（键名 s_textEvent，
+        //     见 TextChangedBindingCount 的注释）；本车道显式补这 4 条 ⇒ 合计必须等于 DFM 的 35。
+        int kitBindings = P10FormReconcile.CountEventBindings(form);
+        int textChangedBindings = CountTextChangedBindings(form);
+        Assert.Equal(31, kitBindings);                       // 工具口径（含窗体 Load 1 条）
+        Assert.Equal(4, textChangedBindings);                // 本车道补数：4 个 TEdit
+        Assert.Equal(4, TextChangedBoundControls.Length);
+        Assert.Equal(35, kitBindings + textChangedBindings); // ★ 与 DFM 的 35 条事件绑定吻合
         Assert.Equal(1, P10FormReconcile.CountEventBindingsOn(form));
         Assert.True(P10FormReconcile.IsBound(form, "Load"));
 
-        int controlBindings = P10FormReconcile.DfmControls(form)
+        int kitControlBindings = P10FormReconcile.DfmControls(form)
             .Sum(c => P10FormReconcile.CountEventBindingsOn(c));
-        Assert.Equal(34, controlBindings);      // 31（edtPasswordChange）+ 3 个按钮
-        Assert.Equal(31 + 3, controlBindings);
+        Assert.Equal(30, kitControlBindings);                // 34 - 4（4 个 TEdit 工具数不到）
+        Assert.Equal(34, kitControlBindings + textChangedBindings);
     });
 
     [Fact]
@@ -323,8 +330,19 @@ public class P10RoleDataEditTests : TempDirTest
         {
             var c = P10FormReconcile.FindByName(form, name);
             Assert.True(c != null, "DFM 控件缺失: " + name);
-            Assert.True(P10FormReconcile.IsBound(c, ev), name + " 未挂接 " + ev);
-            Assert.Equal(1, P10FormReconcile.CountEventBindingsOn(c));   // 每个控件恰好 1 条绑定
+            if (ev == "TextChanged")
+            {
+                // ★ 共享工具对本事件**恒计 0**（键名 s_textEvent，见 TextChangedBindingCount 注释）
+                //   ⇒ 工具口径与真实绑定都要断言，两个数字合起来才等于"恰好 1 条"。
+                Assert.Equal(0, P10FormReconcile.CountEventBindingsOn(c));
+                Assert.Equal(1, TextChangedBindingCount(c));
+                Assert.True(TextChangedBindingCount(c) == 1, name + " 未挂接 TextChanged");
+            }
+            else
+            {
+                Assert.True(P10FormReconcile.IsBound(c, ev), name + " 未挂接 " + ev);
+                Assert.Equal(1, P10FormReconcile.CountEventBindingsOn(c));   // 每个控件恰好 1 条绑定
+            }
         }
     });
 
