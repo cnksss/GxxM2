@@ -113,10 +113,12 @@ ThreadInfo.nRunFlag    := 0;                  // :121
 | `uFrmClientPlugManager.pas` | 151 | 3/3（LoadPlugClientFiles/Open/ButtonRefClick） | 2 / 2 ✅ | 1 / 1 ✅ | ✅ 完成 |
 | `ViewHeroRcd.pas` | 453 | 16/16（含 4 个**空体**：整段被原文注释掉） | 29 / 29 ✅ | 1 / 1 ✅ | ✅ 完成 |
 | `ViewKernelInfo.pas` | 198 | 3/3（FormCreate/Open/TimerTimer） | 63 控件 + 1 组件 = 64 / 64 ✅ | 2 / 2 ✅ | ✅ 完成 |
-| `ConfigMerchant.pas` | 654 | 进行中 | 进行中 | 进行中 | 进行中 |
-| `uAliyunSendSMSThread.pas` | 320 | 进行中 | 无窗体 | 无窗体 | 进行中 |
+| `ConfigMerchant.pas` | 654 | 39/39（32 个 DFM 处理器 + 6 个 private 辅助 + Open） | 50 / 50 ✅ | **33 / 33** ✅ | ✅ 完成 |
+| `uAliyunSendSMSThread.pas` | 320 | 10/10（构造函数 + 9 个具名方法） | 无窗体 | 无窗体 | ✅ 完成 |
 
-**已完成单元的用例数**：62（切片1）→ 93（切片2 +ViewHeroRcd）→ **120**（切片3 +ViewKernelInfo），全绿。
+**7 个单元全部完成**。用例数：62（切片1）→ 93（切片2 +ViewHeroRcd）→ 120（切片3 +ViewKernelInfo）
+→ 174（切片4 +ConfigMerchant）→ **204**（切片5 +uAliyunSendSMSThread），全绿；
+`GXX.M2Server.Tests` 全量 **9,686 通过 / 0 失败**。
 
 ### ★ 对账方法论的一处**实测修正**（重要，供后续窗体车道复用）
 
@@ -142,24 +144,127 @@ ThreadInfo.nRunFlag    := 0;                  // :121
 
 | 编号 | 位置 | 原文 | 托管 | 理由 |
 |---|---|---|---|---|
-| D-P9-01 | `ViewKernelInfo.pas:116-133` | `@Config.UserEngineThread` 的 4 字节重叠写（§0.3） | 用 `TConfigThreadRegion` 的**显式内存视图**复刻同一组 4 字节写 | 托管侧无裸指针；用显式 byte/dword 视图**精确复刻**原文缺陷，而不是"修正"它 |
+| D-P9-01 | `ViewKernelInfo.pas:116-133` | `@Config.UserEngineThread` 的 4 字节重叠写（§0.3） | 用 `TConfigThreadRegion` 的**显式内存视图**复刻同一组 4 字节写 | 托管侧无裸指针；用显式 dword 视图**精确复刻**原文缺陷，而不是"修正"它 |
 | D-P9-02 | `uAliyunSendSMSThread.pas:12/:37` | `Player, Npc: TBaseObject` | 形参类型用托管基类 `TCreature` | 托管侧无 `TBaseObject` 类型（`class TBaseObject` 全树 0 命中）；`TBaseObject` 在原文即 `TCreature` 的别名层 |
+| D-P9-03 | `ConfigMonGen.dfm:32` `pnl.Caption` | `TPanel.Caption = '双击条目复制到剪贴板'` | 文本存 `pnlCaption` 字段，**不新增子控件、不订阅 `Paint`** | WinForms `Panel` 无 `Caption`；两种"补显"做法会分别破坏**控件数**与**事件绑定数**的 DFM 对账 |
+| D-P9-04 | `ConfigMerchant.dfm` 的 15 条 `Hint` + 窗体 `ShowHint = True` | `ToolTip` 语义 | Hint 原文存 `DfmHints` 字典，**不挂 `ToolTip`** | 实测 `ToolTip.SetToolTip` 会给目标控件追加 `MouseEnter/MouseLeave/…` 一批事件 ⇒ 绑定数 33→**59** |
+| D-P9-05 | 全车道 | VCL `TControl.Enabled` / `Visible` 是**控件自身**标志 | WinForms 版本与**父链求与**（`Form` 未 `Show` 前子控件 `Visible` 恒 false） | 无头测试里读不到"控件自身"的值；`Sweep9Memo.DfmVisibleStored` 为留证镜像；对账用例已按父链语义改写并单独锁定该差异 |
+| D-P9-06 | `uAliyunSendSMSThread.pas:156/:182-207/:232` | `Player2: TPlayObject` 的 6 个成员 + `SendMsg(BaseObject, …)` 7 参重载 | `ISweep9FormsSmsPlayer` 接缝接口（成员名逐字照抄） | 这 6 个成员 + 1 个方法重载在托管侧**全树 0 命中**；**不**用 §19.6 的 `partial` 补 `TPlayObject`（成员多、且与未来 `ObjPlayer.pas` 批次 CS0102 风险高） |
 
 ---
 
-## 3. 未完成 / 阻塞项
+## 3. 原文缺陷清单（逐条照抄 + 差异断言锁定）
 
-（滚动登记）
+| # | 单元:行 | 缺陷 | 锁定用例 |
+|---|---|---|---|
+| 1 | `NoticeM.pas:85-96` | 命中循环**不 Break** ⇒ 同名登记两份时**两份都追加** | `GetNoticeMsg_DuplicateRegistrations_AppendsAll_NoBreak` |
+| 2 | `NoticeM.pas:89-97` | 命中项 `sList = nil` ⇒ `Result=False` 且 `bo15=False` ⇒ **直接 Exit**，"已登记名字但列表为 nil"会把该名字**永久卡死** | `GetNoticeMsg_RegisteredButListNil_ReturnsFalse_AndSkipsNewRegistration` |
+| 3 | `NoticeM.pas:105-113` | `try/except` 只包住加载；**登记与 `Result:=True` 在 except 之外** ⇒ 读失败也照样登记 + 返回 True | `GetNoticeMsg_LoadThrowsOutsideExcept_StillRegistersAndReturnsTrue` |
+| 4 | `NoticeM.pas:12/:40` | `bo0C` 是**死字段**（构造置 True 后全单元不再触及） | `Bo0C_IsDeadField_NeverReadOrWrittenByTheUnit` |
+| 5 | `ConfigMonGen.pas:38-57` | `Open` **不清空** `ListBoxMonGen` ⇒ 反复 `Open` 累积条目 | `Open_DoesNotClearList_AccumulatesAcrossCalls_OriginalBehaviour` |
+| 6 | `uFrmClientPlugManager.pas:38-42` | 嵌套函数 `IsDir` **声明了但 0 处调用**（死代码） | `Load_IsDir_ImplementationExistsButIsDeadCode` |
+| 7 | `uFrmClientPlugManager.pas:111` | 行尾**两个分号** `sLineBreak;;`（Pascal 空语句） | 源码注释留证 + 拼接语义用例 |
+| 8 | `uFrmClientPlugManager.pas:116 vs :118` | `g_PlugFileMD5ListTextLen` 用**编码前**长度、CRC 用**编码后**字节长度（不是同一个量） | `Load_SingleFile_JoinsMd5WithoutLineBreak_AndEncodes` |
+| 9 | `ViewHeroRcd.pas:239-275` | `ShowBagItem` **两个分支都写第 0 列**，`ShowUserItem` **从不写第 0 列**（同单元内不对称） | `ShowUserItem_NeverWritesColumn0_AsymmetricWithShowBagItem` |
+| 10 | `ViewHeroRcd.pas:202` + DFM `RowCount=14` | `InitUserItemGrid` 写 `Cells[0,15]` ⇒ 靠 `TStringGrid` **自动扩容**把 14 涨到 16 | `FormCreate_InitUserItemGrid_AutoGrowsRows14To16_OriginalBehaviour` |
+| 11 | `ViewHeroRcd.pas:230` + DFM `ColCount=4` | `sub_49AB10` 写 `Cells[4,0]` ⇒ 列数 4 涨到 5 | `FormCreate_Sub49AB10_WritesMagicHeaders_AndGrowsCols4To5` |
+| 12 | `ViewHeroRcd.pas:80-90` | `ShowHumData` **没有 `ShowModal`**（对比同族窗体） | `ShowHumData_DoesNotShowModal_OriginalBehaviour` |
+| 13 | DFM `ActivePage` 四处 | `PageControlHero=TabSheet1`（**最后一页**）、`Job0=TabSheet9`、`Job1=TabSheet10`、`Job2=TabSheet15`（不对称） | `DfmReconcile_ActivePages_MatchDfm_Asymmetric` |
+| 14 | **`ViewKernelInfo.pas:116-133`** | ★★ `@Config.XxxThread` 取**指针字段地址** ⇒ `FormCreate` 写坏 `g_Config` 9 个字段（见 §0.3） | `FormCreate_ClobbersConfigRegion_AllNineFields` + `FormCreate_FirstBlockAlone_ClobbersOnlyFiveFields` |
+| 15 | `ViewKernelInfo.pas:192-194` | 只清 `GridMemory` 第 1 列第 2/3/4 行（不动第 0 列、不动第 1 行） | `TimerTimer_ClearsOnlyGridMemoryColumn1Rows2To4` |
+| 16 | `ViewKernelInfo.pas:181` | 线程表第 0 列写 `IntToStr(I)`（**序号从 0 起**），行号才是 `I+1` | `TimerTimer_PopulatesThreadGrid_WithZeroBasedIndex` |
+| 17 | `ViewKernelInfo.dfm` Timer | DFM **未写 `Interval`** ⇒ Delphi 默认 1000（WinForms 默认只有 100） | `DfmReconcile_TimerProperties_MatchDfm` |
+| 18 | `ConfigMerchant.pas:215-234` | `RefListBoxMerChant` **不清空** ⇒ 反复 `Open` 累积 NPC 条目 | `RefListBoxMerChant_DoesNotClear_AccumulatesAcrossCalls_OriginalBehaviour` |
+| 19 | `ConfigMerchant.pas:394-415 vs :477-480` | `LoadScriptFile` 只写 **11** 个开关（**不含** CreateHero/CreateDeputy），`ChangeScriptAllowAction` 写 **13** 个，且英雄两项插在 `SendMsg` 与 `ArmRemoveStone` **之间** | `LoadScriptFile_Writes11FlagsHeader_WithoutHeroFlags_OriginalBehaviour` + `ChangeScriptAllowAction_Writes13FlagsWithHeroInMiddle` |
+| 20 | `ConfigMerchant.pas:583` | `EditPriceRateChange` 直接写 `Lines[1]`，**不判空** ⇒ 行数 < 2 时抛 | `EditPriceRateChange_WithoutEnoughLines_Throws_OriginalBehaviour` |
+| 21 | `ConfigMerchant.pas:591` | `ButtonScriptSaveClick` **不判 `SelMerchant = nil`**（对比 `ButtonReLoadNpcClick:599` 判了） | `ButtonScriptSaveClick_NullMerchant_Throws_OriginalBehaviour` |
+| 22 | `ConfigMerchant.pas:643-651` | `btnSearchClick` 命中后**不 Break** ⇒ 多个匹配停在**最后一个** | `BtnSearchClick_MultipleMatches_StopsAtLast_NoBreak` |
+| 23 | `ConfigMerchant.pas:293-299` | `CheckBoxDenyRefStatusClick` 是唯一**不判 `boOpened`、不调 `ModValue`** 的处理器 | `CheckBoxDenyRefStatusClick_DoesNotDirtyButtons_NorCheckBoOpened` |
+| 24 | `ConfigMerchant.dfm:457-464` | `btnSearchNext`（"下一个"）**没有 `OnClick` 绑定** ⇒ 点了没反应 | `DfmReconcile_BtnSearchNext_HasNoBinding_OriginalBehaviour` |
+| 25 | `ConfigMerchant.dfm:416` | `ButtonViewData.OnClick` **复用** `ButtonClearTempDataClick`（同一处理器的第二次绑定） | `DfmReconcile_ButtonViewData_SharesHandlerWithClearTempData` |
+| 26 | `uAliyunSendSMSThread.pas:191-194` | 模板选择与名字**相反**：`not m_boMobileBind` ⇒ 用"绑定"模板 | `DoExecuteLoop_MobileBindTrue_UsesCheckTemplate_OriginalNaming` |
+| 27 | `uAliyunSendSMSThread.pas:209` | `else if Npc <> nil` ⇒ **不带 NPC 的发送失败被完全静默吞掉**（无日志、无跳转） | `DoExecuteLoop_Failure_WithoutNpc_IsSilentlySwallowed` |
+| 28 | `uAliyunSendSMSThread.pas:230-234` | 失败跳转用的是 **`g_FunctionNPC`**（全局功能 NPC）而非本次任务的 `Npc` ⇒ 任务里的 `Npc` 仅用于 :209 判空 | `DoExecuteLoop_Failure_WithNpc_LogsAndGotosLabel` + `DoExecuteLoop_Failure_NullFunctionNpc_NoGoto` |
+| 29 | `uAliyunSendSMSThread.pas:130` | `Execute` 循环条件只在**顶部**判 `Terminated` ⇒ `Terminate` 后还会再跑一轮 | `Execute_LoopTopChecksTerminated_RunsOneMoreRoundAfterTerminate` |
+| 30 | `uAliyunSendSMSThread.pas:177 vs :237` | `Player = nil` 的 `Exit` 在 `try` **之前** ⇒ 空表时**不** `TriggerEvent`（不会自旋） | `DoExecuteLoop_EmptyList_ReturnsWithoutTriggeringEvent` |
+| 31 | `uAliyunSendSMSThread.pas:268-269` | `LoadSendSMSConfig` 每次**无条件**删掉 `Endpoint`/`Topic` 两个历史键；整数键用 `ReadInteger`（与字符串键成对但不同型） | `LoadSendSMSConfig_CleansLegacyKeys_AndWritesDefaultsWhenMissing` + `LoadSendSMSConfig_ReadsExistingValues` |
 
 ---
 
-## 4. 门禁记录
+## 4. 未完成 / 阻塞项（如实登记）
 
-（滚动登记）
+### 4.1 待接线（不是本单元的内容；本单元已提供接缝）
+
+| 接缝 | 原文位置 | 接线方 |
+|---|---|---|
+| `MerchantListHandler` / `MerchantListLockR` / `MerchantListUnLockR` | `UsrEngn.pas UserEngine.m_MerchantList` | `UsrEngn.pas` 批次 |
+| `MonGenListHandler` / `MonGenListLockR` / `MonGenListUnLockR` | 同上 `m_MonGenList` | `UsrEngn.pas` / `Envir.pas` 刷怪表批次 |
+| `g_MultiThreadRun` | `M2Threads.pas:59` | `M2Threads.pas` 批次 |
+| `RunThreadMgrHandler` / `Sweep9FormsRunThreadInfo.ThreadCPUUsageFn` | `M2Threads.pas:11-58` | `M2Threads.pas` 批次 |
+| `Sweep9FormsKernelConfig`（`KernelConfig`） | `M2Share.pas` 的 `g_Config` 计数/彩票/`GlobalVal[0..999]` | `M2Share.pas` 批次 |
+| `GetStdItemNameHandler` | `HUtil32`/`DBShare` 的 `GetStdItemName` | 已默认转调既有 `DbLayerRunSeam.GetStdItemName`（同一未接线项，未新增替身） |
+| `Sweep9FormsPlugClientGlobals.*` + `SendPlugClientListHandler` | `M2Share.pas:3971/3804-3806` + `UsrEngn.pas` | `M2Share.pas` / `UsrEngn.pas` 批次 |
+| `Sweep9FormsNoticeGlobals.NoticeManager` | `M2Share.pas:3685`（`svMain.pas:1945` 创建） | `M2Share.pas` / `svMain` 批次 |
+| `ISweep9FormsSmsPlayer` 的实现类（在 `TPlayObject` 上接出） | `ObjPlayer.pas` 的 6 个手机字段 + `SendMsg` 7 参重载 | `ObjPlayer.pas` 批次（见 D-P9-06） |
+| `ISweep9FormsSendSmsRequest` 的实现类 | `SendSmsRequest.pas` | `SendSmsRequest.pas` 批次 |
+| `ISweep9FormsFunctionNpc` 的实现类 | `M2Share.pas g_FunctionNPC` | `M2Share.pas` 批次 |
+| `Sweep9FormsSmsSeams.CreateIniFile` 的生产实现已可用（薄包 `TFastIniFile`） | — | ✅ 无需接线 |
+| `g_AcsUtil` / `g_RequestStr` | `acsUtils.pas` / `acsParams.pas` | 阿里云 SDK 相关批次 |
+
+### 4.2 跨区事项（**需要集成方/顺序会话处理**）
+
+1. ★ **`Sweep9/Forms/ConfigMerchant/Sweep9FormsTCreatureGapMember.cs`**：按 §19.6 用 `partial` 给
+   `GXX.M2Server.Engine.TCreature` 补了缺口成员 **`m_boDenyRefStatus`**（原文 `ObjBase.pas:340`，
+   全树 0 命中；`ConfigMerchant.pas:297` 是它的写入点）。
+   **若日后 `ObjBase.pas` 批次正式落地该字段，必须删掉本文件**（否则 **CS0102**）。
+2. ⚠ **既有 `GXX.M2Server.Engine.TUserEngine`（`Engine/UsrEngn.cs`，181 行）不是 `UsrEngn.pas` 的 1:1 移植**
+   —— 它只有 `MapList/PlayObjects/Monsters/MagicDefs` 等骨架字段，**没有** `m_MerchantList`/`m_MonGenList`/
+   `GetPlayObject`/`SendPlugClientList`。本车道因此**没有**复用它做接缝载体（否则会掩盖"依赖未移植"）。
+   请集成方注意：`Forms/GroupItemSkillPowerForm.cs` 等**旧车道**窗体依赖这个骨架类，与本车道的接缝形态不同。
+3. `GXX.Core.Util.TStringList` **没有** `AddStrings`（本车道以扩展方法 `Sweep9FormsStringListExtensions.AddStrings`
+   补齐，调用形态与原文一致）。若集成方决定把它收进 `GXX.Core`，本车道的扩展方法会被实例方法**自然遮蔽**（无需改动）。
+4. `GXX.Core.Util.TFastIniFile` 有 `ValueExists`/`DeleteKey`，但既有 `Sweep.ISweepIniFile` 接缝**没有**这两个成员
+   ⇒ 本车道为 SMS 单元自带 `ISweep9FormsSmsIniFile`（薄包 `TFastIniFile`）。建议后续统一 `ISweepIniFile` 的面。
+
+### 4.3 无（本车道 7 单元无"未完成"项）
+
+7 个单元的全部过程/方法/DFM 控件/DFM 事件绑定均已 1:1 落地并有测试锁定；
+"未接线"项全部是**原文依赖的其它单元**（见 4.1），非本分区可在不越区的前提下完成的工作。
 
 ---
 
-## 5. 二进制 DFM 解码复现命令
+## 5. 门禁记录（最终）
+
+```text
+$ dotnet build GXX.CSharp/GXX.slnx -c Debug --nologo -m:1 -p:BuildInParallel=false
+已成功生成。  0 个错误（15 个既有 warning，全部来自他区文件）
+
+$ dotnet test GXX.CSharp/tests/GXX.M2Server.Tests/GXX.M2Server.Tests.csproj -c Debug --nologo -m:1 -p:BuildInParallel=false
+已通过! - 失败: 0，通过: 9686，已跳过: 0，总计: 9686，持续时间: 46 s
+
+本车道用例（--filter FullyQualifiedName~Sweep9Forms）：204 / 204 通过（实测逐类计数）
+  · Sweep9FormsNoticeMTests            21
+  · Sweep9FormsConfigMonGenTests       16
+  · Sweep9FormsClientPlugManagerTests  25
+  · Sweep9FormsHeroRcdTests            31
+  · Sweep9FormsKernelInfoTests         27
+  · Sweep9FormsConfigMerchantTests     54
+  · Sweep9FormsAliyunSmsTests          30
+  · 合计 204
+```
+
+### 5.1 ⚠ 分区事故（自查并已修正，记录备查）
+
+编写切片 5 时，一次 PowerShell 批改脚本把输出路径写成了
+`GXX.CSharp/tests/Sweep9FormsAliyunSmsTests.cs`（**漏了 `GXX.M2Server.Tests/` 一层**），
+`Get-Content` 失败后 `Set-Content` 仍创建了一个 3 字节（仅 BOM）的**空文件**。
+后果：该文件**不属于任何工程** ⇒ 不会被编译（用例会静默丢失），且 `git add -A` 会把它提交进 main。
+已删除；`GXX.CSharp/tests/` 根目录现在 **0 个文件**；`git status --short` 只剩本分区 3 个未跟踪项。
+**规程提醒**：批改脚本的 `Set-Content` 目标路径必须显式校验（先 `Test-Path` 或断言目录层级）。
+
+---
+
+## 6. 二进制 DFM 解码复现命令
 
 ```powershell
 $path = "D:\chuanqi\daima\GXX原版_Delphi7\Source\M2Engine\Forms\ViewHeroRcd.dfm"
