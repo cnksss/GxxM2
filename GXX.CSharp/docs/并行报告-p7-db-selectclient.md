@@ -558,3 +558,88 @@ public static void   RemoveModule(IntPtr module);                               
 | `GXX.CSharp/tests/GXX.DBServer.Tests/IDSocCli*` | 对应测试 |
 
 （若集成方更希望**直接扩成 `GXX.DBServer/**`**，请一并告知；否则上面两条即可。）
+
+---
+
+## 14. 第 2 轮（续）：`IDSocCli.pas` 464 行 1:1 移植完成
+
+> **授权自查**：`main` 的分区表已含 `!GXX.CSharp/src/GXX.DBServer/IDSocCli*.cs` 与
+> `!GXX.CSharp/tests/GXX.DBServer.Tests/IDSocCli*`（`git show main:GXX.CSharp/tools/lane-zones.tsv` 可自查）。
+
+### 14.1 交付（`d311b972` / `632def77`）
+
+| 产物 | 内容 |
+|---|---|
+| `src/GXX.DBServer/IDSocCli.cs` | `TFrmIDSoc : Form, ITFrmIDSoc` —— **464 行原文的 1:1 实现**：会话表增删查 + 9 个会话查询/变更 + `ProcessSocketMsg` 解包 + `SendSocketMsg`/`SendKeepAlivePacket` 组包 + 连接生命周期 |
+| `src/GXX.DBServer/IDSocCli.Seams.cs` | `ITFrmIDSoc` + `IDSocCliSeam`（**从 `SelectClient.Seams.cs` 归位**）+ `IIDSocClientSocket` / `IIDSocSocketEndPoint`（4 组宿主面接缝，默认全抛） |
+| `src/GXX.DBServer/SelectClient.Seams.cs` | `SelectClientModuleSeam` 补齐 **`AddModule`/`RemoveModule`**（DBShare.pas:309-326/328-341；身份键是 `TObject`，`RemoveModule` 传的是 `Self` 而**不是**句柄） |
+| `src/GXX.DBServer/DBServerService.cs` | 构造 `TFrmIDSoc` 并接线（对应 `DBServer.dpr:36 Application.CreateForm`）；`Dispose` 断开 |
+| `tests/…/IDSocCliTests.cs` + `IDSocCliTestDoubles.cs` | **59 例**（纯逻辑全覆盖 + 宿主面替身） |
+| `tests/…/SelectClientHostWiringTests.cs` | +6 例「命令可用性清单」 |
+
+**门禁**：`GXX.DBServer.Tests` **676/676**（611 → +65）· `build GXX.slnx --no-incremental` **0 error / 164 warning**（新文件警告 **0**）· `git status` 空。
+
+**纯逻辑覆盖**（集成方要求"做扎实"的部分）：`ProcessAddSession` / `ProcessDelSession` / `ProcessSocketMsg` / `IDSocketRead`
+/ `CheckSession` / `CheckSessionLoadRcd` / `CheckSessionHeroLoadRcd` / `SetSessionSaveRcd` / `SetGlobaSessionNoPlay`
+/ `SetGlobaSessionPlay` / `GetGlobaSessionStatus` / `CloseSession` / `GetSession` / `SendSocketMsg` / `SendKeepAlivePacket`
+/ `ProcessGetOnlineCount` / `Timer1Timer` / `OpenConnect` / `CloseConnect` / `IDSocketError` / `IDSocketConnect`
+/ `IDSocketDisconnect` / `FormCreate` / `FormDestroy` —— **逐方法 ≥2 例**，含差异断言与边界。
+
+### 14.2 ★★ 「哪条命令可用 / 哪条还抛」清单（已用**可执行用例**锁定）
+
+| 命令 / 帧 | 移植 IDSocCli **之前** | 现在（**默认路由模式**，`g_boUseActiveRunGage = False`） | 用例 |
+|---|---|---|---|
+| `%-` 心跳 | ✅ 可用 | ✅ 可用 | `帧A…心跳帧逐字节…` |
+| `%O` 接入 | ✅ 可用 | ✅ 可用 | `帧O_接入用户_…` |
+| `%X` 用户离开 | ❌ **抛**（`CloseUser:714` 撞 IDSoc 接缝）⇒ 断整条 SelGate 连接 | ✅ **不抛**（D-p7-13 窄口子：记日志 + 跳过清理 + 继续） | `帧X_命中槽位时不抛_跳过清理_留痕_且不断连接` |
+| `CM_QUERYCHR`(100) | ❌ 抛 | ✅ **真正可用**（会话通过 ⇒ 真实角色库 + `Recog=角色数 / Tag=1`）；会话不存在 ⇒ `SM_QUERYCHR_FAIL`(527) | `有会话时_CM_QUERYCHR走真实角色库` |
+| `CM_RANDOMNAME`(106) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_RANDOMNAME真正执行` |
+| `CM_NEWCHR`(101) | ❌ 抛 | ⚠ **仍抛** —— 会话门已通，卡在**名校验**（`SelectClient.pas:933 CheckDenyChrName` / `:934 CheckChrName` / `:940 CheckFilterNewHumanChrName`） | `有会话时_CM_NEWCHR仍抛_因DBShare名校验族未移植` |
+| `CM_DELCHR`(102) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_DELCHR真正执行` |
+| `CM_SELCHR`(103) | ❌ 抛 | ✅ **真正可用**（默认路由 `DBShareSeam.GateRouteIP` 已移植 ⇒ `SM_STARTPLAY + EncodeString(IP/端口)`） | `有会话时_CM_SELCHR走默认路由模式并回SM_STARTPLAY` |
+| `CM_QUERYDELCHR`(105) | ✅ 可用 | ✅ 可用 | `有会话时_CM_QUERYDELCHR与CM_GETBACKDELCHR可用` |
+| `CM_GETBACKDELCHR`(3006) | ✅ 可用 | ✅ 可用 | 同上 |
+| 其它 Ident | ✅ `SM_CHECKISMYSELFSERVER` | ✅ 同 | `分派_未知Ident回SM_CHECKISMYSELFSERVER` |
+
+**⇒ 默认路由模式下，8 条命令只差 `DBShare.pas` 名校验族（170 行）**（外加装载名单的 `LoadChrNameList:403-425`，23 行），
+且**只影响 `CM_NEWCHR` 一条**。该结论由 `有会话时_CM_NEWCHR仍抛_…` 直接断言（同时断言异常消息里出现 `DBShare.pas` 与 `CheckDenyChrName`）。
+
+**但在 `IDSocket` 接线之前，会话表恒为空** ⇒ 6 条走会话校验的命令会被**拒绝**（`SM_OUTOFCONNECTION`(528) / `SM_QUERYCHR_FAIL`(527)），
+**不是**被放行 —— 方向是刻意的（宁拒不放），`DBServerService` 构造时**只提示一次**。
+上表的"真正可用"是指在**会话表里有该会话**时会走到真实实现（那 6 条用例就是这么做的）。**剩余缺口 = socket 适配器**，见 §14.4。
+
+### 14.3 本轮新增/修订的偏差
+
+| 编号 | 内容 |
+|---|---|
+| **D-p7-14** | `ProcessAddSession` 的 `bo28`：原文 `New(GlobaSessionInfo)` 后**没有**给它赋值（其余 9 个字段都赋了），Delphi 的 `New` 给**未初始化**内存 ⇒ `bo28` 是垃圾值。托管侧 `new TGlobaSessionInfo()` 零初始化 ⇒ **确定性地为 false**（只能更好）；已用 `ProcessAddSession_bo28是零初始化的_原文是未初始化记录` 锁定 |
+| **D-p7-15** | `FormCreate`（DFM `OnCreate`）的两行 `Timer1.Enabled := False; KeepAliveTimer.Enabled := False;` **不在 `TFrmIDSoc` 构造函数里**，而在 `TFrmIDSoc.FormCreate()` 方法里。原因：托管侧这两个定时器是**宿主设施接缝**（默认抛），而"构造时定时器尚未安装"本身就是 `Enabled = False` 的同一状态 ⇒ 构造阶段调接缝会把"宿主还没装定时器"变成"连窗体都建不出来"（`DBServerService` 也就无法构造）。`DBServerService` 因此**不调用** `FormCreate()`；恢复途径：宿主装好定时器后自行调用（即 1:1） |
+| **D-p7-13（改形，实质不变）** | 窄口子从"**判空谓词**（`FrmIDSoc == null \|\| IDSocket == null`）"改为"**只包住原文 :714-718 那一个块的窄方法 + 捕获块内的 `NotSupportedException`**"（`TSelectClient.CloseUserSessionCleanup`）。**为什么改**：谓词判 `IDSocket` 是**放错层** —— `IDSocket` 只有本单元自己的 `TFrmIDSoc.SendSocketMsg` 才需要，一个合法的 `ITFrmIDSoc` 替身完全可以自带发送通道；在那个层判空会把"宿主用替身"也误判成"链路不可用"（**实测：一次打红 2 个既有用例**）。新形态的覆盖面**恰好等于**裁定说的"跳过清理"，不宽也不窄 |
+
+### 14.4 剩余缺口（精确签名）
+
+挡在"会话校验真正生效"前面的**唯一**东西是 `IDSocket` 适配器（JSocket/TClientSocket 未移植）。
+它已经是一个**精确到成员**的接口：
+
+```csharp
+public interface IIDSocSocketEndPoint {          // IDSocket.Socket
+    bool Connected { get; }        string ReceiveText { get; }   string RemoteAddress { get; }
+    int LocalPort { get; }         int RemotePort { get; }
+    void SendText(string sText);   void Close();
+}
+public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（DFM 的 IDSocket）
+    bool Active { get; set; }      string Address { get; set; }  int Port { get; set; }
+    IIDSocSocketEndPoint Socket { get; }
+}
+// 用法：IDSocCliSeam.IDSocket = <adapter>;
+```
+适配器只需把 **`GXX.GatewayKit.TcpLink`** 包一层，并把它的
+`OnReceive` / `OnConnected` / `OnDisconnected` 回灌到 `TFrmIDSoc.IDSocketRead()` / `IDSocketConnect()` /
+`IDSocketDisconnect()`（`OnError` → `IDSocketError(out code)`）。
+**该适配器属"宿主设施"，不是本单元的一部分** —— 按"不要顺手移植依赖"，本车道只给签名不实现。
+
+**之后剩下的**（只影响 `CM_NEWCHR`）：`DBShare.pas` 名校验族 170 行 + `LoadChrNameList:403-425` 23 行（见 §12.4）。
+
+### 14.5 行数口径（复核）
+
+`IDSocCli.pas` = **464 行**（`read` 工具与 `[regex]::Matches($t,"\n").Count` 一致；431 是**非空行**，见 §13.2）。
