@@ -194,6 +194,20 @@
 
 `FormCreate` / `Open` / `RefGridSession`（private）——3 条，全部 1:1。
 
+### 1.4 ★ DFM object 数 ↔ `.pas` 控件字段声明数 双向对账（车道方独立取证，§37.3）
+
+对三个窗体单元做了**双向集合差**核对（`DFM 子对象集` vs `.pas` class 块内的 `Name: TType;` 字段集）：
+
+| 单元 | `.pas` 控件字段 | DFM object（含窗体根） | DFM 子对象 | 仅 DFM 有 | 仅 .pas 有 |
+|---|---|---|---|---|---|
+| `DBServer/uFrmRoleDataEdit` | **87** | **88** | **87** | **（空）** | **（空）** |
+| `GameCenter/GHeroDBConfig` | **24** | **25** | **24** | **（空）** | **（空）** |
+| `LoginSrv/GrobalSession` | **3** | **4** | **3** | **（空）** | **（空）** |
+
+⇒ 三者的"DFM 声明数 = `.pas` 字段数 = 待实例化数"三者相等；`MasSock.dfm` 为二进制，
+其 2 个 object（窗体根 + `TServerSocket MSocket`）与 `.pas:26-27` 的 1 个字段声明一致（+1 窗体根）。
+这是一条**独立于实现**的对账基线：托管侧 `CountDfmObjects()` 必须等于上表第 3 列 + 1。
+
 ---
 
 ## 2. 原文缺陷清单（照抄 + `// 原文如此` + 差异断言锁死）
