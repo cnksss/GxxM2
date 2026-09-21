@@ -590,40 +590,54 @@ public static void   RemoveModule(IntPtr module);                               
 > **更新记录**：本表在第 2 轮随移植推进改过一次（`CM_NEWCHR` 由 ⚠ 改为 ✅，见 §15.2）。
 > 后续版本**只改这一张表**，不要再另起一张 —— 两张表必然分叉。
 
-| 命令 / 帧 | 移植 IDSocCli **之前** | **现在**（默认路由模式，`g_boUseActiveRunGage = False`） | 用例 |
+| 命令 / 帧 | 移植 IDSocCli **之前** | **现在**（默认路由模式，`g_boUseActiveRunGage = False`；**第 5 轮起 `IDSocket` 已接线**） | 用例 |
 |---|---|---|---|
-| `%-` 心跳 | ✅ 可用 | ✅ 可用 | `帧A…心跳帧逐字节…` |
-| `%O` 接入 | ✅ 可用 | ✅ 可用 | `帧O_接入用户_…` |
-| `%X` 用户离开 | ❌ **抛**（`CloseUser:714` 撞 IDSoc 接缝）⇒ 断整条 SelGate 连接 | ✅ **不抛**（D-p7-13 窄口子：记日志 + 跳过清理 + 继续） | `帧X_命中槽位时不抛_跳过清理_留痕_且不断连接` |
-| `CM_QUERYCHR`(100) | ❌ 抛 | ✅ **真正可用**（会话通过 ⇒ 真实角色库 + `Recog=角色数 / Tag=1`）；会话不存在 ⇒ `SM_QUERYCHR_FAIL`(527) | `有会话时_CM_QUERYCHR走真实角色库` |
-| `CM_RANDOMNAME`(106) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_RANDOMNAME真正执行` |
-| `CM_NEWCHR`(101) | ❌ 抛 | ✅ **真正可用**（第 2 轮打通：`DBShare.pas` 名校验族移植后；非法字符 ⇒ `SM_NEWCHR_FAIL` nCode 0、重名 ⇒ nCode 2） | `有会话时_CM_NEWCHR真正可用` / `…非法字符被拒` / `…重名被拒` |
-| `CM_DELCHR`(102) | ❌ 抛 | ✅ **真正可用** | `有会话时_CM_DELCHR真正执行` |
-| `CM_SELCHR`(103) | ❌ 抛 | ✅ **真正可用**（默认路由 `DBShareSeam.GateRouteIP` 已移植 ⇒ `SM_STARTPLAY + EncodeString(IP/端口)`） | `有会话时_CM_SELCHR走默认路由模式并回SM_STARTPLAY` |
-| `CM_QUERYDELCHR`(105) | ✅ 可用 | ✅ 可用 | `有会话时_CM_QUERYDELCHR与CM_GETBACKDELCHR可用` |
-| `CM_GETBACKDELCHR`(3006) | ✅ 可用 | ✅ 可用 | 同上 |
+| `%-` 心跳 | ✅ 可用 | ✅ 可用（**不依赖**会话表） | `帧A…心跳帧逐字节…` |
+| `%O` 接入 | ✅ 可用 | ✅ 可用（**不依赖**会话表） | `帧O_接入用户_…` |
+| `%X` 用户离开 | ❌ **抛**（`CloseUser:714` 撞 IDSoc 接缝）⇒ 断整条 SelGate 连接 | ✅ **不抛**；已接线后走**原文分支**（D-p7-13 窄口子只在宿主不接线时才触发，仍有用例锁住） | `帧X_命中槽位时_走原文分支_不抛_不断连接` / `帧X_FrmIDSoc为nil时_仍走D_p7_13窄口子_留痕且不断连接` |
+| `CM_QUERYCHR`(100) | ❌ 抛 | ✅ **接线后可用**（会话表由真实 socket 填充）；会话通过 ⇒ 真实角色库 + `Recog=角色数 / Tag=1`；**会话不在表里或 ID 服务器不可达 ⇒ `SM_QUERYCHR_FAIL`(527)** | `有会话时_CM_QUERYCHR走真实角色库` |
+| `CM_RANDOMNAME`(106) | ❌ 抛 | ✅ **接线后可用**；会话不在表里 ⇒ `SM_OUTOFCONNECTION`(528) | `有会话时_CM_RANDOMNAME真正执行` |
+| `CM_NEWCHR`(101) | ❌ 抛 | ✅ **接线后可用**（第 2 轮打通名校验族；非法字符 ⇒ nCode 0、重名 ⇒ nCode 2）；会话门同上 | `有会话时_CM_NEWCHR真正可用` / `…非法字符被拒` / `…重名被拒` |
+| `CM_DELCHR`(102) | ❌ 抛 | ✅ **接线后可用**；会话门同上 | `有会话时_CM_DELCHR真正执行` |
+| `CM_SELCHR`(103) | ❌ 抛 | ✅ **接线后可用**（默认路由 `DBShareSeam.GateRouteIP` ⇒ `SM_STARTPLAY + EncodeString(IP/端口)`）；会话门同上 | `有会话时_CM_SELCHR走默认路由模式并回SM_STARTPLAY` |
+| `CM_QUERYDELCHR`(105) | ✅ 可用 | ✅ 可用（**不依赖**会话表） | `有会话时_CM_QUERYDELCHR与CM_GETBACKDELCHR可用` |
+| `CM_GETBACKDELCHR`(3006) | ✅ 可用 | ✅ 可用（**不依赖**会话表） | 同上 |
 | 其它 Ident | ✅ `SM_CHECKISMYSELFSERVER` | ✅ 同 | `分派_未知Ident回SM_CHECKISMYSELFSERVER` |
 | **`CM_SELCHR` 的主动网关路由分支**（`g_boUseActiveRunGage = True` 时） | ❌ 抛（`GateActiveRouteIP` 未移植） | ✅ **已移植**（`DBShare.cs`，第 4 轮）—— 但 **★ 该分支默认关闭**（`g_boUseActiveRunGage` 声明初值 False），必须显式打开 | 正例 `有会话时_CM_SELCHR_主动网关路由打开时走GateActiveRouteIP`；反例 `…主动网关路由默认关闭_走的是GateRouteIP`；另 `…无可用网关时回SM_STARTFAIL` / `…动态IP时由CheckActiveRunGate裁决` |
 
-**⇒ 默认路由模式下 8 条命令全部走到真实实现；主动网关路由分支（第 4 轮）也已移植 ——
-本单元再无任何一条 `NotSupportedException` 路径。**
-唯一残留的是"**未接线的宿主设施**" `IDSocket`（见下面的口径说明与 §14.4）。
+**⇒ 默认路由模式下 8 条命令全部走到真实实现；主动网关路由分支（第 4 轮）也已移植；
+`IDSocket` 适配器（第 5 轮）已接线 —— 本单元再无任何一条 `NotSupportedException` 路径。**
 
-> ★★★ **本表的口径是「宁拒不放」，不是「开箱即用」—— 这一条不得删除**
->
-> `IDSocket`（JSocket/TClientSocket）**仍未接线**（属宿主设施，已裁定单开车道，见 §14.4）⇒
-> **全局会话表恒为空** ⇒ 凡需 `CheckSession` 的 6 条命令会被**拒绝**：
-> `CM_QUERYCHR` → `SM_QUERYCHR_FAIL`(527)；`CM_RANDOMNAME`/`CM_NEWCHR`/`CM_DELCHR`/`CM_SELCHR`
-> → `SM_OUTOFCONNECTION`(528)。**这是"拒绝"而不是"放行"**，方向是刻意的。
->
-> 表中「✅ 真正可用」的**准确含义**是：**当会话表里确有该会话时，命令会走到真实实现** ——
-> 那 6 条用例就是先往 `TFrmIDSoc` 里塞一条会话（等价于 LoginSrv 推了一帧 `(1000/账号/会话号/0/x/IP)`）再投递命令的。
-> `DBServerService` 构造时对这一现状**只提示一次**。
->
-> **为什么这段话必须留着**：本工程已经吃过两次亏 —— `Checklist` 把 `SelectClient` 标 ✅ 而实际只落了 4 条命令；
-> "交付**可接线**的实现"被读成"**已接线**的服务"。**"✅" 若不带口径，就会被读成"开箱能跑通"。**
+**"接线后可用"的读法**：这 6 条命令会**按真实会话表**判定放行/拒绝。所谓"可用"= **当 LoginSrv 真的把会话推过来之后**，
+它们是能跑通的；**ID 服务器不在跑 / 连不上 / 会话未推送时，它们仍然是被"拒绝"而不是被"放行"**（详见下面的口径块）。
 
-**剩余缺口 = socket 适配器**，见 §14.4。
+> ★★★ **口径说明（第 5 轮已更新为「已接线」，但这一块不得删除）**
+>
+> **当前状态（2026 第 5 轮起）：`IDSocket` 适配器已交付并接线** ——
+> `IDSocCliHost` 把 4 组宿主设施全部装好：`IDSocket`（`TcpLink` 适配器）、`Timer1`(3000ms)、
+> `KeepAliveTimer`(10ms)、`GetSelectCharCount`（= SelGate 连接数）。
+> `DBServerService.StartService` 会调 `FrmIDSoc.OpenConnect()`（1:1 `uFrmMain.pas:909`）真正连出去；
+> LoginSrv 推来的 `(1000/账号/会话号/0/x/IP)` 会被填进**真实会话表** ⇒ 6 条走 `CheckSession` 的命令
+> 从此**按真实会话判定放行或拒绝**，不再被无条件拒绝。见 §17。
+>
+> **但"接线"不等于"开箱即用"** —— 仍受这些限制（准确表述）：
+> <list type="bullet">
+>   <item>**依赖 ID 服务器真的在跑且可达**：`g_sIDServerAddr`/`g_nIDServerPort`（默认 `127.0.0.1:5600`）
+>         连不上时，`OpenConnect` 失败（留痕）并由 `Timer1` 每 3000ms 重试 ⇒ 期间会话表为空 ⇒ 6 条命令**仍被拒绝**（不是放行）。</item>
+>   <item>**会话表的内容完全由 LoginSrv 的推送决定**：DBServer 不自己造会话；推送到齐之前，判定就是"拒绝"。</item>
+>   <item>**会话有 2500ms 级的活跃性判据**（`CheckActiveRunGate`）与 `boStartPlay` 状态；语义见 `IDSocCli.pas` 移植说明。</item>
+>   <item>**`IDSocket.LocalPort` 恒为 0**（`TcpLink` 不暴露本端端点，偏差 D-p7-17）——
+>         只影响模块表 `Address` 的**显示串**，不影响任何判定。</item>
+>   <item>**§17.3 列出的"未接线即抛"的其余接缝仍未接线**（如模块表 `AddModule`）：它们被**宿主边界**（D-p7-11 同款）挡住，只留日志，不会打断接收线程。</item>
+> </list>
+>
+> **为什么这块必须留着（历史注记，口径演变）**：在第 2–4 轮，`IDSocket` 尚未接线 ⇒ **会话表恒为空** ⇒
+> 6 条命令被**拒绝**（`SM_QUERYCHR_FAIL`(527) / `SM_OUTOFCONNECTION`(528)）而**不是**被放行 —— 方向是刻意选的"**宁拒不放**"，
+> 且 `DBServerService` 当时会在构造时提示一次。
+> 那段历史值得保留，因为本工程已经吃过两次亏：`Checklist` 把 `SelectClient` 标 ✅ 而实际只落了 4 条命令；
+> "交付**可接线**的实现"被读成"**已接线**的服务"。**任何"✅"都必须带口径** ——
+> 本表在第 2–4 轮的口径是"宁拒不放"，第 5 轮起是"已接线，但依赖 ID 服务器真的可达"。
+> **删掉这段会让后人失去"为什么这里曾经必须写清楚"的判断依据。**
 
 ### 14.3 本轮新增/修订的偏差
 
@@ -633,10 +647,9 @@ public static void   RemoveModule(IntPtr module);                               
 | **D-p7-15** | `FormCreate`（DFM `OnCreate`）的两行 `Timer1.Enabled := False; KeepAliveTimer.Enabled := False;` **不在 `TFrmIDSoc` 构造函数里**，而在 `TFrmIDSoc.FormCreate()` 方法里。原因：托管侧这两个定时器是**宿主设施接缝**（默认抛），而"构造时定时器尚未安装"本身就是 `Enabled = False` 的同一状态 ⇒ 构造阶段调接缝会把"宿主还没装定时器"变成"连窗体都建不出来"（`DBServerService` 也就无法构造）。`DBServerService` 因此**不调用** `FormCreate()`；恢复途径：宿主装好定时器后自行调用（即 1:1） |
 | **D-p7-13（改形，实质不变）** | 窄口子从"**判空谓词**（`FrmIDSoc == null \|\| IDSocket == null`）"改为"**只包住原文 :714-718 那一个块的窄方法 + 捕获块内的 `NotSupportedException`**"（`TSelectClient.CloseUserSessionCleanup`）。**为什么改**：谓词判 `IDSocket` 是**放错层** —— `IDSocket` 只有本单元自己的 `TFrmIDSoc.SendSocketMsg` 才需要，一个合法的 `ITFrmIDSoc` 替身完全可以自带发送通道；在那个层判空会把"宿主用替身"也误判成"链路不可用"（**实测：一次打红 2 个既有用例**）。新形态的覆盖面**恰好等于**裁定说的"跳过清理"，不宽也不窄 |
 
-### 14.4 剩余缺口（精确签名）
+### 14.4 原"剩余缺口"：`IDSocket` 适配器（**第 5 轮已交付**）
 
-挡在"会话校验真正生效"前面的**唯一**东西是 `IDSocket` 适配器（JSocket/TClientSocket 未移植）。
-它已经是一个**精确到成员**的接口：
+挡在"会话校验真正生效"前面的唯一东西曾是 `IDSocket` 适配器。它需要实现的接口**精确到成员**：
 
 ```csharp
 public interface IIDSocSocketEndPoint {          // IDSocket.Socket
@@ -650,13 +663,14 @@ public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（
 }
 // 用法：IDSocCliSeam.IDSocket = <adapter>;
 ```
-适配器只需把 **`GXX.GatewayKit.TcpLink`** 包一层，并把它的
-`OnReceive` / `OnConnected` / `OnDisconnected` 回灌到 `TFrmIDSoc.IDSocketRead()` / `IDSocketConnect()` /
-`IDSocketDisconnect()`（`OnError` → `IDSocketError(out code)`）。
-**该适配器属"宿主设施"，不是本单元的一部分** —— 按"不要顺手移植依赖"，本车道只给签名不实现。
 
-**（第 2 轮更新）** 原先这里还列着"`DBShare.pas` 名校验族 170 行 + `LoadChrNameList` 23 行" ——
-**已在第 2 轮移植完毕**，见 §15。⇒ 现在**唯一**的剩余缺口就是上面这个 socket 适配器。
+**（第 5 轮更新）这个适配器已交付**：`src/GXX.DBServer/IDSocCli.Adapter.cs`，把 `TcpLink` 包一层并把
+`OnReceive`/`OnConnected`/`OnDisconnected` 回灌到 `TFrmIDSoc.IDSocketRead()`/`IDSocketConnect()`/`IDSocketDisconnect()`。
+**详见 §17。** 本节保留原签名，是因为它是"接缝契约"的权威描述，第 5 轮的实现正是照它写的。
+（`OnError` 未做回灌：原文 `IDSocketError` 只把 `ErrorCode := 0` 并强制 `Close`，
+而 `TcpLink` 的失败/断开已经分别由 `Connect()` 返回值与 `OnDisconnected` 覆盖 ⇒ 不另造事件，见 §17.4。）
+
+**（第 2 轮更新）** 原先这里还列着"`DBShare.pas` 名校验族 170 行 + `LoadChrNameList` 23 行" —— **已在第 2 轮移植完毕**，见 §15。
 
 ### 14.5 行数口径（复核）
 
@@ -784,6 +798,82 @@ public interface IIDSocClientSocket {            // JSocket.pas TClientSocket（
 
 ### 16.4 剩余（本次之后）
 
-1. **`IIDSocClientSocket` 适配器** —— 仍然**是唯一**的剩余项（集成方已裁定单开车道）。
-   §14.2 表下那段**"宁拒不放、不是开箱即用"**的引用块**继续保留且有效**（会话表恒为空 ⇒ 6 条命令被拒而非放行）。
+1. ~~`IIDSocClientSocket` 适配器~~ —— **已在第 5 轮交付，见 §17**。
 2. 代码层面：**本车道负责的 `SelectClient.pas` / `IDSocCli.pas` / `DBShare.pas`（两族）均已 1:1 移植完毕，无未实现路径。**
+
+---
+
+## 17. 第 5 轮：`IDSocket` 适配器交付（`48000ad1`）—— **会话表从此由真实 socket 填充**
+
+### 17.1 交付
+
+| 产物 | 内容 |
+|---|---|
+| `src/GXX.DBServer/IDSocCli.Adapter.cs` | `IIDSocTransport`（传输接缝）+ `TcpLinkTransport`（**唯一碰真 socket 的地方**）+ `IDSocClientSocketAdapter`（`IIDSocClientSocket` 实现 + 三个事件回灌）+ `IDSocCliHost`（一次装好 4 组宿主设施，`Dispose` 全部还原为"未接线即抛"） |
+| `src/GXX.DBServer/DBServerService.cs` | 构造里建 `IDSocCliHost`（`GetSelectCharCount` = SelGate+M2 连接数）；`StartService` → `FrmIDSoc.OpenConnect()`（1:1 `uFrmMain.pas:909`）；`StopService` → `CloseConnect()`（1:1 :960）；`Dispose` 顺序调整（`StopService` 必须在 `_idSocHost.Dispose` 之前） |
+| `tests/…/IDSocCliAdapterTests.cs` | **33 例** |
+
+**门禁**：`GXX.DBServer.Tests` **809/809**（776 → **+33**）· build **0 error / 164 warning**（新文件警告 **0**）· 连跑 **3 次全绿** · `git status` 空。
+
+### 17.2 为什么放在 `GXX.DBServer` 而不是 `GXX.GatewayKit`
+
+它实现的是 **`GXX.DBServer` 自己的接缝**（`IIDSocClientSocket`/`IIDSocSocketEndPoint`/`IDSocCliSeam`），
+这些类型定义在 `GXX.DBServer`；而 **`GXX.GatewayKit` 不引用 `GXX.DBServer`**（依赖方向是 DBServer → GatewayKit）
+⇒ 放进 GatewayKit 会造成**反向依赖**。`GXX.DBServer` 本来就在用 `TcpLink`（SelGate/M2 链路），引用齐备。
+**故本轮的放置同时满足了"归属正确"与"不需要新授权"**（`!GXX.DBServer/IDSocCli*.cs` 已在分区内）。
+
+### 17.3 四组宿主设施 + 从 DFM 解出的真值（不是猜的）
+
+| 设施 | 实现 | 依据 |
+|---|---|---|
+| `IDSocket` | `TcpLinkTransport` 包 `TcpLink` | 原文 DFM `IDSocket: TClientSocket` |
+| `Timer1` | `System.Threading.Timer`，**3000 ms** | DFM 二进制属性：`Interval` = `vaInt16(0x03) B8 0B` = **3000** |
+| `KeepAliveTimer` | `System.Threading.Timer`，**10 ms** | DFM：`Interval` = `vaInt8(0x02) 0A` = **10**（真正发送由 `SendKeepAlivePacket` 的 3000ms 节流决定，原文 :377） |
+| `GetSelectCharCount` | `() => _gateLinks.Count` | 原文 `DBSUSETHREAD=0` 分支 = `SelectSocket.Socket.ActiveConnections`（uFrmMain.pas:434-453）= 当前选人端连接数 |
+
+两个 `Enabled` 在 DFM 里都是 `vaFalse(0x08)`（与 `FormCreate` 再置 False 一致）⇒ 托管侧用
+`Change(Timeout.Infinite, …)` 造出"已创建但未启用"的等价物。
+
+### 17.4 两处原文语义对齐（偏差）+ 一处**我自己引入又修掉的**缺陷
+
+| 编号 | 内容 |
+|---|---|
+| **D-p7-16** | `IDSocket.Active := True` 在原文是 **`ctNonBlocking` 的异步连接**（调用方立即返回），而 `TcpLink.Connect()` 是**阻塞**的。若直接阻塞，`OpenConnect()`（由 `StartService` 调用）会把**服务启动**卡在 TCP 超时上 ⇒ 适配器把连接**派发到后台线程**，并加 `_connecting` 防重入（`Timer1` 每 3000ms 会再调）。派发器 `ConnectDispatcher` **可注入** ⇒ 测试用同步派发，保证确定性（用例 `Active置真_不内联连接_而是走派发器` 用"只记录不执行"的派发器**证明**了不内联连接） |
+| **D-p7-17** | `Socket.LocalPort`：`TcpLink`（**只读文件、非本车道**）不暴露本端端点 ⇒ 适配器给 `LocalPortProvider`，默认返回 0 **并留一条日志**（§25.2：不静默）。它只进 `IDSocketConnect` 的模块表**显示串**（`ModuleInfo.Address`），**不参与任何判定** |
+| **（自查）** | ★ 我第一版把连接目标**固定在构造时**（因为 `TcpLink.Host/Port` 是**只读**的）⇒ `IDSocket.Address`/`Port` 变成了"**写进去没人读的死属性**"，而原文 :94-95/:419-420 恰恰靠这两个属性决定"连哪个 ID 服务器"。**已改**：`IIDSocTransport` 增加 `SetTarget(host, port)`，`TcpLinkTransport` 改为**每次 `Connect()` 现建 `TcpLink`**，适配器的 `Address`/`Port` setter 真的下推。回归用例：`Address与Port_设置会真的改掉连接目标_不是死属性` |
+
+**未回灌 `OnError`**：原文 `IDSocketError`（:320-326）只做两件事 —— `ErrorCode := 0`（吞掉错误码）与
+`Socket.Close()`。而 `TcpLink` 的"连接失败"由 `Connect()` 返回值给出、"对端断开"由 `OnDisconnected` 给出
+⇒ 两者已覆盖，**不另造一个没有真实来源的错误事件**（造了就是假接线）。
+
+### 17.5 测试策略：**不引入真实 socket 的端到端用例**
+
+按本工程惯例（既有集成测试有 TOCTOU 端口竞态前科）：
+* `TcpLink` 是**具体类且持有真 socket** ⇒ 无法替身 ⇒ 才抽出 `IIDSocTransport` 这一层；
+  **测试注入 `FakeIDSocTransport`**，事件由测试手动驱动（`Feed`/`RaiseDisconnect`）；
+* 唯一碰真 socket 的 `TcpLinkTransport` 只做"不抛、不建连接、形状对"的最浅验证；
+* **定时器不按时间验证**（不写依赖 sleep 的脆弱用例）：只验"开关接线正确"+"DFM 常量真值"+`Dispose` 还原。
+  唯二用到 `Thread.Sleep(120)` 的用例是"**未启用时不应触发重连**"，它断言的是**不发生**，方向安全。
+
+**最关键的一条**：`收到数据_回灌IDSocketRead_会话表被真实填充` —— 用替身投一帧
+`(1000/acct/42/0/x/1.1.1.1)`，断言 `TFrmIDSoc` 建出会话且 `CheckSession` 为真。
+这就是"**接通后会话校验才真正生效**"的最小可执行证明。
+
+### 17.6 §14.2 已按要求更新（口径块保留 + 表改口径）
+
+* **口径块**：由「**宁拒不放**」改写为「**已接线**」，但**没有删除**——
+  保留了完整的**历史注记**（第 2–4 轮为什么必须写"宁拒不放"）与"为什么这块必须留着"的说明；
+* **表**：6 条走会话校验的命令改为「**接线后可用**（会话表由真实 socket 填充）」，
+  并写清**仍受的限制**（ID 服务器必须真的可达；会话表内容完全由 LoginSrv 推送决定；
+  `LocalPort` 恒为 0 只影响显示；其余未接线接缝被宿主边界挡住）；
+* 表下另加一句读法说明：**"接线" ≠ "开箱即用"**。
+
+### 17.7 剩余（诚实）
+
+1. **无代码缺口**：本车道三个单元（`SelectClient.pas` 1248 行 / `IDSocCli.pas` 464 行 / `DBShare.pas` 两族 310 行）
+   **全部 1:1 移植**，唯一曾缺的宿主设施 `IDSocket` 已交付。
+2. **运行时仍依赖外部条件**：ID 服务器真的在跑且 `g_sIDServerAddr:g_nIDServerPort`（默认 `127.0.0.1:5600`）可达。
+   连不上时 `OpenConnect` 留痕、`Timer1` 每 3000ms 重试，期间会话表为空 ⇒ 6 条命令**被拒而非放行**。
+3. `DBShareSeam.SessionRunGateArray` 的**写入方**（uFrmMain 在 RunGate 连接时填表）仍未移植
+   ⇒ `CheckActiveRunGate` 目前恒返回 False（= "没有活跃 RunGate"）。这只影响
+   `g_boUseActiveRunGage = True` **且** `g_boDynamicIPMode = True` 的组合，两者默认都是关闭。
