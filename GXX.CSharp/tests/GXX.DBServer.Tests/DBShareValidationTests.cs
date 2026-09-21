@@ -304,6 +304,24 @@ public class DBShareValidationTests : TempDirTest
         foreach (char c in expect) Assert.False(DBShare.CheckSpecialChar(c.ToString()), "应命中：" + c);
     }
 
+    [Fact]
+    public void CheckSpecialChar在NewChr里是死分支()
+    {
+        // ★★ 原文缺陷/死分支（SelectClient.pas:942-948）：
+        //   走到那一步的前提是 `nCode = -1`，而它要求 `CheckChrName`（:934）**已返回真**；
+        //   `CheckChrName` 只放行 `0-9a-zA-Z` 或**合法的 GBK 双字节**，
+        //   而 `CheckSpecialChar` 的 `FilterChars` 全是**非字母数字的 ASCII**（≤0x7D）——
+        //   两者交集为空 ⇒ **`CheckSpecialChar` 永远不可能在那里返回 False**。
+        //   本用例以"属性"形式锁定：凡被 `CheckSpecialChar` 拒的名字，必先被 `CheckChrName` 拒。
+        const string filterChars = " /@?'\"\\.,:;`~!#$%^&*()-_+|[]{}";
+        foreach (char c in filterChars)
+        {
+            string wide = "Aa" + c + "a";
+            Assert.False(DBShare.CheckSpecialChar(wide), "CheckSpecialChar 应当拒绝：" + c);
+            Assert.False(DBShare.CheckChrName(Ansi(wide)), "但 CheckChrName 会先拒绝：" + c);
+        }
+    }
+
     // =====================================================================================
     // LoadChrNameList（:403-425）
     // =====================================================================================
