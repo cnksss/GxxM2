@@ -162,6 +162,19 @@ $E2_REFUTED = @(
     'ObjMon'                   # 9,502  (46 *Core.cs hold ~1,917 bare `=> true;` stubs)
 )
 
+# ---- PARTIALLY ported units (the "third state" asked for by lane p12) -----
+# p12's core conclusion (ledger 49.1) was: "E2 holds but the implementation does not exist" had no
+# home in the five buckets, and neither did "some of it exists".  A unit that is genuinely HALF
+# ported must not read MAPPED (that claims completion) nor REFUTED (that denies the work done).
+# PARTIAL is that state: excluded from `mapped`, kept out of the not-ported bucket, and listed
+# with the measured ratio so the next lane knows exactly what it inherits.
+# "<dir>/<unit>" applies to that copy only, same as $VENDOR_UNITS / $E2_REFUTED.
+$PARTIAL_UNITS = @(
+    # ledger 49.1: p12 measured these two by method-level sampling.
+    'ObjNpc',          # 67/112 top-level routines ported (lane-built ObjNpcRoutineRegistry.cs)
+    'FunctionConfig'   # 142/926 = 15.3%
+)
+
 # ---- per-copy entries of the not-ported registry --------------------------
 # A "<dir>/<unit>" entry marks ONLY that copy.  Needed wherever one basename has copies with
 # OPPOSITE rulings (e.g. ThreadPool.pas: two gateway copies replaced by GatewayKit, one
@@ -170,6 +183,8 @@ $vendorByCopy = @{}
 foreach ($v in $VENDOR_UNITS) { if ($v -like '*/*') { $vendorByCopy[$v] = $true } }
 $refutedByCopy = @{}
 foreach ($v in $E2_REFUTED) { if ($v -like '*/*') { $refutedByCopy[$v] = $true } }
+$partialByCopy = @{}
+foreach ($v in $PARTIAL_UNITS) { if ($v -like '*/*') { $partialByCopy[$v] = $true } }
 
 # ---- load optional explicit map ------------------------------------------
 $explicit = @{}
@@ -336,10 +351,18 @@ foreach ($d in $Dir) {
         if ($E2_REFUTED -contains $unit) { $isRefuted = $true }
         if ($refutedByCopy.ContainsKey("$d/$($f.BaseName)")) { $isRefuted = $true }
 
+        # PARTIAL: a measured, genuinely incomplete port (the "third state" of ledger 49.1).
+        # Beats MAPPED (it must not claim completion) but not REFUTED (a refuted claim is a
+        # stronger, negative statement).  A lane row still shows it in the in-flight table.
+        $isPartial = $false
+        if ($PARTIAL_UNITS -contains $unit) { $isPartial = $true }
+        if ($partialByCopy.ContainsKey("$d/$($f.BaseName)")) { $isPartial = $true }
+
         $verdict = if ($isVendor) { 'VENDOR' }
                    elseif ($isNonUnit) { 'NONUNIT' }
                    elseif ($isDatedBackup) { 'NONUNIT' }
                    elseif ($isRefuted) { 'REFUTED' }
+                   elseif ($isPartial) { 'PARTIAL' }
                    elseif ($mapped) { 'MAPPED' }
                    elseif ($e4) { 'ASSIGNED' }
                    elseif ($e2w) { 'WEAK' }
@@ -412,9 +435,10 @@ $tot = [pscustomobject]@{
     Vendor      = @($rows | Where-Object Verdict -eq 'VENDOR').Count
     NonUnit     = @($rows | Where-Object Verdict -eq 'NONUNIT').Count
     Refuted     = @($rows | Where-Object Verdict -eq 'REFUTED').Count
+    Partial     = @($rows | Where-Object Verdict -eq 'PARTIAL').Count
 }
-Write-Host ("TOTAL units={0}  mapped={1}  weak(on-header-less mention)={2}  assigned={3}  checklist-only={4}  unmapped={5}  not-ported={6}  non-unit={7}" -f `
-    $tot.Units, $tot.Mapped, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
+Write-Host ("TOTAL units={0}  mapped={1}  partial={2}  weak={3}  assigned={4}  checklist-only={5}  unmapped={6}  not-ported={7}  non-unit={8}" -f `
+    $tot.Units, $tot.Mapped, $tot.Partial, $tot.Weak, $tot.Assigned, $tot.ChecklistOn, $tot.Unmapped, $tot.Vendor, $tot.NonUnit) -ForegroundColor Green
 
 # ---- MAPPED-on-mention-only summary (the over-claim risk) ------------------
 $e2only = @($rows | Where-Object { $_.Verdict -eq 'MAPPED' -and -not $_.E1 })
@@ -460,9 +484,9 @@ if ($Report) {
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Totals')
     [void]$sb.AppendLine('')
-    [void]$sb.AppendLine('| units | mapped | weak | assigned (in flight) | checklist-only | unmapped | not-ported | non-unit |')
-    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|')
-    [void]$sb.AppendLine("| $($tot.Units) | $($tot.Mapped) | $($tot.Weak) | $($tot.Assigned) | $($tot.ChecklistOn) | $($tot.Unmapped) | $($tot.Vendor) | $($tot.NonUnit) |")
+    [void]$sb.AppendLine('| units | mapped | partial | weak | assigned (in flight) | checklist-only | unmapped | not-ported | non-unit |')
+    [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|')
+    [void]$sb.AppendLine("| $($tot.Units) | $($tot.Mapped) | $($tot.Partial) | $($tot.Weak) | $($tot.Assigned) | $($tot.ChecklistOn) | $($tot.Unmapped) | $($tot.Vendor) | $($tot.NonUnit) |")
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## Per module')
     [void]$sb.AppendLine('')
@@ -470,6 +494,19 @@ if ($Report) {
     [void]$sb.AppendLine('|---|---|---|---|---|---|---|---|---|')
     foreach ($r in $byDir) {
         [void]$sb.AppendLine("| $($r.Dir) | $($r.Units) | $($r.Mapped) | $($r.Assigned) | $($r.ChecklistOn) | $($r.Unmapped) | $($r.Vendor) | $($r.NonUnit) | $($r.UnmappedKB) |")
+    }
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('## PARTIAL units (measured incomplete -- the third state, ledger 49.1/50.2)')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('These units ARE partly ported, but the port is measurably incomplete.  They are excluded')
+    [void]$sb.AppendLine('from `mapped` (that would claim completion) and deliberately NOT put in the not-ported')
+    [void]$sb.AppendLine('bucket (that would deny the work already done).  The ratio is measured by method-level')
+    [void]$sb.AppendLine('sampling and recorded in the ledger; a lane inheriting one of these starts from that ratio.')
+    [void]$sb.AppendLine('')
+    [void]$sb.AppendLine('| dir | unit | lines | KB | source path |')
+    [void]$sb.AppendLine('|---|---|---|---|---|')
+    foreach ($r in ($rows | Where-Object Verdict -eq 'PARTIAL' | Sort-Object KB -Descending)) {
+        [void]$sb.AppendLine("| $($r.Dir) | $($r.Unit) | $($r.Lines) | $($r.KB) | ``$($r.Rel)`` |")
     }
     [void]$sb.AppendLine('')
     [void]$sb.AppendLine('## REFUTED E2 claims (a verification lane proved the mention is borrowed)')

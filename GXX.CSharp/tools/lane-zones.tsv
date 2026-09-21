@@ -98,5 +98,10 @@ p11-logingate-filter	GXX.CSharp/src/GXX.GatewayKit/Rest11/**;GXX.CSharp/src/GXX.
 # It gets '!' grants on those EXISTING files on purpose: fixing them in place is the only correct
 # move -- creating a second ObjMon implementation would be a third copy of the unit (ledger 14.2).
 p13-m2-objmon-real	!GXX.CSharp/src/GXX.M2Server/ObjMon*Core.cs;!GXX.CSharp/tests/GXX.M2Server.Tests/ObjMon*CoreTests.cs;GXX.CSharp/tests/GXX.M2Server.Tests/ObjMonReal*;GXX.CSharp/docs/并行报告-p13-m2-objmon-real.md
+# ---- P13 (round 60): ObjPlayer.pas -- the largest refuted gap (49,232 lines / 4 classes /
+# 815 routines) and the documented TPlayObject bottleneck (ledger 18.7).  Its partial port already
+# lives in Engine/PlayerSurface/**, so that directory gets a '!' grant: extending the existing
+# partial-class files is the only correct move (a second home would be a third implementation).
+p13-m2-objplayer	!GXX.CSharp/src/GXX.M2Server/Engine/PlayerSurface/**;!GXX.CSharp/tests/GXX.M2Server.Tests/PlayerSurface*;GXX.CSharp/tests/GXX.M2Server.Tests/ObjPlayer*;GXX.CSharp/docs/并行报告-p13-m2-objplayer.md
 # READ-ONLY stub census tool (new in round 59, ledger 48.1): makes the silent-stub count visible.
 stub-census-tool	GXX.CSharp/tools/audit-stubs.ps1

@@ -89,3 +89,8 @@ LoginGate/FuncForComm	par/p11-logingate-filter
 # reads MAPPED again) AND gets a lane row, so it is visible in both the REFUTED gap list and the
 # in-flight table.  Do NOT register the other six refuted giants here until lanes exist for them.
 ObjMon	par/p13-m2-objmon-real
+# ObjPlayer (49,232 lines / 815 routines): the largest refuted gap and the TPlayObject bottleneck.
+# It stays in $E2_REFUTED (never reads MAPPED again until really done) and gets a lane row so it is
+# visible in both the gap list and the in-flight table.  Lifecycle (ledger 50.2):
+#   REFUTED (nothing real) -> PARTIAL (some real, measured) -> MAPPED (complete).
+ObjPlayer	par/p13-m2-objplayer
