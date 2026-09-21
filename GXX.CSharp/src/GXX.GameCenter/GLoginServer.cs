@@ -7,6 +7,13 @@ namespace GXX.GameCenter;
 /// GLoginServer.pas（35 行）1:1 移植：TfrmLoginServerConfig（登录网关路由表窗体）。
 /// 原文 <c>FormCreate</c> 只设置 TStringGrid 的 6 列表头；<c>Open</c> 只 ShowModal。
 /// </summary>
+/// <remarks>
+/// 本文件**同一个文件**还承载另一个单元：<c>GLoginServerRouteSet.pas</c>（35 行，DFM 482×357）
+/// 的 1:1 移植 <see cref="LoginServerRouteSetForm"/>（原文 <c>TfrmLoginServerRouteSet</c>，
+/// 托管侧按本工程"窗体类名用 XxxForm"的既有约定改名 —— 见下方该类自己的注释与台账 §47.1）。
+/// 之所以把这行写在文件头部：审计判据 E2 只读 `src` 下 `.cs` 的**头 40 行**，而原先把这句话
+/// 写在第 86 行，导致该单元长期被报表记为 WEAK（"无声明"），其实**早已移植**。
+/// </remarks>
 public sealed class LoginServerConfigForm : System.Windows.Forms.Form
 {
     // ---- 控件（名称与 DFM 1:1） ----

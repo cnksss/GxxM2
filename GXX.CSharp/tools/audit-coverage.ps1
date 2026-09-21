@@ -114,7 +114,18 @@ $VENDOR_UNITS = @(
     # zero hits in .pas/.dpr/.dpk, its own type names hit only itself, ACCOUNTLEN/ACTORNAMELEN are
     # undefined repo-wide (so the original cannot even compile), g_UserShopDB is declared nowhere,
     # and its `unit UserShopDB;` name collides with the live UserShopDB unit.
-    'UserShopDB_Old'
+    'UserShopDB_Old',
+    # ---- GuiManage: NOT PORTED, ruled by lane par/p11-client-dxrest2 (ledger 47.2) with three
+    # independent proofs, any one of which is fatal to a 1:1 port:
+    #   1. the original references type TDxBackground, which exists NOWHERE in the tree
+    #      (:29/:443/:454; zero hits in .pas/.dpr/.inc/.dfm besides those lines) -> it cannot build;
+    #   2. its job is already carried by GXX.Client.LoadDx in an EVOLVED form (DxControlFactory /
+    #      GuiComponentLoader / DxGuiFonts ... with 11 extra version boundaries + DES + name table),
+    #      so a 1:1 copy would insert a SECOND deserializer for the same protocol;
+    #   3. doing it 1:1 would require redefining 13 out-of-zone seams (TDxEdit/TDxImageGrid/... whose
+    #      only home is LoadDx/DxControlSeams.cs, the pending dedup battlefield) -> ledger 14.2.
+    # Bare key is safe: GuiManage.pas exists once in the whole tree (verified).
+    'GuiManage'
     # NOTE: 'ThreadPool' is deliberately NOT registered here.  It exists in LogDataServer (a REAL
     # gap: 445 lines, TPoolManager/TPoolThread unported) as well as in LoginGate/SelGate (replaced
     # by design).  This registry keys on the BASENAME, so a row would silently hide the

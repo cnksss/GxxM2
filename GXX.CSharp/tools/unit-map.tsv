@@ -63,7 +63,10 @@ uFrmRoleDataEdit	par/p10-db-login-forms
 MasSock	par/p10-db-login-forms
 GrobalSession	par/p10-db-login-forms
 GHeroDBConfig	par/p10-db-login-forms
-GLoginServerRouteSet	par/p10-db-login-forms
+# GLoginServerRouteSet row REMOVED 2026-09-21 (ledger 47.3-1): the unit was already ported --
+# under the renamed class LoginServerRouteSetForm -- and its source-unit note sat at line 86 of
+# GLoginServer.cs, outside the 40-line E2 window.  Moving that note to the header made the unit
+# read MAPPED, so the row must go (a leftover row would re-park a finished unit).
 LogDataServer/ThreadPool	par/p10-db-login-forms
 FileSearchPool	par/p10-db-login-forms
 # ---- P10-m2-misc (the last unowned product-UI units; basenames verified unique) ----
@@ -74,11 +77,9 @@ MemoryIniFiles	par/p10-m2-misc
 uFrmHumanExport	par/p10-m2-misc
 CreateChr	par/p10-m2-misc
 GateSet	par/p10-m2-misc
-# ---- P11-client-dxrest2 (the last two UNMAPPED units) ----
-LoginDlg	par/p11-client-dxrest2
-GuiManage	par/p11-client-dxrest2
-# ---- P11-logingate-filter (gaps PROVEN by the read-only review lane; PER-COPY KEYS MANDATORY:
-#      Misc.pas / FuncForComm.pas each have a LoginGate AND a SelGate copy with different bytes,
-#      and SelGate's differences from GatewayKit are documented as "must be kept") ----
+# ---- P11-client-dxrest2 CLOSED 2026-09-21 (ledger 47): LoginDlg landed 8/8 (E1+E2 evidence ->
+#      row removed).  GuiManage was ruled NOT PORTABLE with three independent proofs (original
+#      references the non-existent TDxBackground; LoadDx already carries the job in evolved form;
+#      a 1:1 port would need 13 out-of-zone seams) -> moved to $VENDOR_UNITS, NOT re-parked here.
 LoginGate/Misc	par/p11-logingate-filter
 LoginGate/FuncForComm	par/p11-logingate-filter
