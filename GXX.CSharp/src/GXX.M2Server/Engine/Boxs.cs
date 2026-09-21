@@ -181,7 +181,8 @@ public class TBoxsList
             };
             try
             {
-                File.WriteAllLines(M2Config.sBoxsFile, tempList, Encoding.GetEncoding(936));
+                // GBK 一律经 GXX.Core.EncodingInit.GBK 获取：其内部先 Ensure() 注册 CodePagesEncodingProvider，消除加载顺序依赖（CP936 实例等价）。
+                File.WriteAllLines(M2Config.sBoxsFile, tempList, GXX.Core.EncodingInit.GBK);
             }
             catch
             {
@@ -194,7 +195,7 @@ public class TBoxsList
             return;
 
         int idx = 0;
-        foreach (var line in File.ReadLines(sFileName, Encoding.GetEncoding(936)))
+        foreach (var line in File.ReadLines(sFileName, GXX.Core.EncodingInit.GBK))
         {
             int nStr = Str_ToInt(line, -1);
             if (nStr > -1)
@@ -225,7 +226,7 @@ public class TBoxsList
         box.BoxSet.nNowGameGold = 0;
         box.BoxSet.nNowCount = 0;
 
-        var tempList = File.ReadAllLines(sFileName, Encoding.GetEncoding(936));
+        var tempList = File.ReadAllLines(sFileName, GXX.Core.EncodingInit.GBK);
         if (tempList.Length > 0)
         {
             string sMsg = tempList[0];
@@ -354,7 +355,7 @@ public class TBoxsList
 
             try
             {
-                File.WriteAllLines(sFileName, saveList, Encoding.GetEncoding(936));
+                File.WriteAllLines(sFileName, saveList, GXX.Core.EncodingInit.GBK);
             }
             catch
             {

@@ -8,7 +8,8 @@
 //
 // ── DFM 常量（脚本抽取 + 回读，非手工转录）────────────────────────────────────────────
 //   抽取命令（GBK 读入后按 `object <name>:` 定位，取 MinValue/MaxValue 与 Items.Strings 条数）：
-//     $dfm=[IO.File]::ReadAllText('Source\RunGate\uFrmMain.dfm',[Text.Encoding]::GetEncoding(936))
+//     $dfm=[IO.File]::ReadAllText('Source\RunGate\uFrmMain.dfm',[Text.Encoding]::GetEncoding('GBK'))
+//   （抽取命令原写作数字代码页形式，此处改为等价的 GBK 名称；代码侧 GBK 实例一律经 GXX.Core.EncodingInit.GBK 获取，以消除加载顺序依赖。）
 //   回读结果（`RunGateConfigBounds` 的默认值即由此生成）：
 //     seCheckServerTimeOutTime              MinValue=60    MaxValue=600      (dfm:839)
 //     seClientSendBlockSize                 MinValue=1     MaxValue=8        (dfm:855)
