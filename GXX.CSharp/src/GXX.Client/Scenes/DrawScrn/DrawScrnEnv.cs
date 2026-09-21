@@ -473,7 +473,7 @@ public static class DrawScrnEnv
 
     /// <summary>
     /// 原文 `FGameImages.GetCachedImage(Index, X, Y)`。
-    /// 默认实现退化为 `Images[Index]`（X/Y 取 0）并**不隐瞒**这一退化：报告 §偏离登记 已登记 D-P10-03。
+    /// 默认实现退化为 `Images[Index]`（X/Y 取 0）并**不隐瞒**这一退化：报告 §8 已登记 D-P10-11。
     /// </summary>
     public static TTexture GetCachedImage(TGameImages images, int index, out int x, out int y)
     {
@@ -625,7 +625,7 @@ public static class DrawScrnEnv
     public static void OpenDRandomCodeDlg() => OpenDRandomCodeDlgFn?.Invoke();
 
     // ---------------- PlayScn.pas 场景（IsValidActorEx） ----------------
-    /// <summary>PlayScn.pas:6954-6967 IsValidActorEx（默认恒真，见 D-P10-04）。</summary>
+    /// <summary>PlayScn.pas:6954-6967 IsValidActorEx（默认恒真，未接线；见 D-P10-15）。</summary>
     public static Func<TActor, bool> IsValidActorExFn = _ => true;
 
     /// <summary>原文 `PlayScene.IsValidActorEx(Actor)`。</summary>

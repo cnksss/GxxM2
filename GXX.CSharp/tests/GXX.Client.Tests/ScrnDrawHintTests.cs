@@ -56,7 +56,7 @@ public sealed class ScrnDrawHintTests : ScrnDrawTestBase
     /// `&lt;TextW:X:Y:TEXT&gt;`（1754-1765）：OffsetX 当**固定宽度**、OffsetY 当**颜色索引**、
     /// 第三段是文本。★ 注意 OffsetY 同时被当成 `NewFixedWidthHintText(..., AColor:=OY)`
     /// 的颜色索引（原文 1978 `NewFixedWidthHintText(ShowText, OX, OY)`）—— 这里的 5 落进 0..255
-    /// 于是 `Color := GetRGB(5)`。此为该 tag 的原文行为（登记为 D-P10-08）。
+    /// 于是 `Color := GetRGB(5)`。此为该 tag 的原文行为（登记为 D-P10-D05）。
     /// </summary>
     [Fact]
     public void ProcessHintText_TextW_UsesOffsetXAsFixedWidth_AndOffsetYAsColorIndex()

@@ -516,7 +516,7 @@ public sealed class ScrnDrawDropItemsTests : ScrnDrawTestBase
     // =========================================================================================
 
     /// <summary>
-    /// ★ 原文缺陷（照抄 + 差异断言 D-P10-10）：`TDropItem.Name` / `DBName` 是 **`string[60]`**，
+    /// ★ 原文缺陷（照抄 + 差异断言 D-P10-D04）：`TDropItem.Name` / `DBName` 是 **`string[60]`**，
     /// 赋值时按 **GBK 字节**截断到 60 且**不报错**（61 个 ASCII 字符 → 只剩 60；
     /// 31 个汉字 = 62 字节 → 只剩 30 个汉字）。
     /// </summary>
@@ -547,7 +547,7 @@ public sealed class ScrnDrawDropItemsTests : ScrnDrawTestBase
     }
 
     /// <summary>
-    /// ★ 托管侧差异（登记 D-P10-11）：`TPointDropItemList.GetDrawItems` 在原文里**不判越界**
+    /// ★ 托管侧差异（登记 D-P10-12）：`TPointDropItemList.GetDrawItems` 在原文里**不判越界**
     /// （187-190 直接取 `FDrawList.Items[Index]`，越界是未定义行为），托管 `List&lt;T&gt;` 会抛
     /// `ArgumentOutOfRangeException` —— 差异已用断言锁死。
     /// </summary>
