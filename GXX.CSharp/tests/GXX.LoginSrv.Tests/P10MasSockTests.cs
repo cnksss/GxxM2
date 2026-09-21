@@ -390,40 +390,37 @@ public sealed class P10MasSockTests : IDisposable
         Assert.Equal("123456789012345", MasSockFns.TruncateToShortString15("1234567890123456"));
     }
 
-    // ---- ArrestStringEx_Ansi 逐字复刻 vs GXX.Core 版（跨区缺口 B-P10-17）----
+    // ---- ArrestStringEx_Ansi：B-P10-17 **已关闭**（Core 已按原文修正 ⇒ 本单元不再本地复刻）----
 
     [Fact]
-    public void ArrestStringExAnsi_FoundPath_MatchesDelphiAndGxxCore()
+    public void ArrestStringEx_FoundPath_MatchesDelphi()
     {
-        string dest1 = "", dest2 = "";
-        Assert.Equal("(2/b)", MasSockFns.ArrestStringExAnsi("(1/a)(2/b)", '(', ')', ref dest1));
+        string dest1 = "";
+        Assert.Equal("(2/b)", HUtil32.ArrestStringEx_Ansi("(1/a)(2/b)", '(', ')', ref dest1));
         Assert.Equal("1/a", dest1);
 
+        // 两条入口（_Ansi 与 Wide 版）同体，结果一致
+        string dest2 = "";
         Assert.Equal("(2/b)", HUtil32.ArrestStringEx("(1/a)(2/b)", '(', ')', ref dest2));
         Assert.Equal(dest1, dest2);
     }
 
     [Fact]
-    public void ArrestStringExAnsi_NotFoundPath_KeepsSourceUnlikeGxxCore()
+    public void ArrestStringEx_NotFoundPath_KeepsSource_BP10_17Closed()
     {
-        string dest1 = "", dest2 = "";
-
-        // 原文 HUtil32.pas:1766 `Result := Source` —— 未命中 '(' ⇒ 返回**原串**
-        Assert.Equal("garbage)", MasSockFns.ArrestStringExAnsi("garbage)", '(', ')', ref dest1));
+        // 原文 HUtil32.pas:1766 `Result := Source` —— 未命中 '(' ⇒ 返回**原串**（调用方靠它保住缓冲）
+        string dest1 = "";
+        Assert.Equal("garbage)", HUtil32.ArrestStringEx_Ansi("garbage)", '(', ')', ref dest1));
         Assert.Equal("", dest1);
 
-        // 原文同样：有 '(' 但后面没有 ')' ⇒ 返回原串
+        // 原文 :1792-1804：有 '(' 但没有 ')' ⇒ Result 仍为原串、ArrestStr 保持 ''
+        string dest2 = "";
+        Assert.Equal("(abc", HUtil32.ArrestStringEx_Ansi("(abc", '(', ')', ref dest2));
+        Assert.Equal("", dest2);
+
+        // 原文 :1769-1773：空 Source 才显式返回 ''
         string dest3 = "";
-        Assert.Equal("(abc", MasSockFns.ArrestStringExAnsi("(abc", '(', ')', ref dest3));
-        Assert.Equal("", dest3);
-
-        // GXX.Core.Util.HUtil32.ArrestStringEx 的 Result 初值是 "" ⇒ 两条"未命中"路径都返回空串
-        Assert.Equal("", HUtil32.ArrestStringEx("garbage)", '(', ')', ref dest2));
-        Assert.Equal("", HUtil32.ArrestStringEx("(abc", '(', ')', ref dest2));
-
-        // 空串两边一致
-        string dest4 = "";
-        Assert.Equal("", MasSockFns.ArrestStringExAnsi("", '(', ')', ref dest4));
+        Assert.Equal("", HUtil32.ArrestStringEx_Ansi("", '(', ')', ref dest3));
     }
 
     // ---- TAccountInfo2 线格式尺寸（跨区缺口 B-P10-18）----

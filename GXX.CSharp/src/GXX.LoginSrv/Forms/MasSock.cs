@@ -332,68 +332,14 @@ public static class MasSockFns
     public static string TruncateToShortString15(string value)
         => value != null && value.Length > 15 ? value.Substring(0, 15) : (value ?? "");
 
-    /// <summary>
-    /// 《Common/HUtil32.pas:1761-1805 <c>ArrestStringEx_Ansi</c>》的**逐字复刻**。
-    /// <para>
-    /// 为什么不直接转调 <c>GXX.Core.Util.HUtil32.ArrestStringEx</c>（已读该实现）：
-    /// 原文第 1719/1766 行是 <c>Result := Source;</c>（**先假设"什么都没吃掉"**），
-    /// 只在真正找到 <c>SearchStart…SearchEnd</c> 时才覆写 Result；
-    /// 托管版把 Result 初值写成 <c>""</c> ⇒ 两种"未找到"路径下返回 **""** 而不是原串。
-    /// 本单元的 <c>MSocketClientRead</c> 正是把返回值回写进 <c>sReviceMsg</c> 的**半包累加器**：
-    ///   * 原文（返回原串）：收到 "garbage)"（有 ')' 无 '('）时**保留**缓冲，永不丢弃；
-    ///   * 托管版（返回 ""）：**清空**缓冲。
-    /// 两者语义不同，且"保留"是原文可观测行为（缓冲无限增长，见 F1 同族的原文缺陷）⇒
-    /// 按"照抄原文"原则用逐字复刻版（**D-P10-17**）；待 GXX.Core 修正为 <c>Result := Source</c> 后
-    /// 本方法可删除并改回转调（跨区缺口 B-P10-17，工程内同类先例：
-    /// GXX.SelGate/SelGatePacketRule.cs:89-112、GXX.Client/GUI/GameConfig/FilterItems.cs:574-592）。
-    /// </para>
-    /// <para>
-    /// 指针运算映射（原文 P 为串首，P1/P2 为 PAnsiChar）：<c>P2 - P</c> → P2（0-based 偏移）、
-    /// <c>P1 - P</c> → P1（0-based 偏移）；<c>Copy</c> 是 1-based。
-    /// </para>
-    /// </summary>
-    public static string ArrestStringExAnsi(string Source, char SearchStart, char SearchEnd, ref string ArrestStr)
-    {
-        string Result = Source;                     // 原 :1766/1719 Result := Source
-        ArrestStr = "";                             // 原 :1767/1720
-        if (Source.Length == 0)                     // 原 :1769-1773
-        {
-            Result = "";
-            return Result;
-        }
-
-        int SrcLen = Source.Length;                 // 原 :1775
-        int P1 = 0;                                 // 原 :1777 P1 := P（0-based 偏移）
-        int P2 = -1;                                // 原 :1778 P2 := nil（-1 = nil）
-        int FoundIndex = 0;                         // 原 :1779
-
-        for (int I = 0; I <= SrcLen - 1; I++)       // 原 :1780-1790
-        {
-            if (Source[P1] == SearchStart)
-            {
-                FoundIndex = I + 1;                 // 原 :1784
-                P1++;
-                P2 = P1;                            // 原 :1786
-                break;
-            }
-            P1++;
-        }
-
-        if (P2 >= 0)                                // 原 :1792
-        {
-            for (int I = FoundIndex; I <= SrcLen - 1; I++)   // 原 :1794-1803
-            {
-                if (Source[P1] == SearchEnd)
-                {
-                    ArrestStr = DelphiRTL.Copy(Source, P2 + 1, P1 - P2);            // 原 :1798
-                    Result = DelphiRTL.Copy(Source, P1 + 1 + 1, SrcLen - (P1 + 1)); // 原 :1799
-                    break;
-                }
-                P1++;
-            }
-        }
-        return Result;
-    }
+    // ---- 原 `MasSockFns.ArrestStringExAnsi` 的逐字复刻已删除（B-P10-17 关闭）----
+    //
+    // 历史（D-P10-17）：本单元 `:302` 调用 `HUtil32.ArrestStringEx_Ansi`，而托管
+    // `GXX.Core.Util.HUtil32.ArrestStringEx` 当时有**两处**与 `HUtil32.pas:1761-1805` 不同的语义
+    // （`Result` 初值写成 `""`；"找不到 SearchEnd"分支把剩余整串塞进 `ArrestStr`），
+    // 而 `MSocketClientRead` 正是把返回值回写进 `sReviceMsg` 的**半包累加器** ⇒ 语义差异可观测。
+    // 集成方已按原文修 Core（台账 §48.2：`Result := Source` 起手 + 删掉 else 改写）并合入本车道，
+    // ⇒ 本地复刻无必要，**直接转调 `GXX.Core.Util.HUtil32.ArrestStringEx_Ansi`**（调用点见 `MSocketClientRead`）。
 
     /// <summary>
     /// Delphi <c>SizeOf(TAccountInfo2)</c>。
@@ -822,8 +768,9 @@ public sealed class TFrmMasSoc : System.Windows.Forms.Form
                 sReviceMsg = MsgServer.sReceiveMsg + Socket.ReceiveText;
                 while (DelphiRTL.Pos(")", sReviceMsg) > 0)                      // 原 :300
                 {
-                    // 原 :302 用的是 HUtil32.ArrestStringEx_Ansi（**返回未命中时保留原串**）
-                    sReviceMsg = MasSockFns.ArrestStringExAnsi(sReviceMsg, '(', ')', ref sMsg);
+                    // 原 :302 用的是 HUtil32.ArrestStringEx_Ansi（**未命中时保留原串**）。
+                    // B-P10-17 已关闭：Core 已按原文修正，故直接转调核心实现，不再本地复刻。
+                    sReviceMsg = HUtil32.ArrestStringEx_Ansi(sReviceMsg, '(', ')', ref sMsg);
                     if (sMsg == "") break;                                      // 原 :303
                     sMsg = HUtil32.GetValidStr3(sMsg, ref sCode, new[] { '/' }); // 原 :304
                     nCode = DelphiRTL.StrToIntDef(sCode, -1);                    // 原 :305
