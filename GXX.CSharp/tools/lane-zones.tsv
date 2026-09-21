@@ -132,7 +132,7 @@ p16-m2-tmonster-run	!GXX.CSharp/src/GXX.M2Server/Engine/ObjBase.cs;GXX.CSharp/te
 # (a) Actor.pas (18,009 lines / 5 classes / 159 routines) = the largest UNPORTED client unit.
 #     Its home is Scenes/Actor*.cs (built by the closed p6/p7 lanes) plus PlaySceneNewActor.cs,
 #     which lane p12 proved holds 50+ EMPTY shell classes (each only `ActorClass => "Xxx"`).
-p17-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/Actor*;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;GXX.CSharp/tests/GXX.Client.Tests/Actor*;!GXX.CSharp/docs/并行报告-p17-client-actor.md
+p17-client-actor	!GXX.CSharp/src/GXX.Client/Scenes/Actor*;!GXX.CSharp/src/GXX.Client/Scenes/PlaySceneNewActor.cs;!GXX.CSharp/src/GXX.Client/Scenes/CustomActor*.cs;GXX.CSharp/tests/GXX.Client.Tests/Actor*;!GXX.CSharp/docs/并行报告-p17-client-actor.md
 # (b) HOST WIRING -- ledger 58.5's strategic shift: no seam in this project is wired to a real
 #     host, so nothing is verified end-to-end.  This lane (1) produces the seam work-order table
 #     and (2) proves ONE real host loop end-to-end on M2Server's own entry point (Program.cs).

@@ -222,7 +222,20 @@ public static class MiniMapRender
         public int MiniMapIndex = -1;   // g_nMiniMapIndex
         public bool ViewMiniMap;        // g_boViewMiniMap
         public int ViewMinMapLv;        // g_nViewMinMapLv
-        public uint QueryMsgTick;       // g_dwQueryMsgTick
+
+        /// <summary>
+        /// ★ 集成方修正（台账 §63.4 裁定 CR-5 / §64.3）：原文这里**就是那个全局** `g_dwQueryMsgTick`
+        /// （`MShare.pas:1825` 声明；`ClMain.pas:9232/9825/9873/29671/29839/29920` 六处赋值，
+        /// 并在 `MShare.pas:17876/17885/18906/18914` 以 `if MyGetTickCount &gt; g_dwQueryMsgTick` **严格 &gt;** 判读）。
+        /// 托管侧原先在本状态类里留了**第二个同名字段** ⇒ 节流判定读的是另一份副本，
+        /// 本类写进去的值对全程序不可见 = **静默失效**（§63 的"两份状态"家族；§58.2 `m_wAbil`/`m_wWAbil` 同型）。
+        /// 现改为**代理单一全局**，对外 API（可读写属性）不变。
+        /// </summary>
+        public uint QueryMsgTick
+        {
+            get => GXX.Client.GUI.Mir.MShareGlobals.g_dwQueryMsgTick;
+            set => GXX.Client.GUI.Mir.MShareGlobals.g_dwQueryMsgTick = value;
+        }
     }
 
     public sealed class MiniMapMessageResult
