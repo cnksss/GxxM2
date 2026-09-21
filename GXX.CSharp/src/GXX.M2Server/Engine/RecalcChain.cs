@@ -1,4 +1,4 @@
-﻿using GXX.Core.Protocol;
+using GXX.Core.Protocol;
 
 namespace GXX.M2Server.Engine;
 
@@ -42,13 +42,19 @@ public static class RecalcAbilitysChain
         for (int i = 0; i < UseSlots.SlotCount; i++)
         {
             var userItem = self.m_UseItems[i];
-            if (userItem == null || userItem.wIndex == 0)
+            if (userItem == null || userItem.Value.wIndex == 0)
                 continue;
-            var std = self.StdItemResolver?.Invoke(userItem.wIndex);
+            var std = self.StdItemResolver?.Invoke(userItem.Value.wIndex);
             if (std == null)
                 continue;
-            RecalcBonus.GetItemAddValue(userItem, std); // 装备升级值合成（J11）
-            GetAccessory.Apply(self, userItem, std, add, all);
+            // ★ 方案 A 的**视图现造点**：`TUserItemView` 只是能力聚合用的轻量视图，
+            //   由权威记录 `TUserItem` 现造（`TCreature.ToItemView`）。
+            //   等价性说明：`GetItemAddValue` **只写 `std`（TStdItemView）**、从不写物品本身
+            //   （`RecalcBonus.cs:56-63` 全部是 `std.X = ...`），故用一次性视图与原文
+            //   "就地改权威记录"在**本循环内**行为一致；`GetAccessory.Apply` 随后消费同一个视图。
+            TUserItemView view = TCreature.ToItemView(userItem.Value);
+            RecalcBonus.GetItemAddValue(view, std); // 装备升级值合成（J11）
+            GetAccessory.Apply(self, view, std, add, all);
             // 特戒开关（Delphi AddAbilitysByCode IsShape 双路：主循环传 I <> U_SHIELD）
             self.ApplySpecialItemCode(std.Shape);
             if (i != UseSlots.U_SHIELD)
@@ -97,8 +103,21 @@ public static class RecalcAbilitysChain
 
 public partial class TPlayObject
 {
-    /// <summary>m_UseItems 装备槽（索引 = U_ 常量）。</summary>
-    public TUserItemView?[] m_UseItems = new TUserItemView?[UseSlots.SlotCount];
+    /// <summary>
+    /// `m_UseItems` 装备槽（索引 = `U_` 常量）。
+    /// <para>原文 `ObjBase.pas:882 m_UseItems: THumanUseItems`，其中
+    /// `THumanUseItems = array[0..MAX_USE_ITEM_COUNT-1] of **TUserItem**`（`Grobal2.pas:4169`）
+    /// —— 元素是**权威值类型**。</para>
+    /// <para>★ 2026 第十一轮口径统一（与 `m_ItemList` 的方案 A 并列，见报告 §17）：
+    /// 本字段原先是 **`TUserItemView?[]`**（**视图**类型，只有 `wIndex`/`BtValue`/`CustomProperties`），
+    /// 与 `m_ItemList` 是**同一个缺陷在另一个字段上重现** —— 视图**承载不了** `MakeIndex`/`Dura`/`DuraMax`
+    /// 等权威字段，且 视图→权威 **不是无损转换**（所以"写回"救不了它，是**元素类型选错了**）。
+    /// 现改为 **`TUserItem?[]`**：可空以保留原文槽位的"空槽"语义（同 `m_ItemList`）。
+    /// `TUserItemView` 退化为"能力聚合用的轻量视图"，由调用处（`RecalcAbilitys`）按需现造
+    /// （`TCreature.ToItemView`）。</para>
+    /// <para>⚠ D35（值语义 vs 指针语义）在本字段同样成立：改完必须写回槽位。</para>
+    /// </summary>
+    public TUserItem?[] m_UseItems = new TUserItem?[UseSlots.SlotCount];
 
     /// <summary>m_AddAbil（装备聚合）与 AllAddAbility。</summary>
     public readonly TAddAbility m_AddAbil = new();

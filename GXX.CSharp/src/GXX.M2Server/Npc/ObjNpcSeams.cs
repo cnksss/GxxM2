@@ -66,6 +66,21 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `LOG_ItemBuy = 11; // 买入物品`（M2Share.pas:98）。</summary>
     public const byte LOG_ItemBuy = 11;
 
+    /// <summary>接缝：原文 `LOG_ItemUpgrade = 14; // 物品升级`（M2Share.pas:101）。</summary>
+    public const byte LOG_ItemUpgrade = 14;
+
+    /// <summary>
+    /// 接缝：原文 `sNF_Upgradeing = '~@upgradenow_ing'`（**NpcCommon.pas:75** —— 来自 NpcCommon，不是 M2Share）。
+    /// `TNormNpc.GotoLable` 的目标标签（ObjNpc.pas:1846）。
+    /// </summary>
+    public const string sNF_Upgradeing = "~@upgradenow_ing";
+
+    /// <summary>接缝：原文 `sNF_UpgradeOK = '~@upgradenow_ok'`（NpcCommon.pas:77）。ObjNpc.pas:1898。</summary>
+    public const string sNF_UpgradeOK = "~@upgradenow_ok";
+
+    /// <summary>接缝：原文 `sNF_UpgradeFail = '~@upgradenow_fail'`（NpcCommon.pas:79）。ObjNpc.pas:1900。</summary>
+    public const string sNF_UpgradeFail = "~@upgradenow_fail";
+
     /// <summary>接缝：原文 `LOG_GoldChange = 50; // 金币改变`（M2Share.pas:116）。</summary>
     public const byte LOG_GoldChange = 50;
 
@@ -412,11 +427,11 @@ public static class NpcSeams
         set => PlayerSurfaceMsgSeams.GetStdItemName = value;
     }
 
-    /// <summary>
-    /// 原文 `TPlayObject.m_UseItems[U_WEAPON]`（ObjPlayer.pas 装备格数组）。
-    /// ObjNpc.pas:3257/3259 只**读**该格。接缝：待 ObjPlayer.pas 移植后接入。
-    /// </summary>
-    public static Func<TPlayObject, TUserItem> GetUseItemsWeapon { get; set; } = _ => default;
+    // ★ 2026 第十一轮：`GetUseItemsWeapon` 与 `SetUseItemsWeapon` 两个替身接缝**已删除**。
+    //   `Engine/RecalcChain.cs` 的 `m_UseItems` 已按方案 A 统一为权威类型 **`TUserItem?[]`**
+    //   （与 `m_ItemList` 同口径，报告 §17），故 ObjNpc 侧一律**直读直写**：
+    //   `User.m_UseItems[UseSlots.U_WEAPON]`（读）/ `User.m_UseItems[UseSlots.U_WEAPON] = item;`（写回）。
+    //   这正是"正式归属落地后去掉替身"。
 
     /// <summary>
     /// 原文 `TNormNpc.SendCustemMsg`（ObjNpc.pas:9837-9862）—— **已由虚方法外壳升级为真实现**
@@ -483,6 +498,39 @@ public static class NpcSeams
     /// <summary>原文 `UserEngine.CopyToUserItemFromName`（ObjNpc.pas:3553）。接缝（默认失败）。</summary>
     public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
         (string _, ref TUserItem _) => false;
+
+    // -----------------------------------------------------------------------
+    // TMerchant.UpgradeWapon 外层体（ObjNpc.pas:1830-1901）需要的宿主面。
+    // -----------------------------------------------------------------------
+
+    // ★ 第十一轮：`SetUseItemsWeapon` 写回接缝**已删除**（见上方 `m_UseItems` 口径统一的说明）。
+    //   原先它是"`m_UseItems` 元素类型选错"的权宜替身；口径统一后改为直写
+    //   `User.m_UseItems[UseSlots.U_WEAPON] = item;`（ObjNpc.pas:1886 / D35 契约）。
+
+    /// <summary>
+    /// 原文 `g_sCannotUpgradeWeapon`（M2Share.pas:8165，默认
+    /// `'你的武器[%Item]不允许升级'`，由 `:21346/:21352` 的 `LoadString` 覆盖）。
+    /// ObjNpc.pas:1856 用它拼提示串（`AnsiReplaceStr(..., '%Item', StdItem.Name)`）。
+    /// 接缝：待 M2Share 的 StringConf 接入；默认值**即原文默认值**（不是语义占位）。
+    /// </summary>
+    public static string g_sCannotUpgradeWeapon { get; set; } = "你的武器[%Item]不允许升级";
+
+    /// <summary>
+    /// 原文 `g_boGameLogGold`（M2Share.pas:3748 声明）—— 金币变动是否写日志。
+    /// ObjNpc.pas:1862 用它决定 `AddGameDataLog(LOG_ItemUpgrade, LOG_GoldChange, ...)` 是否落库。
+    /// 接缝：待 M2Share 移植后接入。默认 `false`（= 原文默认关闭）。
+    /// </summary>
+    public static bool g_boGameLogGold { get; set; }
+
+    /// <summary>
+    /// 原文 `TPlayObject.SysMsg(sMsg: AnsiString; FColor, BColor: Integer; MsgType: TMsgType;
+    /// boAddPrefix: Boolean = True)` —— **第二个重载**（ObjPlayer.pas:1286；
+    /// 第一个重载见 <see cref="SysMsg"/>(sMsg, MsgColor: TMsgColor, MsgType)）。
+    /// <para>ObjNpc.pas:1857 与 1875 处用的是本重载（传 `g_Config.btRedMsgFColor`/`btRedMsgBColor` 两个**字节色值**）。
+    /// 参数按原文顺序：(target, sMsg, FColor, BColor, MsgType)；`boAddPrefix` 取默认 True（接缝隐含）。</para>
+    /// </summary>
+    public static Action<TCreature, string, int, int, TMsgType> SysMsgFB { get; set; } =
+        (_, _, _, _, _) => { };
 
     /// <summary>
     /// 原文 `AddGameDataLog(LogAction1, LogAction2: Byte; LogActor: TBaseObject; ItemName: string;
@@ -680,7 +728,6 @@ public static class NpcSeams
         sNpc_def = @"Npc_def\";
         sNpcIcons = @"NpcIcons\";
         GetStdItemName = _ => "";
-        GetUseItemsWeapon = _ => default;
         boSendCustemMsg = false;
         g_sSendCustMsgCanNotUseNowMsg = "当前无法使用喊话功能";
         GetFilterTexts = () => null;
@@ -707,6 +754,9 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
+        g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
+        g_boGameLogGold = false;
+        SysMsgFB = (_, _, _, _, _) => { };
         boSubkMasterSendMsg = false;
         g_sSubkMasterMsgCanNotUseNowMsg = "当前无法使用城主喊话功能";
     }

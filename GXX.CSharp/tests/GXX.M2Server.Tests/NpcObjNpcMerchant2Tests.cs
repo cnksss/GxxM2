@@ -96,10 +96,11 @@ public sealed class NpcObjNpcMerchant2Tests : IDisposable
     public void GetVariableText_UserWeapon_EmptySlotYieldsLiteral()
     {
         var m = NewMerchant();
-        NpcSeams.GetUseItemsWeapon = _ => Item(0);
+        var player = new TPlayObject();
+        player.m_UseItems[UseSlots.U_WEAPON] = Item(0);   // ★ 替身接缝已删 → 直填权威槽位
         string sMsg = "<$USERWEAPON>";
         bool brk = false;
-        Assert.True(m.GetVariableText(new TPlayObject(), ref sMsg, "$USERWEAPON", ref brk, 1));
+        Assert.True(m.GetVariableText(player, ref sMsg, "$USERWEAPON", ref brk, 1));
         Assert.Equal("无", sMsg);
     }
 
@@ -107,11 +108,12 @@ public sealed class NpcObjNpcMerchant2Tests : IDisposable
     public void GetVariableText_UserWeapon_EquippedLooksUpStdItemName()
     {
         var m = NewMerchant();
-        NpcSeams.GetUseItemsWeapon = _ => Item(77);
+        var player = new TPlayObject();
+        player.m_UseItems[UseSlots.U_WEAPON] = Item(77);   // ★ 替身接缝已删 → 直填权威槽位
         NpcSeams.GetStdItemName = idx => idx == 77 ? "屠龙" : "";
         string sMsg = "<$USERWEAPON>";
         bool brk = false;
-        Assert.True(m.GetVariableText(new TPlayObject(), ref sMsg, "$USERWEAPON", ref brk, 1));
+        Assert.True(m.GetVariableText(player, ref sMsg, "$USERWEAPON", ref brk, 1));
         Assert.Equal("屠龙", sMsg);
     }
 

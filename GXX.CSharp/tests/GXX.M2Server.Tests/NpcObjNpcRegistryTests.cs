@@ -49,9 +49,9 @@ public sealed class NpcObjNpcRegistryTests
     [Fact]
     public void Registry_CoverageCountsMatchReportedNumbers()
     {
-        // 落地口径（切片 26 之后）：Covered 65 / Seam 5 / Missing 42 = 112。
-        Assert.Equal(65, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
-        Assert.Equal(5, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
+        // 落地口径（切片 28 之后）：Covered 66 / Seam 4 / Missing 42 = 112。
+        Assert.Equal(66, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Covered"));
+        Assert.Equal(4, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Seam"));
         Assert.Equal(42, ObjNpcRoutineRegistry.All.Count(e => e.Status == "Missing"));
     }
 
@@ -111,7 +111,7 @@ public sealed class NpcObjNpcRegistryTests
     [InlineData(9263, "GotoLable", "Missing")]
     [InlineData(2087, "UserSelect", "Missing")]
     [InlineData(3367, "ClientBuyItem", "Covered")]
-    [InlineData(1684, "UpgradeWapon", "Seam")]
+    [InlineData(1684, "UpgradeWapon", "Covered")]
     [InlineData(10516, "TBoxMonster.Destroy", "Missing")]
     public void Registry_KnownEntries(int startLine, string nameFragment, string status)
     {
