@@ -60,7 +60,7 @@ namespace GXX.LoginGate.Rest11;
 /// </para>
 /// </summary>
 public sealed class Rest11LoginGateEnforcement
-    : IRest11EnforcementChannel, GateService.IRest11GateEnforcement, IRest11PacketGateHost
+    : IRest11EnforcementChannel, GateService.IRest11GateEnforcement, IRest11PacketGateHost, IRest11GateLogger
 {
     private readonly LoginGateService _owner;
 
@@ -130,7 +130,11 @@ public sealed class Rest11LoginGateEnforcement
         };
         g_ProcMsgThread = new Rest11ProcMsgThread();
         _sessionSlots = new IRest11SessionObj?[Rest11LoginGateOptions.Rest11DefaultUserArrayCount];
-        PacketGate = new Rest11LoginGatePacketGate(g_pConfig, this, () => g_UserList) { Host = this };
+        PacketGate = new Rest11LoginGatePacketGate(g_pConfig, this, () => g_UserList)
+        {
+            Host = this,
+            Logger = this
+        };
     }
 
     // =====================================================================================
@@ -309,18 +313,31 @@ public sealed class Rest11LoginGateEnforcement
     /// <summary>`g_pLogMgr.Add(sMsg)`。</summary>
     public void AddLog(string sMsg) => _owner.AddRest11Log(sMsg);
 
+    // ---- IRest11GateLogger（`ProcessCltData` 包头门控用的同一套门）----
+    bool IRest11GateLogger.CheckLevel(int level) => CheckLevel(level);
+    void IRest11GateLogger.AddLog(string sMsg) => AddLog(sMsg);
+
     // =====================================================================================
     // GateService.IRest11GateEnforcement —— CheckIP / LoadConfig 判定链接缝
     // =====================================================================================
 
-    /// <summary>`IPAddrFilter.pas:149-176 IsBlockIP`（永久 + 临时两张表，**并存于既有 `_blockList` 之外**）。</summary>
-    public bool IsBlockIP(int nRemoteIP) => IPAddrFilter.IsBlockIP(nRemoteIP);
+    /// <summary>
+    /// `IPAddrFilter.pas:149-176 IsBlockIP`（永久 + 临时两张表，**并存于既有 `_blockList` 之外**）。
+    ///
+    /// <para>
+    /// 入参是**点分字符串**（见 `GateService.CheckIP` 的 D-P14-08）：原文这三处传的是
+    /// `pRemoteSockaddr.sin_addr.S_addr`（`in_addr` 的网络序 DWORD），它与 `IPAddrFilter`
+    /// 表里存的 `inet_addr()` 返回值**同口径**；而既有 `Share.MakeIPToInt` 与 `inet_addr`
+    /// 逐字节相反 ⇒ 统一在 Rest11 侧用 `Rest11LoginGateNet.InetAddr` 换算。
+    /// </para>
+    /// </summary>
+    public bool IsBlockIP(string remoteIP) => IPAddrFilter.IsBlockIP(Rest11LoginGateNet.InetAddr(remoteIP));
 
     /// <summary>`IPAddrFilter.pas:315-335 IsBlockIPArea`（IP 段表，`ReverseIP` 后闭区间）。</summary>
-    public bool IsBlockIPArea(int nRemoteIP) => IPAddrFilter.IsBlockIPArea(nRemoteIP);
+    public bool IsBlockIPArea(string remoteIP) => IPAddrFilter.IsBlockIPArea(Rest11LoginGateNet.InetAddr(remoteIP));
 
     /// <summary>`IPAddrFilter.pas:178-207 OverConnectOfIP`（原文 `Count + 1 > Max`）。</summary>
-    public bool OverConnectOfIP(int Addr) => IPAddrFilter.OverConnectOfIP(Addr);
+    public bool OverConnectOfIP(string remoteIP) => IPAddrFilter.OverConnectOfIP(Rest11LoginGateNet.InetAddr(remoteIP));
 
     /// <summary>`AcceptExWorkedThread.pas:579-580`：`if g_pLogMgr.CheckLevel(5) then Add('Block IP: %s')`。</summary>
     public void LogBlockIP(string szRemoteIP)

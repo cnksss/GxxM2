@@ -55,6 +55,12 @@ public sealed class Rest11LoginGatePacketGate
     /// <summary>宿主接缝（`SendDefMessage` / `FreeSocket` / 转发 / 日志四个既有出口）。</summary>
     public IRest11PacketGateHost? Host { get; set; }
 
+    /// <summary>
+    /// 宿主日志接缝（`g_pLogMgr`）。未提供时只走 <see cref="IRest11EnforcementChannel"/> 的
+    /// `AddLog`/`CheckLevel`（p11 既有出入口）。
+    /// </summary>
+    public IRest11GateLogger? Logger { get; set; }
+
     /// <summary>`:259-401` 协议密码校验块**未移植**而放行的包数（显式留痕，见 §"未完成"）。</summary>
     public long ProtocolPasswordGateSkipped;
 
@@ -354,10 +360,18 @@ public sealed class Rest11LoginGatePacketGate
     private void Kick(IRest11SessionObj session)
         => Rest11LoginGateMisc.KickUser(session, _config, _channel);
 
-    /// <summary>`if g_pLogMgr.CheckLevel(n) then g_pLogMgr.Add(msg)` 的两步门。</summary>
+    /// <summary>
+    /// `if g_pLogMgr.CheckLevel(n) then g_pLogMgr.Add(msg)` 的两步门。
+    ///
+    /// <para>
+    /// 只走 <see cref="Logger"/>（宿主日志接缝）；**不**走
+    /// <see cref="IRest11EnforcementChannel.AddLog"/>——那是 p11 执法面（`Misc`/`FuncForComm`）
+    /// 的出入口，两个接缝同时写会造成重复日志与门控失配（录见 D-P14-09）。
+    /// </para>
+    /// </summary>
     private void Log(int level, string msg)
     {
-        if (_channel.CheckLevel(level)) _channel.AddLog(msg);
+        if (Logger?.CheckLevel(level) == true) Logger.AddLog(msg);
     }
 
     /// <summary>`StrPos(PChar(Addr), Sub)` 的等价：在 `[0, len)` 内查 ASCII 子串，返回下标或 -1。</summary>
@@ -381,13 +395,51 @@ public sealed class Rest11LoginGatePacketGate
     internal static bool SameText(string a, string b)
         => string.Equals(a ?? "", b ?? "", StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>`AppMain.pas:524 GetValidStr3(sRecv, sMachineID, ['/'])` 的前半段（软件版本号）。</summary>
-    internal static string ExtractSoftVersion(byte[] body)
+    /// <summary>
+    /// `AppMain.pas:524 GetValidStr3(sRecv, sMachineID, ['/'])` 的前半段（软件版本号）。
+    ///
+    /// <para>
+    /// ★ **偏离登记 D-P14-10**：原文 `:523` 先 `sRecv := DecodeString(sRecv)`，而 `DecodeString`
+    /// 的**入参口径由 :259-401 那段未移植的协议密码块决定**（该块把 `sRecv` 原地解密后
+    /// 再交给这里）。本车道因此无法确定 `sRecv` 到底是"已解码明文"还是"待解码密文"：
+    /// 直接 `DecodeString` 会在明文输入上产出不可读结果，跳过它则在密文输入上同样不可读。
+    /// </para>
+    /// <para>
+    /// 采用**双路探测 + 只认可打印 ASCII** 的保守策略：两条路都不像软件版本号时返回 `""`
+    /// ⇒ 上层 `DispatchCommand` 会因为 `m_sClientSoftVer` 非空而判定"版本不符"并走
+    /// `SM_CHECKCLIENTVERSION_FAIL`（原文 `:527-539` 的分支），**不静默放行**。
+    /// 版本号门控的完整 1:1 依赖 `:259-401`，登记为未完成项（见报告 §未完成）。
+    /// </para>
+    /// </summary>
+    public static string ExtractSoftVersion(byte[] body)
     {
         if (body == null || body.Length == 0) return "";
-        string s = EncodingInit.GBK.GetString(body);
+
+        // 首选原文路径：`:523 sRecv := DecodeString(sRecv)` 后再取 '/' 之前
+        string decodedText = TrimToPrintable(EncodingInit.GBK.GetString(EDcode.DecodeString(body)));
+        if (decodedText.IndexOf('/') >= 0) return PrefixBeforeSlash(decodedText);
+
+        // 回退：若包体本身就是明文（未再编码），原文的 DecodeString 只是个恒等包装
+        string rawText = TrimToPrintable(EncodingInit.GBK.GetString(body));
+        if (rawText.IndexOf('/') >= 0) return PrefixBeforeSlash(rawText);
+
+        // 两条路都取不到版本号 ⇒ 返回空串（上层按"版本不符"处理，**不静默放行**）
+        return decodedText.Length > 0 ? PrefixBeforeSlash(decodedText) : PrefixBeforeSlash(rawText);
+    }
+
+    /// <summary>`GetValidStr3(sRecv, sMachineID, ['/'])` 的"取第一个 '/' 之前"。</summary>
+    private static string PrefixBeforeSlash(string s)
+    {
         int slash = s.IndexOf('/');
         return slash >= 0 ? s.Substring(0, slash) : s;
+    }
+
+    /// <summary>截到第一个不可打印字符（<c>0x20..0x7E</c> 以外）为止；用于判别"像不像版本号"。</summary>
+    private static string TrimToPrintable(string s)
+    {
+        int n = 0;
+        while (n < s.Length && s[n] >= ' ' && s[n] <= '~') n++;
+        return s.Substring(0, n);
     }
 
     /// <summary>`_userList` 的当前快照（`CloseIPConnect` 遍历用）。</summary>
@@ -422,4 +474,23 @@ public interface IRest11PacketGateHost
 
     /// <summary>`g_pLogMgr.Add(sMsg)`（`:199` 等）。</summary>
     void AddRest11Log(string msg);
+}
+
+/// <summary>
+/// `LogManager.pas` 的 `g_pLogMgr` 接缝（`CheckLevel` + `Add`）。
+///
+/// <para>
+/// 与 <see cref="IRest11EnforcementChannel"/> 上的同名两个成员并存：
+/// 前者由 p11 的执法面（`Misc`/`FuncForComm`）使用，后者供 `ProcessCltData` 的包头门控
+/// （`ClientSession.pas:198/:211/:223/:681/:493/:509`）使用。`GXX.LoginGate` 侧两个都指向
+/// 同一个既有日志出口（`GateService.SendLog` + `m_nShowLogLevel` 门）。
+/// </para>
+/// </summary>
+public interface IRest11GateLogger
+{
+    /// <summary>`g_pLogMgr.CheckLevel(nLevel)`。</summary>
+    bool CheckLevel(int level);
+
+    /// <summary>`g_pLogMgr.Add(sMsg)`。</summary>
+    void AddLog(string sMsg);
 }

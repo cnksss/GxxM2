@@ -215,22 +215,32 @@ public abstract class GateService : IGateUiService
         //   默认（Rest11Kernel == null）在第一行短路 ⇒ 下行**一行都不执行**，
         //   既有 `_blockList`/`_perIP` 判定链与 SelGate/RunGate 行为逐字节不变。
         //   关闭时不做任何新的计数、不写任何表、不发任何日志。
+        //
+        // ⚠ **地址口径（D-P14-08，接线正确性的关键）**：原文这三处传的是
+        //   `pRemoteSockaddr.sin_addr.S_addr` —— WinSock `in_addr` 结构体里的
+        //   **网络序 DWORD**；而 `IPAddrFilter` 两张表里存的是 `inet_addr()` 的返回值，
+        //   两者在小端机上**数值相同**（`inet_addr("1.2.3.4")` = 0x04030201 = 67305985）。
+        //   但既有 `GateService._perIP`/`_blockList` 用的是 `Share.MakeIPToInt`
+        //   （"1.2.3.4" → 0x01020304 = 16909060），**与 `inet_addr` 逐字节相反**。
+        //   ⇒ Rest11 侧一律以**点分字符串**入参，由 `Rest11LoginGateEnforcement`
+        //   统一按 `inet_addr` 口径换算；**绝不**把 `MakeIPToInt` 的结果直接喂给
+        //   `IPAddrFilter`（否则黑名单与 IP 段表全部失效）。既有 `_perIP` 的口径不动。
         if (Rest11GateHook is { Enabled: true } rest11 && (Rest11Options?.EnableIpAddrFilterResidual ?? false))
         {
-            if (rest11.IsBlockIP((int)ip))              // :576 IPAddrFilter.IsBlockIP（两张表）
+            if (rest11.IsBlockIP(session.RemoteIP))              // :576 IPAddrFilter.IsBlockIP（两张表）
             {
-                rest11.LogBlockIP(session.RemoteIP);    // :579-580 if g_pLogMgr.CheckLevel(5)
-                return false;                           // :582 bClose := True
+                rest11.LogBlockIP(session.RemoteIP);             // :579-580 if g_pLogMgr.CheckLevel(5)
+                return false;                                    // :582 bClose := True
             }
-            if (rest11.IsBlockIPArea((int)ip))          // :587 IPAddrFilter.IsBlockIPArea（IP 段表）
+            if (rest11.IsBlockIPArea(session.RemoteIP))          // :587 IPAddrFilter.IsBlockIPArea（IP 段表）
             {
-                rest11.LogBlockIPArea(session.RemoteIP);// :590-591
-                return false;                           // :593 bClose := True
+                rest11.LogBlockIPArea(session.RemoteIP);         // :590-591
+                return false;                                    // :593 bClose := True
             }
-            if (rest11.OverConnectOfIP((int)ip))        // :598 IPAddrFilter.OverConnectOfIP（Count+1 > Max）
+            if (rest11.OverConnectOfIP(session.RemoteIP))        // :598 IPAddrFilter.OverConnectOfIP（Count+1 > Max）
             {
-                rest11.LogOverConnectOfIP(session.RemoteIP); // :600-601
-                return false;                           // :603 bClose := True
+                rest11.LogOverConnectOfIP(session.RemoteIP);     // :600-601
+                return false;                                    // :603 bClose := True
             }
         }
 
@@ -320,13 +330,13 @@ public abstract class GateService : IGateUiService
         bool Enabled { get; }
 
         /// <summary>`IPAddrFilter.pas:149-176 IsBlockIP`（永久表 + 临时表）。</summary>
-        bool IsBlockIP(int nRemoteIP);
+        bool IsBlockIP(string remoteIP);
 
         /// <summary>`IPAddrFilter.pas:315-335 IsBlockIPArea`（IP 段表，`ReverseIP` 后闭区间）。</summary>
-        bool IsBlockIPArea(int nRemoteIP);
+        bool IsBlockIPArea(string remoteIP);
 
         /// <summary>`IPAddrFilter.pas:178-207 OverConnectOfIP`（每 IP 连接数，`Count + 1 > Max`）。</summary>
-        bool OverConnectOfIP(int Addr);
+        bool OverConnectOfIP(string remoteIP);
 
         /// <summary>`AcceptExWorkedThread.pas:579-580` 的日志（`CheckLevel(5)` 门）。</summary>
         void LogBlockIP(string szRemoteIP);
