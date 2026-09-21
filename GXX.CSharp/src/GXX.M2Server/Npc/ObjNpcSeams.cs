@@ -87,6 +87,18 @@ public static class ObjNpcConst
     /// <summary>接缝：原文 `sSTRING_GOLDNAME = '金币'`（M2Share.pas:210）。</summary>
     public const string sSTRING_GOLDNAME = "金币";
 
+    /// <summary>接缝：原文 `sNF_Repair = '@repair'`（NpcCommon.pas:33；`:1906` 注册进 `g_NpcProcessCommand`）。</summary>
+    public const string sNF_Repair = "@repair";
+
+    /// <summary>接缝：原文 `sNF_RepairOK = '~@repair'`（NpcCommon.pas:35；`:1907` 注册）。</summary>
+    public const string sNF_RepairOK = "~@repair";
+
+    /// <summary>接缝：原文 `nNF_SuperRepair = 9`（**NpcCommon.pas:26**）。ObjNpc.pas:2702 的 `case` 标签。</summary>
+    public const int nNF_SuperRepair = 9;
+
+    /// <summary>接缝：原文 `nNF_Repair = 12`（**NpcCommon.pas:32**）。ObjNpc.pas:2737 的 `case` 标签。</summary>
+    public const int nNF_Repair = 12;
+
     /// <summary>
     /// 接缝：原文 `TUserItemBindValueType` 的 `ubNoSell { 禁止出售 }`（M2Share.pas:395；
     /// 枚举序 `ubNoDrop=0, ubNoDeal=1, ubNoStorage=2, ubNoRepair=3, ubNoSell=4`）。
@@ -499,6 +511,17 @@ public static class NpcSeams
     public static CopyToUserItemFromNameDelegate CopyToUserItemFromName { get; set; } =
         (string _, ref TUserItem _) => false;
 
+    /// <summary>
+    /// 原文 `g_NpcProcessCommand.IndexOf(sLabel)` → `Integer(g_NpcProcessCommand.Objects[nIndex])`
+    /// （`ObjNpc.pas:2691-2694`，`TMerchant.UserSelect` 的派发入口）。
+    /// <para>`g_NpcProcessCommand` 是 `NpcCommon.pas:1906-1960` 注册的**标签→命令号**表
+    /// （`TStringList` + `Objects` 存 `TObject(nNF_XXX)`）；其 `nNF_*` 枚举同样在 NpcCommon
+    /// （`:10-88`，本车道已按需登记 `nNF_SuperRepair=9`/`nNF_Repair=12`）。</para>
+    /// <para>接缝：返回 `-1` 表示"标签不在表中"（对应原文 `nIndex >= 0` 判定为假）。
+    /// 未移植；待 NpcCommon 的 `g_NpcProcessCommand` 移植后接入。</para>
+    /// </summary>
+    public static Func<string, int> NpcProcessCommandIndexOf { get; set; } = _ => -1;
+
     // -----------------------------------------------------------------------
     // TMerchant.UpgradeWapon 外层体（ObjNpc.pas:1830-1901）需要的宿主面。
     // -----------------------------------------------------------------------
@@ -754,6 +777,7 @@ public static class NpcSeams
         IncRateGoldOnCastleManager = _ => { };
         OverLapItems = (_, _, _) => null;
         CopyToUserItemFromName = (string _, ref TUserItem _) => false;
+        NpcProcessCommandIndexOf = _ => -1;
         g_sCannotUpgradeWeapon = "你的武器[%Item]不允许升级";
         g_boGameLogGold = false;
         SysMsgFB = (_, _, _, _, _) => { };
