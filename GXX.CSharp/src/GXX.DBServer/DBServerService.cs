@@ -42,6 +42,14 @@ public class DBServerService : IGateUiService
     private Thread? _m2Thread;
     private volatile bool _running;
 
+    /// <summary>
+    /// `TFrmIDSoc` 实例（原文 `FrmIDSoc`）。原文在 `DBServer.dpr:36` 建、由 `uFrmMain.pas` 启停：
+    /// `:909 FrmIDSoc.OpenConnect`（服务启动）/ `:960 CloseConnect`（服务停止）/ `:941`（启动异常）/ `:1090`。
+    /// ★ **本类当前只建实例，不自动 OpenConnect**：`IIDSocClientSocket` 适配器尚未提供，
+    ///   调用它只会抛（那是接缝的正确默认）。启停接线留给宿主，见报告 §14.4。
+    /// </summary>
+    public TFrmIDSoc FrmIDSoc { get; }
+
     private readonly ConcurrentDictionary<int, TcpLink> _gateLinks = new();
     private readonly ConcurrentDictionary<int, TcpLink> _m2Links = new();
 
@@ -59,8 +67,27 @@ public class DBServerService : IGateUiService
     {
         _roles = new RoleDatabase(dbFile);
         // RoleDB 全局 `g_RoleDB.HumanDB/HeroDB`（DBShare.pas:115）—— 接上 SelGate 选人端真正需要的数据操作。
-        // 其余两个接缝（FrmIDSoc / DBShare 名校验族）**刻意不接**：接不上的必须显式报未接线，不给中性值。
         SelectClientRoleDbSeam.AttachRoleDatabase(_roles);
+
+        // `FrmIDSoc: TFrmIDSoc`（DBShare.pas 全局；原文 DBServer.dpr:36 `Application.CreateForm(TFrmIDSoc, FrmIDSoc)`）。
+        // 做完这一步，`CM_QUERYCHR`/`CM_RANDOMNAME`/`CM_NEWCHR`/`CM_DELCHR`/`CM_SELCHR` 不再抛
+        // NotSupportedException，而是按会话表**真实判定**；`%X` 也回到原文的清理分支。
+        // （`DBShare.pas` 名校验族仍未接线 ⇒ `CM_NEWCHR` 走到名校验时会抛。）
+        //
+        // ★ 不调用 `FrmIDSoc.FormCreate()`：那两行要动**定时器接缝**（宿主设施，默认抛），
+        //   而构造阶段"定时器尚未安装"本身就是 `Enabled = False` 的同一状态 ⇒ 见偏差 D-p7-15。
+        FrmIDSoc = new TFrmIDSoc();
+        IDSocCliSeam.FrmIDSoc = FrmIDSoc;
+
+        // ★ 诚实提示（只提示一次）：`IDSocCliSeam.IDSocket` 是**宿主设施**（JSocket/TClientSocket 未移植），
+        //   默认抛。在它接线之前 TFrmIDSoc 连不上 LoginSrv ⇒ **会话表恒为空** ⇒
+        //   凡需 `CheckSession` 的命令都会被**拒绝**（回 OutOfConnect / SM_QUERYCHR_FAIL），
+        //   **不是**被放行 —— 方向是刻意的（宁拒不放）。接缝签名见报告 §14.4。
+        if (IDSocCliSeam.IDSocket == null)
+        {
+            SendLog("提示：IDSocCliSeam.IDSocket 未接线（JSocket/TClientSocket 未移植）⇒ 全局会话表将恒为空，"
+                  + "凡需校验会话的命令都会被拒绝（不会放行）。", 2);
+        }
     }
 
     public RoleDatabase Roles => _roles;
@@ -265,8 +292,11 @@ public class DBServerService : IGateUiService
     public void Dispose()
     {
         StopService();
-        // 断开 `g_RoleDB.HumanDB/HeroDB`，避免留下指向已释放数据库的悬垂接缝。
+        // 断开 `g_RoleDB.HumanDB/HeroDB` 与 `FrmIDSoc`，避免留下指向已释放对象的悬垂接缝。
         SelectClientRoleDbSeam.DetachRoleDatabase();
+        if (ReferenceEquals(IDSocCliSeam.FrmIDSoc, FrmIDSoc)) IDSocCliSeam.FrmIDSoc = null;
+        FrmIDSoc.FormDestroy();
+        FrmIDSoc.Dispose();
         _roles.Dispose();
     }
 }

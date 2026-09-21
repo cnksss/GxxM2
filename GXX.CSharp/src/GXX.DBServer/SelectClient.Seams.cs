@@ -114,83 +114,11 @@ public abstract class TServerClientWinSocket : TCustomWinSocket
 //     SelectClient.pas:1171 FrmIDSoc.SetGlobaSessionPlay(nSessionID)
 //     SelectClient.pas:1198 FrmIDSoc.CheckSession(...)
 //     SelectClient.pas:1200 FrmIDSoc.SetGlobaSessionNoPlay(nSessionID)
+//
+// 【归属变更（IDSocCli 移植后）】`ITFrmIDSoc` 与 `IDSocCliSeam` **已搬到 `IDSocCli.Seams.cs`**
+//   —— 它们是 IDSocCli.pas 的接缝，不是 SelectClient.pas 的。同命名空间，本文件与
+//   `SelectClient.cs` 的调用点均无需改动。
 // ============================================================================================
-
-/// <summary>接缝：IDSocCli.pas:36-60 <c>TFrmIDSoc</c> 的最小面（成员名沿用原文）。</summary>
-public interface ITFrmIDSoc
-{
-    /// <summary>IDSocCli.pas:40 `function CheckSession(sAccount, sIPaddr: string; nSessionID: Integer): Boolean;`</summary>
-    bool CheckSession(string sAccount, string sIPaddr, int nSessionID);
-
-    /// <summary>IDSocCli.pas:45 `procedure SetGlobaSessionNoPlay(nSessionID: Integer);`</summary>
-    void SetGlobaSessionNoPlay(int nSessionID);
-
-    /// <summary>IDSocCli.pas:46 `procedure SetGlobaSessionPlay(nSessionID: Integer);`</summary>
-    void SetGlobaSessionPlay(int nSessionID);
-
-    /// <summary>IDSocCli.pas:47 `function GetGlobaSessionStatus(nSessionID: Integer): Boolean;`</summary>
-    bool GetGlobaSessionStatus(int nSessionID);
-
-    /// <summary>IDSocCli.pas:39 `procedure SendSocketMsg(wIdent: Word; sMsg: string);`</summary>
-    void SendSocketMsg(ushort wIdent, string sMsg);
-
-    /// <summary>IDSocCli.pas（CloseSession(sAccount, nSessionID)）。</summary>
-    void CloseSession(string sAccount, int nSessionID);
-}
-
-/// <summary>
-/// 接缝宿主：原文 unit 级变量 <c>FrmIDSoc</c>。
-/// **默认 nil**（不接线）⇒ 任何一次访问都抛 <see cref="NotSupportedException"/>，
-/// 绝不静默返回 false/true（§25.2：否则会把"字段语义错"伪装成"分支没命中"）。
-/// </summary>
-public static class IDSocCliSeam
-{
-    /// <summary>DBShare.pas 的 <c>FrmIDSoc: TFrmIDSoc</c>。宿主用 <see cref="TDBServerHost"/> 注入。</summary>
-    public static ITFrmIDSoc? FrmIDSoc;
-
-    /// <summary>取 <c>FrmIDSoc</c>；未接线直接抛（指名接入点）。</summary>
-    public static ITFrmIDSoc Require
-        => FrmIDSoc ?? throw new NotSupportedException(
-            "接缝：IDSocCli.pas 的 TFrmIDSoc 未接线（FrmIDSoc = nil）。接入点：DBServerService 需实现 ITFrmIDSoc 并赋给 IDSocCliSeam.FrmIDSoc。");
-
-    /// <summary>
-    /// ★★ **唯一的窄口子**（偏差 **D-p7-13**）：只服务 `SelectClient.pas:714` 的
-    /// <c>CloseUser</c> —— "要不要给 LoginSrv 发一条会话清理通知"。
-    ///
-    /// 返回 <c>true</c> = 执行原文的清理块（<c>SendSocketMsg(SS_SOFTOUTSESSION…)</c> + <c>CloseSession</c>）；
-    /// <c>false</c> = 跳过。
-    ///
-    /// <para><b>为什么只有这一条可以"未接线时跳过"，而别处一律抛</b>（集成方裁定）：</para>
-    /// <list type="bullet">
-    ///   <item>原文 <c>GetGlobaSessionStatus</c> 的结果**只决定"要不要做一次清理通知"**，
-    ///         它不是校验判定 —— 不会让服务"接受本应拒绝的输入"。</item>
-    ///   <item>若让它抛，异常会被 <c>SelectClientGateWiring</c> 的宿主边界接住并**断开整条 SelGate 连接**；
-    ///         而一条 SelGate 连接上通常挂着**多个彼此无关的玩家**
-    ///         ⇒ **一个缺失的清理动作，代价却是"一批玩家被踢"**。两者后果不成比例。</item>
-    ///   <item>其余全部接缝（<c>CheckSession</c>、`DBShare.pas` 名校验族、主动网关路由）
-    ///         **一条都不放宽**：它们放行的后果是"**接受了本应拒绝的角色名/会话**"（正确性/安全），
-    ///         与"少做一次清理"不是同一类事情。</item>
-    /// </list>
-    ///
-    /// <para><b>每次触发都留痕</b>（写 <c>MainOutMessage</c>，带偏差编号，便于审计计数）。</para>
-    ///
-    /// <para><b>恢复途径</b>：`IDSocCli.pas` 移植并接线（<see cref="FrmIDSoc"/> 非 nil）后，
-    /// 本方法自动走回原文分支；随后可**删除本方法**、<c>CloseUser</c> 改回
-    /// <c>if (!Require.GetGlobaSessionStatus(...))</c>，并注销 D-p7-13。</para>
-    /// </summary>
-    public static bool CloseUser_ShouldCloseSession(int nSessionID)
-    {
-        if (FrmIDSoc != null) return !FrmIDSoc.GetGlobaSessionStatus(nSessionID);
-
-        RoleDbSeam.MainOutMessage(
-            "[WARN] 接缝未接线（D-p7-13）：IDSocCli.pas 的 TFrmIDSoc 为 nil，CloseUser 跳过会话清理"
-            + "（SendSocketMsg(SS_SOFTOUTSESSION) + CloseSession）。此跳过**只影响清理通知**，"
-            + "不影响任何校验路径。nSessionID=" + nSessionID);
-        return false;
-    }
-
-    public static void Reset() => FrmIDSoc = null;
-}
 
 // ============================================================================================
 // 接缝：RoleDB.pas / DBShare.pas:115 `g_RoleDB: TRoleDB`（未接线）。
@@ -416,12 +344,43 @@ public static class SelectClientRandom
 /// </summary>
 public static class SelectClientModuleSeam
 {
-    /// <summary>原文 <c>pTModuleInfo(m_Module).Buffer := sBuffer</c>。</summary>
-    public static Action<IntPtr, string> UpdateModuleBuffer =
+    /// <summary>原文 <c>pTModuleInfo(m_Module).Buffer := sBuffer</c>（SelectClient.pas:381）。</summary>
+    public static Action<IntPtr, string> UpdateModuleBuffer = UnwiredUpdateBuffer;
+
+    /// <summary>
+    /// DBShare.pas:309-326 `function AddModule(ModuleInfo: pTModuleInfo): pTModuleInfo;`
+    /// —— 返回模块**句柄**（原文是 `pTModuleInfo` 指针）。
+    ///
+    /// 原文以 `TModuleInfo.Module: TObject` 作**身份键**（:316 用 `= ModuleInfo.Module` 比对），
+    /// 故托管侧签名是 <c>(module, moduleName, address, buffer) → 句柄</c>，`module` 传宿主对象本身
+    /// （原文 `ModuleInfo.Module := Self`）。
+    /// 消费方：`IDSocCli.pas:453`。`SelectClient.pas:381` 只用句柄（**不建表**）。
+    /// </summary>
+    public static Func<object, string, string, string, IntPtr> AddModule = UnwiredAddModule;
+
+    /// <summary>
+    /// DBShare.pas:328-341 `procedure RemoveModule(Module: TObject);`
+    /// —— 按**身份键**移除；原文传 `Self`（`IDSocCli.pas:461`），注意**不是** `m_Module` 句柄
+    ///   （原文 :459 已经先把 `m_Module := nil` 了）。
+    /// </summary>
+    public static Action<object> RemoveModule = UnwiredRemoveModule;
+
+    public static void Reset()
+    {
+        UpdateModuleBuffer = UnwiredUpdateBuffer;
+        AddModule = UnwiredAddModule;
+        RemoveModule = UnwiredRemoveModule;
+    }
+
+    private static readonly Action<IntPtr, string> UnwiredUpdateBuffer =
         (_, __) => throw new NotSupportedException(
             "接缝：DBShare.pas:41-47/98-100 TModuleInfo/AddModule/UpdateModule 未移植（SelectClient.pas:381）。");
 
-    public static void Reset() => UpdateModuleBuffer =
-        (_, __) => throw new NotSupportedException(
-            "接缝：DBShare.pas:41-47/98-100 TModuleInfo/AddModule/UpdateModule 未移植（SelectClient.pas:381）。");
+    private static readonly Func<object, string, string, string, IntPtr> UnwiredAddModule =
+        (_, __, ___, ____) => throw new NotSupportedException(
+            "接缝：DBShare.pas:309-326 AddModule 未移植（IDSocCli.pas:453 IDSocketConnect）。");
+
+    private static readonly Action<object> UnwiredRemoveModule =
+        _ => throw new NotSupportedException(
+            "接缝：DBShare.pas:328-341 RemoveModule 未移植（IDSocCli.pas:461 IDSocketDisconnect）。");
 }
