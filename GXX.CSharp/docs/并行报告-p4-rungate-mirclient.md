@@ -3,9 +3,9 @@
 > 分支：`par/p4-rungate-mirclient` ｜ 工作树：`.worktrees/p4-rungate-mirclient`
 > 目标单元：`Source/RunGate/MirClientContext.pas`（GBK，**实测 11,125 LF / 11,126 物理行**）
 > 规程：`docs/转换开发文档.md`、`docs/并行派发台账.md` §9.4/§10/§11/§12、`docs/并行报告-p2-rungate-impl.md`
-> 状态：**build 0 error / RunGate.Tests 1,845 例 0 失败**；`CheckUsePlugin` 的 6 个 ident 族已移植
-> **5/6**（`CM_WALK` / `CM_RUN` / `CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11**），
-> 仅剩**攻击族** 6690-7888。
+> 状态：**build 0 error / RunGate.Tests 1,891 例 0 失败**；`CheckUsePlugin` 的 6 个 ident 族
+> **全部移植完毕（6/6，函数 3465-9688 整条闭合）**：`CM_WALK` / `CM_RUN` / `CM_TURN` / 攻击族 /
+> `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11 / §12**。早退表 `UnportedIdentFamilies` 已清空。
 
 ---
 
@@ -96,7 +96,7 @@ git grep -l -E "(class|struct|enum|interface|delegate) +(partial +)?<TypeName>\b
 | 24d | ├ `else` 分支 | 9506-9516 | **已完成** | 同上 |
 | 24e | ├ **公共收尾**（所有分支共用） | **9521-9681** | **已完成**（提取为 `CheckUsePluginPostlude`，逐行等价） | 同上 |
 | 24f | ├ 异常兜底 | 9682-9686 | **已完成** | 同上 |
-| 24g | └ **6 个 ident 族分派体** | **3528-9473** | **5/6 已移植**（`CM_WALK` / `CM_RUN` / `CM_TURN` / `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11**）；仅剩**攻击族** 6690-7888 → 仍走 `UnportedIdentFamilies` 早退 | 同上 |
+| 24g | └ **6 个 ident 族分派体** | **3528-9473** | ✅ **6/6 全部移植**（`CM_WALK` / `CM_RUN` / `CM_TURN` / 攻击族 / `CM_SPELL` / `CM_SITDOWN`，见 **§10 / §11 / §12**）；早退表已清空 | 同上 |
 | 25 | `GetConcurrentPacketCount` | 9689-9708 | **已完成** | `MirClientContext.cs` |
 | 26 | `ClearConcurrentPacket` | 9710-9735 | **已完成** | 同上 |
 | 27 | `SendWarnMsg` | 9737-9745 | **已完成** | 同上 |
@@ -727,6 +727,96 @@ Delphi 大小写不敏感所以能编译；托管侧是 `UnLock`。已按实现�
   4. `:7043` 有一处原文笔误 `[amRunToHit, I]< 0`（缺空格）。
 - **仍然早退**（`UnportedIdentFamilies` 只剩它），行为 = 不判定 = 放行、**无副作用**，与移植前一致。
 - 行数口径：区间长度 1,199 行；按报告历史减法口径 725 行（两种口径的差额固定在这一族，见文件头说明）。
+- **未做的验证**：与 §7.4 相同（无端到端回环；socket 侧仍走接缝）。
+
+---
+
+## 12. 第三轮续跑：攻击族 —— **6/6 族全部完成，`CheckUsePlugin` 整条闭合**
+
+> 基线：main 上 `GXX.RunGate.Tests` **1,845 例** → 本轮 **1,891 例**（+41 例新测，并把旧的"早退差异"参数化用例
+> 改成收口正断言：5 个攻击族 ident 的 InlineData 被 10 个"六族全部已移植"用例取代）。
+
+### 12.1 commit
+
+| # | hash | 内容 | 门禁 |
+|---|---|---|---|
+| 1 | `869c105e` | **攻击族 6683-7884** 移植 + 41 例测试；`UnportedIdentFamilies` **清空**（恒 false） | ✅ build 0 error / RunGate.Tests **1,891** |
+| 2 | 本报告 §12 | 文档 | ✅ |
+
+### 12.2 逐族判定表（最终：6/6）
+
+| 序 | 族 | 行区间 | 状态 | 落点 |
+|---|---|---|---|---|
+| 1 | `CM_WALK` | 3525-4692 | ✅ 已完成 | `CheckUsePluginWalk` |
+| 2 | `CM_RUN` | 4694-5853 | ✅ 已完成 | `CheckUsePluginRun` |
+| 3 | `CM_TURN` | 5855-6681 | ✅ 已完成 | `CheckUsePluginTurn` |
+| 4 | **攻击族** | **6683-7884** | ✅ **本轮完成** | `CheckUsePluginHit`（+ `AttackFamilySpeedBlock` / `AttackSpeedInterval`） |
+| 5 | `CM_SPELL` | 7886-8995 | ✅ 已完成 | `CheckUsePluginSpell` |
+| 6 | `CM_SITDOWN` | 8997-9469 | ✅ 已完成 | `CheckUsePluginSitDown` |
+
+**`UnportedIdentFamilies` 已清空**（保留方法体作为"未移植族清单"的可执行载体，恒返回 false）——
+即 §8.2 的"整族不处理（显式早退）"这一**结构性偏差已彻底消除**，本函数 3465-9688 全链闭合。
+
+### 12.3 ★ 诚实更正：上一轮 §11.6 的一处侦察结论是**错的**
+
+§11.6 曾写"攻击族子块的『连续超速』段是**旧写法且为活代码**，`CollectSpeedDetect` 需新增分支"。
+本轮开工时用**花括号配对扫描**逐行核实（脚本统计每个 `ContinuousSpeed` 行所处的 `{}` 层级）：
+
+| 位置 | 实际形态 |
+|---|---|
+| `:6860/:6887`（amWalkToHit）、`:7035/:7062`（amRunToHit）、`:7193/:7220`（amTurnToHit）、`:7368/:7395`（amCutMeatToHit） | **全部在 `{}` 注释内**（同一段"本次和上次都超速"旧写法，其它族也是注释态） |
+| `:7605/:7620`、`:7639/:7656`（amHit） | **活代码**，且是 **`boContinueSpeedCloseSocket` 版**（与 CM_TURN/CM_SPELL/CM_WALK/CM_RUN 的第 5 个子块**同一种写法**） |
+
+→ 结论修正：攻击族**没有**"第三种连续超速写法"；四个子块沿用 `hasContinueSpeedBlock: false`，
+amHit 子块沿用 `hasContinueSpeedBlock: true`。因此 `CollectSpeedDetect` **不需要**为它新增形态，
+只需要本轮确实加上的两个小东西：`SpeedLogKind.AttackSpeedNameWithSuffix` 与
+`SpeedDelayTailKind`（见 §12.6）。上一轮另外两条提醒（`nAttackSpeed`、`sHitMagic` 二级链）**都成立**。
+
+### 12.4 攻击族的差异断言（逐条，全部有测试）
+
+| 编号 | 内容 | 测试 |
+|---|---|---|
+| 骨架 | 记录 `baHit`；**无**基础 `ErrorCode`；`Inc(nRecordActionIndex)` 在暗杀检测**之后**（:6771） | `Hit_RecordsBaHitAndRefreshesThreeTickSlots` |
+| 暗杀 | 前导集合 **`[baTurn, baCutMeat]`**（与 CM_SPELL 逐字相同；`baWalk`/`baSpell` 都**不算**），目标动作 `baHit`；"采集满 vs 未满"槽 0 差异 | `Hit_Assasinate_PreActionSetIsTurnAndCutMeat` / `…FullVsNotFullRingBuffer` |
+| 并发 | `amHitConcurrent`：`boEnabled or boDebug` 计数、只有 `boEnabled` 判定；命中 + `FLastAction = baHit` 才按 **`nAttackSpeed`** 判 `IsDropConcurrent` | 3 例 |
+| 四子块 | mode = amWalkToHit / amRunToHit / amTurnToHit / amCutMeatToHit；tick 分别取 amWalk/amRun/amTurn/amCutMeat；日志为**不带速度段**的模板 | `HitSubBlocks_UseTheirOwnHitModesAndTickSlots` / `…PlainLogWithoutSpeedSegment` |
+| 速度三支 | `nAttackSpeed` 的 ±200 边界（槽 0 / 槽 200+value / 槽 400；**-199 走槽 1**） | `HitSubBlocks_AttackSpeedIntervalFollowsNAttackSpeed` |
+| **D-H1** | amRunToHit 的 apmDelay 是**单语句、无自愈段**，且 tick 取 **amRunToHit 槽** → Cardinal 回绕后 `nDelayTime` 为**负** → 收尾不排队、`:7872` 也不刷新 tick | `HitSubBlock_RunToHit_ApmDelayProducesNegativeDelayTimeAndSkipsQueue`（对照：amWalkToHit 标准版排队 + nDelayCount=1） |
+| **D-H2** | `:7505 {(FLastAction = baHit) and} amHit.boEnabled` → 任意 `FLastAction` 都进入 | `HitSubBlock_AmHit_FallsThroughForAnyLastAction` |
+| **D-H3** | amHit 的 `nDelayCount` 自愈段被 `{}` **注释** → **不累加**（但 `nDelayTime > 0` 仍排队） | `HitSubBlock_AmHit_ApmDelayDoesNotSelfHeal` |
+| **D-H4** | amHit 采集规则被改：`nCollectIndex+1 <= 5 → nSpeedCount >= 3`（其它族 `<=3 → >=2`）→ nSpeedCount=2 **不**判定、=3 判定 | `HitSubBlock_AmHit_CollectRuleRequiresThreeHitsWithinFive` |
+| **D-H5** | `:7594 if not boCollectSpeed`（恒真）包裹整段采集 | 由 `HitSubBlock_AmHit_*` 系列间接覆盖 |
+| **D-H6** | amHit 超速日志用 **`AntiPlugActionModeNames`（带两个尾随空格）** + `[攻击速度%s]`；a-d 子块用 `_3` 且无速度段 | `HitSubBlock_AmHit_SuperSpeedLogUsesNameWithTrailingSpaces` + 对照用例 |
+| **sHitMagic** | `:7809-7850` 的"动作名 → 日志文本"二级 if 链：18 个具名动作 + 自定义技能（`'自定义技能' + Ident - CM_CUSTOM_HIT001 + 1`）**逐个断言**；47/48 两条日志（`补偿:+%d` / `补偿:%d`）各一例 | `HitDebugLog_ActionNameChain`（18 例参数化）+ `…CustomHitNameUsesIdentOffset` + `…NegativeCompensationUses48Branch` |
+| 收口 | 六族代表性 ident 全部不再早退（记录动作 + 进收尾） | `CheckUsePlugin_AllSixFamiliesArePorted_NoEarlyReturnAnymore`（10 例参数化） |
+
+### 12.5 本轮新增的原文缺陷（带行号）
+
+| 编号 | 位置 | 内容 |
+|---|---|---|
+| D-H1 | `:7126-7127` | amRunToHit 的 apmDelay：单语句、无自愈段，且 `nDelayTime` 读 **amRunToHit 槽**（本判定用的是 amRun 槽）→ 回绕成负值 → **实际不延时**（行为已钉死） |
+| D-H2 | `:7504-7505` | `FLastAction = baHit` 被 `{}` 注释 → 任意 `FLastAction` 都进入 amHit 子块 |
+| D-H3 | `:7718-7732` | amHit 的 `nDelayCount` 自愈段被 `{}` 注释（其余五族同名段都是活代码） |
+| D-H4 | `:7676-7677` | amHit 采集规则改动 `<=5 → >=3`（原文注释"这里改规则，在远程服务器有时候会前三刀有二刀加速"） |
+| D-H5 | `:7594` | `if not boCollectSpeed` 包裹恒真（同 CM_RUN 的 amRun） |
+| D-H6 | `:7737-7741` vs `:6968` 等 | amHit 用带尾随空格的模式名版本，a-d 子块用 `_3` |
+| D-H7 | `:7807` | `else if {(FLastAction = baHit) and} amHit.boDebug`（同 D-T2） |
+| D-H8 | `:7043` | 原文笔误 `(dwCollectIntervalArr[amRunToHit, I]< 0)`（**缺空格**，位于被注释的段内）——移植时按语义写 `< 0`，此处照抄说明 |
+| D-H9 | `:7872` | `and (not Msg.boDelay)` 被 `{}` 注释（同 D-S3/D-T3/D-R7） |
+| **D-H10** | `:7849-7850` | `else sHitMagic := '其他技能'` **不可达**：族 ident 条件（:6690-6699）与 if 链覆盖的 ident 集合**完全相同**（18 个具名 + 自定义区间）→ 该分支是死代码（**如实登记，未编造断言**） |
+
+### 12.6 结构性变更（延续"零新增接缝"）
+
+| 变更 | 说明 |
+|---|---|
+| `SpeedDelayTailKind`（新 enum） | `Standard`（:6072-6081 标准自愈）/ `NoSelfHealFromModeTick`（攻击族 amRunToHit 独有，D-H1）。`CollectSpeedDetect` 因此多一个形参；四个已有调用点全部传 `Standard`，且 25+20+18+21+17 例既有测试全绿证明无回归 |
+| `SpeedLogKind.AttackSpeedNameWithSuffix`（新枚举值） | `【用户超速】%s:%d; [攻击速度%s]; 用户:%s` + `AntiPlugActionModeNames`（带尾随空格） |
+| `AttackSpeedInterval(mode)` | `nAttackSpeed` 的三支取值（与 `MoveSpeedInterval`/`SpellSpeedInterval` **同构但变量不同**，未误用） |
+| `AttackFamilySpeedBlock(...)` | 攻击族四个子块共用（`hasContinueSpeedBlock: false` + 阶段码 `default`） |
+| `UnportedIdentFamilies` 清空 | 6/6 族已移植；保留方法体作为可执行清单，恒 `false` |
+
+- **零新增接缝、零越区请求**（三轮连续保持）。§6.2 的 R7/R8/R1/R2/R5/R6 仍未关闭（与本车道无关）。
+- 唯一"越出生产语义"的新增仍是测试可写探针 `LastActionForTest`（独占区内）。
 - **未做的验证**：与 §7.4 相同（无端到端回环；socket 侧仍走接缝）。
 
 

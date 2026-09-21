@@ -56,29 +56,37 @@ public class MirClientContextCheckUsePluginTests
         TSumActionProcessMode sum = TSumActionProcessMode.sapmNone, bool script = false) =>
         new TAntiPlugAction { ProcessMode = mode, SumProcessMode = sum, boProcessScript = script };
 
-    // ---- 未覆盖族：显式早退（差异断言，钉死本车道的已知缺口）----
+    // ---- 6/6 族全部移植完成：**不再有任何 ident 走"早退（放行）"** ----
 
+    /// <summary>
+    /// 收口断言：`UnportedIdentFamilies` 已清空（恒 false），因此六个族的**代表性 ident**
+    /// 都会真正进入分支体（写 `RecordActionArr`）并进入公共收尾（`AntiPlugAction = nil` 时置
+    /// `boContinueSpeed := False`），不再出现"什么都不做"的放行路径。
+    /// </summary>
     [Theory]
-    [InlineData(CM_HIT)]
-    [InlineData(CM_HEAVYHIT)]
-    [InlineData(CM_115HIT)]
-    [InlineData(CM_CUSTOM_HIT001)]
-    [InlineData(CM_CUSTOM_HIT001 + 299)]     // 自定义技能区间上界内
-    // CM_TURN / CM_SITDOWN / CM_SPELL / CM_RUN / CM_WALK 均已移植（见各自的 …Tests），
-    // 故**不再**出现在本早退名单里。只剩攻击族。
-    public void CheckUsePlugin_UnportedIdentFamilies_ReturnFalseWithoutSideEffects(ushort ident)
+    [InlineData(CM_WALK, TBaseAction.baWalk)]
+    [InlineData(CM_RUN, TBaseAction.baRun)]
+    [InlineData(CM_TURN, TBaseAction.baTurn)]
+    [InlineData(CM_HIT, TBaseAction.baHit)]
+    [InlineData(CM_HEAVYHIT, TBaseAction.baHit)]
+    [InlineData(CM_115HIT, TBaseAction.baHit)]
+    [InlineData(CM_CUSTOM_HIT001, TBaseAction.baHit)]
+    [InlineData(CM_CUSTOM_HIT001 + 299, TBaseAction.baHit)]      // 自定义技能区间上界内
+    [InlineData(CM_SPELL, TBaseAction.baSpell)]
+    [InlineData(CM_SITDOWN, TBaseAction.baCutMeat)]
+    public void CheckUsePlugin_AllSixFamiliesArePorted_NoEarlyReturnAnymore(
+        ushort ident, TBaseAction expectedAction)
     {
-        // ★ 本车道的**已知缺口**（原文攻击族 6690-7888 未移植）：
-        //   这些 ident 在原文里会记录动作（walk→baWalk、spell→baSpell…）并进入公共收尾；
-        //   本车道却早退。差异断言：返回 false 且**不写** RecordActionArr、**不动** boContinueSpeed。
-        _ctx.GameSpeed.boContinueSpeed = true;         // 若进入收尾会被置 False
+        _ctx.GameSpeed.boContinueSpeed = true;         // 进入收尾会被置 False
         _ctx.nRecordActionIndex = 0;
+        _ctx.LastActionForTest = TBaseAction.baOther;
 
         Assert.False(_ctx.CheckUsePlugin(Msg(ident)));
 
-        Assert.Equal(0, _ctx.nRecordActionIndex);                      // 未记录动作
-        Assert.True(_ctx.GameSpeed.boContinueSpeed);                   // 收尾未执行
-        Assert.Equal(TBaseAction.baOther, _ctx.LastActionProbe);
+        Assert.Equal(1, _ctx.nRecordActionIndex);                      // 已进入分支体（记录动作）
+        Assert.Equal(expectedAction, _ctx.RecordActionArr[0].Action);  // 各族记录的动作不同
+        Assert.Equal(expectedAction, _ctx.LastActionProbe);
+        Assert.False(_ctx.GameSpeed.boContinueSpeed);                  // 已进入公共收尾 :9680
     }
 
     [Fact]
