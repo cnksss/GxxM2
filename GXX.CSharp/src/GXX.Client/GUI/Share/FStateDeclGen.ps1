@@ -55,7 +55,12 @@ $Handwritten = @(
   # The four members that were previously blocked by B-2 (frmMain seam) and became portable
   # once the dispatcher widened that seam, plus the two horse buttons the same seam unblocked.
   'DWebClick','DActionLogClick','DGetBackDeleteHumanClick','DCustomButtonClick',
-  'DDownHorseClick','DBotHorseClick'
+  'DDownHorseClick','DBotHorseClick',
+  # ---- lane p14-client-fstate slice 4 (TFrmDlg.Handlers.cs) --------------------------------
+  # The tick-guarded family: one compare against a shared tick, a fixed +N rearm window and a
+  # single forwarded send. Fully assertable with the injectable FStateSeamClock.
+  'DGDHomeClick','DGDListClick',
+  'DBotUserShopClick','DBotRankingClick','DBotFriendClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

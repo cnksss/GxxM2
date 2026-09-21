@@ -562,6 +562,72 @@ public partial class TFrmDlg
     {
         FStateClMainSeam.TakeHorse(g_MySelf);               // 18844
     }
+
+    // ==========================================================================================
+    // 切片 4：tick 守卫族（原文形态统一：一次比较 + 固定 +N 重装 + 一次转发）
+    //
+    // 这一族是**可完整断言**的：时钟经 `FStateSeamClock.NowHandler` 注入，
+    // 于是 `>` 与 `>=`、以及 +3000 的重装窗口都能精确落点（不是靠真实时钟碰运气）。
+    // 原文全部使用**严格大于**，且重装写在**守卫体内**（不是体外）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:17874-17881 procedure TFrmDlg.DGDHomeClick。
+    /// 守卫 `MyGetTickCount &gt; g_dwQueryMsgTick`（**严格大于**）→ 重装 `+ 3000` →
+    /// 转 `frmMain.SendGuildHome` → **守卫体内**置 `BoGuildChat := False`。
+    /// </summary>
+    public virtual void DGDHomeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17876
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
+            FStateClMainSeam.SendGuildHome();           // 17878
+            BoGuildChat = false;                        // 17879
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17883-17890 procedure TFrmDlg.DGDListClick。
+    /// 与 DGDHomeClick 同形，转发目标换成 `frmMain.SendGuildMemberList`。
+    /// </summary>
+    public virtual void DGDListClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17885
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
+            FStateClMainSeam.SendGuildMemberList();     // 17887
+            BoGuildChat = false;                        // 17888
+        }
+    }
+
+    // ==========================================================================================
+    // 18832-18896  排行榜/好友/商铺入口（转发）
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:20565-20568 procedure TFrmDlg.DBotUserShopClick。
+    /// 原文 `OpenDGameShopDlg;` —— 被调方法有默认参 `IsCheckTime:Boolean = True`（原文声明 946），
+    /// 故托管侧同样**不传参**（等价于传 true）。
+    /// </summary>
+    public virtual void DBotUserShopClick(object Sender, int X, int Y)
+    {
+        OpenDGameShopDlg();                                 // 20567
+    }
+
+    /// <summary>FState.pas:18883-18886 procedure TFrmDlg.DBotRankingClick（转 `OpenDRankingDlg`）。</summary>
+    public virtual void DBotRankingClick(object Sender, int X, int Y)
+    {
+        OpenDRankingDlg();                                  // 18885
+    }
+
+    /// <summary>
+    /// FState.pas:18893-18896 procedure TFrmDlg.DBotFriendClick。
+    /// 原文写的是 `OpenDFriendDlg();`（**带空括号**，与 `DBotRankClick` 的无括号写法不同；原文如此）。
+    /// </summary>
+    public virtual void DBotFriendClick(object Sender, int X, int Y)
+    {
+        OpenDFriendDlg();                                   // 18895
+    }
 }
 
 /// <summary>
@@ -673,8 +739,21 @@ public static class TFrmDlgPortLedger
         new PortedMember("DCustomButtonClick",         "24917-24922"),
     };
 
+    /// <summary>
+    /// 切片 4 落地的成员（5 条）：tick 守卫族两条 + 商铺/排行/好友入口三条。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice4 = new[]
+    {
+        new PortedMember("DGDHomeClick",               "17874-17881"),
+        new PortedMember("DGDListClick",               "17883-17890"),
+        new PortedMember("DBotRankingClick",           "18883-18886"),
+        new PortedMember("DBotFriendClick",            "18893-18896"),
+        new PortedMember("DBotUserShopClick",          "20565-20568"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1, Slice2, Slice3 };
+    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
+        new[] { Slice1, Slice2, Slice3, Slice4 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -685,8 +764,11 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 3 的真实现成员数。</summary>
     public static int Slice3Count => Slice3.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1 + 切片 2 + 切片 3）。</summary>
-    public static int LaneCount => Slice1.Count + Slice2.Count + Slice3.Count;
+    /// <summary>切片 4 的真实现成员数。</summary>
+    public static int Slice4Count => Slice4.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..4）。</summary>
+    public static int LaneCount => Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)

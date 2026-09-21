@@ -583,12 +583,22 @@ public static class FStateMShareSeam
     /// </summary>
     public static string g_SelDeleteHumanInfo_sChrName = "";
 
+    /// <summary>
+    /// MShare.pas `g_dwQueryMsgTick:LongWord`（"查询"类动作的 3 秒节流时间戳）。
+    /// 原文在 17876/17885/18906/18914 等处以 `if MyGetTickCount &gt; g_dwQueryMsgTick` 判据使用。
+    /// 注：Scenes 车道的 `MiniMapMessageState.QueryMsgTick`（MiniMapRender.cs:225）是同一全局的
+    /// 另一份承载，那是**跨分区**的（不在本车道），故此处按本单元用到的形态独立承载。
+    /// 【接缝：待 MShare.pas 落地后与 Scenes 的那份合并为单一全局】
+    /// </summary>
+    public static uint g_dwQueryMsgTick;
+
     /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
         g_SellDlgItem = default;
         g_ExtBagOpenItemCount = 0;
         g_SelDeleteHumanInfo_sChrName = "";
+        g_dwQueryMsgTick = 0;
     }
 }
 
@@ -863,6 +873,18 @@ public static class FStateClMainSeam
     /// <summary>Actor.pas TActor.TakeHorse（原文 18845 / 20573 调用）。</summary>
     public static void TakeHorse(object actor) => TakeHorseHandler?.Invoke(actor);
 
+    /// <summary>ClMain.pas `frmMain.SendGuildHome`（原文 17878 调用，无参）。</summary>
+    public static Action SendGuildHomeHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildHome（原文 17878 调用）。</summary>
+    public static void SendGuildHome() => SendGuildHomeHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendGuildMemberList`（原文 17887 调用，无参）。</summary>
+    public static Action SendGuildMemberListHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildMemberList（原文 17887 调用）。</summary>
+    public static void SendGuildMemberList() => SendGuildMemberListHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -881,6 +903,8 @@ public static class FStateClMainSeam
         SendGetBackDeleteChrHandler = null;
         SendClientMessageHandler = null;
         TakeHorseHandler = null;
+        SendGuildHomeHandler = null;
+        SendGuildMemberListHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

@@ -600,12 +600,6 @@ public partial class TFrmDlg
     /// <summary>Source line 598 : procedure DGuildDlgDirectPaint(Sender:TObject); stdcall;</summary>
     public virtual void DGuildDlgDirectPaint(object Sender)
         => throw new NotSupportedException("TFrmDlg.DGuildDlgDirectPaint: not ported yet (FState.pas:598)");
-    /// <summary>Source line 602 : procedure DGDHomeClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDHomeClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDHomeClick: not ported yet (FState.pas:602)");
-    /// <summary>Source line 603 : procedure DGDListClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DGDListClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DGDListClick: not ported yet (FState.pas:603)");
     /// <summary>Source line 604 : procedure DGDAddMemClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DGDAddMemClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGDAddMemClick: not ported yet (FState.pas:604)");
@@ -747,12 +741,6 @@ public partial class TFrmDlg
     /// <summary>Source line 674 : procedure DButtonFriendClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
     public virtual void DButtonFriendClick(object Sender, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DButtonFriendClick: not ported yet (FState.pas:674)");
-    /// <summary>Source line 675 : procedure DBotRankingClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotRankingClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotRankingClick: not ported yet (FState.pas:675)");
-    /// <summary>Source line 677 : procedure DBotFriendClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotFriendClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotFriendClick: not ported yet (FState.pas:677)");
     /// <summary>Source line 680 : procedure DGameGoldDealDlgMouseMove(Sender:TObject; Shift:TShiftState; X, Y:Integer); stdcall;</summary>
     public virtual void DGameGoldDealDlgMouseMove(object Sender, TShiftState Shift, int X, int Y)
         => throw new NotSupportedException("TFrmDlg.DGameGoldDealDlgMouseMove: not ported yet (FState.pas:680)");
@@ -1479,9 +1467,6 @@ public partial class TFrmDlg
     /// <summary>Source line 959 : procedure CloseDHeroM2ShopRemoteDlg; virtual; abstract;</summary>
     public virtual void CloseDHeroM2ShopRemoteDlg()
         => throw new NotSupportedException("TFrmDlg.CloseDHeroM2ShopRemoteDlg: abstract in Delphi (FState.pas:959)");
-    /// <summary>Source line 960 : procedure DBotUserShopClick(Sender:TObject; X, Y:Integer); stdcall;</summary>
-    public virtual void DBotUserShopClick(object Sender, int X, int Y)
-        => throw new NotSupportedException("TFrmDlg.DBotUserShopClick: not ported yet (FState.pas:960)");
     /// <summary>Source line 964 : procedure SetMyShopPageCount; virtual; abstract;</summary>
     public virtual void SetMyShopPageCount()
         => throw new NotSupportedException("TFrmDlg.SetMyShopPageCount: abstract in Delphi (FState.pas:964)");
