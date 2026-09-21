@@ -1172,6 +1172,36 @@ public class Rest14LoginGateWireTests : IDisposable
     // =====================================================================================
 
     /// <summary>
+    /// ★ **SelGate / RunGate 契约**：`GateService` 的 opt-in 接缝在**不覆写**时必须是
+    /// `null`（= 全部关闭）。`SelGate`/`RunGate` 都不覆写它们 ⇒ 本轮新增的
+    /// `CheckIP`/`LoadConfig` 分支与新增成员对这两个网关是**死代码**。
+    ///
+    /// <para>
+    /// 这正是"绝不改变 SelGate/RunGate 行为"的结构性证明；配合门禁 3
+    /// （`GXX.SelGate.Tests` 163/163 全绿）构成完整证据链。
+    /// </para>
+    /// </summary>
+    [Fact]
+    public void UnoverriddenGatewayBase_ExposesNoRest11Hooks()
+    {
+        using var gate = new UnoverriddenProbeGate();
+        Assert.Null(gate.Rest11OptionsProbe);
+        Assert.Null(gate.Rest11KernelProbe);
+    }
+
+    /// <summary>`SelGate`/`RunGate` 的等价形态：不覆写任何 Rest11 接缝。</summary>
+    private sealed class UnoverriddenProbeGate : GateService
+    {
+        public UnoverriddenProbeGate() : base(Path.Combine(Path.GetTempPath(), "rest14-base.ini")) { }
+        protected override int GateDefaultPort => 7000;
+        protected override int ServerDefaultPort => 5600;
+        public override string ServiceName => "Rest14UnoverriddenProbe";
+        protected override void OnServerData(TcpLink link) { }
+        public object? Rest11OptionsProbe => Rest11Options;
+        public object? Rest11KernelProbe => Rest11Kernel;
+    }
+
+    /// <summary>
     /// 未接线（`Rest11Options == null`）的探针：完整走**既有**判定链。
     ///
     /// <para>
