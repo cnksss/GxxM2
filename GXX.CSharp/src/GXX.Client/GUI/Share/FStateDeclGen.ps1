@@ -50,7 +50,24 @@ $Handwritten = @(
   'DMissionDlgClick','DMissionDlgCloseClick','DOpenShopClick',
   'DBotRankingCloseClick','DGrpDlgCloseClick','DFrdCloseClick',
   'DMyHeroStateCloseClick','DMyHeroBagCloseClick',
-  'DLieDragonCloseClick','DLieDragonNpcCloseClick'
+  'DLieDragonCloseClick','DLieDragonNpcCloseClick',
+  # ---- lane p14-client-fstate slice 3 (TFrmDlg.Handlers.cs) --------------------------------
+  # The four members that were previously blocked by B-2 (frmMain seam) and became portable
+  # once the dispatcher widened that seam, plus the two horse buttons the same seam unblocked.
+  'DWebClick','DActionLogClick','DGetBackDeleteHumanClick','DCustomButtonClick',
+  'DDownHorseClick','DBotHorseClick',
+  # ---- lane p14-client-fstate slice 4 (TFrmDlg.Handlers.cs) --------------------------------
+  # The tick-guarded family: one compare against a shared tick, a fixed +N rearm window and a
+  # single forwarded send. Fully assertable with the injectable FStateSeamClock.
+  'DGDHomeClick','DGDListClick',
+  'DBotUserShopClick','DBotRankingClick','DBotFriendClick',
+  # ---- lane p14-client-fstate slice 5 (TFrmDlg.Handlers.cs) --------------------------------
+  # Rest of the "one guard + one forwarded send" family that only needed MShare globals.
+  'DBotTradeClick','BotChallengeClick','DDealCloseClick','DealZeroGold',
+  'DChallengeCloseClick','ChallengeZeroGold',
+  # ---- lane p14-client-fstate slice 6 (TFrmDlg.Handlers.cs) --------------------------------
+  # Help-button throttle (field + difference guard) and the update-dialog reconnect handler.
+  'DControlHelpClick','DUpdateStatusDlgDblClick'
 )
 
 # NOTE on the source encoding: the file this generator reads is the **UTF-8 mirror**

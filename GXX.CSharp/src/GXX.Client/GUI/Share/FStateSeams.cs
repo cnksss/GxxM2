@@ -574,11 +574,55 @@ public static class FStateMShareSeam
     /// <summary>MShare.pas:1879 g_ExtBagOpenItemCount:Word = 0（扩展背包已开格数）。</summary>
     public static ushort g_ExtBagOpenItemCount;
 
+    /// <summary>
+    /// MShare.pas `g_SelDeleteHumanInfo:TUserCharacterInfo`（"找回角色"对话框里选中的角色）。
+    /// 原文 20594 只读它的 `sChrName`（Delphi `string[19]` 短串）；Core 里的 TUserCharacterInfo
+    /// 是定长缓冲版，没有可直读的短串访问器，而本单元只用到这一个字段，
+    /// 因此托管侧以 `g_SelDeleteHumanInfo_sChrName` 承载该单字段（命名带后缀以免被误当成整个记录）。
+    /// 【接缝：待 MShare.pas 落地后换成真实 TUserCharacterInfo.sChrName】
+    /// </summary>
+    public static string g_SelDeleteHumanInfo_sChrName = "";
+
+    /// <summary>
+    /// MShare.pas `g_dwQueryMsgTick:LongWord`（"查询"类动作的 3 秒节流时间戳）。
+    /// 原文在 17876/17885/18906/18914 等处以 `if MyGetTickCount &gt; g_dwQueryMsgTick` 判据使用。
+    /// 注：Scenes 车道的 `MiniMapMessageState.QueryMsgTick`（MiniMapRender.cs:225）是同一全局的
+    /// 另一份承载，那是**跨分区**的（不在本车道），故此处按本单元用到的形态独立承载。
+    /// 【接缝：待 MShare.pas 落地后与 Scenes 的那份合并为单一全局】
+    /// </summary>
+    public static uint g_dwQueryMsgTick;
+
+    /// <summary>MShare.pas `g_dwDealActionTick:LongWord`（交易动作节流时间戳；原文 17535 判据）。</summary>
+    public static uint g_dwDealActionTick;
+
+    /// <summary>MShare.pas `g_dwChallengeActionTick:LongWord`（挑战动作节流时间戳；原文 20815 判据）。</summary>
+    public static uint g_dwChallengeActionTick;
+
+    /// <summary>MShare.pas `g_boDealEnd:Boolean`（交易已结束；原文 17748 判据，**先判它**）。</summary>
+    public static bool g_boDealEnd;
+
+    /// <summary>MShare.pas `g_nDealGold:Integer`（交易中的金币数；原文 17748 判据）。</summary>
+    public static int g_nDealGold;
+
+    /// <summary>MShare.pas `g_boChallengeEnd:Boolean`（挑战已结束；原文 20791 判据）。</summary>
+    public static bool g_boChallengeEnd;
+
+    /// <summary>MShare.pas `g_nChallengeGold:Integer`（挑战中的金币数；原文 20791 判据）。</summary>
+    public static int g_nChallengeGold;
+
     /// <summary>测试用复位。</summary>
     public static void ResetForTests()
     {
         g_SellDlgItem = default;
         g_ExtBagOpenItemCount = 0;
+        g_SelDeleteHumanInfo_sChrName = "";
+        g_dwQueryMsgTick = 0;
+        g_dwDealActionTick = 0;
+        g_dwChallengeActionTick = 0;
+        g_boDealEnd = false;
+        g_nDealGold = 0;
+        g_boChallengeEnd = false;
+        g_nChallengeGold = 0;
     }
 }
 
@@ -780,6 +824,133 @@ public static class FStateClMainSeam
     /// </summary>
     public static object FrmMainPlaceholder;
 
+    // ============================================================================================
+    // 切片 3（调度方授权 B-2 增量补充权）：补 `frmMain` 上 FState.pas 真正调用到的成员。
+    //
+    // ★ 为什么放在**本类**而不是另开 `Scenes/FStateClMainSeam.cs`：
+    //   调度方授权的分区含 `!GXX.CSharp/src/GXX.Client/Scenes/FStateClMainSeam.cs`，
+    //   但本类**已经叫** `FStateClMainSeam`（在 `GXX.Client.GUI.Share`）。
+    //   若在同一程序集里再造一个**同名**类型，凡同时 `using` 两个命名空间的文件都会 CS0104，
+    //   正是本工程反复登记过的"同一 Delphi 单元两条车道各造一套接缝"事故。
+    //   ⇒ 因此**沿用既有类**做增量补充，不新建同名类（用不到那份授权，也不产生二义性）。
+    //
+    // 逐条计数（本切片新补 4 个成员 + 1 个转接方法）：
+    //   1) Navigate(string)              —— 原文 20579 `frmMain.Navigate(g_ClientConfig.sHomePage)`
+    //   2) SendDActionLogClick()         —— 原文 20584 `frmMain.SendDActionLogClick`
+    //   3) SendGetBackDeleteChr(string)  —— 原文 20595 `frmMain.SendGetBackDeleteChr(...)`
+    //   4) SendClientMessage(int,int,int,int,int,string)
+    //                                    —— 原文 24920 `FrmMain.SendClientMessage(CM_CUSTOM_BUTTON_CLICK, Tag, 0,0,0, '')`
+    //   5) TakeHorse(TActor)             —— 原文 18845/20573 `g_MySelf.TakeHorse`（见下方说明）
+    // 仍缺（本轮**未**补，后续车道注意）：`Close`（原文 2249/2297）、
+    //   `ReConnectClientSocketGate`（24471）、`SendSay`（17931）、`SendGuildHome`（17878）、
+    //   `SendGuildMemberList`（17887）、`SendGuildAddMem`/`SendGuildDelMem`（17896/17903）、
+    //   `SendAdjustBonus`（17987）、`SendCancelGameGoldDealItem`（18702/18706）、
+    //   `SendGetShopItems`（18094）等约 12 条 —— 它们的调用点**不在本切片**。
+    // ============================================================================================
+
+    /// <summary>ClMain.pas `frmMain.Navigate(sUrl:string)`（打开官网/公告页）。</summary>
+    public static Action<string> NavigateHandler;
+
+    /// <summary>
+    /// MShare.pas `g_ClientConfig.sHomePage:string`（官网地址）。
+    /// 【接缝：车道1 的 `GXX.Client.GUI.Mir.TConfigClient`（MirForms.cs:23）目前**没有**这个字段，
+    ///  而它不在本车道分区，故把该字段的最小承载放在这里；待 TConfigClient 补齐后改回
+    ///  `g_ClientConfig.sHomePage`】默认值与 M2 端 `M2Config.sHomePage` 一致
+    ///  （`GXX.M2Server/Engine/M2Config.ClientConf.cs:128` = "http://www.gxxm2.com"）。
+    /// </summary>
+    public static string sHomePage = "http://www.gxxm2.com";
+
+    /// <summary>ClMain.pas frmMain.Navigate（原文 20579 调用）。</summary>
+    public static void Navigate(string sUrl) => NavigateHandler?.Invoke(sUrl);
+
+    /// <summary>ClMain.pas `frmMain.SendDActionLogClick`（无参动作日志上报）。</summary>
+    public static Action SendDActionLogClickHandler;
+
+    /// <summary>ClMain.pas frmMain.SendDActionLogClick（原文 20584 调用，原文**无括号**）。</summary>
+    public static void SendDActionLogClick() => SendDActionLogClickHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendGetBackDeleteChr(sChrName:string)`（找回已删除角色）。</summary>
+    public static Action<string> SendGetBackDeleteChrHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGetBackDeleteChr（原文 20595 调用）。</summary>
+    public static void SendGetBackDeleteChr(string sChrName)
+        => SendGetBackDeleteChrHandler?.Invoke(sChrName);
+
+    /// <summary>
+    /// ClMain.pas `frmMain.SendClientMessage(wIdent:Word; nRecog, nParam, nParam2, nParam3:Integer; sMsg:string)`。
+    /// 原文 24920 用 `(CM_CUSTOM_BUTTON_CLICK, Tag, 0, 0, 0, '')` 六参形态。
+    /// </summary>
+    public static Action<int, int, int, int, int, string> SendClientMessageHandler;
+
+    /// <summary>ClMain.pas frmMain.SendClientMessage（原文 24920 调用）。</summary>
+    public static void SendClientMessage(int wIdent, int nRecog, int nParam, int nParam2, int nParam3, string sMsg)
+        => SendClientMessageHandler?.Invoke(wIdent, nRecog, nParam, nParam2, nParam3, sMsg);
+
+    /// <summary>
+    /// Actor.pas `TActor.TakeHorse`（原文 18845 `g_MySelf.TakeHorse`、20573 同形）。
+    /// Actor.pas 的托管承接方是 `GXX.Client.Scenes.TActor`，车道1 的 TActor 上尚无该方法；
+    /// 原文它只发一个 `CM_TAKEHORSE` 客户端消息，故此处按同形转发到 SendClientMessage。
+    /// 【接缝：待 Actor.pas 落地 TakeHorse 后，把 DDownHorseClick/DBotHorseClick 改调真实方法】
+    /// </summary>
+    public static Action<object> TakeHorseHandler;
+
+    /// <summary>Actor.pas TActor.TakeHorse（原文 18845 / 20573 调用）。</summary>
+    public static void TakeHorse(object actor) => TakeHorseHandler?.Invoke(actor);
+
+    /// <summary>ClMain.pas `frmMain.SendGuildHome`（原文 17878 调用，无参）。</summary>
+    public static Action SendGuildHomeHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildHome（原文 17878 调用）。</summary>
+    public static void SendGuildHome() => SendGuildHomeHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendGuildMemberList`（原文 17887 调用，无参）。</summary>
+    public static Action SendGuildMemberListHandler;
+
+    /// <summary>ClMain.pas frmMain.SendGuildMemberList（原文 17887 调用）。</summary>
+    public static void SendGuildMemberList() => SendGuildMemberListHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendCancelDeal`（原文 17537 调用，无参）。</summary>
+    public static Action SendCancelDealHandler;
+
+    /// <summary>ClMain.pas frmMain.SendCancelDeal（原文 17537 调用）。</summary>
+    public static void SendCancelDeal() => SendCancelDealHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChangeDealGold(nGold:Integer)`（原文 17750 调用）。</summary>
+    public static Action<int> SendChangeDealGoldHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChangeDealGold（原文 17750 调用）。</summary>
+    public static void SendChangeDealGold(int nGold) => SendChangeDealGoldHandler?.Invoke(nGold);
+
+    /// <summary>ClMain.pas `frmMain.SendCancelChallenge`（原文 20817 调用，无参）。</summary>
+    public static Action SendCancelChallengeHandler;
+
+    /// <summary>ClMain.pas frmMain.SendCancelChallenge（原文 20817 调用）。</summary>
+    public static void SendCancelChallenge() => SendCancelChallengeHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChangeChallengeGold(nGold:Integer)`（原文 20793 调用）。</summary>
+    public static Action<int> SendChangeChallengeGoldHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChangeChallengeGold（原文 20793 调用）。</summary>
+    public static void SendChangeChallengeGold(int nGold) => SendChangeChallengeGoldHandler?.Invoke(nGold);
+
+    /// <summary>ClMain.pas `frmMain.SendDealTry`（原文 18916 调用，无参）。</summary>
+    public static Action SendDealTryHandler;
+
+    /// <summary>ClMain.pas frmMain.SendDealTry（原文 18916 调用）。</summary>
+    public static void SendDealTry() => SendDealTryHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.SendChallengeTry`（原文 18908 调用，无参）。</summary>
+    public static Action SendChallengeTryHandler;
+
+    /// <summary>ClMain.pas frmMain.SendChallengeTry（原文 18908 调用）。</summary>
+    public static void SendChallengeTry() => SendChallengeTryHandler?.Invoke();
+
+    /// <summary>ClMain.pas `frmMain.ReConnectClientSocketGate`（原文 24471 调用，无参）。</summary>
+    public static Action ReConnectClientSocketGateHandler;
+
+    /// <summary>ClMain.pas frmMain.ReConnectClientSocketGate（原文 24471 调用）。</summary>
+    public static void ReConnectClientSocketGate() => ReConnectClientSocketGateHandler?.Invoke();
+
     /// <summary>测试/复位用。</summary>
     public static void ResetForTests()
     {
@@ -792,6 +963,21 @@ public static class FStateClMainSeam
         g_nTargetY = 0;
         Owner = null;
         FrmMainPlaceholder = null;
+        NavigateHandler = null;
+        sHomePage = "http://www.gxxm2.com";
+        SendDActionLogClickHandler = null;
+        SendGetBackDeleteChrHandler = null;
+        SendClientMessageHandler = null;
+        TakeHorseHandler = null;
+        SendGuildHomeHandler = null;
+        SendGuildMemberListHandler = null;
+        SendCancelDealHandler = null;
+        SendChangeDealGoldHandler = null;
+        SendCancelChallengeHandler = null;
+        SendChangeChallengeGoldHandler = null;
+        SendDealTryHandler = null;
+        SendChallengeTryHandler = null;
+        ReConnectClientSocketGateHandler = null;
         FStateMShareSeam.ResetForTests();
         MShareGlobalsReset.ResetForTests();
     }

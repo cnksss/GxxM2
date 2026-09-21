@@ -6,6 +6,7 @@ using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.GUI.Share;
 using GXX.Client.Scenes;
+using GXX.Core.Protocol;
 using GXX.Core.Util;
 using Xunit;
 using static GXX.Client.GUI.Mir.MShareGlobals;
@@ -40,6 +41,9 @@ namespace GXX.Client.Tests;
 /// </summary>
 public sealed class GuiShareHandlersTests : IDisposable
 {
+    /// <summary>注入的假时钟（tick 毫秒）。切片 4 的 tick 守卫族靠它精确落点。</summary>
+    private uint _fakeTick;
+
     public GuiShareHandlersTests()
     {
         ResetAll();
@@ -62,6 +66,8 @@ public sealed class GuiShareHandlersTests : IDisposable
         FStateScreenSeam.ResetForTests();
         FStateResStrSeam.ResetForTests();
         DrawScrnEnv.HintWindows = new THintWindows();
+        _fakeTick = 10_000;
+        FStateSeamClock.NowHandler = () => _fakeTick;
     }
 
     // =====================================================================================
@@ -643,6 +649,486 @@ public sealed class GuiShareHandlersTests : IDisposable
                 Assert.Fail("未登记的切片 2 成员: " + name);
                 break;
         }
+    }
+
+    // =====================================================================================
+    // 切片 3：B-2 授权后解锁的四条 + 骑马两条（frmMain / Actor 接缝注入）
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice3RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice3Count);
+    }
+
+    [Fact]
+    public void DWebClickNavigatesToTheConfiguredHomePage()
+    {
+        var frm = NewForm();
+        FStateClMainSeam.sHomePage = "http://example.invalid/index.html";
+        string seen = null;
+        FStateClMainSeam.NavigateHandler = url => seen = url;
+
+        frm.DWebClick(null, 0, 0);
+
+        Assert.Equal("http://example.invalid/index.html", seen);   // 20579
+    }
+
+    [Fact]
+    public void DWebClickUsesTheMirroredDefaultHomePageWhenNotOverridden()
+    {
+        var frm = NewForm();
+        string seen = null;
+        FStateClMainSeam.NavigateHandler = url => seen = url;
+
+        frm.DWebClick(null, 0, 0);
+
+        // 默认值与 M2 端 M2Config.sHomePage 一致（M2Config.ClientConf.cs:128）
+        Assert.Equal("http://www.gxxm2.com", seen);
+    }
+
+    [Fact]
+    public void DActionLogClickForwardsExactlyOnce()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendDActionLogClickHandler = () => calls++;
+
+        frm.DActionLogClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                     // 20584
+    }
+
+    [Fact]
+    public void DGetBackDeleteHumanClickSkipsAnEmptySelectedName()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        string seen = null;
+        FStateClMainSeam.SendGetBackDeleteChrHandler = n => { calls++; seen = n; };
+        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "";
+
+        frm.DGetBackDeleteHumanClick(null, 0, 0);
+
+        Assert.Equal(0, calls);                                     // 20594：空名不发
+        Assert.Null(seen);
+    }
+
+    [Fact]
+    public void DGetBackDeleteHumanClickSendsTheSelectedName()
+    {
+        var frm = NewForm();
+        string seen = null;
+        FStateClMainSeam.SendGetBackDeleteChrHandler = n => seen = n;
+        FStateMShareSeam.g_SelDeleteHumanInfo_sChrName = "英雄甲";
+
+        frm.DGetBackDeleteHumanClick(null, 0, 0);
+
+        Assert.Equal("英雄甲", seen);                                // 20595
+    }
+
+    [Fact]
+    public void DCustomButtonClickOnlySendsForImageButtons()
+    {
+        var frm = NewForm();
+        var sent = new List<(int Cmd, int Tag)>();
+        FStateClMainSeam.SendClientMessageHandler =
+            (cmd, recog, p1, p2, p3, msg) => sent.Add((cmd, recog));
+
+        // 非 TDxImageButton ⇒ 不发（原文 24919 的 `Sender is TDxImageButton`）
+        frm.DCustomButtonClick(new object(), 0, 0);
+        frm.DCustomButtonClick(null, 0, 0);
+        Assert.Empty(sent);
+
+        // TDxImageButton ⇒ 发，且 Command = CM_CUSTOM_BUTTON_CLICK、Recog = Tag
+        var btn = new TDxImageButton { Tag = 4321 };
+        frm.DCustomButtonClick(btn, 0, 0);
+
+        Assert.Single(sent);
+        Assert.Equal(Grobal2Const.CM_CUSTOM_BUTTON_CLICK, sent[0].Cmd);
+        Assert.Equal(4321, sent[0].Tag);
+    }
+
+    [Fact]
+    public void DBotHorseClickTakesTheHorseUnconditionally()
+    {
+        var frm = NewForm();
+        object seen = null;
+        FStateClMainSeam.TakeHorseHandler = a => seen = a;
+        g_MySelf = new TActor();
+
+        frm.DBotHorseClick(null, 0, 0);
+
+        Assert.Same(g_MySelf, seen);                                // 18844：无条件
+    }
+
+    [Theory]
+    [InlineData(0, 0, false)]   // m_btHorse = 0 ⇒ 不满足 in [1,2]
+    [InlineData(1, 0, true)]    // in [1,2] 且非双人骑 ⇒ 骑
+    [InlineData(2, 0, true)]
+    [InlineData(1, 1, false)]   // 双人骑被邀请人（m_btDoubleHumHorse <> 0）⇒ 不骑
+    [InlineData(3, 0, false)]   // 不在 [1,2]
+    public void DDownHorseClickHonoursTheOriginalTwoConditions(int horse, byte doubleHum, bool expect)
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.TakeHorseHandler = _ => calls++;
+        g_MySelf = new TActor();
+        g_MySelf.m_btHorse = horse;                                 // ActorSelfEffectRender.cs:413（int 型）
+        g_MySelf.m_btDoubleHumHorse = doubleHum;
+
+        frm.DDownHorseClick(null, 0, 0);
+
+        Assert.Equal(expect ? 1 : 0, calls);                        // 20572
+    }
+
+    [Fact]
+    public void DDownHorseClickKeepsTheOriginalMissingNilCheck()
+    {
+        // 原文 20572 **没有** g_MySelf <> nil 保护 ⇒ g_MySelf = nil 时 AV（托管侧 NullReferenceException）。
+        // 逐字保留该前提，不额外加保护（否则会把原文缺陷掩盖成"安全"行为）。
+        var frm = NewForm();
+        g_MySelf = null;
+        Assert.Throws<NullReferenceException>(() => frm.DDownHorseClick(null, 0, 0));
+    }
+
+    [Fact]
+    public void HorseButtonsDoNothingWhenTheSeamIsNotInjected()
+    {
+        // 接缝语义：未注入 handler 时什么都不发生（不是抛）—— 与"未移植壳"可区分。
+        var frm = NewForm();
+        g_MySelf = new TActor();
+        Assert.Null(Record.Exception(() => frm.DBotHorseClick(null, 0, 0)));
+        Assert.Null(Record.Exception(() => frm.DDownHorseClick(null, 0, 0)));
+    }
+
+    // =====================================================================================
+    // 切片 4：tick 守卫族（时钟经 FStateSeamClock 注入 ⇒ 可精确落点）
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice4RegistersFiveMembers()
+    {
+        Assert.Equal(5, TFrmDlgPortLedger.Slice4Count);
+    }
+
+    [Fact]
+    public void DGDHomeClickForwardsAndRearmsWhenTheTickIsStrictlyGreater()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGuildHomeHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;      // 当前 fake tick = 10_000
+        frm.BoGuildChat = true;
+
+        frm.DGDHomeClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                          // 17878
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 17877：+3000
+        Assert.False(frm.BoGuildChat);                   // 17879
+    }
+
+    [Fact]
+    public void DGDHomeClickDoesNothingWhenTheTickIsNotGreater()
+    {
+        // 边界：`>` 是**严格大于** ⇒ tick == g_dwQueryMsgTick 时**不**触发。
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGuildHomeHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 10_000;     // 与当前 tick 相等
+        frm.BoGuildChat = true;
+
+        frm.DGDHomeClick(null, 0, 0);
+
+        Assert.Equal(0, calls);                          // 差异断言：相等不触发
+        Assert.Equal(10_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 未重装
+        Assert.True(frm.BoGuildChat);                    // 未改（17879 在守卫体内）
+    }
+
+    [Fact]
+    public void DGDHomeClickIsThrottledUntilTheWindowElapses()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGuildHomeHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 0;
+
+        frm.DGDHomeClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        // 立刻再点：tick 仍 10_000，而 g_dwQueryMsgTick 已是 13_000 ⇒ 不触发（节流）
+        frm.DGDHomeClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        // 时钟推进到 13_000：`>` 仍不成立（严格大于）⇒ 仍不触发
+        _fakeTick = 13_000;
+        frm.DGDHomeClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        // 13_001 ⇒ 触发
+        _fakeTick = 13_001;
+        frm.DGDHomeClick(null, 0, 0);
+        Assert.Equal(2, calls);
+        Assert.Equal(16_001u, FStateMShareSeam.g_dwQueryMsgTick);
+    }
+
+    [Fact]
+    public void DGDListClickForwardsTheMemberListAndRearms()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendGuildMemberListHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        frm.BoGuildChat = true;
+
+        frm.DGDListClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                          // 17887
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 17886
+        Assert.False(frm.BoGuildChat);                   // 17888
+    }
+
+    [Fact]
+    public void DGDHomeAndListShareTheSameThrottleCounter()
+    {
+        // 两条用**同一个** g_dwQueryMsgTick ⇒ 先后调用时第二条被第一条的重装挡住。
+        var frm = NewForm();
+        int home = 0, list = 0;
+        FStateClMainSeam.SendGuildHomeHandler = () => home++;
+        FStateClMainSeam.SendGuildMemberListHandler = () => list++;
+
+        frm.DGDHomeClick(null, 0, 0);
+        frm.DGDListClick(null, 0, 0);
+
+        Assert.Equal(1, home);
+        Assert.Equal(0, list);                           // 差异化证据：共享计数器
+    }
+
+    [Fact]
+    public void DBotUserShopClickOpensTheGameShopDialog()
+    {
+        var frm = NewForm();
+        // OpenDGameShopDlg 仍是 throw 壳 ⇒ 转发后抛（抛点在被转发方）
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DBotUserShopClick(null, 0, 0));
+        Assert.Contains("OpenDGameShopDlg", ex.Message);  // 20567
+    }
+
+    [Fact]
+    public void RankingAndFriendEntryPointsForwardToTheirOwnTargets()
+    {
+        var frm = NewForm();
+        var ranking = Assert.Throws<NotSupportedException>(() => frm.DBotRankingClick(null, 0, 0));
+        Assert.Contains("OpenDRankingDlg", ranking.Message);      // 18885
+        var friend = Assert.Throws<NotSupportedException>(() => frm.DBotFriendClick(null, 0, 0));
+        Assert.Contains("OpenDFriendDlg", friend.Message);        // 18895
+    }
+
+    // =====================================================================================
+    // 切片 5：交易 / 挑战的"守卫 + 转发"族
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice5RegistersSixMembers()
+    {
+        Assert.Equal(6, TFrmDlgPortLedger.Slice5Count);
+    }
+
+    [Fact]
+    public void DBotTradeClickSharesTheQueryTickThrottle()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendDealTryHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+
+        frm.DBotTradeClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                     // 18916
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 18915：+3000
+
+        // 与 DGDHomeClick 共享同一计数器 ⇒ 立刻再点不触发
+        frm.DBotTradeClick(null, 0, 0);
+        Assert.Equal(1, calls);
+    }
+
+    [Fact]
+    public void BotChallengeClickForwardsAndRearms()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendChallengeTryHandler = () => calls++;
+        FStateMShareSeam.g_dwQueryMsgTick = 10_000;   // 与当前 tick 相等 ⇒ 严格 `>` 不成立
+
+        frm.BotChallengeClick(null, 0, 0);
+        Assert.Equal(0, calls);                                     // 边界：相等不触发
+        Assert.Equal(10_000u, FStateMShareSeam.g_dwQueryMsgTick);   // 未重装
+
+        FStateMShareSeam.g_dwQueryMsgTick = 9_999;
+        frm.BotChallengeClick(null, 0, 0);
+        Assert.Equal(1, calls);                                     // 18908
+        Assert.Equal(13_000u, FStateMShareSeam.g_dwQueryMsgTick);
+    }
+
+    [Fact]
+    public void DDealCloseClickForwardsAndDoesNotRearmTheDealTick()
+    {
+        var frm = NewForm();
+        int cancels = 0;
+        FStateClMainSeam.SendCancelDealHandler = () => cancels++;
+        FStateMShareSeam.g_dwDealActionTick = 9_999;
+
+        // 17536 的 CloseDDealDlg 仍是 throw 壳 ⇒ 抛点在被转发方（且发生在发送之前）
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DDealCloseClick(null, 0, 0));
+        Assert.Contains("CloseDDealDlg", ex.Message);
+        Assert.Equal(0, cancels);                                   // 17537 未执行（前一行先抛）
+
+        // 差异断言：本条**不**重装 g_dwDealActionTick（原文 17535 的守卫体内没有赋值）
+        Assert.Equal(9_999u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    [Fact]
+    public void DealZeroGoldRequiresBothFlagsAndRearmsByFourThousand()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendChangeDealGoldHandler = g => sent.Add(g);
+
+        // not g_boDealEnd = False ⇒ 不触发
+        FStateMShareSeam.g_boDealEnd = true;
+        FStateMShareSeam.g_nDealGold = 5;
+        frm.DealZeroGold();
+        Assert.Empty(sent);
+
+        // g_boDealEnd = False 但 g_nDealGold = 0 ⇒ 不触发（`> 0` 严格）
+        FStateMShareSeam.g_boDealEnd = false;
+        FStateMShareSeam.g_nDealGold = 0;
+        frm.DealZeroGold();
+        Assert.Empty(sent);
+
+        // 两个都成立 ⇒ 发 0 + 重装 +4000
+        FStateMShareSeam.g_nDealGold = 1;
+        frm.DealZeroGold();
+        Assert.Single(sent);
+        Assert.Equal(0, sent[0]);                                   // 17750：SendChangeDealGold(0)
+        Assert.Equal(14_000u, FStateMShareSeam.g_dwDealActionTick); // 17749：+4000
+    }
+
+    [Fact]
+    public void ChallengeZeroGoldMirrorsDealZeroGold()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendChangeChallengeGoldHandler = g => sent.Add(g);
+
+        FStateMShareSeam.g_boChallengeEnd = false;
+        FStateMShareSeam.g_nChallengeGold = 3;
+        frm.ChallengeZeroGold();
+
+        Assert.Single(sent);
+        Assert.Equal(0, sent[0]);                                       // 20793
+        Assert.Equal(14_000u, FStateMShareSeam.g_dwChallengeActionTick); // 20792：+4000
+
+        // 挑战/交易两条走**各自**的时间戳（差异证据）
+        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    [Fact]
+    public void DChallengeCloseClickUsesItsOwnTickAndForwards()
+    {
+        var frm = NewForm();
+        int cancels = 0;
+        FStateClMainSeam.SendCancelChallengeHandler = () => cancels++;
+        FStateMShareSeam.g_dwChallengeActionTick = 9_999;
+
+        // CloseDChallengeDlg 仍是 throw 壳 ⇒ 抛在被转发方
+        var ex = Assert.Throws<NotSupportedException>(() => frm.DChallengeCloseClick(null, 0, 0));
+        Assert.Contains("CloseDChallengeDlg", ex.Message);
+        Assert.Equal(0, cancels);
+
+        // 差异证据：本条只看挑战时间戳，交易时间戳不参与
+        Assert.Equal(9_999u, FStateMShareSeam.g_dwChallengeActionTick);
+        Assert.Equal(0u, FStateMShareSeam.g_dwDealActionTick);
+    }
+
+    // =====================================================================================
+    // 切片 6：帮助按钮节流（差判据） + 更新状态框重连
+    // =====================================================================================
+
+    [Fact]
+    public void LedgerSlice6RegistersTwoMembers()
+    {
+        Assert.Equal(2, TFrmDlgPortLedger.Slice6Count);
+    }
+
+    [Fact]
+    public void DControlHelpClickUsesAStrictDifferenceGuardOfOneThousand()
+    {
+        var frm = NewForm();
+        var sent = new List<int>();
+        FStateClMainSeam.SendClientMessageHandler =
+            (cmd, recog, p1, p2, p3, msg) => sent.Add(cmd);
+
+        // 差 == 1000 ⇒ `> 1000` 不成立（严格大于）
+        SetHelpTick(frm, 9_000);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Empty(sent);                                          // 21056
+        Assert.Equal(9_000u, GetHelpTick(frm));                      // 未赋值
+
+        // 差 == 1001 ⇒ 成立，且时间戳被赋成**当前 tick**（不是 +1000）
+        SetHelpTick(frm, 8_999);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Single(sent);
+        Assert.Equal(Grobal2Const.CM_HELPBUTTONCLICK, sent[0]);       // 21058
+        Assert.Equal(10_000u, GetHelpTick(frm));                     // 21057
+    }
+
+    [Fact]
+    public void DControlHelpClickThrottlesUntilAnotherThousandMillisPass()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.SendClientMessageHandler = (a, b, c, d, e, f) => calls++;
+
+        SetHelpTick(frm, 0);
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        // 立刻再点：差为 0 ⇒ 不触发
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(1, calls);
+
+        _fakeTick = 11_001;   // 差 1001 ⇒ 触发
+        frm.DControlHelpClick(null, 0, 0);
+        Assert.Equal(2, calls);
+        Assert.Equal(11_001u, GetHelpTick(frm));
+    }
+
+    /// <summary>
+    /// 原文 486 的 `dwControlHelpCickTick:LongWord` 在 Delphi 的 **protected** 段，
+    /// 托管生成壳同样落成 `protected`（`TFrmDlg.Decl.g.cs`），测试只能经反射读写。
+    /// </summary>
+    private static System.Reflection.FieldInfo HelpTickField()
+    {
+        var f = typeof(TFrmDlg).GetField("dwControlHelpCickTick",
+            BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public);
+        Assert.NotNull(f);
+        return f;
+    }
+
+    private static uint GetHelpTick(TFrmDlg frm) => (uint)HelpTickField().GetValue(frm);
+
+    private static void SetHelpTick(TFrmDlg frm, uint value) => HelpTickField().SetValue(frm, value);
+
+    [Fact]
+    public void DUpdateStatusDlgDblClickReconnectsTheSocketGate()
+    {
+        var frm = NewForm();
+        int calls = 0;
+        FStateClMainSeam.ReConnectClientSocketGateHandler = () => calls++;
+
+        frm.DUpdateStatusDlgDblClick(null, 0, 0);
+
+        Assert.Equal(1, calls);                                      // 24471
     }
 
     // =====================================================================================

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using GXX.Client.GUI.DxComponent;
 using GXX.Client.GUI.Mir;
 using GXX.Client.Scenes;
+using GXX.Core.Protocol;
 using static GXX.Client.GUI.Mir.MShareGlobals;
 
 namespace GXX.Client.GUI.Share;
@@ -486,6 +487,264 @@ public partial class TFrmDlg
     {
         DLieDragonNpc.Visible = false;                      // 24313
     }
+
+    // ==========================================================================================
+    // 切片 3：B-2 授权后解锁的四条 + 骑马两条
+    //
+    // 原文都是"一行转发给主窗体 / 角色"，被转发方在托管侧经 `FStateClMainSeam` 注入。
+    // 接缝未注入时（默认）**什么都不发生** —— 这是**接缝**的既定语义，不是静默吞缺口：
+    // 缺口本身登记在报告 §11.2 的 B-2，且注入点都是公开字段，测试可断言"确实转发了"。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:20577-20580 procedure TFrmDlg.DWebClick。
+    /// 原文 `frmMain.Navigate(g_ClientConfig.sHomePage)`。
+    /// 注：车道1 的 `GXX.Client.GUI.Mir.TConfigClient`（MirForms.cs:23）目前**没有** `sHomePage`
+    /// 字段，而它不在本车道分区，故该字段的最小承载在 `FStateClMainSeam.sHomePage`
+    /// （默认值与 M2 端一致），见报告 D-P14-11。
+    /// </summary>
+    public virtual void DWebClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.Navigate(FStateClMainSeam.sHomePage);   // 20579
+    }
+
+    /// <summary>
+    /// FState.pas:20582-20585 procedure TFrmDlg.DActionLogClick。
+    /// 原文 `frmMain.SendDActionLogClick;`（**无括号**，原文如此）。
+    /// </summary>
+    public virtual void DActionLogClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.SendDActionLogClick();             // 20584
+    }
+
+    /// <summary>
+    /// FState.pas:20592-20596 procedure TFrmDlg.DGetBackDeleteHumanClick。
+    /// 原文先判 `g_SelDeleteHumanInfo.sChrName &lt;&gt; ''`，**非空才**发找回请求。
+    /// </summary>
+    public virtual void DGetBackDeleteHumanClick(object Sender, int X, int Y)
+    {
+        if (FStateMShareSeam.g_SelDeleteHumanInfo_sChrName != "")    // 20594
+            FStateClMainSeam.SendGetBackDeleteChr(FStateMShareSeam.g_SelDeleteHumanInfo_sChrName); // 20595
+    }
+
+    /// <summary>
+    /// FState.pas:24917-24922 procedure TFrmDlg.DCustomButtonClick。
+    /// 原文只在 Sender **是** `TDxImageButton` 时才发消息（`is` 判定 ⇒ 托管侧同义 `is`）。
+    /// </summary>
+    public virtual void DCustomButtonClick(object Sender, int X, int Y)
+    {
+        if (Sender is TDxImageButton)                       // 24919
+        {
+            FStateClMainSeam.SendClientMessage(
+                Grobal2Const.CM_CUSTOM_BUTTON_CLICK, ((TDxImageButton)Sender).Tag, 0, 0, 0, ""); // 24920
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20570-20575 procedure TFrmDlg.DDownHorseClick。
+    /// 判据 `(g_MySelf.m_btHorse in [1, 2]) and (g_MySelf.m_btDoubleHumHorse = 0)`；
+    /// **未判 g_MySelf 为 nil**（原文如此：未进场景时点这个按钮会 AV）。
+    /// </summary>
+    public virtual void DDownHorseClick(object Sender, int X, int Y)
+    {
+        if ((g_MySelf.m_btHorse == 1 || g_MySelf.m_btHorse == 2)     // 20572
+            && g_MySelf.m_btDoubleHumHorse == 0)
+        {
+            FStateClMainSeam.TakeHorse(g_MySelf);           // 20573（原文 g_MySelf.TakeHorse）
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:18842-18845 procedure TFrmDlg.DBotHorseClick。
+    /// 原文**无条件** `g_MySelf.TakeHorse;`（同样未判 nil，原文如此）。
+    /// </summary>
+    public virtual void DBotHorseClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.TakeHorse(g_MySelf);               // 18844
+    }
+
+    // ==========================================================================================
+    // 切片 4：tick 守卫族（原文形态统一：一次比较 + 固定 +N 重装 + 一次转发）
+    //
+    // 这一族是**可完整断言**的：时钟经 `FStateSeamClock.NowHandler` 注入，
+    // 于是 `>` 与 `>=`、以及 +3000 的重装窗口都能精确落点（不是靠真实时钟碰运气）。
+    // 原文全部使用**严格大于**，且重装写在**守卫体内**（不是体外）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:17874-17881 procedure TFrmDlg.DGDHomeClick。
+    /// 守卫 `MyGetTickCount &gt; g_dwQueryMsgTick`（**严格大于**）→ 重装 `+ 3000` →
+    /// 转 `frmMain.SendGuildHome` → **守卫体内**置 `BoGuildChat := False`。
+    /// </summary>
+    public virtual void DGDHomeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17876
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17877
+            FStateClMainSeam.SendGuildHome();           // 17878
+            BoGuildChat = false;                        // 17879
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17883-17890 procedure TFrmDlg.DGDListClick。
+    /// 与 DGDHomeClick 同形，转发目标换成 `frmMain.SendGuildMemberList`。
+    /// </summary>
+    public virtual void DGDListClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 17885
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 17886
+            FStateClMainSeam.SendGuildMemberList();     // 17887
+            BoGuildChat = false;                        // 17888
+        }
+    }
+
+    // ==========================================================================================
+    // 18832-18896  排行榜/好友/商铺入口（转发）
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:20565-20568 procedure TFrmDlg.DBotUserShopClick。
+    /// 原文 `OpenDGameShopDlg;` —— 被调方法有默认参 `IsCheckTime:Boolean = True`（原文声明 946），
+    /// 故托管侧同样**不传参**（等价于传 true）。
+    /// </summary>
+    public virtual void DBotUserShopClick(object Sender, int X, int Y)
+    {
+        OpenDGameShopDlg();                                 // 20567
+    }
+
+    /// <summary>FState.pas:18883-18886 procedure TFrmDlg.DBotRankingClick（转 `OpenDRankingDlg`）。</summary>
+    public virtual void DBotRankingClick(object Sender, int X, int Y)
+    {
+        OpenDRankingDlg();                                  // 18885
+    }
+
+    /// <summary>
+    /// FState.pas:18893-18896 procedure TFrmDlg.DBotFriendClick。
+    /// 原文写的是 `OpenDFriendDlg();`（**带空括号**，与 `DBotRankClick` 的无括号写法不同；原文如此）。
+    /// </summary>
+    public virtual void DBotFriendClick(object Sender, int X, int Y)
+    {
+        OpenDFriendDlg();                                   // 18895
+    }
+
+    // ==========================================================================================
+    // 切片 5：交易 / 挑战的"守卫 + 转发"族
+    //
+    // 与切片 4 同源，但守卫用的是**各自**的动作时间戳，且 `*ZeroGold` 两条多一个 `not *End` 前置判据。
+    // 全部可完整断言（时钟注入）。
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:18912-18918 procedure TFrmDlg.DBotTradeClick。
+    /// 守卫 `Now &gt; g_dwQueryMsgTick` → 重装 `+3000` → 转 `frmMain.SendDealTry`。
+    /// </summary>
+    public virtual void DBotTradeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18914
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18915
+            FStateClMainSeam.SendDealTry();             // 18916
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:18904-18910 procedure TFrmDlg.BotChallengeClick（注意：原文**无 D 前缀**）。
+    /// 与 DBotTradeClick 同形，转发 `frmMain.SendChallengeTry`。
+    /// </summary>
+    public virtual void BotChallengeClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwQueryMsgTick)   // 18906
+        {
+            FStateMShareSeam.g_dwQueryMsgTick = FStateSeamClock.Now + 3000;   // 18907
+            FStateClMainSeam.SendChallengeTry();        // 18908
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17533-17539 procedure TFrmDlg.DDealCloseClick。
+    /// 守卫 `Now &gt; g_dwDealActionTick` → 关交易对话框 → 转 `frmMain.SendCancelDeal`；
+    /// **不动** g_dwDealActionTick（原文如此：这里不重装，重装在 DealZeroGold）。
+    /// </summary>
+    public virtual void DDealCloseClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwDealActionTick)   // 17535
+        {
+            CloseDDealDlg();                            // 17536
+            FStateClMainSeam.SendCancelDeal();          // 17537
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:17746-17752 procedure TFrmDlg.DealZeroGold。
+    /// 前置判据 `not g_boDealEnd and (g_nDealGold &gt; 0)`（**两个都成立才**）→
+    /// 重装 `g_dwDealActionTick := Now + 4000` → 转 `frmMain.SendChangeDealGold(0)`。
+    /// </summary>
+    public virtual void DealZeroGold()
+    {
+        if (!FStateMShareSeam.g_boDealEnd && FStateMShareSeam.g_nDealGold > 0)   // 17748
+        {
+            FStateMShareSeam.g_dwDealActionTick = FStateSeamClock.Now + 4000;   // 17749
+            FStateClMainSeam.SendChangeDealGold(0);     // 17750
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20813-20819 procedure TFrmDlg.DChallengeCloseClick。
+    /// 与 DDealCloseClick 同形，守卫用 `g_dwChallengeActionTick`，转 `frmMain.SendCancelChallenge`。
+    /// </summary>
+    public virtual void DChallengeCloseClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now > FStateMShareSeam.g_dwChallengeActionTick)   // 20815
+        {
+            CloseDChallengeDlg();                       // 20816
+            FStateClMainSeam.SendCancelChallenge();     // 20817
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:20789-20795 procedure TFrmDlg.ChallengeZeroGold。
+    /// 与 DealZeroGold 同形（挑战侧的镜像），重装 `+4000`，转 `SendChangeChallengeGold(0)`。
+    /// </summary>
+    public virtual void ChallengeZeroGold()
+    {
+        if (!FStateMShareSeam.g_boChallengeEnd && FStateMShareSeam.g_nChallengeGold > 0)   // 20791
+        {
+            FStateMShareSeam.g_dwChallengeActionTick = FStateSeamClock.Now + 4000;   // 20792
+            FStateClMainSeam.SendChangeChallengeGold(0);    // 20793
+        }
+    }
+
+    // ==========================================================================================
+    // 切片 6：帮助按钮节流 + 更新状态框重连
+    // ==========================================================================================
+
+    /// <summary>
+    /// FState.pas:21054-21060 procedure TFrmDlg.DControlHelpClick。
+    /// 与切片 4/5 的守卫族**不同**：判据是**差**而不是**序**——
+    /// `MyGetTickCount - dwControlHelpCickTick &gt; 1000`（**严格大于 1000**），
+    /// 命中后把 `dwControlHelpCickTick := MyGetTickCount`（**赋当前值，不是 +1000**）。
+    /// 注意 `dwControlHelpCickTick` 是**本单元字段**（原文 486），故本条无接缝依赖。
+    /// 无符号减法：原文 `LongWord - LongWord`，托管侧同为 `uint` 差，回绕语义一致。
+    /// </summary>
+    public virtual void DControlHelpClick(object Sender, int X, int Y)
+    {
+        if (FStateSeamClock.Now - dwControlHelpCickTick > 1000)     // 21056
+        {
+            dwControlHelpCickTick = FStateSeamClock.Now;            // 21057
+            FStateClMainSeam.SendClientMessage(Grobal2Const.CM_HELPBUTTONCLICK, 0, 0, 0, 0, ""); // 21058
+        }
+    }
+
+    /// <summary>
+    /// FState.pas:24469-24472 procedure TFrmDlg.DUpdateStatusDlgDblClick。
+    /// 原文只转发 `FrmMain.ReConnectClientSocketGate`（双击更新状态框 = 重连网关）。
+    /// </summary>
+    public virtual void DUpdateStatusDlgDblClick(object Sender, int X, int Y)
+    {
+        FStateClMainSeam.ReConnectClientSocketGate();       // 24471
+    }
 }
 
 /// <summary>
@@ -584,8 +843,56 @@ public static class TFrmDlgPortLedger
         new PortedMember("DLieDragonNpcCloseClick",    "24311-24314"),
     };
 
+    /// <summary>
+    /// 切片 3 落地的成员（6 条）：B-2（frmMain 接缝）授权后解锁的四条 + 骑马两条。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice3 = new[]
+    {
+        new PortedMember("DBotHorseClick",             "18842-18845"),
+        new PortedMember("DDownHorseClick",            "20570-20575"),
+        new PortedMember("DWebClick",                  "20577-20580"),
+        new PortedMember("DActionLogClick",            "20582-20585"),
+        new PortedMember("DGetBackDeleteHumanClick",   "20592-20596"),
+        new PortedMember("DCustomButtonClick",         "24917-24922"),
+    };
+
+    /// <summary>
+    /// 切片 4 落地的成员（5 条）：tick 守卫族两条 + 商铺/排行/好友入口三条。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice4 = new[]
+    {
+        new PortedMember("DGDHomeClick",               "17874-17881"),
+        new PortedMember("DGDListClick",               "17883-17890"),
+        new PortedMember("DBotRankingClick",           "18883-18886"),
+        new PortedMember("DBotFriendClick",            "18893-18896"),
+        new PortedMember("DBotUserShopClick",          "20565-20568"),
+    };
+
+    /// <summary>
+    /// 切片 5 落地的成员（6 条）：交易/挑战的"守卫 + 转发"族。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice5 = new[]
+    {
+        new PortedMember("DDealCloseClick",            "17533-17539"),
+        new PortedMember("DealZeroGold",               "17746-17752"),
+        new PortedMember("BotChallengeClick",          "18904-18910"),
+        new PortedMember("DBotTradeClick",             "18912-18918"),
+        new PortedMember("ChallengeZeroGold",          "20789-20795"),
+        new PortedMember("DChallengeCloseClick",       "20813-20819"),
+    };
+
+    /// <summary>
+    /// 切片 6 落地的成员（2 条）：帮助按钮节流 + 更新状态框重连。
+    /// </summary>
+    public static readonly IReadOnlyList<PortedMember> Slice6 = new[]
+    {
+        new PortedMember("DControlHelpClick",          "21054-21060"),
+        new PortedMember("DUpdateStatusDlgDblClick",   "24469-24472"),
+    };
+
     /// <summary>全部已登记切片（后继切片在这里追加）。</summary>
-    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices = new[] { Slice1, Slice2 };
+    public static readonly IReadOnlyList<IReadOnlyList<PortedMember>> AllSlices =
+        new[] { Slice1, Slice2, Slice3, Slice4, Slice5, Slice6 };
 
     /// <summary>切片 1 的真实现成员数。</summary>
     public static int Slice1Count => Slice1.Count;
@@ -593,8 +900,21 @@ public static class TFrmDlgPortLedger
     /// <summary>切片 2 的真实现成员数。</summary>
     public static int Slice2Count => Slice2.Count;
 
-    /// <summary>由本车道（p14）落地的成员总数（切片 1 + 切片 2）。</summary>
-    public static int LaneCount => Slice1.Count + Slice2.Count;
+    /// <summary>切片 3 的真实现成员数。</summary>
+    public static int Slice3Count => Slice3.Count;
+
+    /// <summary>切片 4 的真实现成员数。</summary>
+    public static int Slice4Count => Slice4.Count;
+
+    /// <summary>切片 5 的真实现成员数。</summary>
+    public static int Slice5Count => Slice5.Count;
+
+    /// <summary>切片 6 的真实现成员数。</summary>
+    public static int Slice6Count => Slice6.Count;
+
+    /// <summary>由本车道（p14）落地的成员总数（切片 1..6）。</summary>
+    public static int LaneCount =>
+        Slice1.Count + Slice2.Count + Slice3.Count + Slice4.Count + Slice5.Count + Slice6.Count;
 
     /// <summary>登记表中是否包含某成员（不区分大小写，Delphi 标识符本就大小写不敏感）。</summary>
     public static bool Contains(string name)
