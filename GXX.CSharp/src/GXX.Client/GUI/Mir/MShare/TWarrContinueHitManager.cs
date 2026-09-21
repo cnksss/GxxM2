@@ -13,7 +13,10 @@ namespace GXX.Client.GUI.Mir;
 //   两者是**不同实现**（M2 版 `CanOpenMagic` 有 `var MagicName:string` 出参），逐一对照，
 //   **不得互相改指、不得合并**（p12-e2only-review 已登记此风险）。
 //
-// 配置来源：`g_ClientConfig` 的三个字段经 `MShareWarrConfigSeam` 承载（见该文件的长注释与报告 CR-6）。
+// 配置来源：原文写的是 `g_ClientConfig`，但该标识符在 `MShare.pas` 全文**没有声明**
+//   （2180 行真正的声明是 `g_ConfigClient:TConfigClient;`）⇒ 语义上就是 `g_ConfigClient`。
+//   三个字段已按调度方 CR-6 裁定补进 `GUI/Mir/MirForms.cs::TConfigClient`，故此处**直读真身**。
+//   （切片3 曾用 `MShareWarrConfigSeam` 临时承载；切片B 已**退役**该 seam，见报告 §4.6 / §5.3。）
 //
 // 计数对账（本文件）：真实体 3 / NotPorted 0 / 原文如此 1 = 4。
 //   「原文如此」= `CanOpenMagic` 方法体被原文 `{...}` 整段注释（12003-12068）⇒ 实际只剩 `Result := True`。
@@ -81,7 +84,7 @@ public class TWarrContinueHitManager
         bool Result = true;
 
         // 原文 12079-12080：门 1 —— 未启用「禁用连击」直接放行
-        if (MShareWarrConfigSeam.boDisableWarrContinueHit == 0)
+        if (MShareGlobals.g_ConfigClient.boDisableWarrContinueHit == 0)
             return Result;
 
         // 原文 12082-12083：门 2 —— 从未用过连击技能直接放行
@@ -94,7 +97,7 @@ public class TWarrContinueHitManager
 
         // 原文 12087-12098：在受管技能表里找 MagicID（遇 0 即表尾）
         bool IsFound = false;
-        var arr = MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs;
+        var arr = MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs;
         for (int I = 0; I <= WarrIdCount - 1 /*High(ArrDisableWarrContinueHitIDs)*/ ; I++)
         {
             ushort TempID = arr[I];
@@ -112,7 +115,7 @@ public class TWarrContinueHitManager
         if (IsFound)
         {
             Result = MShareFunctions.tick_diff(FLastUseMagicTick, MShareGlobals.MyGetTickCount)
-                     >= MShareWarrConfigSeam.nWarrContinueHitMinInterval + 100;
+                     >= MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval + 100;
         }
 
         return Result;
@@ -125,7 +128,7 @@ public class TWarrContinueHitManager
     public void UseMagic(ushort MagicID)
     {
         bool IsFound = false;
-        var arr = MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs;
+        var arr = MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs;
         for (int I = 0; I <= WarrIdCount - 1 /*High(ArrDisableWarrContinueHitIDs)*/ ; I++)
         {
             ushort TempID = arr[I];

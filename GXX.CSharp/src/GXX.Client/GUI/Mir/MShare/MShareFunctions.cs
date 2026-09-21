@@ -2,6 +2,9 @@ using System;
 using System.Globalization;
 using GXX.Core.Protocol;
 using TShiftState = GXX.Client.GUI.Share.TShiftState;
+// TFontStyles 已由 GUI/Share 车道定义（FStateSeams.cs:440，Delphi Graphics.TFontStyles set of）；
+// 用别名引用以免与同时 using 两个命名空间的文件产生 CS0104（与 TShiftState 同样的处理）。
+using TFontStyles = GXX.Client.GUI.Share.TFontStyles;
 
 namespace GXX.Client.GUI.Mir;
 
@@ -631,4 +634,110 @@ public static unsafe class MShareFunctions
     /// <summary>HUtil32.pas `GetValidStr3_Ex`：按分隔符切出第一段到 <paramref name="dest"/>，返回剩余串。</summary>
     private static string GetValidStr3_Ex(string str, ref string dest, char divider)
         => GXX.Core.Util.HUtil32.GetValidStr3_Ex(str, ref dest, divider);
+
+    // ================================================================================
+    // 【P17 切片C · hint 字体族 7 条】原文 11703-11760
+    //
+    // 全部只读 `g_ClientConfig` 的 7 个字段（切片A 已补进 MirForms.TConfigClient）。
+    // ⚠ 原文写的是 `g_ClientConfig`，而 `MShare.pas:2180` 真正的声明是 `g_ConfigClient`
+    //   （`g_ClientConfig` 全文无声明）⇒ 语义上就是 `MShareGlobals.g_ConfigClient`。见 P17-DEF-04。
+    //
+    // 【与既有 seam 的关系】`GUI/Share/FStateSeams.cs::MShareHintFont`（**不在本车道分区**）
+    //   目前以「可注入 + 默认值兜底」承载了其中 3 条（`GetHintFontSize`/`GetHintFontStyle`/`GetHintFontStroke`，
+    //   兜底值 9 / 原样 / 原样）。**真身在此落地**；seam 的退役与改指由集成方执行，
+    //   退役清单与**语义差异**见报告 §5.3。
+    // ================================================================================
+
+    /// <summary>
+    /// MShare.pas:11703 `function GetHintNameFontName:string`：
+    /// `Result := g_ClientConfig.sShowHintFontName;`
+    /// </summary>
+    public static string GetHintNameFontName() => MShareGlobals.g_ConfigClient.ShowHintFontName;
+
+    /// <summary>
+    /// MShare.pas:11708 `function GetHintNameFontSize:Integer`：
+    /// `Result := g_ClientConfig.btShowHintNameFontSize;`
+    /// </summary>
+    public static int GetHintNameFontSize() => MShareGlobals.g_ConfigClient.btShowHintNameFontSize;
+
+    /// <summary>
+    /// MShare.pas:11713 `function GetHintNameFontStyle(FontStyles:TFontStyles):TFontStyles`。
+    /// `case` **无 `else`** ⇒ 值不在 0/1/2 时 Result 保持 Delphi 的**默认空集** `[]`
+    /// （托管侧即 `TFontStyles.fsNone`，**不是**入参 `FontStyles`）—— 这点必须照抄，已用用例锁死。
+    /// </summary>
+    public static TFontStyles GetHintNameFontStyle(TFontStyles FontStyles)
+    {
+        TFontStyles Result = TFontStyles.fsNone;
+        switch (MShareGlobals.g_ConfigClient.btShowHintNameFontBold)
+        {
+            case 0:
+                Result = FontStyles;
+                break;
+            case 1:
+                Result = TFontStyles.fsNone;
+                break;
+            case 2:
+                Result = TFontStyles.fsBold;
+                break;
+        }
+        return Result;
+    }
+
+    /// <summary>
+    /// MShare.pas:11725 `function GetHintNameFontStroke(IsStroke:Boolean = False):Boolean`。
+    /// 三个具名分支 + `else Result := False`（原文 11731，**HZQ 20230524 加的**）。
+    /// </summary>
+    public static bool GetHintNameFontStroke(bool IsStroke = false)
+    {
+        switch (MShareGlobals.g_ConfigClient.btShowHintNameFontStroke)
+        {
+            case 0: return IsStroke;
+            case 1: return false;
+            case 2: return true;
+            default: return false; //HZQ 20230524
+        }
+    }
+
+    /// <summary>
+    /// MShare.pas:11735 `function GetHintFontSize:Integer`：
+    /// `Result := g_ClientConfig.btShowHintOtherFontSize;`
+    /// </summary>
+    public static int GetHintFontSize() => MShareGlobals.g_ConfigClient.btShowHintOtherFontSize;
+
+    /// <summary>
+    /// MShare.pas:11740 `function GetHintFontStyle(FontStyles:TFontStyles):TFontStyles`。
+    /// 与 `GetHintNameFontStyle` 同构（只是读 `btShowHintOtherFontBold`），同样**无 `else`**。
+    /// </summary>
+    public static TFontStyles GetHintFontStyle(TFontStyles FontStyles)
+    {
+        TFontStyles Result = TFontStyles.fsNone;
+        switch (MShareGlobals.g_ConfigClient.btShowHintOtherFontBold)
+        {
+            case 0:
+                Result = FontStyles;
+                break;
+            case 1:
+                Result = TFontStyles.fsNone;
+                break;
+            case 2:
+                Result = TFontStyles.fsBold;
+                break;
+        }
+        return Result;
+    }
+
+    /// <summary>
+    /// MShare.pas:11752 `function GetHintFontStroke(IsStroke:Boolean = False):Boolean`。
+    /// 与 `GetHintNameFontStroke` 同构（只是读 `btShowHintOtherFontStroke`）。
+    /// </summary>
+    public static bool GetHintFontStroke(bool IsStroke = false)
+    {
+        switch (MShareGlobals.g_ConfigClient.btShowHintOtherFontStroke)
+        {
+            case 0: return IsStroke;
+            case 1: return false;
+            case 2: return true;
+            default: return false; //HZQ 20230524
+        }
+    }
 }

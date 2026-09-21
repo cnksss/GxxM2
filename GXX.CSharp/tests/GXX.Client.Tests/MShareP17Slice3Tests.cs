@@ -23,26 +23,25 @@ public class MShareWarrContinueHitManagerP17Tests
     public MShareWarrContinueHitManagerP17Tests()
     {
         MShareGlobalsReset.ResetForTests();
-        MShareWarrConfigSeam.ResetForTests();
     }
 
     /// <summary>
-    /// 清场并把受管技能表设成 `ids`（原文 `ArrDisableWarrContinueHitIDs`，0 = 表尾）。
+    /// 清场并把受管技能表设成 `ids`（原文 `g_ClientConfig.ArrDisableWarrContinueHitIDs`，0 = 表尾）。
     /// ⚠ 内含重置 ⇒ **必须在设置开关/间隔之前**调用。
     /// </summary>
     private static void SetWarrIds(params ushort[] ids)
     {
-        MShareWarrConfigSeam.ResetForTests();
+        MShareGlobalsReset.ResetForTests();
         for (int i = 0; i < ids.Length && i < 10; i++)
-            MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs[i] = ids[i];
+            MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs[i] = ids[i];
     }
 
     /// <summary>正确顺序的封装：先清场播种，再设开关与间隔。</summary>
     private static void ConfigureWarr(ushort[] ids, bool disableSwitch, uint minInterval)
     {
         SetWarrIds(ids);
-        MShareWarrConfigSeam.boDisableWarrContinueHit = disableSwitch ? (byte)1 : (byte)0;
-        MShareWarrConfigSeam.nWarrContinueHitMinInterval = minInterval;
+        MShareGlobals.g_ConfigClient.boDisableWarrContinueHit = disableSwitch ? (byte)1 : (byte)0;
+        MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval = minInterval;
     }
 
     // ------------------------------------------------------------------------------------
@@ -63,27 +62,27 @@ public class MShareWarrContinueHitManagerP17Tests
     // ------------------------------------------------------------------------------------
 
     [Fact]
-    public void ConfigureWarr_ActuallyLandsOnTheSeam()
+    public void ConfigureWarr_ActuallyLandsOnTheConfigClient()
     {
         ConfigureWarr(new ushort[] { 12, 25 }, disableSwitch: true, minInterval: 500);
 
-        Assert.Equal(1, MShareWarrConfigSeam.boDisableWarrContinueHit);
-        Assert.Equal(500u, MShareWarrConfigSeam.nWarrContinueHitMinInterval);
-        Assert.Equal(12, MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs[0]);
-        Assert.Equal(25, MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs[1]);
-        Assert.Equal(0, MShareWarrConfigSeam.ArrDisableWarrContinueHitIDs[2]);
+        Assert.Equal(1, MShareGlobals.g_ConfigClient.boDisableWarrContinueHit);
+        Assert.Equal(500u, MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval);
+        Assert.Equal(12, MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs[0]);
+        Assert.Equal(25, MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs[1]);
+        Assert.Equal(0, MShareGlobals.g_ConfigClient.ArrDisableWarrContinueHitIDs[2]);
     }
 
     [Fact]
     public void SetWarrIds_ResetsTheSwitchAndInterval_SoOrderMatters()
     {
         // 反面锁死：先设开关、再 SetWarrIds ⇒ 开关被抹回 0（这就是本轮两个用例假红的根因）
-        MShareWarrConfigSeam.boDisableWarrContinueHit = 1;
-        MShareWarrConfigSeam.nWarrContinueHitMinInterval = 777;
+        MShareGlobals.g_ConfigClient.boDisableWarrContinueHit = 1;
+        MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval = 777;
         SetWarrIds(12);
 
-        Assert.Equal(0, MShareWarrConfigSeam.boDisableWarrContinueHit);
-        Assert.Equal(0u, MShareWarrConfigSeam.nWarrContinueHitMinInterval);
+        Assert.Equal(0, MShareGlobals.g_ConfigClient.boDisableWarrContinueHit);
+        Assert.Equal(0u, MShareGlobals.g_ConfigClient.nWarrContinueHitMinInterval);
     }
 
     // ------------------------------------------------------------------------------------

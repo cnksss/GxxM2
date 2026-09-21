@@ -60,6 +60,109 @@ public sealed class TConfigClient
 
     /// <summary>MShare.pas boStateWindowsType：人物状态窗类型（0=1.76 传统样式）。</summary>
     public int boStateWindowsType;
+
+    // ================================================================================
+    // 【P17 切片A】TConfigClient 补字段（调度方 CR-6 裁定"准"并授权本车道改本文件）
+    //
+    // ⚠ 先说清一处**原文缺陷**（决定了我为什么按 Core 口径选类型）：
+    //   `MShare.pas` 里被读写的全局叫 **`g_ConfigClient`**（2180 行真正的声明：
+    //   `g_ConfigClient:TConfigClient;`），而 `TWarrContinueHitManager`(12004/12079/12101)
+    //   与 hint 字体族(11705-11754) 引用的是 **`g_ClientConfig`** ——
+    //   **`g_ClientConfig` 这个标识符在 `MShare.pas` 全文没有声明**（与 `boNextTime43Hit` 同类的悬空引用）。
+    //   ⇒ 原文那 11 处引用在原文里**根本编译不过**；语义上只能理解为"就是 g_ConfigClient"。
+    //   本车道据此把字段补到本类（原文类型就是本类所对的 `TConfigClient`），登记为 P17-DEF-04。
+    //
+    // 类型口径选择：**沿用 Core 口径**（`Grobal2.Types5.cs:49-55 / 341-343` 的同名字段类型）。
+    //   理由：① 这些字段在 Core 的 `TClientConfig` 里已有**同名同类型**的真身，
+    //         将来把 `MShareGlobals.g_ConfigClient` 收敛为 `GXX.Core.Protocol.TClientConfig` 是**机械替换**；
+    //        ② 本类既有约定就是 Delphi `Boolean` → `byte`（见上方 `boShow1024` 等字段）。
+    //   逐字段对照见报告 §4.6。
+    // ================================================================================
+
+    // ---------------- 连击三件套（MShare.pas:12004 / 12079 / 12101 / 12088 引用） ----------------
+
+    /// <summary>
+    /// `TWarrContinueHitManager` 门 1：`if not boDisableWarrContinueHit then Exit;`（原文 12079）。
+    /// 原文 `Boolean` ⇒ 本类既有约定 `byte`；与 `Grobal2.Types5.cs:341` 同名同类型。
+    /// </summary>
+    public byte boDisableWarrContinueHit;
+
+    /// <summary>
+    /// `tick_diff(...) >= nWarrContinueHitMinInterval + 100`（原文 12101）。
+    /// Core 口径 `uint`（`Grobal2.Types5.cs:342`）。**为什么不用原文的 `Integer`**：
+    /// 该值与 `tick_diff` 的 `Cardinal` 结果直接比较，原文里 `Integer + 100` 会被隐式转成
+    /// `Int64`/`Cardinal` 混合比较；用 `uint` 可让 `>=` 的运算符语义与 `tick_diff` 的
+    /// 无符号回绕语义一致，且与 Core 真身逐字对齐。已用边界用例锁死（含回绕侧）。
+    /// </summary>
+    public uint nWarrContinueHitMinInterval;
+
+    /// <summary>
+    /// 受管技能 ID 表（原文 12010/12088/12112 三处扫描；元素 0 = 表尾）。
+    /// Core 口径 `WordArray10`（`Grobal2.Types4.cs:40` 的 `[InlineArray(10)]`，= `array[0..9] of Word`）。
+    /// </summary>
+    public WordArray10 ArrDisableWarrContinueHitIDs;
+
+    // ---------------- hint 字体族（MShare.pas:11705 / 11710 / 11715 / 11727 / 11737 / 11742 / 11754 引用） ----------------
+
+    /// <summary>
+    /// `GetHintNameFontName` 的读取源（原文 11705）。
+    /// 定长短串 `array[0..20] of AnsiChar`（= Core `sShowHintFontName[21]`，`string[20]`）。
+    /// ⚠ 本类是 **class**，C# 不允许 `fixed` 定长缓冲区做 class 成员（CS1642），
+    /// 故用嵌套 `[InlineArray(21)]` 结构 <see cref="HintFontNameBuffer"/> 承载；
+    /// 访问器 <see cref="ShowHintFontName"/> 与 Core 的 `Grobal2.Types5.cs:372` 同语义（长度 20）。
+    /// </summary>
+    public HintFontNameBuffer sShowHintFontName;
+
+    /// <summary>`GetHintNameFontSize` 的读取源（原文 11710）⇒ Core `Grobal2.Types5.cs:50` 同名同类型。</summary>
+    public byte btShowHintNameFontSize;
+
+    /// <summary>`GetHintNameFontStyle` 的 `case` 判据（原文 11715）⇒ Core `:51` 同名同类型。</summary>
+    public byte btShowHintNameFontBold;
+
+    /// <summary>`GetHintNameFontStroke` 的 `case` 判据（原文 11727）⇒ Core `:52` 同名同类型。</summary>
+    public byte btShowHintNameFontStroke;
+
+    /// <summary>`GetHintFontSize` 的读取源（原文 11737）⇒ Core `:53` 同名同类型。</summary>
+    public byte btShowHintOtherFontSize;
+
+    /// <summary>`GetHintFontStyle` 的 `case` 判据（原文 11742）⇒ Core `:54` 同名同类型。</summary>
+    public byte btShowHintOtherFontBold;
+
+    /// <summary>`GetHintFontStroke` 的 `case` 判据（原文 11754）⇒ Core `:55` 同名同类型。</summary>
+    public byte btShowHintOtherFontStroke;
+
+    /// <summary>
+    /// `sShowHintFontName` 的短串访问器（长度 20，与 Core `Grobal2.Types5.cs:372 ShowHintFontName` 同语义）。
+    /// `GetHintNameFontName`（原文 11703-11706）直接返回它。
+    ///
+    /// 实现说明：`sShowHintFontName` 是 `[InlineArray]` 结构（非 `fixed` 字段），不能直接用于
+    /// `fixed (byte* p = ...)`（CS8385）；用 `Unsafe.As` 取首元素引用后取地址（等价于 Core 在 struct 上
+    /// 用 `fixed` 的同一份内存，语义一致）。
+    /// </summary>
+    public unsafe string ShowHintFontName
+    {
+        get
+        {
+            ref byte r = ref System.Runtime.CompilerServices.Unsafe.As<HintFontNameBuffer, byte>(ref sShowHintFontName);
+            fixed (byte* p = &r) return ShortStr.Get(p, 20);
+        }
+        set
+        {
+            ref byte r = ref System.Runtime.CompilerServices.Unsafe.As<HintFontNameBuffer, byte>(ref sShowHintFontName);
+            fixed (byte* p = &r) ShortStr.Set(p, 20, value);
+        }
+    }
+}
+
+/// <summary>
+/// 定长 21 字节缓冲（MShare.pas `sShowHintFontName:array[0..20] of AnsiChar`，即 `string[20]`）。
+/// 用 `[InlineArray]` 而非 `fixed`：`fixed` 缓冲区不能做 **class** 的成员（CS1642），
+/// 而 `TConfigClient` 是 class。与 `Grobal2.Types4.cs:40 WordArray10` 同构。
+/// </summary>
+[System.Runtime.CompilerServices.InlineArray(21)]
+public struct HintFontNameBuffer
+{
+    private byte _e0;
 }
 
 /// <summary>SDK.pas:324 SCREENWIDTH/SCREENHEIGHT（默认 1024；ClMain 初始化时赋 g_nScreenWidth）。</summary>
