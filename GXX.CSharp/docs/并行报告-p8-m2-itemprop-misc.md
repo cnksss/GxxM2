@@ -1,16 +1,19 @@
 # 并行报告 — 车道 `p8-m2-itemprop-misc`
 
-> 目标：清扫三个剩余整单元（派发优先级 1→3）
+> 目标：清扫三个剩余整单元（派发优先级 1→3）+ **第二轮：调度方批准的四条请求（#1–#4）落地**
 >
 > | 优先 | 源 | 实测行数 | 结论 |
 > |---|---|---|---|
 > | 1 | `Source/M2Engine/Forms/uFrmCustomItemProperty.pas` | 498 | **全树 1:1 完成** |
 > | 2 | `Source/M2Engine/SellPlayer.pas` | 307 | **全类 1:1 完成** |
 > | 3 | `Source/Common/EncodingHelper.pas` | 206 | **全单元 1:1 完成** |
+> | 追加 | `Source/M2Engine/StringListHelper.pas`（请求 #4 授权） | 53 | **全单元 1:1 完成**（`EncodingHelper` 的首个生产调用方） |
 >
 > 工作树：`D:\chuanqi\daima\GXX原版_Delphi7\.worktrees\p8-m2-itemprop-misc`（分支 `par/p8-m2-itemprop-misc`）
 > 基线：`64e4e1d1`（本车道开工时的 HEAD）
-> 状态：**三单元全部完成；门禁全绿**（build 0 error；`GXX.M2Server.Tests` 8531 例、`GXX.Core.Tests` 890 例，失败 0）
+> 状态：**四单元全部完成 + 四条请求全部落地；门禁全绿**
+> （build 0 error；`GXX.M2Server.Tests` **8560** 例、`GXX.Core.Tests` **953** 例，失败 0）
+> 第二轮细节见 **§11**（含一条**新发现的原文数据相关缺陷**：GBK『值』被误判为无 BOM UTF-8）。
 
 ---
 
@@ -21,13 +24,18 @@
 | 1 | `c8ce509e` | 并行批次P8-1：`uFrmCustomItemProperty.pas` 窗体全树 1:1（接缝层 + 纯逻辑 + 窗体；91 例测试） |
 | 2 | `066936ef` | 并行批次P8-2：`SellPlayer.pas` `TSellPlayerList` 全类 1:1（含 ShortStr 字节截断 / 二分插入位 / INI 往返 / AutoLoad；78 例测试） |
 | 3 | `e6b06b1b` | 并行批次P8-3：`EncodingHelper.pas` 1:1（BOM/UTF-16 嗅探逐分支；53 例含差异断言） |
-| 4 | 本报告提交 | `docs/并行报告-p8-m2-itemprop-misc.md`（紧随 `e6b06b1b`；不含自身 hash 以免自引用） |
+| 4 | `9873dd99` | 并行批次P8-4：本报告（第一轮） |
+| 5 | `3f71fdf9` | **P8-5（请求 #1）**：`g_SellPlayerList` 由 `List<string>+SearchSellPlayer` 改为 `TSellPlayerList`（原文 `M2Share.pas:8416`），同步 `ViewOnlineHumanForm` 与两处测试 —— 由**调度方**在车道被宿主杀死后代提交；如实登记"车道被杀时工作树有 4 个未提交文件"这一流程事实 |
+| 6 | `38d5b6af` | **P8-6（请求 #2）**：`FastIniFile` 固定日期时间整体回收进 `GXX.Core`（`ReadFixedDateTime/WriteFixedDateTime` + `TIniFixedDateTime`），`SellPlayerIni` 降级为纯转调 |
+| 7 | `032a3e44` | **P8-7（请求 #3）**：`TStringList` 补 `Text`（`TStrings.GetTextStr/SetTextStr`）+ `DefaultEncoding/SetEncoding/GetEncoding/LineBreak` + `LoadFrom/SaveTo` 编码嗅探；`CustomItemPropertyLogic` 降级为纯转调、窗体改回 1:1 的 `.Text` |
+| 8 | `ae414926` | **P8-8（请求 #4）**：`StringListHelper.pas`（53 行）1:1 移植 + `TFastIniFile.Load` 接入 `GetBufferEncoding`；锁定新发现的原文缺陷（GBK『值』`D6 B5` 被误判为无 BOM UTF-8） |
+| 9 | 本报告第二轮提交 | `docs/并行报告-p8-m2-itemprop-misc.md` §11 追加（不含自身 hash 以免自引用） |
 
-**切片粒度**：3 个切片各自独立提交，**未攒批**；每个切片提交前都跑过 `GXX.M2Server.Tests` 全量（P8-3 跑的是 `GXX.Core.Tests` 全量）。
-最终 HEAD 的全部改动路径都落在独占区内（`Forms/ItemProperty/**`、`Misc/SellPlayer*.cs`、`Core/Encoding/**`、
-`tests/.../{ItemProperty*,SellPlayer*}`、`tests/GXX.Core.Tests/EncodingHelper*`、本报告）——**未越区**。
+**切片粒度**：第一轮 3 个切片 + 第二轮 4 个切片，**每片独立提交、未攒批**；每片提交前都跑过 build + 两个测试工程全量。
 
-`git diff --stat 64e4e1d1 HEAD`：**11 个文件、+4,517 行（全部为新增，无任何既有文件被修改）**。
+`git diff --stat 64e4e1d1`（第二轮结束时）：**20 个文件；新增 15 个、修改 5 个（+6,542 / −26 行）**。
+修改的 5 个既有文件**全部是调度方明确授权**的（`M2ShareFuncs.cs` / `ViewOnlineHumanForm.cs` / `FormViewOnlineHumanTests.cs`（请求 #1）、
+`GXX.Core/Util/FastIniFile.cs` / `GXX.Core/Util/TStringList.cs`（请求 #2/#3））；其余 15 个全为新建（含本报告）。
 
 ---
 
@@ -111,22 +119,36 @@
 
 ## 4. 测试用例数 + build/test 结果
 
+### 4.1 最终（第二轮结束时，HEAD = `ae414926` + 本报告）
+
 | 门禁 | 结果 |
 |---|---|
 | `dotnet build GXX.slnx -c Debug` | **0 Error**（158 既有 warning，均为他方文件既有告警） |
-| `dotnet test tests/GXX.M2Server.Tests` | **Passed! Failed: 0, Passed: 8531, Total: 8531** |
-| `dotnet test tests/GXX.Core.Tests` | **Passed! Failed: 0, Passed: 890, Total: 890** |
+| `dotnet test tests/GXX.M2Server.Tests` | **Passed! Failed: 0, Passed: 8560, Total: 8560** |
+| `dotnet test tests/GXX.Core.Tests` | **Passed! Failed: 0, Passed: 953, Total: 953** |
 
 - 基线实测（本工作树开工时先跑）：`GXX.M2Server.Tests` = **8,362**（派发单写 8,344，以实测为准）、`GXX.Core.Tests` = **837**。
-- 新增：`+91`（`ItemProperty*`：33 + 58）+ `+78`（`SellPlayer*`）= **+169** → 8,362 + 169 = **8,531** ✅；
-  `+53`（`EncodingHelper*`）→ 837 + 53 = **890** ✅。
-- **无新增失败、无跳过、无"偶发豁免"**（全量各跑一次全绿）。
+- 用例增量逐笔：
+  - 第一轮 **+169**：`ItemProperty*` 91（33 逻辑/接缝 + 58 窗体）+ `SellPlayer*` 78 → 8,531；
+  - 请求 #1 **+3**（`g_SellPlayerList` 类型锁）→ 8,534（= 调度方代提交时的实测数）；
+  - 请求 #2 **+7**（`SellPlayerIni` 纯转调核验）→ 8,541；Core `+24`（`TIniFixedDateTime` / `FastIniFile` 固定日期时间）→ 914；
+  - 请求 #3 **+0**（M2Server 侧无新增；`CustomItemPropertyLogic` 语义由既有 10 例继续锁定）+ Core `+30`（`TStringList.Text` / 编码状态 / `LoadFromFile`/`SaveToFile` 嗅探）→ 944（**注**：请求 #3 的 M2Server 侧是"降级为转调 + 窗体改 `.Text`"，**复用既有断言**，未新增用例）；
+  - 请求 #4 **+19**（`StringListHelper*`）+ Core `+9`（`TFastIniFile.Load` 嗅探 + 原文缺陷锁定）→ **8,560 / 953** ✅。
+- **无新增失败、无跳过、无"偶发豁免"**；每个切片提交前都跑过全量。
+
+### 4.2 第一轮基线快照（保留备查）
+
+| 门禁 | 结果 |
+|---|---|
+| `dotnet test tests/GXX.M2Server.Tests` | Passed! Failed: 0, Passed: 8531, Total: 8531 |
+| `dotnet test tests/GXX.Core.Tests` | Passed! Failed: 0, Passed: 890, Total: 890 |
 
 每个公开方法的用例数（最少 3 例）抽样：
 `ShowFrmCustomItemProperty` 5、`FormCreate` 6、`btnOKClick` 10、`btnOK2Click` 8、`chk01Click/edtShowName01Change/mmoVarChange` 各 2–3、
 `mmoVarKeyUp/mmoVarMouseDown` 各 4（Theory 3 + 参数忽略 1）、`Search` 7、`AddSellPlayer` 4、`DeletePlayer(Ex)` 6、
 `LoadConfig` 9、`SaveConfig` 5、`AutoLoadSellPlayer` 7、`GetBufferEncoding` 20、`IsBufferUTF8` 16、`NoBomUTF8` 7、
-`ReadFixedDateTime` 7、`WriteFixedDateTime/FormatFixedDateTime` 4、`StrToDateDef/StrToTimeDef` 6。
+`ReadFixedDateTime` 7、`WriteFixedDateTime/FormatFixedDateTime` 4、`StrToDateDef/StrToTimeDef` 6、
+`TStringList.Text` 14、`LoadFromFile/LoadFromStream` 18（helper 12 + RTL 版 6）。
 
 ---
 
@@ -164,28 +186,33 @@
 | G | `FastIniFile.pas:2077-2085` | Delphi `TFastIniFile.Destroy` → `FlushBuffers`（自动落盘）；而 `GXX.Core.Util.TFastIniFile.Dispose()` 是**空实现** | `SaveConfig` 里显式 `UpdateFile()`（偏离 D-P8-3），并向 GXX.Core 提越区请求（§6） |
 | H | `uFrmCustomItemProperty.pas:437-438` | `Config.WriteBool` 写 `'1'/'0'`（`TCustomIniFile` 约定），**不是** `BoolToStr` 的 `'-1'/'0'` | 用 `TFastIniFile.WriteBool`（既有实现已是 `'1'/'0'`）+ 用例断言 `ReadInteger(...)==1` |
 
-### 5.3 跨模块不一致（**发现但未擅改**）
+### 5.3 跨模块不一致（**第一轮：发现但未擅改** —— 第二轮已全部获授权落地，状态见行尾）
 
 1. **`M2ShareFuncs.cs:55-61` 的 `g_SellPlayerList` 与原文类型不符（重要）**
    原文 `M2Share.pas:8416`：`g_SellPlayerList: TSellPlayerList;` —— **它就是本切片刚移植的 `TSellPlayerList`**。
    而托管侧现存的是 `public static readonly List<string> g_SellPlayerList` + `SearchSellPlayer(name, out index)`（`IndexOf` 语义）。
    Delphi 侧调用点是**二分查找 + 记录访问**：`UsrEngn.pas:1446/1523/1525/2328/2330-2332/2338/2340/2355/2837/2840-2841/2894/2896/2938`、
    `ViewOnlineHuman.pas:481`、`svMain.pas:663-667/1414/1636-1637/3180`（`LoadConfig`/`AutoLoadSellPlayer`/`SaveConfig`/`DeleteByIndex`/`AddSellPlayer`）。
-   **`List<string>` 无法表达 `Items[I]` 记录访问与 `DeleteByIndex`，属"接缝臆造"型偏差** → 见 §6 越区请求 #1。
+   **`List<string>` 无法表达 `Items[I]` 记录访问与 `DeleteByIndex`，属"接缝臆造"型偏差**
+   → 📌 **第二轮已修正**（请求 #1，commit `3f71fdf9`，见 §11.1）。
 
 2. **`GXX.Core.Util.TFastIniFile` 缺 `ReadFixedDateTime` / `WriteFixedDateTime`**（`FastIniFile.pas:2953-2971` / `:2985-2989`），
-   而 `SellPlayer.pas:216/:255` 必须用 → 本车道在 `SellPlayerSeams.SellPlayerIni` 里落地并登记越区请求 #2。
+   而 `SellPlayer.pas:216/:255` 必须用 → 本车道先在 `SellPlayerSeams.SellPlayerIni` 里落地
+   → 📌 **第二轮已回收进 `GXX.Core`**（请求 #2，commit `38d5b6af`，见 §11.2）。
 
 3. **`GXX.Core.Util.TStringList` 缺 `Text`（`TStrings.GetTextStr/SetTextStr`）**，而 `uFrmCustomItemProperty.pas:304/:472` 必须用 →
-   本车道在 `CustomItemPropertyLogic.GetTextStr/SetTextStr` 里落地并登记越区请求 #3。
+   本车道先在 `CustomItemPropertyLogic.GetTextStr/SetTextStr` 里落地
+   → 📌 **第二轮已补齐并降级为纯转调**（请求 #3，commit `032a3e44`，见 §11.3）。
 
 4. **`string[N]` 截断语义两车道不一致**：本车道按原文 **GBK 字节**截断（`SellPlayerShortStr.Trunc`）；
    p5-m2-custommagic 车道的 `CustomMagicShortStr.Trunc` 是**按字符**截断（`value[..maxLen]`），中文字符串下与 Delphi 不同。
-   未擅改他方文件，仅登记（`SellPlayer.cs` 文件头已注明）。
+   未擅改他方文件，仅登记（`SellPlayer.cs` 文件头已注明）。**第二轮未处理（不在批准范围）。**
 
-5. **`EncodingHelper` 目前**零** C# 调用点**：其真实消费者是 `StringListHelper.pas:45`（**53 行，尚未移植**）
+5. **`EncodingHelper` 曾**零** C# 调用点**：其真实消费者是 `StringListHelper.pas:45`（**53 行，当时尚未移植**）
    与 `FastIniFile.pas:1771`（托管侧 `TFastIniFile.Load()` 用固定 GBK 读，**没有**无 BOM UTF-8 嗅探）。
-   即"无 BOM 的 UTF-8 文件"在 Delphi 下会被正确识别，在托管侧会被当 GBK 读 → 见 §6 越区请求 #4。
+   即"无 BOM 的 UTF-8 文件"在 Delphi 下会被正确识别，在托管侧会被当 GBK 读
+   → 📌 **第二轮已接线 + 已移植消费者**（请求 #4，commit `ae414926`，见 §11.4）；
+   ⚠ 同时暴露了**反方向**的原文缺陷（GBK 被误判为 UTF-8）→ 见 **§11.5**。
 
 ---
 
@@ -231,7 +258,11 @@
 **接线到真实现（非接缝）**：`Config` → `M2ShareState.ConfigIni`（`!Setup.txt` 的 TFastIniFile 镜像）；
 `MainOutMessage` → `GXX.M2Server.Engine.M2ServerLog.MainOutMessage`；`MyGetTickCount` → `DelphiRTL.GetTickCount`。
 
-### 6.2 越区请求（**精确 diff，请勿由本车道执行**）
+### 6.2 越区请求（**第一轮原始形态，保留为历史记录**）
+
+> ⚠ **本节四条请求已于第二轮全部获批并执行完毕**（授权：调度方 2026-09-20 追加分区）。
+> 执行结果、落地 commit 与新增偏离见 **§11**。下面保留第一轮的**原始请求文本与精确 diff**，
+> 作为"请求 → 批准 → 落地"链路的存档；**未执行者不要再照此改动**。
 
 **#1（高优先，语义级）`src/GXX.M2Server/Engine/M2ShareFuncs.cs`：`g_SellPlayerList` 类型错了**
 
@@ -372,6 +403,11 @@ git grep -l -E "(class|struct|enum|interface|delegate) +(partial +)?<TypeName>\b
 `Ci{Control,WinControl,Form,Label,CheckBox,Edit,Memo,Panel,Button,TabSheet,PageControl}Seam`、
 `TSellPlayerInfo`、`TSellPlayerList`、`SellPlayerGlobals`、`SellPlayerIni`、`SellPlayerShortStr`、
 `TOffLineData`、`TUTF8NoBomEncoding`、`TEncodingHelper` —— **全部为空结果**（可新增）。
+
+**第二轮追加检查**（同样全部为空结果）：`TIniFixedDateTime`、`TStringListHelper`、`StringListHelper`、
+`EncodingHelperCoreWiringTests`、`EncodingHelperWiringTests`。
+（`TStringListHelper` 是 Delphi 原地类型名，检查确认 main 上无同名托管类型 —— 可新增。）
+
 其中 `TControlSeam`/`TCheckBoxSeam`/`TEditSeam`… 在 `GXX.M2Server.Forms.CustomMagic.CustomMagicSeams.cs` 中**已存在**，
 故本车道的控件接缝**统一改用 `Ci` 前缀**（避免同文件 `using` 两个命名空间时的 CS0104）。
 
@@ -384,3 +420,193 @@ dotnet build GXX.slnx -c Debug --nologo
 dotnet test tests\GXX.M2Server.Tests\GXX.M2Server.Tests.csproj -c Debug --nologo
 dotnet test tests\GXX.Core.Tests\GXX.Core.Tests.csproj -c Debug --nologo
 ```
+
+---
+
+## 11. 第二轮交付 —— 调度方批准的四条请求（#1–#4）落地
+
+> 授权来源：调度方消息（2026-09-20）。四条请求**全部批准**，并把
+> `src/GXX.M2Server/Engine/M2ShareFuncs.cs`、`src/GXX.M2Server/Forms/ViewOnlineHumanForm.cs`、
+> `tests/GXX.M2Server.Tests/FormViewOnlineHumanTests.cs`、`src/GXX.Core/Util/FastIniFile.cs`、
+> `src/GXX.Core/Util/TStringList.cs`、`src/GXX.M2Server/Misc/StringListHelper*.cs` 及
+> 测试 `StringListHelper*` 追加进本车道分区。**均已在第二轮执行完毕并逐片提交。**
+
+### 11.1 请求 #1 —— `g_SellPlayerList` 类型错（接缝臆造修正）✅ 已落地
+
+**依据**：原文 `M2Share.pas:8416` <c>g_SellPlayerList: TSellPlayerList;</c>（生命周期 `svMain.pas:1636` Create /
+`:1637` LoadConfig / `:1414` AutoLoadSellPlayer / `:3180` Free）。原托管 `List<string> + SearchSellPlayer`（`IndexOf` 语义）
+**从类型上无法表达** `Items[I]` 记录访问 / `DeleteByIndex` / `AddSellPlayer` / `SaveConfig`。
+
+| 文件 | 改动 |
+|---|---|
+| `src/GXX.M2Server/Engine/M2ShareFuncs.cs` | `public static GXX.M2Server.Misc.TSellPlayerList g_SellPlayerList = new();`；**删除** `SearchSellPlayer`；注释里写明"接缝臆造修正"、依据行号与全部调用点 |
+| `src/GXX.M2Server/Forms/ViewOnlineHumanForm.cs:402` | `SearchSellPlayer(name, out _)` → `g_SellPlayerList.Search(name, out _)`（原文 `ViewOnlineHuman.pas:481`） |
+| `tests/GXX.M2Server.Tests/FormViewOnlineHumanTests.cs:206` | `g_SellPlayerList.Add("寄售乙")` → `AddSellPlayer("acc","寄售乙","deleg",0,1,0,false,"")`；`:18/:26` 的 `Clear()` 不变（新类型同样有） |
+| `tests/GXX.M2Server.Tests/SellPlayerTests.cs` | **+3 例**类型锁：`IsType<TSellPlayerList>`、记录访问+`DeleteByIndex`、用反射锁死"`SearchSellPlayer` 不存在 / 字段类型必须是 `TSellPlayerList`"（防复发） |
+
+> 说明：本车道在落地该请求时被宿主杀死，工作树中 4 个文件未提交；**由调度方按台账 §13.3 验证后代提交为 `3f71fdf9`**
+> （`build 0 error` / `M2Server.Tests 8534`）。**调度方未改动本车道任何一行产出。**
+
+### 11.2 请求 #2 —— `TFastIniFile` 补固定日期时间（实现整体回收进 `GXX.Core`）✅ 已落地
+
+- `src/GXX.Core/Util/FastIniFile.cs`（**新增**）：
+  - `public double ReadFixedDateTime(string section, string ident, double defaultValue)`（`FastIniFile.pas:2953-2971` 1:1）
+  - `public void WriteFixedDateTime(string section, string ident, double value)`（`:2985-2989` 1:1）
+  - 同文件**新增静态类** `TIniFixedDateTime`：`FIXED_DS/FIXED_DATE/FIXED_TS/FIXED_TIME/FIXED_DATETIME`
+    （`:189-194`）+ `FormatFixedDateTime` + `StrToDateDef` + `StrToTimeDef`（`:988-1024`）
+  - 注释里写明原文缺陷：**`FastIniFile.pas:2967-2968` 坏时间被静默归零**
+    （`StrToTimeDef(..., 0)` 的 Default 是 0，而判据 `T <> -1` ⇒ 恒真）。
+- `src/GXX.M2Server/Misc/SellPlayerSeams.cs`：`SellPlayerIni` **降级为纯转调**（保留 Delphi 单元级函数名与常量），
+  符合方向约束"`GXX.Core` 不得反向依赖 `GXX.M2Server`"。
+- 用例：Core **+24**（`EncodingHelperCoreWiringTests.cs`）；M2Server **+7**（`SellPlayerIniTests` 的转调等价核验，
+  含 `Theory` 5 组覆盖三条原文分支）。
+
+### 11.3 请求 #3 —— `TStringList` 补 `Text`（+ 编码状态）✅ 已落地
+
+- `src/GXX.Core/Util/TStringList.cs`（**新增**）：
+  - `public string Text { get; set; }` = `GetTextStr()` / `SetTextStr()`（`TStrings.GetTextStr`/`SetTextStr` 1:1）；
+  - `public string GetTextStr()`：**每行后追加 `LineBreak`（含最后一行）** ⇒ `Count > 0` 时必以 CRLF 结尾；
+  - `public void SetTextStr(string value)`：先 `Clear`，再按 `#13`/`#10`/`#13#10` 切行（**不使用 `LineBreak`**，与原文一致）；
+  - `DefaultEncoding`（懒取 GBK/936 = Delphi `TEncoding.Default`）、`GetEncoding()`（缓存）、`SetEncoding(v)`；
+  - `LineBreak`（默认 `"\r\n"`，置空抛 `ArgumentException`，对齐 `TStrings.SetLineBreak`）。
+- `src/GXX.M2Server/Forms/ItemProperty/CustomItemPropertyLogic.cs`：`GetTextStr/SetTextStr` **降级为纯转调**。
+- `src/GXX.M2Server/Forms/ItemProperty/CustomItemPropertyForm.cs`：两处调用点改回**逐字 1:1** 形态
+  （`:304` `mmoVar.Text = g_...TextVarList.Text`；`:472` `g_...TextVarList.Text = mmoVar.Text`）。
+- 用例：Core **+30**（`Text` 14 + 编码状态 3 + `LineBreak` 2 + `LoadFromFile`/`SaveToFile` 嗅探 11）。
+
+### 11.4 请求 #4 —— 把 `TEncodingHelper` 接到文件读取 + 移植其真实消费者 ✅ 已落地
+
+**① 移植 `StringListHelper.pas`（53 行）→ `src/GXX.M2Server/Misc/StringListHelper.cs`**
+
+| 行号区间（原文） | 内容 | 状态 |
+|---|---|---|
+| `1-3` | 单元注释「修复 StringList 读取无 bom 表的 Utf8 文件时乱码」 | 已覆盖（搬进文件头） |
+| `5-16` | 单元头 + `TStringListHelper = class helper for TStringList` 声明（两个 `overload; virtual`） | 已覆盖（→ 静态类 + 显式首参，形式偏差 D-P8-14） |
+| `22-32` | `LoadFromFile(const FileName: string)`：`TFileStream.Create(..., fmOpenRead or fmShareDenyWrite)` → `LoadFromStream(Stream, nil)` | 已覆盖 |
+| `34-51` | `LoadFromStream(Stream, Encoding)`：`GetBufferEncoding(Buffer, Encoding, DefaultEncoding)` → `SetEncoding` → `SetTextStr(Encoding.GetString(...))` | 已覆盖 |
+
+**② 接线**：`TFastIniFile.Load`（`FastIniFile.cs`）与 `TStringList.LoadFromFile`/`SaveToFile`（`TStringList.cs`）
+现均走 `TEncodingHelper.GetBufferEncoding` 嗅探链。
+`TFastIniFile` 的对应关系已核实到原文行号：`FastIniFile.pas:2432-2445 TFastIniFile.LoadValues`
+→ `:1743-1753 TIniItems.LoadFromFile(FileName, FEncoding)`（`Create(AFileName)` ⇒ `FEncoding = nil`）
+→ `:1757-1760 LoadFromStream(Stream)` → `:1762-1773 LoadFromStream(Stream, nil)` → `EncodingHelper.pas:167-179`。
+
+**③ 其它"该用嗅探却直接假设编码"的读取点清单（★ 只列清单，未改任何一处）**
+
+| # | 位置 | 现状 |
+|---|---|---|
+| 1 | `src/GXX.Core/Launcher/LauncherSettings.cs:188` | `File.ReadAllLines(path, gbk)` |
+| 2 | `src/GXX.DBServer/IniFiles.cs:50` | `File.ReadAllLines(_fileName, EncodingInit.GBK)`（`TIniFileEx` 家族，与 `GXX.Core` 的 TFastIniFile 是两份实现） |
+| 3 | `src/GXX.LogDataServer/LogDataService.cs:105` | `File.ReadAllLines(file, EncodingInit.GBK)` |
+| 4 | `src/GXX.M2Server/Engine/Boxs.cs:228` | `File.ReadAllLines(sFileName, Encoding.GetEncoding(936))` |
+| 5-6 | `src/GXX.M2Server/Engine/ClientModuleList.cs:96/129` | 固定 936（模块名清单） |
+| 7 | `src/GXX.M2Server/Engine/MissionPageState.cs:48` | `EncodingInit.GBK` |
+| 8 | `src/GXX.M2Server/Engine/ViewFormsData.cs:50` | 固定 936 |
+| 9-10 | `src/GXX.M2Server/Forms/TxtEditorForm.cs:86/171` | `EncodingInit.GBK`（**文本编辑器**——最典型的"用户可能给 UTF-8 文件"场景） |
+| 11 | `src/GXX.M2Server/Plugins/PluginAssemblyLoader.cs:140` | `EncodingInit.GBK` |
+| 12-13 | `src/GXX.M2Server/Plugins/PluginHostRuntime.cs:101/174` | `EncodingInit.GBK` |
+| 14 | `src/GXX.SelGate/SelGateConfig.cs:297` | `EncodingInit.GBK` |
+
+> 其中 **#9/#10 `TxtEditorForm`** 与新接线的 `TStringList.LoadFromFile` 语义最相关（同一个"打开文本文件"场景），
+> 建议后续由该文件所属车道评估统一走 `TEncodingHelper`。**本车道未擅自修改**（分区纪律）。
+> 其余 `GBK.GetString(...)`（`Pak.cs`/`Wis.cs`/`Uib.cs`/`GuiRecords.g.cs`/`DesUnit.cs` 等）是**二进制格式内的定长文本字段**，
+> GBK 是格式契约而非"猜测"，**不属于**本清单。
+
+### 11.5 ★★ 新发现的原文缺陷：**GBK 文本被误判为「无 BOM 的 UTF-8」**（请求 #3/#4 过程中被单测抓出）
+
+**这是本车道第二轮最有价值的发现，且它由"忠实移植"直接暴露**——我最初写的用例用「值」做 GBK 样本，
+结果 `TFastIniFile.Load` 读出来是乱码，追查后确认**原文也如此**（不是我移植引入的）。
+
+**成因**：`EncodingHelper.pas:167-179` 的嗅探第 4 条是"`IsBufferUTF8` 为真 → `NoBomUTF8`"，
+而 `IsBufferUTF8`（`:78-83`）按 **UTF-8 字节形态**判断，**没有 GBK 排他性**：
+
+| 事实 | 证据 |
+|---|---|
+| 「值」的 GBK 字节是 `D6 B5` | `EncodingInit.GBK.GetBytes("值") == {0xD6,0xB5}`（用例断言） |
+| `D6 B5` 恰好是**合法**的 UTF-8 两字节序列 | `D6 ∈ $C0..$DF` 且 `B5 ∈ $80..$BF` ⇒ `IsBufferUTF8` 返回 **True**（用例断言） |
+| 于是整份 GBK 文件被当 UTF-8 解码 | 只要**第一个非 ASCII 字节起、到文件尾**全部构成合法 UTF-8 序列即触发 |
+
+**触发面**：GBK 首字节落在 `$C0..$DF` 且**次字节落在 `$80..$BF`**（GBK 次字节范围 `$40..$FE` 的子集），
+其后**全是 ASCII 或同样"看起来合法"的序列**。典型场景：`Key=值`、`名字=值`（单个/少量汉字 + 其余全 ASCII）。
+对照组：「测试」= `B2 E2 CA D4`，`B2` 不是合法 UTF-8 首字节 ⇒ 不会触发（用例 `..._GbkFileWithUnsafeLeadByte_DecodesAsGbk`）。
+
+**完整调用链（原文，逐层已核实行号）**：
+
+```
+FastIniFile.pas:2432-2445  TFastIniFile.LoadValues
+  → :1743-1753             TIniItems.LoadFromFile(FileName, FEncoding)   // Create(AFileName) ⇒ FEncoding = nil
+  → :1757-1760             LoadFromStream(Stream) → LoadFromStream(Stream, nil)
+  → :1762-1773             Size := TEncoding.GetBufferEncoding(Buffer, Encoding)
+  → EncodingHelper.pas:167-179   BOM 三条不中 → IsBufferUTF8 为真 ⇒ AEncoding := TEncoding.NoBomUTF8
+```
+`StringListHelper.pas:45` 是**同一条链**（它正是"修 UTF-8 乱码"的补丁），因此**反方向**的 GBK 误判对它同样成立。
+
+**本车道的处置（忠实优先 + 显著登记 + 用例锁定）**：
+1. **不擅自加"GBK 安全阈值"**——那会偏离 1:1 语义（本工程的核心纪律）；
+2. 把该行为**用两支用例锁死**：`..._IsMisdetected_OriginalFlaw`（证明缺陷存在且复刻了原文行为）
+   与 `..._GbkFileWithUnsafeleadByte_DecodesAsGbk`（对照组）；
+3. 在此**显著登记**，并给出"若调度方决定加保险"的最小改法（**不由本车道执行**）：
+   `TEncodingHelper.GetBufferEncoding` 增加可选参数 `bool preferAnsiWhenAmbiguous`，
+   当 `IsBufferUTF8` 命中但**同时**能按默认 ANSI 解出更少替换符时回落 ANSI；
+   **注意这属于语义增强，会改变 `EncodingHelper.pas` 的 1:1 契约，须走正式偏离登记。**
+
+> **对集成方的提示（重要）**：本请求把 `TFastIniFile.Load` 接到了嗅探链（忠实原文），
+> 因此**任何"GBK 内容恰好构成合法 UTF-8 序列"的 INI 都会被误读**。若 main 上已有此类真实配置
+> （如 `SellPlayer.ini` 的 `Player=值` 这种单汉字值），请在并入前用真实配置做一次冒烟。
+
+### 11.6 ★ 为什么命名空间**不能**叫 `GXX.Core.Encoding`（独立条目，防后人"顺手改名"）
+
+**结论**：本车道 `src/GXX.Core/Encoding/EncodingHelper.cs` 的命名空间是 **`GXX.Core.EncodingHelper`**，
+**不是** `GXX.Core.Encoding`。**后者会导致编译失败，且失败点在本车道无权修改的他方文件里。**
+
+**机理（C# 名字解析）**：在命名空间 `N` 内使用简单名 `X` 时，编译器**逐层向外**在"命名空间成员"里查找
+`X`——**命名空间与类型共用同一声明空间**。若存在命名空间 `GXX.Core.Encoding`，那么：
+
+- 文件 `GXX.CSharp/src/GXX.Core/EncodingInit.cs`（`namespace GXX.Core;`，第 22/28/31/36 行使用
+  `Encoding.RegisterProvider(...)`、`Encoding?`、`Encoding.GetEncoding(936)`）中的 `Encoding`
+  会解析到**命名空间 `GXX.Core.Encoding`**，而不是 `System.Text.Encoding`
+  ⇒ **CS0118：`'Encoding' is a namespace but is used like a type`**；
+- 同样受影响的还有 `GXX.Core.Launcher/LauncherSettings.cs:186/327`（`Encoding.GetEncoding(936)`）
+  与 `GXX.Core.Paradox/ParadoxDataSet.cs:288-296`（`ParadoxConvSeam.Encoding(...)` 是方法名，另有 `TEncodingKind`）。
+
+**为何不能"顺手把那几个文件加上限定名"**：它们在 **`src/GXX.Core/**` 的他方常驻区**（除本车道获批的
+`Encoding/**`、`Util/FastIniFile.cs`、`Util/TStringList.cs`），按分区纪律**一个文件只能有一个写者**。
+
+**因此**：目录名 `Encoding/` 与命名空间名 `GXX.Core.EncodingHelper` **有意不一致**（C# 不要求一致），
+登记为偏离 **D-P8-7**。**后人不要"顺手改名"。**
+
+### 11.7 第二轮新增偏离登记（承 §8）
+
+| 编号 | 位置 | 偏离内容 | 理由 / 恢复途径 |
+|---|---|---|---|
+| **D-P8-10** | `TStringList.SaveToFile` | 由"固定 GBK"改为 `GetEncoding()` + `GetPreamble()` | Delphi `TStrings.SaveToStream(Stream, GetEncoding)` 先写 BOM 再写 `GetBytes(GetTextStr)`。**对从未 LoadFrom* 过的列表 / GBK 载入的列表字节完全一致**（GBK preamble 为空），只有 UTF-8/UTF-16 载入过的列表才改变 |
+| **D-P8-11** | `TIniFixedDateTime.FormatFixedDateTime` | 超出 OLE 日期范围时**返回空串**（Delphi `FormatDateTime` 会抛 `EConvertError`） | 避免"写 INI 时因一个坏值整文件写失败"；恢复途径：改成 `throw` |
+| **D-P8-12** | `TStringList.LoadFromFile` / `TEncodingHelper` 相关读取 | 文件不存在时**不抛**（保持既有托管行为） | Delphi `TFileStream.Create` 会抛 `EFOpenError`；既有各车道调用点依赖"缺失即空表"，本次**只改编码路径**、不动缺文件语义 |
+| **D-P8-13** | `TStringList.LoadFromFile` | 由"固定 GBK"改为嗅探（BOM / UTF-16 / 无 BOM UTF-8 / 回落 GBK） | 对齐 Delphi RTL `TStrings.LoadFromStream` 的 `GetBufferEncoding` 语义；同时**继承 §11.5 的误判风险** |
+| **D-P8-14** | `TStringListHelper` | Delphi `class helper` → C# **静态类**（实例作首参）；原文的 `virtual` 无对应物 | C# 12 无 class helper；`virtual` 在 helper 里意为"后代 helper 可覆盖"，静态方法无虚分派 |
+| **D-P8-15** | `TFastIniFile.Load` / `Save` 不对称 | `Load` 已按嗅探解码，`Save` **仍固定 GBK** | Delphi 的 `TIniItems` 会把读入时的 `FEncoding` 用于回写。本次范围只批了 `Load`；**后果**：从 UTF-8 文件载入的 INI 再落盘会变回 GBK。恢复途径：`Save` 改用读到的编码 + preamble（与 D-P8-10 同形） |
+| **D-P8-16** | `TEncodingHelper.GetBufferEncoding` 的嗅探 | **未加**"GBK 排他性"保险，逐字复刻原文（含 §11.5 的误判） | 1:1 优先；增强方案与影响已写在 §11.5，须由调度方裁定 |
+
+### 11.8 第二轮新增文件 / 测试
+
+| 文件 | 行数 | 说明 |
+|---|---|---|
+| `src/GXX.M2Server/Misc/StringListHelper.cs` | 89 | `StringListHelper.pas:1-53` 全单元 1:1；**`EncodingHelper` 的首个生产调用方** |
+| `tests/GXX.M2Server.Tests/StringListHelperTests.cs` | 292 | 19 例：4 种编码差异断言、`LoadFromStream` 语义、`Stream.Position`、`DefaultEncoding` 回落、原文误判锁定、往返稳定 |
+| `tests/GXX.Core.Tests/EncodingHelperCoreWiringTests.cs` | 625 | **63 例**（实跑）：`TIniFixedDateTime`/`TFastIniFile.ReadFixedDateTime` 24 + `TStringList.Text` 与编码状态 30 + `TFastIniFile.Load` 嗅探与原文缺陷锁定 9 ※ 三项分属请求 #2/#3/#4，在各自切片中追加进同一文件 |
+
+> 文件名说明：`tests/GXX.Core.Tests/EncodingHelperCoreWiringTests.cs` 沿用本车道在该工程的授权前缀
+> `EncodingHelper*`（**不越出文件分区**），内容却覆盖请求 #2/#3/#4 三项 Core 侧落地 —— 名称与内容不完全对应，
+> 在此如实登记。
+
+### 11.9 纪律遵守与流程事实（如实记录）
+
+1. **`.cs` 一律用编辑工具**（`edit`/`write`），**全程未使用脚本替换或 `Set-Content`**；写入均为**绝对路径**。
+2. **小切片、立刻提交**：第二轮 4 个切片各自提交（`3f71fdf9`（调度方代提交）、`38d5b6af`、`032a3e44`、`ae414926`）。
+3. **⚠ 流程事实（需登记）**：车道在完成请求 #1 的 4 个文件改动、**尚未提交**时被宿主杀死；
+   调度方按台账 §13.3 验证后代提交为 `3f71fdf9`。**此后每个切片均即时提交**，未再出现未提交产出。
+4. **最后一次提交必须全绿**：本轮最终门禁 = `build 0 error` / `M2Server.Tests 8560` / `Core.Tests 953`（见 §4.1），
+   且该结果在报告提交**之前**的代码 HEAD（`ae414926`）上实跑；报告为纯 `.md`、不参与编译。
+5. **不存在"偶发豁免"**：第二轮出现过 **3 次红**（`LoadFromFile_FourEncodings...` 的断言写错 2 次；
+   `FastIniFile_Load_SniffsEncoding...` 的 GBK 样本触发 §11.5 缺陷 1 次），**全部定位根因后修复**，
+   其中第 3 次直接催生了 §11.5 的原文缺陷登记与两支锁定用例。
