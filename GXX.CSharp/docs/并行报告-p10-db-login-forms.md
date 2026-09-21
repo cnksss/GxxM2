@@ -53,7 +53,7 @@
 **类名改写**（`Tfrm…` → `…Form`），不是真缺口。**处置**：本车道**不建同名 `.cs`**（那会制造
 "第 2 份实现"，违反 §14.2），登记为"死代码 + 已移植（重命名）"。
 
-> ⚠ 顺带发现 2 处该既有移植的**小偏离**（在分区外，未改，登记为 B-P10-06）：
+> ⚠ 顺带发现 2 处该既有移植的**小偏离**（在分区外，未改，登记为 B-P10-05）：
 > ① `GroupBox1.Text` 写成 `"路由"`，而 DFM 的 `Caption` 是字面量 `'GroupBox1'`；
 > ② 窗体尺寸 `420×260` vs DFM `ClientWidth=482 / ClientHeight=357`；
 > ③ 行数注释写"26 行"（那是 **DFM** 的行数；`.pas` 是 35 行）。
@@ -86,9 +86,12 @@
 | `LSShare.TConnInfo` / `TConfig.SessionList: TGList` | `TConnInfo` **0 命中**；`LoginSrvShare.TConfig`（`LoginSrvShare.cs:133-275`）**无 `SessionList` 字段** | `GrobalSession` 自带最小面 `TConnInfo` + 静态接缝宿主（未接线即抛）；`TGList` 复用 `GXX.Core.Protocol.SDK.TGList`（`SDK.cs:55`） |
 | `LSShare.TMsgServerInfo` | `LoginSrvShare.cs:287` 只有 **4 字段**（真身 7 字段，且全树只定义在 `MasSock.pas`） | MasSock 自带 7 字段版本于子命名空间；接缝退役列为 B-P10-05 |
 | `GHeroDB.pas` 的 `THeroDB` | **0 命中**（`GXX.DBServer` 的 `THeroDBBase` 是 `RoleDB.pas` 的另一回事） | `GHeroDBConfig` 自带显式接缝（默认抛"未接线"） |
-| `DBShare.pas` 的 `THumData` / `THeroData` | `GXX.LoginSrv/RoleDBSeam.cs` 有**同名但不同源**的两个类（**不可复用**） | `uFrmRoleDataEdit` 自带显式接缝 |
-| `TSpinEditLongWord` | `GXX.DBServer/SpinControls.cs` 只有 `TSpinEdit`/`TSpinEditEx` | `uFrmRoleDataEdit` 自带 |
-| `Classes.TMemoryStream` 系 | `GXX.RunGate/IniFilesEx.cs:637`（`TMemoryStreamEx` 接缝）、`GXX.Core/Paradox/ParadoxDataSet.Seams.cs:129`（`TMemoryStream` 接缝）——**都各自注明"待 MemoryStreamEx.pas 移植后接入"** | `FileSearchPool` 的 `TCustomMemoryStreamEx`/`TMemoryStreamEx` 是 **FileSearchPool.pas 单元内自带的私有副本**（不是 `MemoryStreamEx.pas`）⇒ 属于本单元，按 1:1 自带；三份接缝的统一列为 B-P10-07 |
+| `DBShare.pas` 的 `THumData` / `THeroData` | ★ **已存在**：`GXX.Core.Protocol.THumData`（`Grobal2.Types4.cs:128`，`unsafe struct` + `Pack=1` + `fixed byte` 短串）与 `THeroData`（同文件 `:275`）；`GXX.DBServer/MySqlRoleDB.Base.cs:43/50/448/451` 与 `DBServerService.cs:259-280` 已在用它们 | **复用**（不造替身）。⚠ `GXX.LoginSrv/RoleDBSeam.cs:36/41` 另有**同名但不同源**的两个类（RoleDB.pas 侧接缝），**不可混用** |
+| `SizeOf(THumData)` 字节级记录 I/O | ★ **已存在**：`GXX.Core.Protocol.StructBytes`（`ShortStr.cs:77`）：`SizeOf<T>` / `BytesOf<T>` / `FromBytes<T>` / `ToBytes<T>` | **复用**（`uFrmRoleDataEdit` 的 `FileWrite/FileRead(... SizeOf(...))` 直接落在这上面） |
+| `g_RoleDB.HumanDB/HeroDB` | ★ **已存在注入点**：`GXX.DBServer.SelectClientRoleDbSeam.HumanDB/HeroDB`（`SelectClient.Seams.cs:141-181`，含显式抛错的 `RequireHuman/RequireHero`）；`THumanDBBase.Save(int, ref THumData)`（`MySqlRoleDB.Base.cs:352`）、`THeroDBBase.Save(int, ref THeroData)`（`:547`） | **复用**。⚠ 适配器 `SelectClientHumanDb/SelectClientHeroDb` 只接线了 `SelectClient.pas` 用到的 `Do*`，其余抛 `NotSupportedException` ⇒ 若窗体走 `Save`，宿主需换用完整适配器（跨区事项） |
+| `TSpinEditLongWord` | `GXX.DBServer/SpinControls.cs` 只有 `TSpinEdit`/`TSpinEditEx`（`TSpinEditEx` 可直接复用） | `uFrmRoleDataEdit` 自带 `TSpinEditLongWord` |
+| `TListView` 列表面 | ★ **已存在**：`GXX.DBServer/ListViewSink.cs` 的 `IListViewSink`/`ListViewSink`（`Ranking.cs` 已有 9 处在用） | **复用** |
+| `Classes.TMemoryStream` 系 | `GXX.RunGate/IniFilesEx.cs:637`（`TMemoryStreamEx` 接缝）、`GXX.Core/Paradox/ParadoxDataSet.Seams.cs:129`（`TMemoryStream` 接缝）——**都各自注明"待 MemoryStreamEx.pas 移植后接入"** | `FileSearchPool` 的 `TCustomMemoryStreamEx`/`TMemoryStreamEx` 是 **FileSearchPool.pas 单元内自带的私有副本**（不是 `MemoryStreamEx.pas`）⇒ 属于本单元，按 1:1 自带；三份接缝的统一列为 B-P10-06 |
 | 线程池设施（`GatewayKit`） | GatewayKit 里 **0 个** `TPoolManager`/`TPoolThread`/`TSearchManager` 声明（实测） | 无同族可复用 ⇒ `LogDataServer/ThreadPool.pas` 按 1:1 真移植（**已先读再判**） |
 | `SelGate/ThreadPool.pas` 与 `LoginGate/ThreadPool.pas` | 两份 **逐字节相同**（sha256 `702113A1F52B0FC1`，26,839 B），是 Windows APC 线程池封装；`LogDataServer/ThreadPool.pas` **不同**（9,736 B，`F19C2EA4579DEEDC`） | 逐副本裁定：网关两份 = 已登记 VENDOR（被 GatewayKit 取代）；LogDataServer 份 = 本车道真移植（文件名就叫 `ThreadPool.cs`，无歧义） |
 
@@ -236,6 +239,7 @@
 | B-P10-04 | `src/GXX.LoginSrv/LoginSrvShare.cs` 的 `TConfig` 缺 `SessionList: TGList`；`GrobalSession` 已用静态接缝 `GrobalSessionHost.SessionList` 承载（未接线即抛） | LSShare 整单元落地时必须把接缝换成 `TConfig.SessionList` 并补 `TConnInfo`（本区已声明最小面 5 字段版本，需去重） |
 | B-P10-05 | `src/GXX.GameCenter/GLoginServer.cs:85-130` 的既有 `LoginServerRouteSetForm` 三处小偏离（`GroupBox1.Text` 应为字面量 `'GroupBox1'`、窗体尺寸、行数注释） | 界面一致性；见 §0.2 |
 | B-P10-06 | `TMemoryStream`/`TMemoryStreamEx` 全仓现有 **3 份接缝**（`GXX.RunGate/IniFilesEx.cs:637`、`GXX.Core/Paradox/ParadoxDataSet.Seams.cs:129`、本车道 `Pool/FileSearchPool.cs`）+ 待移植的 `Common/MemoryStreamEx.pas` | 建议下一波统一到 `MemoryStreamEx.pas` 的真移植上（§14.2 家族） |
+| B-P10-07 | ★ **`unit-map.tsv` 的车道行收口**（按 §38.2/§41.10，车道一经合并必须回头清理）：<br>① `:123 GLoginServerRouteSet par/p10-db-login-forms` —— **应删行**：本单元是**死代码**（见 §0.2 六条取证）+ 已有重命名实现，不属于"在飞"，留着就是"永久占位行"；<br>② `:119-122`、`:124-125`（`uFrmRoleDataEdit`/`MasSock`/`GrobalSession`/`GHeroDBConfig`/`LogDataServer/ThreadPool`/`FileSearchPool`）—— 合并后**删行**（E1 同名 `.cs` 会接管）；<br>③ `FileSearchPool` 目前是**裸 basename** 行，全树只有一份副本（实测），可安全删；`LogDataServer/ThreadPool` 必须保留**逐副本键**（`SelGate/ThreadPool`、`LoginGate/ThreadPool` 仍是 VENDOR/not-ported，见 `tools/audit-coverage.ps1:90-100`） | 不清理则报表同时"假装在飞"与"不是缺口"（§41.10 的第 3 批系统性缺陷） |
 
 ### 4.2 本车道未完成项
 
